@@ -36,6 +36,10 @@ var knownStrategyFamilies = map[string]bool{
 	"mean_reversion_entry": true,
 }
 
+var knownRiskFamilies = map[string]bool{
+	"position_exposure": true,
+}
+
 // ── Cross-layer dependency rules ────────────────────────────────────
 // Each signal family declares which evidence families it requires.
 // Each decision family declares which signal families it requires.
@@ -53,6 +57,10 @@ var strategyDependsOnDecision = map[string][]string{
 	"mean_reversion_entry": {"rsi_oversold"},
 }
 
+var riskDependsOnStrategy = map[string][]string{
+	"position_exposure": {"mean_reversion_entry"},
+}
+
 // PipelineConfig holds optional processing parameters used by derive and store.
 type PipelineConfig struct {
 	Timeframes       []int    `json:"timeframes"`
@@ -60,6 +68,7 @@ type PipelineConfig struct {
 	SignalFamilies   []string `json:"signal_families"`
 	DecisionFamilies []string `json:"decision_families"`
 	StrategyFamilies []string `json:"strategy_families"`
+	RiskFamilies     []string `json:"risk_families"`
 }
 
 // TimeframeDurations returns the configured timeframes as durations.
@@ -154,6 +163,28 @@ func (p PipelineConfig) EnabledStrategyFamilies() []string {
 	}
 	result := make([]string, len(p.StrategyFamilies))
 	copy(result, p.StrategyFamilies)
+	return result
+}
+
+// IsRiskFamilyEnabled returns true if the given risk family name is in the configured
+// risk_families list. Like strategy families, absent risk_families means NO risk
+// activation (opt-in, not backward-compatible default).
+func (p PipelineConfig) IsRiskFamilyEnabled(family string) bool {
+	for _, f := range p.RiskFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledRiskFamilies returns the configured risk families list.
+func (p PipelineConfig) EnabledRiskFamilies() []string {
+	if len(p.RiskFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.RiskFamilies))
+	copy(result, p.RiskFamilies)
 	return result
 }
 
@@ -265,6 +296,35 @@ func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 					Field:   "pipeline.strategy_families",
 					Message: fmt.Sprintf("strategy family %q requires decision family %q to be enabled", strat, dec),
 					Value:   strat,
+				})
+			}
+		}
+	}
+
+	// 8. Reject unknown risk family names.
+	for _, f := range p.RiskFamilies {
+		if !knownRiskFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.risk_families",
+				Message: fmt.Sprintf("unknown risk family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 9. Risk → strategy dependency: each enabled risk must have its
+	//    required strategy families enabled.
+	for _, rsk := range p.RiskFamilies {
+		deps, ok := riskDependsOnStrategy[rsk]
+		if !ok {
+			continue
+		}
+		for _, strat := range deps {
+			if !p.IsStrategyFamilyEnabled(strat) {
+				issues = append(issues, problem.ValidationIssue{
+					Field:   "pipeline.risk_families",
+					Message: fmt.Sprintf("risk family %q requires strategy family %q to be enabled", rsk, strat),
+					Value:   rsk,
 				})
 			}
 		}

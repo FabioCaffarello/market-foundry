@@ -6,6 +6,7 @@ import (
 	configctlclient "internal/application/configctlclient"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/interfaces/http/routes"
@@ -128,6 +129,24 @@ func Run(config settings.AppConfig) {
 		getLatestStrategyUseCase = strategyclient.NewGetLatestStrategyUseCase(stratGateway)
 	}
 
+	// Risk gateway — queries the store binary for risk read models.
+	// Optional: degrades gracefully if the store is not running.
+	riskGateway, riskCloseFn, riskProb := newRiskGateway(config)
+	if riskProb != nil {
+		logger.Warn("risk gateway unavailable", "error", riskProb)
+	}
+	if riskCloseFn != nil {
+		defer func() {
+			if err := riskCloseFn(); err != nil {
+				logger.Error("close risk gateway", "error", err)
+			}
+		}()
+	}
+	var getLatestRiskUseCase *riskclient.GetLatestRiskUseCase
+	if riskGateway != nil {
+		getLatestRiskUseCase = riskclient.NewGetLatestRiskUseCase(riskGateway)
+	}
+
 	gatewayRoutes := routes.DefaultRoutes(routes.Dependencies{
 		Readiness:                    newGatewayReadinessChecker(config, gateway, evGateway),
 		CreateDraft:                  createDraftUseCase,
@@ -154,6 +173,9 @@ func Run(config settings.AppConfig) {
 		},
 		Strategy: routes.StrategyFamilyDeps{
 			GetLatestStrategy: getLatestStrategyUseCase,
+		},
+		Risk: routes.RiskFamilyDeps{
+			GetLatestRisk: getLatestRiskUseCase,
 		},
 	})
 

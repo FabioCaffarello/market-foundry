@@ -24,6 +24,8 @@
     // Decision families to evaluate from signals. Opt-in only — absent means no decision activation.
     "decision_families": ["rsi_oversold"],
     // Strategy families to resolve from decisions. Opt-in only — absent means no strategy activation.
-    "strategy_families": ["mean_reversion_entry"]
+    "strategy_families": ["mean_reversion_entry"],
+    // Risk families to evaluate from strategies. Opt-in only — absent means no risk activation.
+    "risk_families": ["position_exposure"]
   }
 }

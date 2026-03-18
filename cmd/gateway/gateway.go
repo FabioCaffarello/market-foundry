@@ -84,3 +84,19 @@ func newStrategyGateway(config settings.AppConfig) (ports.StrategyGateway, func(
 	gateway := adapternats.NewStrategyGateway(requestClient, "gateway.http")
 	return gateway, requestClient.Close, nil
 }
+
+// newRiskGateway creates a NATS request/reply client for querying risk projections.
+// Optional: degrades gracefully if the store is not running.
+func newRiskGateway(config settings.AppConfig) (ports.RiskGateway, func() error, *problem.Problem) {
+	if !config.NATS.Enabled {
+		return nil, nil, nil
+	}
+
+	requestClient, err := adapternats.NewNATSRequestClientWithURL(config.NATS.URL, config.NATS.RequestTimeoutDuration())
+	if err != nil {
+		return nil, nil, problem.Wrap(err, problem.Unavailable, "failed to initialize risk request client")
+	}
+
+	gateway := adapternats.NewRiskGateway(requestClient, "gateway.http")
+	return gateway, requestClient.Close, nil
+}

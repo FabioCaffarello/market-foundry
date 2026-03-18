@@ -9,6 +9,7 @@ import (
 	adapternats "internal/adapters/nats"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/domain/evidence"
@@ -25,6 +26,7 @@ type QueryResponderConfig struct {
 	SignalRegistry   *adapternats.SignalRegistry   // nil when no signal families are enabled
 	DecisionRegistry *adapternats.DecisionRegistry // nil when no decision families are enabled
 	StrategyRegistry *adapternats.StrategyRegistry // nil when no strategy families are enabled
+	RiskRegistry     *adapternats.RiskRegistry     // nil when no risk families are enabled
 }
 
 // QueryResponderActor serves evidence and signal queries from the NATS KV stores.
@@ -38,6 +40,7 @@ type QueryResponderActor struct {
 	signalRSIStore           *adapternats.SignalKVStore
 	decisionRSIOversoldStore             *adapternats.DecisionKVStore
 	strategyMeanReversionEntryStore      *adapternats.StrategyKVStore
+	riskPositionExposureStore            *adapternats.RiskKVStore
 	responder                            *adapternats.RequestReplyResponder
 }
 
@@ -90,6 +93,11 @@ func (a *QueryResponderActor) Receive(c *actor.Context) {
 		if a.strategyMeanReversionEntryStore != nil {
 			if err := a.strategyMeanReversionEntryStore.Close(); err != nil {
 				a.logger.Error("close strategy mean reversion entry query KV store", "error", err)
+			}
+		}
+		if a.riskPositionExposureStore != nil {
+			if err := a.riskPositionExposureStore.Close(); err != nil {
+				a.logger.Error("close risk position exposure query KV store", "error", err)
 			}
 		}
 
@@ -203,6 +211,23 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		))
 	}
 
+	// Wire risk query routes if risk families are enabled.
+	if a.cfg.RiskRegistry != nil {
+		riskStore := adapternats.NewRiskKVStore(a.cfg.NATSURL, adapternats.RiskPositionExposureLatestBucket)
+		if err := riskStore.Start(); err != nil {
+			a.logger.Error("start risk position exposure query KV store", "error", err)
+			c.Engine().Poison(c.PID())
+			return
+		}
+		a.riskPositionExposureStore = riskStore
+
+		routes = append(routes, adapternats.NewTypedControlRoute(
+			a.cfg.RiskRegistry.PositionExposureLatest,
+			a.cfg.Source,
+			a.handleRiskPositionExposureLatest,
+		))
+	}
+
 	responder := adapternats.NewRequestReplyResponder(a.cfg.NATSURL, routes)
 	if err := responder.Start(); err != nil {
 		a.logger.Error("start query responder", "error", err)
@@ -238,6 +263,12 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		logFields = append(logFields,
 			"subject_strategy_mean_reversion_entry_latest", a.cfg.StrategyRegistry.MeanReversionEntryLatest.Subject,
 			"bucket_strategy_mean_reversion_entry_latest", adapternats.StrategyMeanReversionEntryLatestBucket,
+		)
+	}
+	if a.cfg.RiskRegistry != nil {
+		logFields = append(logFields,
+			"subject_risk_position_exposure_latest", a.cfg.RiskRegistry.PositionExposureLatest.Subject,
+			"bucket_risk_position_exposure_latest", adapternats.RiskPositionExposureLatestBucket,
 		)
 	}
 	a.logger.Info("query responder started", logFields...)
@@ -308,4 +339,13 @@ func (a *QueryResponderActor) handleStrategyMeanReversionEntryLatest(ctx context
 	}
 
 	return strategyclient.StrategyLatestReply{Strategy: strat}, nil
+}
+
+func (a *QueryResponderActor) handleRiskPositionExposureLatest(ctx context.Context, query riskclient.RiskLatestQuery) (riskclient.RiskLatestReply, *problem.Problem) {
+	assessment, prob := a.riskPositionExposureStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return riskclient.RiskLatestReply{}, prob
+	}
+
+	return riskclient.RiskLatestReply{RiskAssessment: assessment}, nil
 }

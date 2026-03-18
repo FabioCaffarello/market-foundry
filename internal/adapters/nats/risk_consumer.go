@@ -80,6 +80,15 @@ func (c *RiskConsumer) Start() error {
 }
 
 func (c *RiskConsumer) onMessage(msg jetstream.Msg) {
+	meta, _ := msg.Metadata()
+	if meta != nil && meta.NumDelivered > 1 {
+		c.logger.Warn("risk event redelivered",
+			"subject", msg.Subject(),
+			"num_delivered", meta.NumDelivered,
+			"stream_seq", meta.Sequence.Stream,
+		)
+	}
+
 	env, prob := decodeEvent[risk.RiskAssessedEvent](c.spec.Event, msg.Data())
 	if prob != nil {
 		c.logger.Error("decode risk event",

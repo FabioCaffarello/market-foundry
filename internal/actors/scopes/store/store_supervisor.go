@@ -70,6 +70,18 @@ type StrategyPipeline struct {
 	NewConsumer    func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.StrategyRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
 }
 
+// RiskPipeline describes one risk type's projection pipeline in the store.
+// Uses RiskRegistry for consumers and IsRiskFamilyEnabled for activation (opt-in).
+type RiskPipeline struct {
+	Family         string
+	ProjectionName string
+	ConsumerName   string
+	Buckets        []string
+	ConsumerSpec   adapternats.ConsumerSpec
+	NewProjection  func(natsURL string, tracker *healthz.Tracker) actor.Producer
+	NewConsumer    func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.RiskRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
+}
+
 // StoreSupervisor is the root actor for the store binary.
 // It materializes evidence events into a persistent read model (NATS KV)
 // and serves queries from the gateway. Projection pipelines are registered
@@ -324,7 +336,50 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 		}
 	}
 
-	// Spawn query responder (serves evidence, signal, decision, and strategy queries).
+	// --- Risk pipelines (opt-in via pipeline.risk_families) ---
+	riskRegistry := adapternats.DefaultRiskRegistry()
+
+	allRiskPipelines := []RiskPipeline{
+		{
+			Family:         "position_exposure",
+			ProjectionName: "risk-position-exposure-projection",
+			ConsumerName:   "risk-position-exposure-consumer",
+			Buckets:        []string{adapternats.RiskPositionExposureLatestBucket},
+			ConsumerSpec:   adapternats.StorePositionExposureRiskConsumer(),
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewRiskProjectionActor(RiskProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  adapternats.RiskPositionExposureLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.RiskRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
+				return NewRiskConsumerActor(RiskConsumerConfig{
+					URL: natsURL, ConsumerSpec: spec, Registry: registry, ProjectionPID: projPID, Tracker: tracker,
+				})
+			},
+		},
+	}
+
+	var enabledRiskFamilies []string
+	for _, rp := range allRiskPipelines {
+		if s.cfg.Pipeline.IsRiskFamilyEnabled(rp.Family) {
+			projTracker := s.trackers[rp.ProjectionName]
+			consTracker := s.trackers[rp.ConsumerName]
+
+			projPID := ctx.SpawnChild(rp.NewProjection(s.cfg.NATS.URL, projTracker), rp.ProjectionName)
+			ctx.SpawnChild(rp.NewConsumer(s.cfg.NATS.URL, rp.ConsumerSpec, riskRegistry, projPID, consTracker), rp.ConsumerName)
+
+			allBuckets = append(allBuckets, rp.Buckets...)
+			enabledRiskFamilies = append(enabledRiskFamilies, rp.Family)
+		} else {
+			s.logger.Info("risk pipeline skipped (not in pipeline.risk_families)",
+				"family", rp.Family,
+			)
+		}
+	}
+
+	// Spawn query responder (serves evidence, signal, decision, strategy, and risk queries).
 	qrCfg := QueryResponderConfig{
 		NATSURL:  s.cfg.NATS.URL,
 		Source:   "store.query-responder",
@@ -338,6 +393,9 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 	}
 	if len(enabledStrategyFamilies) > 0 {
 		qrCfg.StrategyRegistry = &stratRegistry
+	}
+	if len(enabledRiskFamilies) > 0 {
+		qrCfg.RiskRegistry = &riskRegistry
 	}
 	ctx.SpawnChild(NewQueryResponderActor(qrCfg), "query-responder")
 
@@ -358,6 +416,7 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 		"signal_families", enabledSignalFamilies,
 		"decision_families", enabledDecisionFamilies,
 		"strategy_families", enabledStrategyFamilies,
+		"risk_families", enabledRiskFamilies,
 		"consumers", durables,
 		"stream", evRegistry.CandleSampled.Stream.Name,
 		"buckets", allBuckets,

@@ -7,6 +7,7 @@ import (
 	configctlcontracts "internal/application/configctl/contracts"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/interfaces/http/handlers"
@@ -66,6 +67,17 @@ func (s StrategyFamilyDeps) HasAny() bool {
 	return s.GetLatestStrategy != nil
 }
 
+// RiskFamilyDeps groups risk query use cases.
+// Adding a new risk operation means adding one field here and one route block in Risk().
+type RiskFamilyDeps struct {
+	GetLatestRisk handlersGetLatestRiskUseCase
+}
+
+// HasAny reports whether at least one risk use case is available.
+func (r RiskFamilyDeps) HasAny() bool {
+	return r.GetLatestRisk != nil
+}
+
 type Dependencies struct {
 	Readiness                    handlers.ReadinessChecker
 	CreateDraft                  handlersCreateDraftUseCase
@@ -82,6 +94,7 @@ type Dependencies struct {
 	Signal                       SignalFamilyDeps
 	Decision                     DecisionFamilyDeps
 	Strategy                     StrategyFamilyDeps
+	Risk                         RiskFamilyDeps
 }
 
 type handlersCreateDraftUseCase interface {
@@ -152,6 +165,10 @@ type handlersGetLatestStrategyUseCase interface {
 	Execute(context.Context, strategyclient.StrategyLatestQuery) (strategyclient.StrategyLatestReply, *problem.Problem)
 }
 
+type handlersGetLatestRiskUseCase interface {
+	Execute(context.Context, riskclient.RiskLatestQuery) (riskclient.RiskLatestReply, *problem.Problem)
+}
+
 func DefaultRoutes(deps Dependencies) []webserver.Route {
 	readiness := deps.Readiness
 	if readiness == nil {
@@ -180,6 +197,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Strategy.HasAny() {
 		routes = append(routes, Strategy(deps.Strategy)...)
+	}
+	if deps.Risk.HasAny() {
+		routes = append(routes, Risk(deps.Risk)...)
 	}
 	return routes
 }

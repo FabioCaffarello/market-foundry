@@ -43,3 +43,8 @@ type decisionProjectionStore interface {
 type strategyProjectionStore interface {
 	Put(ctx context.Context, strat strategy.Strategy) (adapternats.PutResult, *problem.Problem)
 }
+
+// riskProjectionStore is the write interface used by RiskProjectionActor.
+type riskProjectionStore interface {
+	Put(ctx context.Context, assessment risk.RiskAssessment) (adapternats.PutResult, *problem.Problem)
+}

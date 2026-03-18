@@ -111,6 +111,12 @@ func (s *RiskKVStore) Get(ctx context.Context, source, symbol string, timeframe 
 	if err := json.Unmarshal(entry.Value(), &assessment); err != nil {
 		return nil, problem.Wrap(err, problem.Internal, "unmarshal risk from KV")
 	}
+
+	// Post-read validation: detect corrupted or incomplete data in KV.
+	if prob := assessment.Validate(); prob != nil {
+		return nil, problem.New(problem.Internal, "risk KV entry failed validation: "+prob.Message)
+	}
+
 	return &assessment, nil
 }
 

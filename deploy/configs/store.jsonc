@@ -21,6 +21,8 @@
     // Decision families to project. Opt-in only — absent or empty means no decision activation.
     "decision_families": ["rsi_oversold"],
     // Strategy families to project. Opt-in only — absent or empty means no strategy activation.
-    "strategy_families": ["mean_reversion_entry"]
+    "strategy_families": ["mean_reversion_entry"],
+    // Risk families to project. Opt-in only — absent or empty means no risk activation.
+    "risk_families": ["position_exposure"]
   }
 }

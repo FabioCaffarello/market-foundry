@@ -111,6 +111,22 @@ func Run(config settings.AppConfig) {
 		}
 	}
 
+	// Risk pipeline trackers (opt-in via pipeline.risk_families).
+	type riskTrackerDef struct {
+		projName string
+		consName string
+		family   string
+	}
+	allRiskTrackerDefs := []riskTrackerDef{
+		{projName: "risk-position-exposure-projection", consName: "risk-position-exposure-consumer", family: "position_exposure"},
+	}
+	for _, def := range allRiskTrackerDefs {
+		if config.Pipeline.IsRiskFamilyEnabled(def.family) {
+			trackers[def.projName] = healthz.NewTracker(def.projName)
+			trackers[def.consName] = healthz.NewTracker(def.consName)
+		}
+	}
+
 	pid := engine.Spawn(storeactor.NewStoreSupervisor(config, trackers), "store")
 
 	// Collect all trackers for health server.

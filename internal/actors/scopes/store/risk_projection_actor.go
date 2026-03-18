@@ -55,6 +55,7 @@ func (a *RiskProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -83,8 +84,10 @@ func (a *RiskProjectionActor) start(c *actor.Context) {
 
 	a.store = store
 	a.closer = store.Close
-	a.logger.Info("risk projection started",
+	a.logger.Info("risk projection started — sole writer for bucket",
 		"bucket_latest", a.cfg.Bucket,
+		"projection_authority", "risk-position_exposure-projection",
+		"semantics", "latest-only",
 	)
 }
 
@@ -153,6 +156,28 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 			"disposition", string(assessment.Disposition),
 			"confidence", assessment.Confidence,
 			"timestamp", assessment.Timestamp.Format(time.RFC3339),
+		)
+	}
+}
+
+func (a *RiskProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
 		)
 	}
 }
