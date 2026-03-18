@@ -2,12 +2,12 @@ go 1.25.7
 
 use (
 	./cmd/configctl
-	./cmd/consumer
-	./cmd/emulator
-	./cmd/server
-	./cmd/validator
+	./cmd/derive
+	./cmd/gateway
+	./cmd/ingest
+	./cmd/store
 	./internal/actors
-	./internal/adapters/kafka
+	./internal/adapters/exchanges
 	./internal/adapters/nats
 	./internal/adapters/repositories
 	./internal/application

@@ -2,7 +2,7 @@
 ### Lifecycle e2e smoke test
 ### ----------------------------------------------------------------------------
 ### Boot locally with:
-###   make up-dataplane
+###   make up
 ### Then run these requests in order.
 
 @baseUrl = http://127.0.0.1:8080
@@ -53,39 +53,9 @@ X-Correlation-ID: {{correlationId}}
 
 ###
 
-### 5. Confirm active config in configctl
+### 5. Confirm active config
 GET {{baseUrl}}/configctl/configs/active?scope_kind=global&scope_key=default
 Accept: application/json
 X-Correlation-ID: {{correlationId}}
 
 ###
-
-### 6. Confirm configctl runtime projections expose the canonical active runtime state
-GET {{baseUrl}}/runtime/configctl/projections?scope_kind=global&scope_key=default
-Accept: application/json
-X-Correlation-ID: {{correlationId}}
-
-###
-
-### 7. Confirm validator runtime cache was updated
-GET {{baseUrl}}/runtime/validator/active?scope_kind=global&scope_key=default
-Accept: application/json
-X-Correlation-ID: {{correlationId}}
-
-###
-
-### 8. Confirm ingestion runtime bindings projected by configctl
-###    The response should expose the active bindings plus the compact runtime set
-###    for the same activation, which is what bootstraps consumer/emulator.
-GET {{baseUrl}}/runtime/ingestion/bindings?scope_kind=global&scope_key=default
-Accept: application/json
-X-Correlation-ID: {{correlationId}}
-
-###
-
-### 9. Confirm validation results produced from the data plane
-###    Wait a few seconds after activation if needed; the emulator publishes
-###    both a valid and an invalid sample for each active binding.
-GET {{baseUrl}}/runtime/validator/results?scope_kind=global&scope_key=default&limit=10
-Accept: application/json
-X-Correlation-ID: {{correlationId}}

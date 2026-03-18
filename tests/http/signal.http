@@ -1,0 +1,74 @@
+### ----------------------------------------------------------------------------
+### Signal query — RSI first slice
+### ----------------------------------------------------------------------------
+### Validates the signal domain vertical slice:
+###   derive (RSI sampler) → SIGNAL_EVENTS → store (projection) → gateway HTTP
+###
+### Prerequisites:
+###   make up           # starts nats, configctl, gateway, ingest, derive, store
+###   make seed         # seeds configctl with btcusdt binding
+###   wait ~20min       # RSI needs 15 finalized 60s candles for warm-up
+###
+### Note: RSI warm-up requires period+1 = 15 candles. At 60s timeframe,
+### first signal appears after ~15 minutes of live data.
+
+@baseUrl = http://127.0.0.1:8080
+
+### 1. Latest RSI signal — btcusdt 60s
+### Expected: 200 with signal data (after warm-up) or 200 with null signal
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 2. Latest RSI signal — btcusdt 300s
+### Expected: 200 with signal data (after 15x300s = 75min warm-up) or null
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 3. Unknown signal type — should return 400
+GET {{baseUrl}}/signal/unknown/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 4. Missing timeframe — should return 400
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Multi-symbol signal queries (S41 — signal multi-symbol verification)
+### Prerequisites:
+###   make seed-multi    (seeds configctl with btcusdt + ethusdt bindings)
+###   wait ~20min        (RSI warm-up: 15 candles × 60s per candle)
+### ----------------------------------------------------------------------------
+
+### 5. Latest RSI signal — ethusdt 60s
+### Expected: 200 with signal data (after warm-up) or 200 with null signal
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 6. Latest RSI signal — ethusdt 300s
+### Expected: 200 with signal data (after 15x300s = 75min warm-up) or null
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 7. Cross-symbol verification — query btcusdt and ethusdt back-to-back
+### Compare responses: symbols must differ, values should differ (different assets)
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###

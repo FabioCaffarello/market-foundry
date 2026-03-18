@@ -28,8 +28,8 @@ FROM alpine:${ALPINE_VERSION}
 RUN apk add --no-cache ca-certificates \
     && addgroup -S app \
     && adduser -S -G app app \
-    && mkdir -p /etc/quality-service \
-    && chown -R app:app /etc/quality-service
+    && mkdir -p /etc/market-foundry \
+    && chown -R app:app /etc/market-foundry
 
 COPY --from=builder /out/service /usr/local/bin/service
 

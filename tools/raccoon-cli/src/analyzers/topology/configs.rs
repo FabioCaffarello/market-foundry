@@ -6,12 +6,9 @@ use std::path::Path;
 #[derive(Debug, Clone, Default)]
 pub struct ServiceConfig {
     pub name: String,
-    pub kafka_brokers: Vec<String>,
-    pub kafka_consumer_group: Option<String>,
-    pub kafka_client_id: Option<String>,
     pub nats_url: Option<String>,
-    pub bootstrap_base_url: Option<String>,
-    pub bootstrap_reconcile_interval: Option<String>,
+    pub nats_enabled: Option<bool>,
+    pub nats_request_timeout: Option<String>,
 }
 
 /// Parse all .jsonc config files from the configs directory.
@@ -62,36 +59,16 @@ fn parse_config(path: &Path) -> Result<ServiceConfig> {
 
     let mut cfg = ServiceConfig::default();
 
-    // Extract kafka settings
-    if let Some(kafka) = value.get("kafka") {
-        if let Some(brokers) = kafka.get("brokers").and_then(|b| b.as_array()) {
-            cfg.kafka_brokers = brokers
-                .iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect();
-        }
-        if let Some(group) = kafka.get("consumer_group").and_then(|v| v.as_str()) {
-            cfg.kafka_consumer_group = Some(group.to_string());
-        }
-        if let Some(id) = kafka.get("client_id").and_then(|v| v.as_str()) {
-            cfg.kafka_client_id = Some(id.to_string());
-        }
-    }
-
     // Extract nats settings
     if let Some(nats) = value.get("nats") {
         if let Some(url) = nats.get("url").and_then(|v| v.as_str()) {
             cfg.nats_url = Some(url.to_string());
         }
-    }
-
-    // Extract bootstrap settings
-    if let Some(bootstrap) = value.get("bootstrap") {
-        if let Some(url) = bootstrap.get("base_url").and_then(|v| v.as_str()) {
-            cfg.bootstrap_base_url = Some(url.to_string());
+        if let Some(enabled) = nats.get("enabled").and_then(|v| v.as_bool()) {
+            cfg.nats_enabled = Some(enabled);
         }
-        if let Some(interval) = bootstrap.get("reconcile_interval").and_then(|v| v.as_str()) {
-            cfg.bootstrap_reconcile_interval = Some(interval.to_string());
+        if let Some(timeout) = nats.get("request_timeout").and_then(|v| v.as_str()) {
+            cfg.nats_request_timeout = Some(timeout.to_string());
         }
     }
 
@@ -170,63 +147,47 @@ mod tests {
     }
 
     #[test]
-    fn parse_consumer_config() {
+    fn parse_service_config_with_nats() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("consumer.jsonc");
+        let path = dir.path().join("ingest.jsonc");
         std::fs::write(
             &path,
             r#"{
-  // consumer config
-  "kafka": {
-    "enabled": true,
-    "brokers": ["kafka:9092"],
-    "client_id": "quality-service-consumer",
-    "consumer_group": "quality-service-consumer-v1"
-  },
+  // ingest config
   "nats": {
     "enabled": true,
-    "url": "nats://nats:4222"
-  },
-  "bootstrap": {
-    "base_url": "http://server:8080"
+    "url": "nats://nats:4222",
+    "request_timeout": "5s"
   }
 }"#,
         )
         .unwrap();
 
         let cfg = parse_config(&path).unwrap();
-        assert_eq!(cfg.kafka_brokers, vec!["kafka:9092"]);
-        assert_eq!(
-            cfg.kafka_consumer_group.as_deref(),
-            Some("quality-service-consumer-v1")
-        );
         assert_eq!(cfg.nats_url.as_deref(), Some("nats://nats:4222"));
-        assert_eq!(
-            cfg.bootstrap_base_url.as_deref(),
-            Some("http://server:8080")
-        );
-        assert_eq!(cfg.bootstrap_reconcile_interval.as_deref(), None);
+        assert_eq!(cfg.nats_enabled, Some(true));
+        assert_eq!(cfg.nats_request_timeout.as_deref(), Some("5s"));
     }
 
     #[test]
     fn parse_all_configs_discovers_files() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
-            dir.path().join("consumer.jsonc"),
-            r#"{"kafka": {"brokers": ["kafka:9092"]}}"#,
+            dir.path().join("ingest.jsonc"),
+            r#"{"nats": {"url": "nats://nats:4222", "enabled": true}}"#,
         )
         .unwrap();
         std::fs::write(
-            dir.path().join("emulator.jsonc"),
-            r#"{"kafka": {"brokers": ["kafka:9092"]}}"#,
+            dir.path().join("derive.jsonc"),
+            r#"{"nats": {"url": "nats://nats:4222", "enabled": true}}"#,
         )
         .unwrap();
         std::fs::write(dir.path().join("readme.txt"), "not a config").unwrap();
 
         let configs = parse_all_configs(dir.path()).unwrap();
         assert_eq!(configs.len(), 2);
-        assert!(configs.contains_key("consumer"));
-        assert!(configs.contains_key("emulator"));
+        assert!(configs.contains_key("ingest"));
+        assert!(configs.contains_key("derive"));
     }
 
     #[test]
@@ -278,10 +239,9 @@ mod tests {
         std::fs::write(&path, "{}").unwrap();
 
         let cfg = parse_config(&path).unwrap();
-        assert!(cfg.kafka_brokers.is_empty());
         assert!(cfg.nats_url.is_none());
-        assert!(cfg.bootstrap_base_url.is_none());
-        assert!(cfg.bootstrap_reconcile_interval.is_none());
+        assert!(cfg.nats_enabled.is_none());
+        assert!(cfg.nats_request_timeout.is_none());
     }
 
     #[test]
@@ -292,39 +252,21 @@ mod tests {
         let configs = parse_all_configs(dir.path()).unwrap();
         assert!(configs.contains_key("broken"));
         let cfg = &configs["broken"];
-        assert!(cfg.kafka_brokers.is_empty());
+        assert!(cfg.nats_url.is_none());
     }
 
     #[test]
-    fn parse_config_multiple_brokers() {
+    fn parse_config_nats_disabled() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("multi.jsonc");
+        let path = dir.path().join("svc.jsonc");
         std::fs::write(
             &path,
-            r#"{"kafka": {"brokers": ["kafka-1:9092", "kafka-2:9092", "kafka-3:9092"]}}"#,
+            r#"{"nats": {"enabled": false, "url": "nats://nats:4222"}}"#,
         )
         .unwrap();
 
         let cfg = parse_config(&path).unwrap();
-        assert_eq!(cfg.kafka_brokers.len(), 3);
-    }
-
-    #[test]
-    fn parse_config_bootstrap_reconcile_interval() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("consumer.jsonc");
-        std::fs::write(
-            &path,
-            r#"{
-  "bootstrap": {
-    "base_url": "http://server:8080",
-    "reconcile_interval": "30s"
-  }
-}"#,
-        )
-        .unwrap();
-
-        let cfg = parse_config(&path).unwrap();
-        assert_eq!(cfg.bootstrap_reconcile_interval.as_deref(), Some("30s"));
+        assert_eq!(cfg.nats_enabled, Some(false));
+        assert_eq!(cfg.nats_url.as_deref(), Some("nats://nats:4222"));
     }
 }

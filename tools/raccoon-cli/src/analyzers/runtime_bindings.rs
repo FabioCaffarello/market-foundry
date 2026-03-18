@@ -1,376 +1,576 @@
 use crate::error::Result;
 use crate::models::{CheckResult, Finding, Report};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::Path;
 
 mod configs;
 mod source;
 
-pub use configs::BindingDefinition;
+#[allow(unused_imports)]
+pub use configs::ServiceConfig as BindingDefinition;
 pub use source::RuntimeBindingSource;
 
-// ── Discovered runtime binding ──────────────────────────────────────
+// ── Architecture constants ──────────────────────────────────────────
 
-/// A fully resolved runtime binding combining config declaration
-/// with source-derived routing and validation rules.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ResolvedBinding {
-    /// Config name that declares this binding (metadata.name from YAML/JSON).
-    pub config_name: String,
-    /// Binding name within the config.
-    pub binding_name: String,
-    /// Kafka topic this binding consumes from.
-    pub kafka_topic: String,
-    /// JetStream subject derived from the subject pattern.
-    pub jetstream_subject: Option<String>,
-    /// Activation scope (kind:key).
-    pub scope: String,
-    /// Fields declared for validation.
-    pub field_count: usize,
-    /// Rules declared for validation.
-    pub rule_count: usize,
-    /// Source of the binding definition.
-    pub source_file: Option<String>,
-    /// Issues found during resolution.
-    pub issues: Vec<String>,
-}
+/// The five JetStream streams in the market-foundry pipeline.
+const EXPECTED_STREAMS: &[(&str, &str)] = &[
+    (
+        "CONFIGCTL_EVENTS",
+        "carries config lifecycle events (activated, deactivated)",
+    ),
+    (
+        "OBSERVATION_EVENTS",
+        "carries raw market observations from ingest",
+    ),
+    (
+        "EVIDENCE_EVENTS",
+        "carries derived evidence (candles, trade bursts, volume) from derive",
+    ),
+    (
+        "SIGNAL_EVENTS",
+        "carries derived signals (RSI, MACD) from derive",
+    ),
+    (
+        "DECISION_EVENTS",
+        "carries derived decisions (RSI oversold) from derive",
+    ),
+    (
+        "STRATEGY_EVENTS",
+        "carries resolved strategies (mean reversion entry) from derive",
+    ),
+];
 
-/// Full runtime bindings index built from scanning configs and source.
-#[derive(Debug, Default)]
-pub struct BindingsIndex {
-    /// Config-declared bindings (from tests/http/*.http fixture files and Go source).
-    pub config_bindings: Vec<BindingDefinition>,
-    /// Source-level routing constants.
-    pub source: Option<RuntimeBindingSource>,
-    /// Resolved bindings after cross-referencing.
-    pub resolved: Vec<ResolvedBinding>,
-}
+/// Durable consumers and the streams they must be bound to.
+const EXPECTED_DURABLES: &[(&str, &str, &str)] = &[
+    (
+        "derive-observation",
+        "OBSERVATION_EVENTS",
+        "derive consumes raw observations to produce evidence",
+    ),
+    (
+        "store-candle",
+        "EVIDENCE_EVENTS",
+        "store consumes candle evidence for projection",
+    ),
+    (
+        "store-trade-burst",
+        "EVIDENCE_EVENTS",
+        "store consumes trade burst evidence for projection",
+    ),
+    (
+        "store-volume",
+        "EVIDENCE_EVENTS",
+        "store consumes volume evidence for projection",
+    ),
+    (
+        "store-signal-rsi",
+        "SIGNAL_EVENTS",
+        "store consumes RSI signal events for projection",
+    ),
+    (
+        "store-decision-rsi-oversold",
+        "DECISION_EVENTS",
+        "store consumes RSI oversold decision events for projection",
+    ),
+    (
+        "store-strategy-mean-reversion-entry",
+        "STRATEGY_EVENTS",
+        "store consumes mean reversion entry strategy events for projection",
+    ),
+];
+
+/// Expected query/request-reply subjects.
+const EXPECTED_QUERY_SUBJECTS: &[(&str, &str)] = &[
+    (
+        "evidence.query.candle.latest",
+        "store serves latest candle queries from gateway",
+    ),
+    (
+        "evidence.query.candle.history",
+        "store serves candle history queries from gateway",
+    ),
+    (
+        "evidence.query.tradeburst.latest",
+        "store serves latest trade burst queries from gateway",
+    ),
+    (
+        "evidence.query.volume.latest",
+        "store serves latest volume queries from gateway",
+    ),
+    (
+        "signal.query.rsi.latest",
+        "store serves latest RSI signal queries from gateway",
+    ),
+    (
+        "decision.query.rsi_oversold.latest",
+        "store serves latest RSI oversold decision queries from gateway",
+    ),
+    (
+        "strategy.query.mean_reversion_entry.latest",
+        "store serves latest mean reversion entry strategy queries from gateway",
+    ),
+];
+
+/// Expected service binaries and their required adapter capabilities.
+const EXPECTED_SERVICE_ADAPTERS: &[(&str, &[&str])] = &[
+    ("ingest", &["publisher", "websocket", "binding_watcher"]),
+    ("derive", &["consumer", "publisher", "binding_watcher"]),
+    ("store", &["consumer", "projection", "responder"]),
+];
 
 // ── Main analysis entry point ───────────────────────────────────────
 
 pub fn analyze(project_root: &Path) -> Result<Report> {
     let mut report = Report::new("runtime-bindings");
-    let mut index = BindingsIndex::default();
 
-    // Phase 1: Scan Go source for binding definitions, subject patterns, routing constants
+    // Phase 1: Scan Go source for stream/subject/durable patterns
     let internal_dir = project_root.join("internal");
     if !internal_dir.is_dir() {
         report.add(CheckResult::from_findings(
             "internal-dir",
             vec![Finding::error("internal-dir", "internal/ directory not found")
-                .with_why("runtime-bindings scans Go source for binding definitions and routing constants")
+                .with_why("runtime-bindings scans Go source for NATS stream and subject definitions")
                 .with_help("run `raccoon-cli doctor` to verify project structure first")],
         ));
         return Ok(report);
     }
 
-    match source::scan_runtime_bindings(&internal_dir) {
-        Ok(src) => {
-            report.add(check_subject_pattern(&src));
-            report.add(check_routing_constants(&src));
-            report.add(check_lifecycle_events(&src));
-            index.source = Some(src);
-        }
+    let src = match source::scan_runtime_bindings(&internal_dir) {
+        Ok(s) => s,
         Err(e) => {
             report.add(CheckResult::from_findings(
                 "source-scan",
                 vec![Finding::error("source", format!("failed to scan: {e}"))],
             ));
+            return Ok(report);
         }
-    }
+    };
 
-    // Phase 2: Scan config fixtures for binding definitions
+    // Phase 2: Scan deploy configs
     let configs_dir = project_root.join("deploy/configs");
-    if configs_dir.is_dir() {
-        match configs::scan_binding_configs(&configs_dir) {
-            Ok(bindings) => {
-                report.add(check_config_bindings(&bindings));
-                index.config_bindings = bindings;
-            }
-            Err(e) => {
-                report.add(CheckResult::from_findings(
-                    "config-scan",
-                    vec![Finding::error("config", format!("failed to scan: {e}"))],
-                ));
-            }
+    let service_configs = if configs_dir.is_dir() {
+        match configs::scan_service_configs(&configs_dir) {
+            Ok(c) => c,
+            Err(_) => Vec::new(),
         }
-    }
+    } else {
+        Vec::new()
+    };
 
-    // Phase 3: Scan HTTP test fixtures for example binding payloads
-    let http_dir = project_root.join("tests/http");
-    if http_dir.is_dir() {
-        match configs::scan_http_fixtures(&http_dir) {
-            Ok(fixture_bindings) => {
-                report.add(check_fixture_bindings(&fixture_bindings));
-                // Merge fixture bindings with existing ones (if not already present)
-                for fb in fixture_bindings {
-                    let already = index
-                        .config_bindings
-                        .iter()
-                        .any(|b| b.name == fb.name && b.topic == fb.topic);
-                    if !already {
-                        index.config_bindings.push(fb);
-                    }
-                }
-            }
-            Err(_) => {
-                // Non-fatal: HTTP fixtures are optional
-            }
-        }
-    }
-
-    // Phase 4: Resolve bindings by cross-referencing config with source
-    index.resolved = resolve_bindings(&index);
-    report.add(check_resolved_bindings(&index.resolved));
-
-    // Phase 5: Cross-validation checks
-    report.add(check_topic_subject_mapping(&index));
-    report.add(check_binding_consumer_coverage(&index));
-    report.add(check_binding_validator_coverage(&index));
-    report.add(check_scope_consistency(&index));
-    report.add(check_drift(&index));
+    // Phase 3: Run all checks
+    report.add(check_stream_ownership(&src));
+    report.add(check_consumer_binding(&src));
+    report.add(check_query_routing(&src));
+    report.add(check_config_source_alignment(&service_configs));
+    report.add(check_adapter_presence(&src));
+    report.add(check_adapter_files(&src));
+    report.add(check_lifecycle_events(&src));
+    report.add(check_cross_config_family_consistency(&service_configs));
 
     Ok(report)
 }
 
-// ── Binding resolution ──────────────────────────────────────────────
+// ── Check 1: Stream ownership ───────────────────────────────────────
 
-fn resolve_bindings(index: &BindingsIndex) -> Vec<ResolvedBinding> {
-    let source = match &index.source {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
+/// Verify each expected JetStream stream is declared in source.
+fn check_stream_ownership(src: &RuntimeBindingSource) -> CheckResult {
+    let mut findings = Vec::new();
 
-    let mut resolved = Vec::new();
-
-    for binding in &index.config_bindings {
-        let mut issues = Vec::new();
-
-        // Derive JetStream subject using the subject pattern from source
-        let subject = derive_jetstream_subject(
-            &source.subject_prefix,
-            &binding.scope_kind,
-            &binding.scope_key,
-            &binding.name,
-        );
-
-        // Check if the derived subject falls under a known stream
-        if let Some(ref subj) = subject {
-            let covered = source
-                .stream_subjects
-                .iter()
-                .any(|(_, patterns)| patterns.iter().any(|p| subject_matches_pattern(subj, p)));
-            if !covered {
-                issues.push(format!(
-                    "derived subject '{subj}' does not match any stream subscription pattern"
-                ));
-            }
+    for (stream, purpose) in EXPECTED_STREAMS {
+        if src.stream_subjects.contains_key(*stream) {
+            let subjects = &src.stream_subjects[*stream];
+            findings.push(Finding::info(
+                "stream-present",
+                format!(
+                    "stream {stream} found with {} subject pattern(s)",
+                    subjects.len()
+                ),
+            ));
         } else {
-            issues.push(
-                "could not derive JetStream subject (missing subject prefix in source)".into(),
-            );
-        }
-
-        // Check if kafka topic appears in consumer config context
-        if !source.kafka_topics_referenced.contains(&binding.topic) {
-            // Not necessarily an error — topics are dynamic at runtime
-            // but worth noting if we can observe them
-        }
-
-        resolved.push(ResolvedBinding {
-            config_name: binding.config_name.clone(),
-            binding_name: binding.name.clone(),
-            kafka_topic: binding.topic.clone(),
-            jetstream_subject: subject,
-            scope: format!("{}:{}", binding.scope_kind, binding.scope_key),
-            field_count: binding.field_count,
-            rule_count: binding.rule_count,
-            source_file: binding.source_file.clone(),
-            issues,
-        });
-    }
-
-    resolved
-}
-
-fn derive_jetstream_subject(
-    prefix: &str,
-    scope_kind: &str,
-    scope_key: &str,
-    binding_name: &str,
-) -> Option<String> {
-    if prefix.is_empty() {
-        return None;
-    }
-
-    let sanitized_kind = sanitize_token(scope_kind);
-    let sanitized_key = sanitize_token(scope_key);
-    let sanitized_name = sanitize_token(binding_name);
-
-    Some(format!(
-        "{prefix}.{sanitized_kind}.{sanitized_key}.{sanitized_name}"
-    ))
-}
-
-/// Replicates the Go sanitizeToken function from dataplane/registry.go.
-fn sanitize_token(raw: &str) -> String {
-    let raw = raw.trim().to_lowercase();
-    if raw.is_empty() {
-        return "unknown".to_string();
-    }
-
-    let mut result = String::new();
-    let mut last_dash = false;
-    for ch in raw.chars() {
-        if ch.is_ascii_alphanumeric() {
-            result.push(ch);
-            last_dash = false;
-        } else if !last_dash {
-            result.push('-');
-            last_dash = true;
-        }
-    }
-
-    let token = result.trim_matches('-').to_string();
-    if token.is_empty() {
-        "unknown".to_string()
-    } else {
-        token
-    }
-}
-
-fn subject_matches_pattern(subject: &str, pattern: &str) -> bool {
-    if pattern.ends_with(".>") {
-        let prefix = &pattern[..pattern.len() - 2];
-        subject.starts_with(prefix)
-    } else if pattern == subject {
-        true
-    } else {
-        false
-    }
-}
-
-// ── Individual checks ───────────────────────────────────────────────
-
-fn check_subject_pattern(src: &RuntimeBindingSource) -> CheckResult {
-    let mut findings = Vec::new();
-
-    if src.subject_prefix.is_empty() {
-        findings.push(
-            Finding::error(
-                "subject-prefix",
-                "dataplane ingestion subject prefix not found in source",
-            )
-            .with_why("without the subject prefix, runtime cannot derive JetStream subjects for bindings")
-            .with_help("verify 'dataplane.ingestion.received' is defined in internal/application/dataplane/registry.go"),
-        );
-    } else {
-        findings.push(Finding::info(
-            "subject-prefix",
-            format!("subject prefix: '{}'", src.subject_prefix),
-        ));
-    }
-
-    if src.subject_pattern.is_empty() {
-        findings.push(Finding::warning(
-            "subject-pattern",
-            "wildcard subject pattern not found",
-        ));
-    }
-
-    CheckResult::from_findings("subject-pattern", findings)
-}
-
-fn check_routing_constants(src: &RuntimeBindingSource) -> CheckResult {
-    let mut findings = Vec::new();
-
-    // Check for DATA_PLANE_INGESTION stream
-    if !src.stream_subjects.contains_key("DATA_PLANE_INGESTION") {
-        findings.push(
-            Finding::error(
-                "dataplane-stream",
-                "DATA_PLANE_INGESTION stream not found in source",
-            )
-            .with_why("this stream carries all ingested messages from consumer to validator")
-            .with_help("check internal/adapters/nats/dataplane_registry.go"),
-        );
-    }
-
-    // Check for validator durable consumer
-    if !src.durable_consumers.contains_key("validator-dataplane-v1") {
-        findings.push(
-            Finding::error(
-                "validator-durable",
-                "validator-dataplane-v1 durable consumer not found in source",
-            )
-            .with_why("validator needs a durable consumer to receive data-plane messages reliably")
-            .with_help("check internal/adapters/nats/dataplane_registry.go"),
-        );
-    }
-
-    // Check for runtime cache durable
-    if !src
-        .durable_consumers
-        .contains_key("validator-runtime-cache-v1")
-    {
-        findings.push(
-            Finding::warning(
-                "runtime-cache-durable",
-                "validator-runtime-cache-v1 durable not found",
-            )
-            .with_why("validator caches RuntimeProjection from activation events via this durable"),
-        );
-    }
-
-    for (durable, purpose) in [
-        (
-            "consumer-runtime-refresh-v1",
-            "consumer refreshes aggregate bootstrap when ingestion runtime changes",
-        ),
-        (
-            "emulator-runtime-refresh-v1",
-            "emulator refreshes aggregate bootstrap when ingestion runtime changes",
-        ),
-    ] {
-        if !src.durable_consumers.contains_key(durable) {
             findings.push(
                 Finding::error(
-                    "runtime-refresh-durable",
-                    format!("{durable} durable consumer not found in source"),
+                    "stream-missing",
+                    format!("stream {stream} not found in source"),
                 )
-                .with_why(purpose)
-                .with_help("check internal/adapters/nats/configctl_registry.go"),
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/ registry files"),
             );
         }
     }
 
-    CheckResult::from_findings("routing-constants", findings)
+    // Check for unexpected streams (not necessarily an error, but worth noting)
+    let expected: HashSet<&str> = EXPECTED_STREAMS.iter().map(|(s, _)| *s).collect();
+    for stream in src.stream_subjects.keys() {
+        if !expected.contains(stream.as_str()) {
+            findings.push(Finding::info(
+                "extra-stream",
+                format!("additional stream found: {stream}"),
+            ));
+        }
+    }
+
+    CheckResult::from_findings("stream-ownership", findings)
 }
 
-fn check_lifecycle_events(src: &RuntimeBindingSource) -> CheckResult {
+// ── Check 2: Consumer binding ───────────────────────────────────────
+
+/// Verify each durable consumer is declared and bound to the correct stream.
+fn check_consumer_binding(src: &RuntimeBindingSource) -> CheckResult {
     let mut findings = Vec::new();
 
-    let expected_events = [
+    for (durable, expected_stream, purpose) in EXPECTED_DURABLES {
+        match src.durable_consumers.get(*durable) {
+            Some(actual_stream) => {
+                if actual_stream == *expected_stream {
+                    findings.push(Finding::info(
+                        "durable-correct",
+                        format!("durable {durable} correctly bound to {expected_stream}"),
+                    ));
+                } else {
+                    findings.push(
+                        Finding::error(
+                            "durable-wrong-stream",
+                            format!(
+                                "durable {durable} bound to '{actual_stream}' instead of '{expected_stream}'"
+                            ),
+                        )
+                        .with_why(*purpose),
+                    );
+                }
+            }
+            None => {
+                findings.push(
+                    Finding::error(
+                        "durable-missing",
+                        format!("durable consumer {durable} not found in source"),
+                    )
+                    .with_why(*purpose)
+                    .with_help("check the relevant registry file in internal/adapters/nats/"),
+                );
+            }
+        }
+    }
+
+    // Warn about unexpected durables
+    let expected: HashSet<&str> = EXPECTED_DURABLES.iter().map(|(d, _, _)| *d).collect();
+    for durable in src.durable_consumers.keys() {
+        if !expected.contains(durable.as_str()) {
+            findings.push(Finding::info(
+                "extra-durable",
+                format!("additional durable consumer found: {durable}"),
+            ));
+        }
+    }
+
+    CheckResult::from_findings("consumer-binding", findings)
+}
+
+// ── Check 3: Query routing ──────────────────────────────────────────
+
+/// Verify request/reply subjects are present in source.
+fn check_query_routing(src: &RuntimeBindingSource) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (subject, purpose) in EXPECTED_QUERY_SUBJECTS {
+        if src.query_subjects.contains(*subject) {
+            findings.push(Finding::info(
+                "query-present",
+                format!("query subject {subject} found in source"),
+            ));
+        } else {
+            // Check with prefix matching
+            let found = src.query_subjects.iter().any(|q| {
+                q.starts_with(&subject[..subject.rfind('.').unwrap_or(subject.len())])
+            });
+            if found {
+                findings.push(Finding::info(
+                    "query-pattern",
+                    format!("query subject pattern matching {subject} found in source"),
+                ));
+            } else {
+                findings.push(
+                    Finding::error(
+                        "query-missing",
+                        format!("query subject {subject} not found in source"),
+                    )
+                    .with_why(*purpose)
+                    .with_help("check internal/adapters/nats/ for responder/gateway implementations"),
+                );
+            }
+        }
+    }
+
+    // Report any additional query subjects
+    let expected: HashSet<&str> = EXPECTED_QUERY_SUBJECTS.iter().map(|(s, _)| *s).collect();
+    for subject in &src.query_subjects {
+        if !expected.contains(subject.as_str()) {
+            findings.push(Finding::info(
+                "extra-query",
+                format!("additional query subject found: {subject}"),
+            ));
+        }
+    }
+
+    CheckResult::from_findings("query-routing", findings)
+}
+
+// ── Check 4: Config-source alignment ────────────────────────────────
+
+/// Verify deploy configs exist for expected services and reference NATS.
+fn check_config_source_alignment(service_configs: &[configs::ServiceConfig]) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let expected_services = ["ingest", "derive", "store"];
+    let configured: HashSet<&str> = service_configs.iter().map(|c| c.service.as_str()).collect();
+
+    for svc in &expected_services {
+        if configured.contains(svc) {
+            let cfg = service_configs.iter().find(|c| c.service == *svc).unwrap();
+            if cfg.nats_url.is_some() {
+                findings.push(Finding::info(
+                    "config-nats",
+                    format!("service {svc} has NATS configuration"),
+                ));
+            } else {
+                findings.push(
+                    Finding::warning(
+                        "config-no-nats",
+                        format!("service {svc} config exists but has no NATS URL"),
+                    )
+                    .with_why(format!(
+                        "{svc} needs NATS connectivity for stream publishing/consuming"
+                    ))
+                    .with_help(format!("add nats.url to deploy/configs/{svc}.jsonc")),
+                );
+            }
+        } else {
+            findings.push(
+                Finding::warning(
+                    "config-missing",
+                    format!("no deploy config found for service {svc}"),
+                )
+                .with_help(format!("create deploy/configs/{svc}.jsonc")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("config-source-alignment", findings)
+}
+
+// ── Check 5: Adapter presence ───────────────────────────────────────
+
+/// Verify each service binary has the required actor/adapter files.
+fn check_adapter_presence(src: &RuntimeBindingSource) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (service, required_adapters) in EXPECTED_SERVICE_ADAPTERS {
+        match src.service_adapters.get(*service) {
+            Some(actual) => {
+                for adapter in *required_adapters {
+                    if actual.contains(*adapter) {
+                        findings.push(Finding::info(
+                            "adapter-present",
+                            format!("{service} has {adapter} adapter"),
+                        ));
+                    } else {
+                        findings.push(
+                            Finding::error(
+                                "adapter-missing",
+                                format!("{service} is missing required {adapter} adapter"),
+                            )
+                            .with_help(format!(
+                                "check internal/actors/scopes/{service}/ for {adapter} actor file"
+                            )),
+                        );
+                    }
+                }
+            }
+            None => {
+                findings.push(
+                    Finding::error(
+                        "scope-missing",
+                        format!("actor scope directory for {service} not found"),
+                    )
+                    .with_why(format!(
+                        "{service} needs an actor scope to participate in the pipeline"
+                    ))
+                    .with_help(format!(
+                        "create internal/actors/scopes/{service}/ with required actors"
+                    )),
+                );
+            }
+        }
+    }
+
+    CheckResult::from_findings("adapter-presence", findings)
+}
+
+// ── Check 6: NATS adapter files ─────────────────────────────────────
+
+/// Verify key NATS adapter implementation files exist.
+fn check_adapter_files(src: &RuntimeBindingSource) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let checks = [
         (
-            "config.activated",
-            "triggers RuntimeProjection cache update in validator",
+            src.has_observation_publisher,
+            "observation_publisher",
+            "ingest publishes raw trades to OBSERVATION_EVENTS",
         ),
         (
-            "config.deactivated",
-            "clears cached projection when config is deactivated",
+            src.has_observation_consumer,
+            "observation_consumer",
+            "derive consumes observations from OBSERVATION_EVENTS",
         ),
         (
-            "config.ingestion_runtime_changed",
-            "notifies consumer and emulator to re-bootstrap bindings",
+            src.has_evidence_publisher,
+            "evidence_publisher",
+            "derive publishes sampled candles to EVIDENCE_EVENTS",
+        ),
+        (
+            src.has_evidence_consumer,
+            "evidence_consumer",
+            "store consumes candles from EVIDENCE_EVENTS",
+        ),
+        (
+            src.has_evidence_gateway,
+            "evidence_gateway",
+            "gateway sends NATS requests to store for candle queries",
+        ),
+        (
+            src.has_candle_kv_store,
+            "candle_kv_store",
+            "store persists candle state in NATS KV",
+        ),
+        (
+            src.has_binding_watcher,
+            "binding_event_consumer",
+            "services watch for config binding changes to activate/deactivate streams",
+        ),
+        (
+            src.has_signal_publisher,
+            "signal_publisher",
+            "derive publishes signal events to SIGNAL_EVENTS",
+        ),
+        (
+            src.has_signal_consumer,
+            "signal_consumer",
+            "store consumes signal events from SIGNAL_EVENTS",
+        ),
+        (
+            src.has_signal_gateway,
+            "signal_gateway",
+            "gateway sends NATS requests to store for signal queries",
+        ),
+        (
+            src.has_signal_kv_store,
+            "signal_kv_store",
+            "store persists signal state in NATS KV",
+        ),
+        (
+            src.has_signal_registry,
+            "signal_registry",
+            "defines SIGNAL_EVENTS stream, consumer, and query specs",
+        ),
+        (
+            src.has_decision_publisher,
+            "decision_publisher",
+            "derive publishes decision events to DECISION_EVENTS",
+        ),
+        (
+            src.has_decision_consumer,
+            "decision_consumer",
+            "store consumes decision events from DECISION_EVENTS",
+        ),
+        (
+            src.has_decision_gateway,
+            "decision_gateway",
+            "gateway sends NATS requests to store for decision queries",
+        ),
+        (
+            src.has_decision_kv_store,
+            "decision_kv_store",
+            "store persists decision state in NATS KV",
+        ),
+        (
+            src.has_decision_registry,
+            "decision_registry",
+            "defines DECISION_EVENTS stream, consumer, and query specs",
+        ),
+        (
+            src.has_strategy_publisher,
+            "strategy_publisher",
+            "derive publishes strategy events to STRATEGY_EVENTS",
+        ),
+        (
+            src.has_strategy_consumer,
+            "strategy_consumer",
+            "store consumes strategy events from STRATEGY_EVENTS",
+        ),
+        (
+            src.has_strategy_gateway,
+            "strategy_gateway",
+            "gateway sends NATS requests to store for strategy queries",
+        ),
+        (
+            src.has_strategy_kv_store,
+            "strategy_kv_store",
+            "store persists strategy state in NATS KV",
+        ),
+        (
+            src.has_strategy_registry,
+            "strategy_registry",
+            "defines STRATEGY_EVENTS stream, consumer, and query specs",
         ),
     ];
 
-    for (event, purpose) in &expected_events {
-        if !src.lifecycle_events.contains(*event) {
+    for (present, name, purpose) in &checks {
+        if *present {
+            findings.push(Finding::info(
+                "adapter-file",
+                format!("{name}.go present"),
+            ));
+        } else {
             findings.push(
                 Finding::warning(
-                    "lifecycle-event",
+                    "adapter-file-missing",
+                    format!("{name}.go not found in internal/adapters/nats/"),
+                )
+                .with_why(*purpose),
+            );
+        }
+    }
+
+    CheckResult::from_findings("adapter-files", findings)
+}
+
+// ── Check 7: Lifecycle events ───────────────────────────────────────
+
+/// Verify config lifecycle events are declared in source.
+fn check_lifecycle_events(src: &RuntimeBindingSource) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let expected = [
+        (
+            "config.activated",
+            "triggers binding activation across services",
+        ),
+        (
+            "config.deactivated",
+            "triggers binding deactivation across services",
+        ),
+    ];
+
+    for (event, purpose) in &expected {
+        if src.lifecycle_events.contains(*event) {
+            findings.push(Finding::info(
+                "lifecycle-event",
+                format!("lifecycle event '{event}' found"),
+            ));
+        } else {
+            findings.push(
+                Finding::warning(
+                    "lifecycle-event-missing",
                     format!("lifecycle event '{event}' not found in source"),
                 )
                 .with_why(*purpose),
@@ -381,865 +581,559 @@ fn check_lifecycle_events(src: &RuntimeBindingSource) -> CheckResult {
     CheckResult::from_findings("lifecycle-events", findings)
 }
 
-fn check_config_bindings(bindings: &[BindingDefinition]) -> CheckResult {
+// ── Check 8: Cross-config family consistency ────────────────────────
+
+/// Verify that derive and store configs enable the same families.
+/// A family enabled in derive but missing in store (or vice-versa) means
+/// events are produced but never projected, or projections wait for
+/// events that never arrive.
+fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConfig]) -> CheckResult {
     let mut findings = Vec::new();
 
-    if bindings.is_empty() {
-        findings.push(Finding::warning(
-            "config-bindings",
-            "no binding definitions found in deploy/configs/",
-        ));
-        return CheckResult::from_findings("config-bindings", findings);
-    }
+    let derive_cfg = service_configs.iter().find(|c| c.service == "derive");
+    let store_cfg = service_configs.iter().find(|c| c.service == "store");
 
-    // Check for duplicate binding names within the same config
-    let mut seen: HashMap<String, Vec<String>> = HashMap::new();
-    for b in bindings {
-        seen.entry(b.name.clone())
-            .or_default()
-            .push(b.config_name.clone());
-    }
-    for (name, configs) in &seen {
-        if configs.len() > 1 {
-            let configs_str = configs.join(", ");
-            findings.push(
-                Finding::warning(
-                    "duplicate-binding",
-                    format!("binding '{name}' appears in multiple configs: {configs_str}"),
-                )
-                .with_why(
-                    "duplicate binding names across configs may cause routing conflicts at runtime",
-                ),
-            );
-        }
-    }
-
-    // Check for duplicate topics
-    let mut topic_map: HashMap<String, Vec<String>> = HashMap::new();
-    for b in bindings {
-        topic_map
-            .entry(b.topic.clone())
-            .or_default()
-            .push(b.name.clone());
-    }
-    for (topic, names) in &topic_map {
-        if names.len() > 1 {
-            let names_str = names.join(", ");
+    let (derive, store) = match (derive_cfg, store_cfg) {
+        (Some(d), Some(s)) => (d, s),
+        _ => {
             findings.push(Finding::info(
-                "shared-topic",
-                format!("topic '{topic}' is consumed by multiple bindings: {names_str}"),
+                "cross-config-skip",
+                "skipping cross-config check: derive or store config not found".to_string(),
             ));
+            return CheckResult::from_findings("cross-config-family-consistency", findings);
         }
-    }
+    };
 
-    // Check for empty fields/rules
-    for b in bindings {
-        if b.field_count == 0 {
+    // Evidence families — empty list means "all enabled" (backward compatible).
+    // Only flag a mismatch when both services have explicit lists.
+    if !derive.families.is_empty() && !store.families.is_empty() {
+        let derive_set: HashSet<&str> = derive.families.iter().map(|s| s.as_str()).collect();
+        let store_set: HashSet<&str> = store.families.iter().map(|s| s.as_str()).collect();
+
+        for f in derive_set.difference(&store_set) {
             findings.push(
-                Finding::warning(
-                    "empty-fields",
-                    format!("binding '{}' has no fields defined", b.name),
+                Finding::error(
+                    "evidence-derive-only",
+                    format!("evidence family '{f}' enabled in derive but not in store"),
                 )
-                .with_why("without fields, no validation can be performed on incoming messages"),
+                .with_why("derive will publish events that store never projects")
+                .with_help(format!("add '{f}' to pipeline.families in deploy/configs/store.jsonc")),
             );
         }
-        if b.rule_count == 0 {
+        for f in store_set.difference(&derive_set) {
             findings.push(
-                Finding::warning(
-                    "empty-rules",
-                    format!("binding '{}' has no rules defined", b.name),
+                Finding::error(
+                    "evidence-store-only",
+                    format!("evidence family '{f}' enabled in store but not in derive"),
                 )
-                .with_why("without rules, messages will always pass validation"),
+                .with_why("store expects events that derive never produces")
+                .with_help(format!("add '{f}' to pipeline.families in deploy/configs/derive.jsonc")),
             );
         }
-    }
-
-    CheckResult::from_findings("config-bindings", findings)
-}
-
-fn check_fixture_bindings(bindings: &[BindingDefinition]) -> CheckResult {
-    let mut findings = Vec::new();
-
-    if bindings.is_empty() {
-        // Not an error — fixtures are optional
-        return CheckResult::pass("fixture-bindings");
-    }
-
-    for b in bindings {
-        if b.topic.is_empty() {
-            findings.push(Finding::warning(
-                "fixture-binding",
-                format!("fixture binding '{}' has no topic", b.name),
+        if derive_set == store_set {
+            findings.push(Finding::info(
+                "evidence-consistent",
+                "evidence families are consistent between derive and store".to_string(),
             ));
         }
-    }
-
-    findings.push(Finding::info(
-        "fixture-bindings",
-        format!("{} binding(s) found in HTTP test fixtures", bindings.len()),
-    ));
-
-    CheckResult::from_findings("fixture-bindings", findings)
-}
-
-fn check_resolved_bindings(resolved: &[ResolvedBinding]) -> CheckResult {
-    let mut findings = Vec::new();
-
-    if resolved.is_empty() {
-        findings.push(Finding::warning(
-            "resolved-bindings",
-            "no bindings could be resolved (no config + source cross-reference)",
+    } else {
+        findings.push(Finding::info(
+            "evidence-default",
+            "evidence families use default (all enabled) in at least one service".to_string(),
         ));
-        return CheckResult::from_findings("resolved-bindings", findings);
     }
 
-    let mut error_count = 0;
-    for rb in resolved {
-        if !rb.issues.is_empty() {
-            for issue in &rb.issues {
-                findings.push(
-                    Finding::warning(
-                        "binding-resolution",
-                        format!(
-                            "binding '{}' ({}): {}",
-                            rb.binding_name, rb.kafka_topic, issue
-                        ),
-                    )
-                    .with_location(rb.source_file.as_deref().unwrap_or("config")),
-                );
-            }
-            error_count += 1;
-        }
-    }
+    // Signal families — both are opt-in; empty = none.
+    let derive_sig: HashSet<&str> = derive.signal_families.iter().map(|s| s.as_str()).collect();
+    let store_sig: HashSet<&str> = store.signal_families.iter().map(|s| s.as_str()).collect();
 
-    // Summary
-    let ok_count = resolved.len() - error_count;
-    findings.push(Finding::info(
-        "resolved-summary",
-        format!(
-            "{} binding(s) resolved: {} clean, {} with issues",
-            resolved.len(),
-            ok_count,
-            error_count
-        ),
-    ));
-
-    CheckResult::from_findings("resolved-bindings", findings)
-}
-
-fn check_topic_subject_mapping(index: &BindingsIndex) -> CheckResult {
-    let source = match &index.source {
-        Some(s) => s,
-        None => return CheckResult::skip("topic-subject-mapping", "source not scanned"),
-    };
-
-    let mut findings = Vec::new();
-
-    for rb in &index.resolved {
-        if let Some(ref subject) = rb.jetstream_subject {
-            // Verify the subject falls within the DATA_PLANE_INGESTION stream subscription
-            if let Some(patterns) = source.stream_subjects.get("DATA_PLANE_INGESTION") {
-                let covered = patterns.iter().any(|p| subject_matches_pattern(subject, p));
-                if !covered {
-                    findings.push(
-                        Finding::error(
-                            "topic-subject",
-                            format!(
-                                "binding '{}': derived subject '{}' is outside DATA_PLANE_INGESTION stream scope",
-                                rb.binding_name, subject
-                            ),
-                        )
-                        .with_why("messages published to this subject will not be received by the validator")
-                        .with_help("check the stream's subject filter pattern in dataplane_registry.go"),
-                    );
-                }
-            }
-        }
-    }
-
-    CheckResult::from_findings("topic-subject-mapping", findings)
-}
-
-fn check_binding_consumer_coverage(index: &BindingsIndex) -> CheckResult {
-    let source = match &index.source {
-        Some(s) => s,
-        None => return CheckResult::skip("consumer-coverage", "source not scanned"),
-    };
-
-    let mut findings = Vec::new();
-
-    // Check that the consumer has bootstrap URL configured
-    if !source.has_bootstrap_client {
+    for f in derive_sig.difference(&store_sig) {
         findings.push(
             Finding::error(
-                "consumer-bootstrap",
-                "consumer bootstrap client not found in source",
+                "signal-derive-only",
+                format!("signal family '{f}' enabled in derive but not in store"),
             )
-            .with_why("consumer needs to fetch active bindings from server at startup to know which topics to subscribe to")
-            .with_help("verify internal/application/runtimebootstrap/client.go exists"),
+            .with_why("derive will publish signal events that store never projects")
+            .with_help(format!("add '{f}' to pipeline.signal_families in deploy/configs/store.jsonc")),
         );
     }
-
-    // Check that runtime topology builder exists
-    if !source.has_topology_builder {
+    for f in store_sig.difference(&derive_sig) {
         findings.push(
             Finding::error(
-                "topology-builder",
-                "RuntimeTopology builder not found in source",
+                "signal-store-only",
+                format!("signal family '{f}' enabled in store but not in derive"),
             )
-            .with_why("without topology builder, consumer cannot route Kafka messages to correct JetStream subjects")
-            .with_help("verify internal/application/dataplane/topology.go exists"),
+            .with_why("store expects signal events that derive never produces")
+            .with_help(format!("add '{f}' to pipeline.signal_families in deploy/configs/derive.jsonc")),
         );
     }
+    if derive_sig == store_sig && !derive_sig.is_empty() {
+        findings.push(Finding::info(
+            "signal-consistent",
+            "signal families are consistent between derive and store".to_string(),
+        ));
+    }
 
-    CheckResult::from_findings("consumer-coverage", findings)
-}
+    // Decision families — both are opt-in; empty = none.
+    let derive_dec: HashSet<&str> = derive.decision_families.iter().map(|s| s.as_str()).collect();
+    let store_dec: HashSet<&str> = store.decision_families.iter().map(|s| s.as_str()).collect();
 
-fn check_binding_validator_coverage(index: &BindingsIndex) -> CheckResult {
-    let source = match &index.source {
-        Some(s) => s,
-        None => return CheckResult::skip("validator-coverage", "source not scanned"),
-    };
-
-    let mut findings = Vec::new();
-
-    if !source.has_runtime_cache {
+    for f in derive_dec.difference(&store_dec) {
         findings.push(
             Finding::error(
-                "runtime-cache",
-                "validator RuntimeProjection cache not found in source",
+                "decision-derive-only",
+                format!("decision family '{f}' enabled in derive but not in store"),
             )
-            .with_why("validator caches active RuntimeProjection (with rules) to evaluate incoming messages")
-            .with_help("verify internal/actors/scopes/validator/runtime_cache.go exists"),
+            .with_why("derive will publish decision events that store never projects")
+            .with_help(format!("add '{f}' to pipeline.decision_families in deploy/configs/store.jsonc")),
         );
     }
-
-    if !source.has_validation_worker {
+    for f in store_dec.difference(&derive_dec) {
         findings.push(
             Finding::error(
-                "validation-worker",
-                "validation worker not found in source",
+                "decision-store-only",
+                format!("decision family '{f}' enabled in store but not in derive"),
             )
-            .with_why("without a validation worker, incoming data-plane messages cannot be evaluated against rules"),
+            .with_why("store expects decision events that derive never produces")
+            .with_help(format!("add '{f}' to pipeline.decision_families in deploy/configs/derive.jsonc")),
         );
     }
-
-    CheckResult::from_findings("validator-coverage", findings)
-}
-
-fn check_scope_consistency(index: &BindingsIndex) -> CheckResult {
-    let mut findings = Vec::new();
-
-    let scopes: HashSet<String> = index
-        .config_bindings
-        .iter()
-        .map(|b| format!("{}:{}", b.scope_kind, b.scope_key))
-        .collect();
-
-    if scopes.len() > 1 {
-        let scope_list: Vec<&String> = scopes.iter().collect();
-        findings.push(
-            Finding::warning(
-                "multi-scope",
-                format!(
-                    "bindings reference multiple scopes: {}",
-                    scope_list
-                        .iter()
-                        .map(|s| format!("'{s}'"))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                ),
-            )
-            .with_why("multiple scopes increase routing complexity; ensure each service bootstraps the correct scope"),
-        );
+    if derive_dec == store_dec && !derive_dec.is_empty() {
+        findings.push(Finding::info(
+            "decision-consistent",
+            "decision families are consistent between derive and store".to_string(),
+        ));
     }
 
-    if !scopes.is_empty() && !scopes.contains("global:default") {
-        findings.push(
-            Finding::warning(
-                "default-scope",
-                "no bindings use the default scope 'global:default'",
-            )
-            .with_why("the default activation scope is 'global:default'; non-standard scopes require explicit configuration"),
-        );
-    }
+    // Strategy families — both are opt-in; empty = none.
+    let derive_strat: HashSet<&str> = derive.strategy_families.iter().map(|s| s.as_str()).collect();
+    let store_strat: HashSet<&str> = store.strategy_families.iter().map(|s| s.as_str()).collect();
 
-    CheckResult::from_findings("scope-consistency", findings)
-}
-
-fn check_drift(index: &BindingsIndex) -> CheckResult {
-    let source = match &index.source {
-        Some(s) => s,
-        None => return CheckResult::skip("drift-detection", "source not scanned"),
-    };
-
-    let mut findings = Vec::new();
-
-    // Check: subject prefix in source matches expected convention
-    if !source.subject_prefix.is_empty() && source.subject_prefix != "dataplane.ingestion.received"
-    {
+    for f in derive_strat.difference(&store_strat) {
         findings.push(
             Finding::error(
-                "prefix-drift",
-                format!(
-                    "subject prefix '{}' differs from expected 'dataplane.ingestion.received'",
-                    source.subject_prefix
-                ),
+                "strategy-derive-only",
+                format!("strategy family '{f}' enabled in derive but not in store"),
             )
-            .with_why(
-                "prefix drift means consumer and validator will not agree on JetStream subjects",
-            )
-            .with_help("align the prefix in internal/application/dataplane/registry.go"),
+            .with_why("derive will publish strategy events that store never projects")
+            .with_help(format!("add '{f}' to pipeline.strategy_families in deploy/configs/store.jsonc")),
         );
     }
-
-    // Check: event stream name
-    if !source.stream_subjects.contains_key("CONFIGCTL_EVENTS") {
+    for f in store_strat.difference(&derive_strat) {
         findings.push(
-            Finding::warning(
-                "event-stream-drift",
-                "CONFIGCTL_EVENTS stream not found — validator may not receive activation events",
+            Finding::error(
+                "strategy-store-only",
+                format!("strategy family '{f}' enabled in store but not in derive"),
             )
-            .with_why("without this stream, the validator cannot cache RuntimeProjection from activation events"),
+            .with_why("store expects strategy events that derive never produces")
+            .with_help(format!("add '{f}' to pipeline.strategy_families in deploy/configs/derive.jsonc")),
         );
     }
-
-    // Check: validator durable consumer targets the right stream
-    if let Some(stream) = source.durable_consumers.get("validator-dataplane-v1") {
-        if stream != "DATA_PLANE_INGESTION" {
-            findings.push(
-                Finding::error(
-                    "durable-stream-drift",
-                    format!(
-                        "validator durable targets stream '{stream}' instead of 'DATA_PLANE_INGESTION'"
-                    ),
-                )
-                .with_why("durable consumer bound to wrong stream will never receive data-plane messages"),
-            );
-        }
+    if derive_strat == store_strat && !derive_strat.is_empty() {
+        findings.push(Finding::info(
+            "strategy-consistent",
+            "strategy families are consistent between derive and store".to_string(),
+        ));
     }
 
-    if let Some(stream) = source.durable_consumers.get("validator-runtime-cache-v1") {
-        if stream != "CONFIGCTL_EVENTS" {
-            findings.push(
-                Finding::error(
-                    "runtime-durable-drift",
-                    format!(
-                        "runtime cache durable targets stream '{stream}' instead of 'CONFIGCTL_EVENTS'"
-                    ),
-                )
-                .with_why("runtime cache durable bound to wrong stream will miss activation events"),
-            );
-        }
-    }
-
-    for durable in ["consumer-runtime-refresh-v1", "emulator-runtime-refresh-v1"] {
-        if let Some(stream) = source.durable_consumers.get(durable) {
-            if stream != "CONFIGCTL_EVENTS" {
-                findings.push(
-                    Finding::error(
-                        "runtime-refresh-durable-drift",
-                        format!(
-                            "refresh durable '{durable}' targets stream '{stream}' instead of 'CONFIGCTL_EVENTS'"
-                        ),
-                    )
-                    .with_why("event-driven dataplane refresh depends on CONFIGCTL_EVENTS; wrong stream means runtime changes will be missed"),
-                );
-            }
-        }
-    }
-
-    // Check: bootstrap scope in deploy configs matches binding scopes
-    let config_scopes: HashSet<String> = index
-        .config_bindings
-        .iter()
-        .map(|b| format!("{}:{}", b.scope_kind, b.scope_key))
-        .collect();
-    let bootstrap_scopes: HashSet<String> = source
-        .bootstrap_scopes
-        .iter()
-        .map(|(k, v)| format!("{k}:{v}"))
-        .collect();
-    if !config_scopes.is_empty() && !bootstrap_scopes.is_empty() {
-        for scope in &config_scopes {
-            if !bootstrap_scopes.contains(scope) {
-                findings.push(
-                    Finding::warning(
-                        "bootstrap-scope-drift",
-                        format!(
-                            "binding scope '{scope}' is not bootstrapped by any service config"
-                        ),
-                    )
-                    .with_why("bindings in this scope will not be fetched during consumer/emulator bootstrap"),
-                );
-            }
-        }
-    }
-
-    CheckResult::from_findings("drift-detection", findings)
+    CheckResult::from_findings("cross-config-family-consistency", findings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     fn make_source() -> RuntimeBindingSource {
         let mut stream_subjects = HashMap::new();
         stream_subjects.insert(
-            "DATA_PLANE_INGESTION".into(),
-            vec!["dataplane.ingestion.received.>".into()],
+            "CONFIGCTL_EVENTS".into(),
+            vec!["configctl.events.>".into()],
         );
         stream_subjects.insert(
-            "CONFIGCTL_EVENTS".into(),
-            vec!["configctl.events.config.>".into()],
+            "OBSERVATION_EVENTS".into(),
+            vec!["observation.events.>".into()],
+        );
+        stream_subjects.insert(
+            "EVIDENCE_EVENTS".into(),
+            vec!["evidence.events.>".into()],
+        );
+        stream_subjects.insert(
+            "SIGNAL_EVENTS".into(),
+            vec!["signal.events.>".into()],
+        );
+        stream_subjects.insert(
+            "DECISION_EVENTS".into(),
+            vec!["decision.events.>".into()],
+        );
+        stream_subjects.insert(
+            "STRATEGY_EVENTS".into(),
+            vec!["strategy.events.>".into()],
         );
 
         let mut durable_consumers = HashMap::new();
         durable_consumers.insert(
-            "validator-dataplane-v1".into(),
-            "DATA_PLANE_INGESTION".into(),
+            "derive-observation".into(),
+            "OBSERVATION_EVENTS".into(),
         );
-        durable_consumers.insert(
-            "validator-runtime-cache-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
-        );
-        durable_consumers.insert(
-            "consumer-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
-        );
-        durable_consumers.insert(
-            "emulator-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
-        );
+        durable_consumers.insert("store-candle".into(), "EVIDENCE_EVENTS".into());
+        durable_consumers.insert("store-trade-burst".into(), "EVIDENCE_EVENTS".into());
+        durable_consumers.insert("store-volume".into(), "EVIDENCE_EVENTS".into());
+        durable_consumers.insert("store-signal-rsi".into(), "SIGNAL_EVENTS".into());
+        durable_consumers.insert("store-decision-rsi-oversold".into(), "DECISION_EVENTS".into());
+        durable_consumers.insert("store-strategy-mean-reversion-entry".into(), "STRATEGY_EVENTS".into());
+
+        let mut query_subjects = HashSet::new();
+        query_subjects.insert("evidence.query.candle.latest".into());
+        query_subjects.insert("evidence.query.candle.history".into());
+        query_subjects.insert("evidence.query.tradeburst.latest".into());
+        query_subjects.insert("evidence.query.volume.latest".into());
+        query_subjects.insert("signal.query.rsi.latest".into());
+        query_subjects.insert("decision.query.rsi_oversold.latest".into());
+        query_subjects.insert("strategy.query.mean_reversion_entry.latest".into());
+
+        let mut publish_subjects = HashSet::new();
+        publish_subjects.insert("observation.events.market.trade.binancef".into());
+        publish_subjects.insert("evidence.events.candle.sampled.BTCUSDT.1m".into());
+
+        let mut service_adapters = HashMap::new();
+        let mut ingest_adapters = HashSet::new();
+        ingest_adapters.insert("publisher".into());
+        ingest_adapters.insert("websocket".into());
+        ingest_adapters.insert("binding_watcher".into());
+        service_adapters.insert("ingest".into(), ingest_adapters);
+
+        let mut derive_adapters = HashSet::new();
+        derive_adapters.insert("consumer".into());
+        derive_adapters.insert("publisher".into());
+        derive_adapters.insert("binding_watcher".into());
+        service_adapters.insert("derive".into(), derive_adapters);
+
+        let mut store_adapters = HashSet::new();
+        store_adapters.insert("consumer".into());
+        store_adapters.insert("projection".into());
+        store_adapters.insert("responder".into());
+        service_adapters.insert("store".into(), store_adapters);
 
         let mut lifecycle_events = HashSet::new();
         lifecycle_events.insert("config.activated".into());
         lifecycle_events.insert("config.deactivated".into());
-        lifecycle_events.insert("config.ingestion_runtime_changed".into());
 
         RuntimeBindingSource {
-            subject_prefix: "dataplane.ingestion.received".into(),
-            subject_pattern: "dataplane.ingestion.received.>".into(),
             stream_subjects,
             durable_consumers,
+            query_subjects,
+            publish_subjects,
+            service_adapters,
             lifecycle_events,
-            kafka_topics_referenced: HashSet::new(),
-            has_bootstrap_client: true,
-            has_topology_builder: true,
-            has_runtime_cache: true,
-            has_validation_worker: true,
-            bootstrap_scopes: vec![("global".into(), "default".into())],
+            has_observation_publisher: true,
+            has_observation_consumer: true,
+            has_evidence_publisher: true,
+            has_evidence_consumer: true,
+            has_evidence_gateway: true,
+            has_candle_kv_store: true,
+            has_binding_watcher: true,
+            has_signal_publisher: true,
+            has_signal_consumer: true,
+            has_signal_gateway: true,
+            has_signal_kv_store: true,
+            has_signal_registry: true,
+            has_decision_publisher: true,
+            has_decision_consumer: true,
+            has_decision_gateway: true,
+            has_decision_kv_store: true,
+            has_decision_registry: true,
+            has_strategy_publisher: true,
+            has_strategy_consumer: true,
+            has_strategy_gateway: true,
+            has_strategy_kv_store: true,
+            has_strategy_registry: true,
+            has_risk_publisher: false,
+            has_risk_consumer: false,
+            has_risk_gateway: false,
+            has_risk_kv_store: false,
+            has_risk_registry: false,
         }
     }
 
-    fn make_binding(name: &str, topic: &str) -> BindingDefinition {
-        BindingDefinition {
-            name: name.into(),
-            topic: topic.into(),
-            config_name: "test-config".into(),
-            scope_kind: "global".into(),
-            scope_key: "default".into(),
-            field_count: 3,
-            rule_count: 2,
-            source_file: None,
-        }
-    }
-
-    // ── sanitize_token ──────────────────────────────────────────────
+    // ── check_stream_ownership ────────────────────────────────────────
 
     #[test]
-    fn sanitize_token_basic() {
-        assert_eq!(sanitize_token("user-events"), "user-events");
-        assert_eq!(sanitize_token("Global"), "global");
-        assert_eq!(sanitize_token("  padded  "), "padded");
-    }
-
-    #[test]
-    fn sanitize_token_special_chars() {
-        assert_eq!(sanitize_token("hello_world!"), "hello-world");
-        assert_eq!(sanitize_token("a@b#c"), "a-b-c");
-        assert_eq!(sanitize_token(""), "unknown");
-        assert_eq!(sanitize_token("!!!"), "unknown");
-    }
-
-    // ── subject_matches_pattern ─────────────────────────────────────
-
-    #[test]
-    fn subject_matches_wildcard() {
-        assert!(subject_matches_pattern(
-            "dataplane.ingestion.received.global.default.user-events",
-            "dataplane.ingestion.received.>"
-        ));
-    }
-
-    #[test]
-    fn subject_matches_exact() {
-        assert!(subject_matches_pattern(
-            "configctl.events.config.activated",
-            "configctl.events.config.activated"
-        ));
-    }
-
-    #[test]
-    fn subject_no_match() {
-        assert!(!subject_matches_pattern(
-            "other.subject.here",
-            "dataplane.ingestion.received.>"
-        ));
-    }
-
-    // ── derive_jetstream_subject ────────────────────────────────────
-
-    #[test]
-    fn derive_subject_standard() {
-        let subject = derive_jetstream_subject(
-            "dataplane.ingestion.received",
-            "global",
-            "default",
-            "user-events",
-        );
-        assert_eq!(
-            subject.unwrap(),
-            "dataplane.ingestion.received.global.default.user-events"
-        );
-    }
-
-    #[test]
-    fn derive_subject_empty_prefix() {
-        assert!(derive_jetstream_subject("", "global", "default", "x").is_none());
-    }
-
-    #[test]
-    fn derive_subject_sanitizes_tokens() {
-        let subject = derive_jetstream_subject(
-            "dataplane.ingestion.received",
-            "Global",
-            "Default",
-            "User Events",
-        );
-        assert_eq!(
-            subject.unwrap(),
-            "dataplane.ingestion.received.global.default.user-events"
-        );
-    }
-
-    // ── check_subject_pattern ───────────────────────────────────────
-
-    #[test]
-    fn subject_pattern_passes_when_present() {
+    fn stream_ownership_passes_all_present() {
         let src = make_source();
-        let result = check_subject_pattern(&src);
+        let result = check_stream_ownership(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn subject_pattern_fails_when_missing() {
+    fn stream_ownership_fails_missing_observation() {
         let mut src = make_source();
-        src.subject_prefix.clear();
-        let result = check_subject_pattern(&src);
+        src.stream_subjects.remove("OBSERVATION_EVENTS");
+        let result = check_stream_ownership(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Fail);
     }
 
-    // ── check_routing_constants ─────────────────────────────────────
+    #[test]
+    fn stream_ownership_fails_missing_evidence() {
+        let mut src = make_source();
+        src.stream_subjects.remove("EVIDENCE_EVENTS");
+        let result = check_stream_ownership(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
 
     #[test]
-    fn routing_constants_pass_when_complete() {
+    fn stream_ownership_fails_missing_configctl() {
+        let mut src = make_source();
+        src.stream_subjects.remove("CONFIGCTL_EVENTS");
+        let result = check_stream_ownership(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
+
+    // ── check_consumer_binding ────────────────────────────────────────
+
+    #[test]
+    fn consumer_binding_passes_correct() {
         let src = make_source();
-        let result = check_routing_constants(&src);
+        let result = check_consumer_binding(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn routing_constants_fail_missing_stream() {
+    fn consumer_binding_fails_missing_derive() {
         let mut src = make_source();
-        src.stream_subjects.remove("DATA_PLANE_INGESTION");
-        let result = check_routing_constants(&src);
+        src.durable_consumers.remove("derive-observation");
+        let result = check_consumer_binding(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Fail);
     }
 
     #[test]
-    fn routing_constants_fail_missing_durable() {
+    fn consumer_binding_fails_missing_store() {
         let mut src = make_source();
-        src.durable_consumers.remove("validator-dataplane-v1");
-        let result = check_routing_constants(&src);
+        src.durable_consumers.remove("store-candle");
+        let result = check_consumer_binding(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Fail);
     }
 
-    // ── check_lifecycle_events ──────────────────────────────────────
+    #[test]
+    fn consumer_binding_fails_wrong_stream() {
+        let mut src = make_source();
+        src.durable_consumers
+            .insert("derive-observation".into(), "WRONG_STREAM".into());
+        let result = check_consumer_binding(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
+
+    // ── check_query_routing ───────────────────────────────────────────
 
     #[test]
-    fn lifecycle_events_pass_when_complete() {
+    fn query_routing_passes_present() {
+        let src = make_source();
+        let result = check_query_routing(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn query_routing_fails_missing() {
+        let mut src = make_source();
+        src.query_subjects.clear();
+        let result = check_query_routing(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
+
+    // ── check_config_source_alignment ─────────────────────────────────
+
+    fn make_service_config(service: &str, nats: bool) -> configs::ServiceConfig {
+        configs::ServiceConfig {
+            service: service.into(),
+            nats_url: if nats {
+                Some("nats://nats:4222".into())
+            } else {
+                None
+            },
+            source_file: format!("deploy/configs/{service}.jsonc"),
+            families: Vec::new(),
+            signal_families: Vec::new(),
+            decision_families: Vec::new(),
+            strategy_families: Vec::new(),
+        }
+    }
+
+    fn config_alignment_passes_all_present() {
+        let configs = vec![
+            make_service_config("ingest", true),
+            make_service_config("derive", true),
+            make_service_config("store", true),
+        ];
+        let result = check_config_source_alignment(&configs);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn config_alignment_warns_missing_service() {
+        let configs = vec![make_service_config("ingest", true)];
+        let result = check_config_source_alignment(&configs);
+        // Missing configs are warnings, not errors
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("no deploy config")));
+    }
+
+    #[test]
+    fn config_alignment_warns_no_nats_url() {
+        let configs = vec![
+            make_service_config("ingest", false),
+            make_service_config("derive", true),
+            make_service_config("store", true),
+        ];
+        let result = check_config_source_alignment(&configs);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("no NATS URL")));
+    }
+
+    // ── check_adapter_presence ────────────────────────────────────────
+
+    #[test]
+    fn adapter_presence_passes_all_present() {
+        let src = make_source();
+        let result = check_adapter_presence(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn adapter_presence_fails_missing_scope() {
+        let mut src = make_source();
+        src.service_adapters.remove("ingest");
+        let result = check_adapter_presence(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
+
+    #[test]
+    fn adapter_presence_fails_missing_adapter() {
+        let mut src = make_source();
+        if let Some(adapters) = src.service_adapters.get_mut("derive") {
+            adapters.remove("consumer");
+        }
+        let result = check_adapter_presence(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    }
+
+    // ── check_adapter_files ───────────────────────────────────────────
+
+    #[test]
+    fn adapter_files_passes_all_present() {
+        let src = make_source();
+        let result = check_adapter_files(&src);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn adapter_files_warns_missing() {
+        let mut src = make_source();
+        src.has_observation_publisher = false;
+        let result = check_adapter_files(&src);
+        // Missing adapter files are warnings
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("observation_publisher")));
+    }
+
+    // ── check_lifecycle_events ────────────────────────────────────────
+
+    #[test]
+    fn lifecycle_events_passes_present() {
         let src = make_source();
         let result = check_lifecycle_events(&src);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn lifecycle_events_warn_when_missing() {
+    fn lifecycle_events_warns_missing() {
         let mut src = make_source();
         src.lifecycle_events.clear();
         let result = check_lifecycle_events(&src);
-        // Only warnings, so still passes
+        // Only warnings, still passes
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
-        assert!(!result.findings.is_empty());
-    }
-
-    // ── check_config_bindings ───────────────────────────────────────
-
-    #[test]
-    fn config_bindings_pass_with_valid_bindings() {
-        let bindings = vec![make_binding("user-events", "users-topic")];
-        let result = check_config_bindings(&bindings);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
-    }
-
-    #[test]
-    fn config_bindings_warn_empty() {
-        let result = check_config_bindings(&[]);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.severity == crate::models::Severity::Warning));
+            .any(|f| f.message.contains("config.activated")));
     }
 
-    #[test]
-    fn config_bindings_warn_duplicate_names() {
-        let bindings = vec![
-            make_binding("user-events", "topic-a"),
-            BindingDefinition {
-                config_name: "other-config".into(),
-                ..make_binding("user-events", "topic-b")
-            },
-        ];
-        let result = check_config_bindings(&bindings);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("duplicate") || f.message.contains("multiple configs")));
-    }
+    // ── check_cross_config_family_consistency ──────────────────────────
 
     #[test]
-    fn config_bindings_warn_no_fields() {
-        let mut binding = make_binding("no-fields", "topic");
-        binding.field_count = 0;
-        let result = check_config_bindings(&[binding]);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("no fields")));
-    }
+    fn cross_config_passes_when_families_match() {
+        let mut derive = make_service_config("derive", true);
+        derive.families = vec!["candle".into(), "volume".into()];
+        derive.signal_families = vec!["rsi".into()];
+        derive.decision_families = vec!["rsi_oversold".into()];
 
-    #[test]
-    fn config_bindings_warn_no_rules() {
-        let mut binding = make_binding("no-rules", "topic");
-        binding.rule_count = 0;
-        let result = check_config_bindings(&[binding]);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("no rules")));
-    }
+        let mut store = make_service_config("store", true);
+        store.families = vec!["candle".into(), "volume".into()];
+        store.signal_families = vec!["rsi".into()];
+        store.decision_families = vec!["rsi_oversold".into()];
 
-    // ── check_resolved_bindings ─────────────────────────────────────
-
-    #[test]
-    fn resolved_bindings_pass_clean() {
-        let resolved = vec![ResolvedBinding {
-            config_name: "test".into(),
-            binding_name: "user-events".into(),
-            kafka_topic: "users-topic".into(),
-            jetstream_subject: Some(
-                "dataplane.ingestion.received.global.default.user-events".into(),
-            ),
-            scope: "global:default".into(),
-            field_count: 3,
-            rule_count: 2,
-            source_file: None,
-            issues: vec![],
-        }];
-        let result = check_resolved_bindings(&resolved);
+        let result = check_cross_config_family_consistency(&[derive, store]);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn resolved_bindings_warn_with_issues() {
-        let resolved = vec![ResolvedBinding {
-            config_name: "test".into(),
-            binding_name: "broken".into(),
-            kafka_topic: "topic".into(),
-            jetstream_subject: None,
-            scope: "global:default".into(),
-            field_count: 0,
-            rule_count: 0,
-            source_file: None,
-            issues: vec!["could not derive subject".into()],
-        }];
-        let result = check_resolved_bindings(&resolved);
+    fn cross_config_fails_evidence_derive_only() {
+        let mut derive = make_service_config("derive", true);
+        derive.families = vec!["candle".into(), "volume".into()];
+
+        let mut store = make_service_config("store", true);
+        store.families = vec!["candle".into()]; // volume missing
+
+        let result = check_cross_config_family_consistency(&[derive, store]);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
         assert!(result
             .findings
             .iter()
-            .any(|f| { f.severity == crate::models::Severity::Warning }));
-    }
-
-    // ── check_drift ─────────────────────────────────────────────────
-
-    #[test]
-    fn drift_passes_standard_setup() {
-        let index = BindingsIndex {
-            config_bindings: vec![make_binding("user-events", "users-topic")],
-            source: Some(make_source()),
-            resolved: vec![],
-        };
-        let result = check_drift(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+            .any(|f| f.message.contains("volume") && f.message.contains("derive but not in store")));
     }
 
     #[test]
-    fn drift_fails_wrong_prefix() {
-        let mut src = make_source();
-        src.subject_prefix = "wrong.prefix.here".into();
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(src),
-            resolved: vec![],
-        };
-        let result = check_drift(&index);
+    fn cross_config_fails_signal_mismatch() {
+        let mut derive = make_service_config("derive", true);
+        derive.signal_families = vec!["rsi".into()];
+
+        let store = make_service_config("store", true);
+        // store has no signal families
+
+        let result = check_cross_config_family_consistency(&[derive, store]);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("rsi") && f.message.contains("derive but not in store")));
+    }
+
+    #[test]
+    fn cross_config_fails_decision_mismatch() {
+        let mut derive = make_service_config("derive", true);
+        derive.decision_families = vec!["rsi_oversold".into()];
+
+        let store = make_service_config("store", true);
+
+        let result = check_cross_config_family_consistency(&[derive, store]);
         assert_eq!(result.status, crate::models::CheckStatus::Fail);
     }
 
     #[test]
-    fn drift_fails_wrong_durable_stream() {
-        let mut src = make_source();
-        src.durable_consumers
-            .insert("validator-dataplane-v1".into(), "WRONG_STREAM".into());
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(src),
-            resolved: vec![],
-        };
-        let result = check_drift(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Fail);
-    }
-
-    #[test]
-    fn drift_skips_without_source() {
-        let index = BindingsIndex::default();
-        let result = check_drift(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Skip);
-    }
-
-    // ── check_scope_consistency ─────────────────────────────────────
-
-    #[test]
-    fn scope_consistency_passes_single_default() {
-        let index = BindingsIndex {
-            config_bindings: vec![make_binding("x", "t")],
-            source: None,
-            resolved: vec![],
-        };
-        let result = check_scope_consistency(&index);
+    fn cross_config_skips_without_both_services() {
+        let derive = make_service_config("derive", true);
+        let result = check_cross_config_family_consistency(&[derive]);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
-    #[test]
-    fn scope_consistency_warns_multiple() {
-        let mut b2 = make_binding("y", "t2");
-        b2.scope_kind = "tenant".into();
-        b2.scope_key = "acme".into();
-        let index = BindingsIndex {
-            config_bindings: vec![make_binding("x", "t"), b2],
-            source: None,
-            resolved: vec![],
-        };
-        let result = check_scope_consistency(&index);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("multiple scopes")));
-    }
-
-    // ── check_consumer_coverage ─────────────────────────────────────
-
-    #[test]
-    fn consumer_coverage_passes_when_present() {
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(make_source()),
-            resolved: vec![],
-        };
-        let result = check_binding_consumer_coverage(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
-    }
-
-    #[test]
-    fn consumer_coverage_fails_missing_bootstrap() {
-        let mut src = make_source();
-        src.has_bootstrap_client = false;
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(src),
-            resolved: vec![],
-        };
-        let result = check_binding_consumer_coverage(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Fail);
-    }
-
-    // ── check_validator_coverage ────────────────────────────────────
-
-    #[test]
-    fn validator_coverage_passes_when_present() {
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(make_source()),
-            resolved: vec![],
-        };
-        let result = check_binding_validator_coverage(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
-    }
-
-    #[test]
-    fn validator_coverage_fails_missing_cache() {
-        let mut src = make_source();
-        src.has_runtime_cache = false;
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(src),
-            resolved: vec![],
-        };
-        let result = check_binding_validator_coverage(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Fail);
-    }
-
-    // ── resolve_bindings ────────────────────────────────────────────
-
-    #[test]
-    fn resolve_bindings_produces_correct_subject() {
-        let index = BindingsIndex {
-            config_bindings: vec![make_binding("user-events", "users-topic")],
-            source: Some(make_source()),
-            resolved: vec![],
-        };
-        let resolved = resolve_bindings(&index);
-        assert_eq!(resolved.len(), 1);
-        assert_eq!(
-            resolved[0].jetstream_subject.as_deref(),
-            Some("dataplane.ingestion.received.global.default.user-events")
-        );
-        assert!(resolved[0].issues.is_empty());
-    }
-
-    #[test]
-    fn resolve_bindings_empty_without_source() {
-        let index = BindingsIndex {
-            config_bindings: vec![make_binding("x", "t")],
-            source: None,
-            resolved: vec![],
-        };
-        let resolved = resolve_bindings(&index);
-        assert!(resolved.is_empty());
-    }
-
-    // ── analyze ─────────────────────────────────────────────────────
+    // ── analyze integration ───────────────────────────────────────────
 
     #[test]
     fn analyze_fails_without_internal_dir() {
@@ -1256,49 +1150,13 @@ mod tests {
         assert_eq!(report.title, "runtime-bindings");
     }
 
-    // ── check_topic_subject_mapping ─────────────────────────────────
-
     #[test]
-    fn topic_subject_mapping_passes_valid() {
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(make_source()),
-            resolved: vec![ResolvedBinding {
-                config_name: "test".into(),
-                binding_name: "user-events".into(),
-                kafka_topic: "users-topic".into(),
-                jetstream_subject: Some(
-                    "dataplane.ingestion.received.global.default.user-events".into(),
-                ),
-                scope: "global:default".into(),
-                field_count: 3,
-                rule_count: 2,
-                source_file: None,
-                issues: vec![],
-            }],
-        };
-        let result = check_topic_subject_mapping(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
-    }
-
-    #[test]
-    fn topic_subject_mapping_fails_outside_stream() {
-        let index = BindingsIndex {
-            config_bindings: vec![],
-            source: Some(make_source()),
-            resolved: vec![ResolvedBinding {
-                config_name: "test".into(),
-                binding_name: "rogue".into(),
-                kafka_topic: "rogue-topic".into(),
-                jetstream_subject: Some("other.prefix.rogue".into()),
-                scope: "global:default".into(),
-                field_count: 1,
-                rule_count: 1,
-                source_file: None,
-                issues: vec![],
-            }],
-        };
-        let result = check_topic_subject_mapping(&index);
-        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+    fn analyze_reports_have_correct_title() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("internal")).unwrap();
+        let report = analyze(dir.path()).unwrap();
+        assert_eq!(report.title, "runtime-bindings");
+        // Should have multiple check results
+        assert!(!report.checks.is_empty());
     }
 }

@@ -64,10 +64,6 @@ type ConfigctlRegistry struct {
 	IngestionRuntimeChanged      EventSpec
 	Archived                     EventSpec
 	Rejected                     EventSpec
-	ValidatorRuntime             ConsumerSpec
-	ValidatorRuntimeCleared      ConsumerSpec
-	ConsumerRuntimeChanged       ConsumerSpec
-	EmulatorRuntimeChanged       ConsumerSpec
 }
 
 func DefaultConfigctlRegistry() ConfigctlRegistry {
@@ -180,45 +176,40 @@ func DefaultConfigctlRegistry() ConfigctlRegistry {
 			Type:    "configctl.event.config.rejected",
 			Stream:  eventStream,
 		},
-		ValidatorRuntime: ConsumerSpec{
-			Durable: "validator-runtime-cache-v1",
-			Event: EventSpec{
-				Subject: "configctl.events.config.activated",
-				Type:    "configctl.event.config.activated",
-				Stream:  eventStream,
+	}
+}
+
+// IngestBindingConsumer defines the durable consumer spec for ingest
+// consuming ingestion runtime changed events from configctl.
+func IngestBindingConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "ingest-binding-watcher",
+		Event: EventSpec{
+			Subject: "configctl.events.config.ingestion_runtime_changed",
+			Type:    "configctl.event.config.ingestion_runtime_changed",
+			Stream: StreamSpec{
+				Name: "CONFIGCTL_EVENTS",
 			},
-			AckWait:    30 * time.Second,
-			MaxDeliver: 10,
 		},
-		ValidatorRuntimeCleared: ConsumerSpec{
-			Durable: "validator-runtime-clear-v1",
-			Event: EventSpec{
-				Subject: "configctl.events.config.deactivated",
-				Type:    "configctl.event.config.deactivated",
-				Stream:  eventStream,
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// DeriveBindingConsumer defines the durable consumer spec for derive
+// consuming ingestion runtime changed events from configctl.
+// Separate durable name ensures independent cursor from ingest.
+func DeriveBindingConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "derive-binding-watcher",
+		Event: EventSpec{
+			Subject: "configctl.events.config.ingestion_runtime_changed",
+			Type:    "configctl.event.config.ingestion_runtime_changed",
+			Stream: StreamSpec{
+				Name: "CONFIGCTL_EVENTS",
 			},
-			AckWait:    30 * time.Second,
-			MaxDeliver: 10,
 		},
-		ConsumerRuntimeChanged: ConsumerSpec{
-			Durable: "consumer-runtime-refresh-v1",
-			Event: EventSpec{
-				Subject: "configctl.events.config.ingestion_runtime_changed",
-				Type:    "configctl.event.config.ingestion_runtime_changed",
-				Stream:  eventStream,
-			},
-			AckWait:    30 * time.Second,
-			MaxDeliver: 10,
-		},
-		EmulatorRuntimeChanged: ConsumerSpec{
-			Durable: "emulator-runtime-refresh-v1",
-			Event: EventSpec{
-				Subject: "configctl.events.config.ingestion_runtime_changed",
-				Type:    "configctl.event.config.ingestion_runtime_changed",
-				Stream:  eventStream,
-			},
-			AckWait:    30 * time.Second,
-			MaxDeliver: 10,
-		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
 	}
 }

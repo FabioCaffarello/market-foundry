@@ -1,0 +1,161 @@
+package store
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"sync/atomic"
+	"time"
+
+	actorcommon "internal/actors/common"
+	adapternats "internal/adapters/nats"
+	"internal/shared/healthz"
+
+	"github.com/anthdm/hollywood/actor"
+)
+
+type VolumeProjectionConfig struct {
+	NATSURL string
+	Tracker *healthz.Tracker
+}
+
+type volumeProjectionStats struct {
+	materialized    atomic.Int64
+	skippedStale    atomic.Int64
+	skippedDedup    atomic.Int64
+	skippedNonFinal atomic.Int64
+	rejected        atomic.Int64
+	errors          atomic.Int64
+}
+
+// VolumeProjectionActor materializes finalized volume profiles into NATS KV.
+type VolumeProjectionActor struct {
+	cfg    VolumeProjectionConfig
+	logger *slog.Logger
+	store  volumeProjectionStore
+	closer func() error
+	stats  volumeProjectionStats
+}
+
+func NewVolumeProjectionActor(cfg VolumeProjectionConfig) actor.Producer {
+	return func() actor.Receiver {
+		return &VolumeProjectionActor{cfg: cfg}
+	}
+}
+
+func (a *VolumeProjectionActor) Receive(c *actor.Context) {
+	if a.logger == nil {
+		a.logger = slog.Default().With("actor", "volume-projection")
+	}
+
+	switch msg := c.Message().(type) {
+	case actor.Started:
+		a.start(c)
+
+	case actor.Stopped:
+		a.logStats()
+		if a.closer != nil {
+			if err := a.closer(); err != nil {
+				a.logger.Error("close volume KV store", "error", err)
+			}
+		}
+
+	case volumeReceivedMessage:
+		a.onVolume(msg)
+
+	default:
+		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {
+			return
+		}
+		a.logger.Warn("unknown message", "type", fmt.Sprintf("%T", msg))
+	}
+}
+
+func (a *VolumeProjectionActor) start(c *actor.Context) {
+	store := adapternats.NewVolumeKVStore(a.cfg.NATSURL)
+	if err := store.Start(); err != nil {
+		a.logger.Error("start volume KV store", "error", err)
+		c.Engine().Poison(c.PID())
+		return
+	}
+
+	a.store = store
+	a.closer = store.Close
+	a.logger.Info("volume projection started",
+		"bucket_latest", adapternats.VolumeLatestBucket,
+	)
+}
+
+func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
+	vol := msg.Event.Volume
+
+	if !vol.Final {
+		a.stats.skippedNonFinal.Add(1)
+		return
+	}
+
+	if prob := vol.Validate(); prob != nil {
+		a.stats.rejected.Add(1)
+		a.logger.Warn("volume rejected by validation",
+			"error", prob.Message,
+			"source", vol.Source,
+			"symbol", vol.Symbol,
+			"timeframe", vol.Timeframe,
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, prob := a.store.Put(ctx, vol)
+	if prob != nil {
+		a.stats.errors.Add(1)
+		a.logger.Error("materialize volume latest",
+			"error", prob.Message,
+			"source", vol.Source,
+			"symbol", vol.Symbol,
+			"timeframe", vol.Timeframe,
+		)
+		return
+	}
+
+	switch result {
+	case adapternats.PutSkippedStale:
+		a.stats.skippedStale.Add(1)
+		return
+	case adapternats.PutSkippedDuplicate:
+		a.stats.skippedDedup.Add(1)
+		return
+	}
+
+	if result == adapternats.PutWritten {
+		a.stats.materialized.Add(1)
+	}
+
+	if a.cfg.Tracker != nil {
+		a.cfg.Tracker.RecordEvent()
+	}
+
+	if result == adapternats.PutWritten {
+		a.logger.Info("volume materialized",
+			"source", vol.Source,
+			"symbol", vol.Symbol,
+			"timeframe", vol.Timeframe,
+			"open_time", vol.OpenTime.Format(time.RFC3339),
+			"trades", vol.TradeCount,
+			"vwap", vol.VWAP,
+		)
+	}
+}
+
+func (a *VolumeProjectionActor) logStats() {
+	a.logger.Info("volume projection stats",
+		"materialized", a.stats.materialized.Load(),
+		"skipped_stale", a.stats.skippedStale.Load(),
+		"skipped_dedup", a.stats.skippedDedup.Load(),
+		"skipped_non_final", a.stats.skippedNonFinal.Load(),
+		"rejected", a.stats.rejected.Load(),
+		"errors", a.stats.errors.Load(),
+	)
+}

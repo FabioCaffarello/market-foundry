@@ -2,7 +2,7 @@
 name = "raccoon-cli"
 version = "0.1.0"
 edition = "2021"
-description = "Engineering quality tooling for quality-service"
+description = "Engineering quality tooling for market-foundry"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

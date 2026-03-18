@@ -1,0 +1,27 @@
+### Get latest strategy — mean_reversion_entry — btcusdt 1m
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+### Get latest strategy — mean_reversion_entry — btcusdt 5m
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+### Get latest strategy — mean_reversion_entry — ethusdt 1m
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+### Get latest strategy — mean_reversion_entry — ethusdt 5m
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+### Error: unknown strategy type
+GET http://localhost:8080/strategy/unknown_type/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+### Error: missing timeframe
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt
+Accept: application/json
+
+### Error: missing all params
+GET http://localhost:8080/strategy/mean_reversion_entry/latest
+Accept: application/json

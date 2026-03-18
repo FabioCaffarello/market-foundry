@@ -8,12 +8,272 @@ import (
 )
 
 type AppConfig struct {
-	Log       LogConfig       `json:"log"`
-	HTTP      HTTPConfig      `json:"http"`
-	NATS      NATSConfig      `json:"nats"`
-	Kafka     KafkaConfig     `json:"kafka"`
-	Bootstrap BootstrapConfig `json:"bootstrap"`
-	Emulator  EmulatorConfig  `json:"emulator"`
+	Log      LogConfig      `json:"log"`
+	HTTP     HTTPConfig     `json:"http"`
+	NATS     NATSConfig     `json:"nats"`
+	Pipeline PipelineConfig `json:"pipeline"`
+}
+
+// ── Known family registries ─────────────────────────────────────────
+// These are the canonical family names recognized by the system.
+// Any name not in these sets is rejected at config validation time.
+
+var knownEvidenceFamilies = map[string]bool{
+	"candle":     true,
+	"tradeburst": true,
+	"volume":     true,
+}
+
+var knownSignalFamilies = map[string]bool{
+	"rsi": true,
+}
+
+var knownDecisionFamilies = map[string]bool{
+	"rsi_oversold": true,
+}
+
+var knownStrategyFamilies = map[string]bool{
+	"mean_reversion_entry": true,
+}
+
+// ── Cross-layer dependency rules ────────────────────────────────────
+// Each signal family declares which evidence families it requires.
+// Each decision family declares which signal families it requires.
+// Each strategy family declares which decision families it requires.
+
+var signalDependsOnEvidence = map[string][]string{
+	"rsi": {"candle"},
+}
+
+var decisionDependsOnSignal = map[string][]string{
+	"rsi_oversold": {"rsi"},
+}
+
+var strategyDependsOnDecision = map[string][]string{
+	"mean_reversion_entry": {"rsi_oversold"},
+}
+
+// PipelineConfig holds optional processing parameters used by derive and store.
+type PipelineConfig struct {
+	Timeframes       []int    `json:"timeframes"`
+	Families         []string `json:"families"`
+	SignalFamilies   []string `json:"signal_families"`
+	DecisionFamilies []string `json:"decision_families"`
+	StrategyFamilies []string `json:"strategy_families"`
+}
+
+// TimeframeDurations returns the configured timeframes as durations.
+// Falls back to [60s] if the list is empty or contains only invalid values.
+func (p PipelineConfig) TimeframeDurations() []time.Duration {
+	var durations []time.Duration
+	for _, secs := range p.Timeframes {
+		if secs > 0 {
+			durations = append(durations, time.Duration(secs)*time.Second)
+		}
+	}
+	if len(durations) == 0 {
+		return []time.Duration{60 * time.Second}
+	}
+	return durations
+}
+
+// IsFamilyEnabled returns true if the given family name is in the configured families list.
+// If no families are configured, all families are considered enabled (backward compatible).
+func (p PipelineConfig) IsFamilyEnabled(family string) bool {
+	if len(p.Families) == 0 {
+		return true
+	}
+	for _, f := range p.Families {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// IsSignalFamilyEnabled returns true if the given signal family name is in the configured
+// signal_families list. Unlike evidence families, absent signal_families means NO signal
+// activation (opt-in, not backward-compatible default).
+func (p PipelineConfig) IsSignalFamilyEnabled(family string) bool {
+	for _, f := range p.SignalFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledSignalFamilies returns the configured signal families list.
+func (p PipelineConfig) EnabledSignalFamilies() []string {
+	if len(p.SignalFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.SignalFamilies))
+	copy(result, p.SignalFamilies)
+	return result
+}
+
+// IsDecisionFamilyEnabled returns true if the given decision family name is in the configured
+// decision_families list. Like signal families, absent decision_families means NO decision
+// activation (opt-in, not backward-compatible default).
+func (p PipelineConfig) IsDecisionFamilyEnabled(family string) bool {
+	for _, f := range p.DecisionFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledDecisionFamilies returns the configured decision families list.
+func (p PipelineConfig) EnabledDecisionFamilies() []string {
+	if len(p.DecisionFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.DecisionFamilies))
+	copy(result, p.DecisionFamilies)
+	return result
+}
+
+// IsStrategyFamilyEnabled returns true if the given strategy family name is in the configured
+// strategy_families list. Like decision families, absent strategy_families means NO strategy
+// activation (opt-in, not backward-compatible default).
+func (p PipelineConfig) IsStrategyFamilyEnabled(family string) bool {
+	for _, f := range p.StrategyFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledStrategyFamilies returns the configured strategy families list.
+func (p PipelineConfig) EnabledStrategyFamilies() []string {
+	if len(p.StrategyFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.StrategyFamilies))
+	copy(result, p.StrategyFamilies)
+	return result
+}
+
+// EnabledFamilies returns the configured families list, or nil if all are enabled.
+func (p PipelineConfig) EnabledFamilies() []string {
+	if len(p.Families) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.Families))
+	copy(result, p.Families)
+	return result
+}
+
+// ValidatePipeline checks that pipeline family names are known and that
+// cross-layer dependency rules are satisfied. It returns nil when valid.
+func (p PipelineConfig) ValidatePipeline() *problem.Problem {
+	var issues []problem.ValidationIssue
+
+	// 1. Reject unknown evidence family names (only when explicitly configured).
+	for _, f := range p.Families {
+		if !knownEvidenceFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.families",
+				Message: fmt.Sprintf("unknown evidence family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 2. Reject unknown signal family names.
+	for _, f := range p.SignalFamilies {
+		if !knownSignalFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.signal_families",
+				Message: fmt.Sprintf("unknown signal family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 3. Reject unknown decision family names.
+	for _, f := range p.DecisionFamilies {
+		if !knownDecisionFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.decision_families",
+				Message: fmt.Sprintf("unknown decision family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 4. Signal → evidence dependency: each enabled signal must have its
+	//    required evidence families enabled.
+	for _, sig := range p.SignalFamilies {
+		deps, ok := signalDependsOnEvidence[sig]
+		if !ok {
+			continue
+		}
+		for _, ev := range deps {
+			if !p.IsFamilyEnabled(ev) {
+				issues = append(issues, problem.ValidationIssue{
+					Field:   "pipeline.signal_families",
+					Message: fmt.Sprintf("signal family %q requires evidence family %q to be enabled", sig, ev),
+					Value:   sig,
+				})
+			}
+		}
+	}
+
+	// 5. Decision → signal dependency: each enabled decision must have its
+	//    required signal families enabled.
+	for _, dec := range p.DecisionFamilies {
+		deps, ok := decisionDependsOnSignal[dec]
+		if !ok {
+			continue
+		}
+		for _, sig := range deps {
+			if !p.IsSignalFamilyEnabled(sig) {
+				issues = append(issues, problem.ValidationIssue{
+					Field:   "pipeline.decision_families",
+					Message: fmt.Sprintf("decision family %q requires signal family %q to be enabled", dec, sig),
+					Value:   dec,
+				})
+			}
+		}
+	}
+
+	// 6. Reject unknown strategy family names.
+	for _, f := range p.StrategyFamilies {
+		if !knownStrategyFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.strategy_families",
+				Message: fmt.Sprintf("unknown strategy family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 7. Strategy → decision dependency: each enabled strategy must have its
+	//    required decision families enabled.
+	for _, strat := range p.StrategyFamilies {
+		deps, ok := strategyDependsOnDecision[strat]
+		if !ok {
+			continue
+		}
+		for _, dec := range deps {
+			if !p.IsDecisionFamilyEnabled(dec) {
+				issues = append(issues, problem.ValidationIssue{
+					Field:   "pipeline.strategy_families",
+					Message: fmt.Sprintf("strategy family %q requires decision family %q to be enabled", strat, dec),
+					Value:   strat,
+				})
+			}
+		}
+	}
+
+	if len(issues) == 0 {
+		return nil
+	}
+	return validationProblem("pipeline config has invalid family dependencies", issues...)
 }
 
 // Defaults returns the baseline shared application config.
@@ -33,18 +293,6 @@ func Defaults() AppConfig {
 		NATS: NATSConfig{
 			RequestTimeout: "2s",
 		},
-		Kafka: KafkaConfig{
-			DialTimeout: "10s",
-		},
-		Bootstrap: BootstrapConfig{
-			ScopeKind:         "global",
-			ScopeKey:          "default",
-			Timeout:           "5s",
-			ReconcileInterval: "30s",
-		},
-		Emulator: EmulatorConfig{
-			PublishInterval: "5s",
-		},
 	}
 }
 
@@ -58,9 +306,6 @@ func (c *AppConfig) ApplyDefaults() {
 	c.Log.applyDefaults(defaults.Log)
 	c.HTTP.applyDefaults(defaults.HTTP)
 	c.NATS.applyDefaults(defaults.NATS)
-	c.Kafka.applyDefaults(defaults.Kafka)
-	c.Bootstrap.applyDefaults(defaults.Bootstrap)
-	c.Emulator.applyDefaults(defaults.Emulator)
 }
 
 // Validate checks whether the config is structurally valid.
@@ -69,9 +314,7 @@ func (c AppConfig) Validate() *problem.Problem {
 	issues = append(issues, extractIssues(c.Log.Validate())...)
 	issues = append(issues, extractIssues(c.HTTP.Validate())...)
 	issues = append(issues, extractIssues(c.NATS.Validate())...)
-	issues = append(issues, extractIssues(c.Kafka.Validate())...)
-	issues = append(issues, extractIssues(c.Bootstrap.Validate())...)
-	issues = append(issues, extractIssues(c.Emulator.Validate())...)
+	issues = append(issues, extractIssues(c.Pipeline.ValidatePipeline())...)
 
 	if len(issues) == 0 {
 		return nil
@@ -254,136 +497,6 @@ func (c NATSConfig) Validate() *problem.Problem {
 
 func (c NATSConfig) RequestTimeoutDuration() time.Duration {
 	return parseDurationOrDefault(c.RequestTimeout, 2*time.Second)
-}
-
-type KafkaConfig struct {
-	Enabled       bool     `json:"enabled"`
-	Brokers       []string `json:"brokers"`
-	ClientID      string   `json:"client_id,omitempty"`
-	ConsumerGroup string   `json:"consumer_group,omitempty"`
-	DialTimeout   string   `json:"dial_timeout"`
-}
-
-func (c *KafkaConfig) applyDefaults(defaults KafkaConfig) {
-	if strings.TrimSpace(c.DialTimeout) == "" {
-		c.DialTimeout = defaults.DialTimeout
-	}
-	c.ClientID = strings.TrimSpace(c.ClientID)
-	c.ConsumerGroup = strings.TrimSpace(c.ConsumerGroup)
-	if len(c.Brokers) == 0 {
-		return
-	}
-	brokers := make([]string, 0, len(c.Brokers))
-	for _, broker := range c.Brokers {
-		broker = strings.TrimSpace(broker)
-		if broker == "" {
-			continue
-		}
-		brokers = append(brokers, broker)
-	}
-	c.Brokers = brokers
-}
-
-func (c KafkaConfig) Validate() *problem.Problem {
-	var issues []problem.ValidationIssue
-
-	if c.Enabled && len(c.Brokers) == 0 {
-		issues = append(issues, problem.ValidationIssue{
-			Field:   "kafka.brokers",
-			Message: "must contain at least one broker when kafka is enabled",
-		})
-	}
-	issues = append(issues, durationIssue("kafka.dial_timeout", c.DialTimeout)...)
-
-	if len(issues) == 0 {
-		return nil
-	}
-
-	return validationProblem("kafka config is invalid", issues...)
-}
-
-func (c KafkaConfig) DialTimeoutDuration() time.Duration {
-	return parseDurationOrDefault(c.DialTimeout, 10*time.Second)
-}
-
-type BootstrapConfig struct {
-	BaseURL           string `json:"base_url"`
-	ScopeKind         string `json:"scope_kind,omitempty"`
-	ScopeKey          string `json:"scope_key,omitempty"`
-	Timeout           string `json:"timeout"`
-	ReconcileInterval string `json:"reconcile_interval"`
-}
-
-func (c *BootstrapConfig) applyDefaults(defaults BootstrapConfig) {
-	c.BaseURL = strings.TrimSpace(c.BaseURL)
-	c.ScopeKind = strings.ToLower(strings.TrimSpace(c.ScopeKind))
-	c.ScopeKey = strings.TrimSpace(c.ScopeKey)
-	if c.ScopeKind == "" {
-		c.ScopeKind = defaults.ScopeKind
-	}
-	if c.ScopeKey == "" {
-		c.ScopeKey = defaults.ScopeKey
-	}
-	if strings.TrimSpace(c.Timeout) == "" {
-		c.Timeout = defaults.Timeout
-	}
-	if strings.TrimSpace(c.ReconcileInterval) == "" {
-		c.ReconcileInterval = defaults.ReconcileInterval
-	}
-}
-
-func (c BootstrapConfig) Validate() *problem.Problem {
-	var issues []problem.ValidationIssue
-	issues = append(issues, durationIssue("bootstrap.timeout", c.Timeout)...)
-	issues = append(issues, durationIssue("bootstrap.reconcile_interval", c.ReconcileInterval)...)
-	if c.ScopeKind == "" && c.ScopeKey != "" {
-		issues = append(issues, problem.ValidationIssue{
-			Field:   "bootstrap.scope_kind",
-			Message: "must not be empty when scope_key is provided",
-		})
-	}
-	if c.ScopeKey == "" && c.ScopeKind != "" && c.ScopeKind != "global" {
-		issues = append(issues, problem.ValidationIssue{
-			Field:   "bootstrap.scope_key",
-			Message: "must not be empty when scope_kind is provided",
-		})
-	}
-
-	if len(issues) == 0 {
-		return nil
-	}
-
-	return validationProblem("bootstrap config is invalid", issues...)
-}
-
-func (c BootstrapConfig) TimeoutDuration() time.Duration {
-	return parseDurationOrDefault(c.Timeout, 5*time.Second)
-}
-
-func (c BootstrapConfig) ReconcileIntervalDuration() time.Duration {
-	return parseDurationOrDefault(c.ReconcileInterval, 30*time.Second)
-}
-
-type EmulatorConfig struct {
-	PublishInterval string `json:"publish_interval"`
-}
-
-func (c *EmulatorConfig) applyDefaults(defaults EmulatorConfig) {
-	if strings.TrimSpace(c.PublishInterval) == "" {
-		c.PublishInterval = defaults.PublishInterval
-	}
-}
-
-func (c EmulatorConfig) Validate() *problem.Problem {
-	issues := durationIssue("emulator.publish_interval", c.PublishInterval)
-	if len(issues) == 0 {
-		return nil
-	}
-	return validationProblem("emulator config is invalid", issues...)
-}
-
-func (c EmulatorConfig) PublishIntervalDuration() time.Duration {
-	return parseDurationOrDefault(c.PublishInterval, 5*time.Second)
 }
 
 func durationIssue(field, raw string) []problem.ValidationIssue {

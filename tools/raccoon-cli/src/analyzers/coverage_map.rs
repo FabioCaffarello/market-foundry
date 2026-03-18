@@ -23,19 +23,19 @@ const DIMENSIONS: &[Dimension] = &[
     },
     Dimension {
         name: "topology",
-        description: "config/compose/source wiring consistency",
+        description: "config/compose/source wiring consistency across binaries",
         command: "raccoon-cli topology-doctor",
         requires_infra: false,
     },
     Dimension {
         name: "contracts",
-        description: "messaging contracts, envelope, codec invariants",
+        description: "messaging contracts, envelope, codec invariants (NATS streams)",
         command: "raccoon-cli contract-audit",
         requires_infra: false,
     },
     Dimension {
         name: "runtime-bindings",
-        description: "config -> kafka -> jetstream -> validator routing chain",
+        description: "config -> NATS stream -> actor scope binding chain",
         command: "raccoon-cli runtime-bindings",
         requires_infra: false,
     },
@@ -52,39 +52,9 @@ const DIMENSIONS: &[Dimension] = &[
         requires_infra: false,
     },
     Dimension {
-        name: "runtime-smoke",
-        description: "live E2E pipeline proof (6 stages)",
-        command: "raccoon-cli runtime-smoke",
-        requires_infra: true,
-    },
-    Dimension {
-        name: "scenario:happy-path",
-        description: "full E2E: config lifecycle + data plane + validation results",
-        command: "raccoon-cli scenario-smoke happy-path",
-        requires_infra: true,
-    },
-    Dimension {
-        name: "scenario:config-lifecycle",
-        description: "control plane lifecycle: draft -> validate -> compile -> activate",
-        command: "raccoon-cli scenario-smoke config-lifecycle",
-        requires_infra: true,
-    },
-    Dimension {
-        name: "scenario:invalid-payload",
-        description: "validator catches invalid data from emulator",
-        command: "raccoon-cli scenario-smoke invalid-payload",
-        requires_infra: true,
-    },
-    Dimension {
-        name: "scenario:missing-binding",
-        description: "non-existent scope returns empty results without error",
-        command: "raccoon-cli scenario-smoke missing-binding",
-        requires_infra: true,
-    },
-    Dimension {
-        name: "scenario:readiness-probe",
-        description: "cluster bootstrap and readiness verification",
-        command: "raccoon-cli scenario-smoke readiness-probe",
+        name: "smoke-e2e",
+        description: "live E2E pipeline proof: ingest -> derive -> store -> query",
+        command: "raccoon-cli smoke-e2e",
         requires_infra: true,
     },
 ];
@@ -115,62 +85,93 @@ const SENSITIVE_AREAS: &[SensitiveArea] = &[
     },
     SensitiveArea {
         name: "nats-adapters",
-        description: "NATS/JetStream adapter layer — transport wiring",
+        description: "NATS/JetStream adapter layer — stream transport wiring",
         patterns: &["internal/adapters/nats/"],
         required_dimensions: &["contracts", "runtime-bindings", "architecture"],
     },
     SensitiveArea {
-        name: "kafka-adapters",
-        description: "Kafka adapter layer — data plane transport",
-        patterns: &["internal/adapters/kafka/"],
+        name: "exchange-adapters",
+        description: "exchange adapter layer — ingest-specific WebSocket connections",
+        patterns: &["internal/adapters/exchanges/"],
         required_dimensions: &["topology", "runtime-bindings", "architecture"],
     },
     SensitiveArea {
-        name: "domain",
-        description: "domain layer — business rules, must be pure",
-        patterns: &["internal/domain/"],
+        name: "domain-configctl",
+        description: "configctl domain — configuration lifecycle rules",
+        patterns: &["internal/domain/configctl/"],
         required_dimensions: &["architecture", "contracts"],
     },
     SensitiveArea {
+        name: "domain-observation",
+        description: "observation domain — raw market data (trades, ticks)",
+        patterns: &["internal/domain/observation/"],
+        required_dimensions: &["architecture", "contracts"],
+    },
+    SensitiveArea {
+        name: "domain-evidence",
+        description: "evidence domain — derived market data (candles, samples)",
+        patterns: &["internal/domain/evidence/"],
+        required_dimensions: &["architecture", "contracts"],
+    },
+    SensitiveArea {
+        name: "domain-signal",
+        description: "signal domain — derived trading signals (RSI, MACD)",
+        patterns: &["internal/domain/signal/"],
+        required_dimensions: &["architecture", "contracts", "drift"],
+    },
+    SensitiveArea {
+        name: "domain-decision",
+        description: "decision domain — derived trading decisions (RSI oversold)",
+        patterns: &["internal/domain/decision/"],
+        required_dimensions: &["architecture", "contracts", "drift"],
+    },
+    SensitiveArea {
+        name: "domain-strategy",
+        description: "strategy domain — resolved trading strategies (mean reversion entry)",
+        patterns: &["internal/domain/strategy/"],
+        required_dimensions: &["architecture", "contracts", "drift"],
+    },
+    SensitiveArea {
+        name: "domain-risk",
+        description: "risk domain — risk assessments (position exposure) — governed from S63, implementation in S64",
+        patterns: &["internal/domain/risk/"],
+        required_dimensions: &["architecture", "contracts", "drift"],
+    },
+    SensitiveArea {
         name: "application",
-        description: "application layer — use cases and ports",
+        description: "application layer — use cases, ports, and clients",
         patterns: &["internal/application/"],
         required_dimensions: &["architecture", "contracts"],
     },
     SensitiveArea {
-        name: "http-handlers",
-        description: "HTTP interface layer — API endpoints",
+        name: "http-interface",
+        description: "HTTP interface layer — gateway API endpoints",
         patterns: &["internal/interfaces/http/"],
         required_dimensions: &["architecture"],
     },
     SensitiveArea {
-        name: "actors",
-        description: "actor supervision trees — runtime wiring",
-        patterns: &["internal/actors/"],
+        name: "actors-gateway",
+        description: "gateway actor scope — HTTP server and query routing",
+        patterns: &["internal/actors/scopes/gateway/"],
         required_dimensions: &["architecture", "runtime-bindings"],
     },
     SensitiveArea {
-        name: "validator-logic",
-        description: "validator scope — validation rules and results",
-        patterns: &[
-            "internal/actors/scopes/validator/",
-            "internal/application/validatorresults/",
-        ],
-        required_dimensions: &[
-            "contracts",
-            "runtime-bindings",
-            "scenario:happy-path",
-            "scenario:invalid-payload",
-        ],
+        name: "actors-ingest",
+        description: "ingest actor scope — exchange WebSocket to OBSERVATION_EVENTS",
+        patterns: &["internal/actors/scopes/ingest/"],
+        required_dimensions: &["architecture", "runtime-bindings", "smoke-e2e"],
     },
     SensitiveArea {
-        name: "consumer-pipeline",
-        description: "consumer scope — kafka-to-jetstream bridging",
-        patterns: &[
-            "internal/actors/scopes/consumer/",
-            "internal/application/dataplane/",
-        ],
-        required_dimensions: &["topology", "runtime-bindings", "scenario:happy-path"],
+        name: "actors-derive",
+        description: "derive actor scope — OBSERVATION_EVENTS to EVIDENCE_EVENTS, SIGNAL_EVENTS, DECISION_EVENTS, STRATEGY_EVENTS, and RISK_EVENTS (S64)",
+        patterns: &["internal/actors/scopes/derive/"],
+        required_dimensions: &["architecture", "runtime-bindings", "smoke-e2e"],
+    },
+    SensitiveArea {
+        name: "actors-store",
+        description: "store actor scope — EVIDENCE_EVENTS, SIGNAL_EVENTS, DECISION_EVENTS, STRATEGY_EVENTS, and RISK_EVENTS (S64) to read-model projections",
+        patterns: &["internal/actors/scopes/store/"],
+        required_dimensions: &["architecture", "runtime-bindings", "smoke-e2e"],
     },
     SensitiveArea {
         name: "config-lifecycle",
@@ -179,7 +180,7 @@ const SENSITIVE_AREAS: &[SensitiveArea] = &[
             "internal/actors/scopes/configctl/",
             "internal/application/configctl/",
         ],
-        required_dimensions: &["contracts", "scenario:config-lifecycle"],
+        required_dimensions: &["contracts", "drift", "smoke-e2e"],
     },
 ];
 
@@ -502,18 +503,51 @@ mod tests {
 
     #[test]
     fn relevant_checks_for_nats_adapter() {
-        let checks = relevant_checks_for_path("internal/adapters/nats/configctl_gateway.go");
+        let checks = relevant_checks_for_path("internal/adapters/nats/observation_publisher.go");
         assert!(!checks.is_empty());
         let (area_name, _) = &checks[0];
         assert_eq!(*area_name, "nats-adapters");
     }
 
     #[test]
-    fn relevant_checks_for_domain() {
+    fn relevant_checks_for_exchange_adapter() {
+        let checks =
+            relevant_checks_for_path("internal/adapters/exchanges/binancef/websocket.go");
+        assert!(!checks.is_empty());
+        let (area_name, _) = &checks[0];
+        assert_eq!(*area_name, "exchange-adapters");
+    }
+
+    #[test]
+    fn relevant_checks_for_domain_observation() {
+        let checks = relevant_checks_for_path("internal/domain/observation/trade.go");
+        assert!(!checks.is_empty());
+        let (area_name, _) = &checks[0];
+        assert_eq!(*area_name, "domain-observation");
+    }
+
+    #[test]
+    fn relevant_checks_for_domain_evidence() {
+        let checks = relevant_checks_for_path("internal/domain/evidence/candle.go");
+        assert!(!checks.is_empty());
+        let (area_name, _) = &checks[0];
+        assert_eq!(*area_name, "domain-evidence");
+    }
+
+    #[test]
+    fn relevant_checks_for_domain_configctl() {
         let checks = relevant_checks_for_path("internal/domain/configctl/config.go");
         assert!(!checks.is_empty());
         let (area_name, _) = &checks[0];
-        assert_eq!(*area_name, "domain");
+        assert_eq!(*area_name, "domain-configctl");
+    }
+
+    #[test]
+    fn relevant_checks_for_domain_signal() {
+        let checks = relevant_checks_for_path("internal/domain/signal/signal.go");
+        assert!(!checks.is_empty());
+        let signal_match = checks.iter().any(|(name, _)| *name == "domain-signal");
+        assert!(signal_match, "signal domain files should match domain-signal area");
     }
 
     #[test]
@@ -523,8 +557,25 @@ mod tests {
     }
 
     #[test]
+    fn relevant_checks_for_config_files() {
+        let checks = relevant_checks_for_path("deploy/configs/ingest.jsonc");
+        assert!(!checks.is_empty());
+        let (area_name, _) = &checks[0];
+        assert_eq!(*area_name, "config-files");
+    }
+
+    #[test]
+    fn relevant_checks_for_compose() {
+        let checks = relevant_checks_for_path("deploy/compose/docker-compose.yaml");
+        assert!(!checks.is_empty());
+        let (area_name, _) = &checks[0];
+        assert_eq!(*area_name, "compose");
+    }
+
+    #[test]
     fn tdd_guidance_for_nats_changes() {
-        let guidance = tdd_guidance(&["internal/adapters/nats/codec.go".to_string()]);
+        let guidance =
+            tdd_guidance(&["internal/adapters/nats/observation_publisher.go".to_string()]);
         assert!(!guidance.affected_areas.is_empty());
         assert!(guidance.affected_areas.contains(&"nats-adapters"));
         assert!(!guidance.before_commands.is_empty());
@@ -532,19 +583,55 @@ mod tests {
     }
 
     #[test]
-    fn tdd_guidance_for_validator_changes() {
+    fn tdd_guidance_for_ingest_actor_changes() {
         let guidance =
-            tdd_guidance(&["internal/actors/scopes/validator/supervisor.go".to_string()]);
-        assert!(guidance.affected_areas.contains(&"validator-logic"));
+            tdd_guidance(&["internal/actors/scopes/ingest/websocket_actor.go".to_string()]);
+        assert!(guidance.affected_areas.contains(&"actors-ingest"));
         assert!(
             guidance.needs_infra,
-            "validator changes should recommend runtime scenarios"
+            "ingest actor changes should recommend smoke-e2e"
+        );
+    }
+
+    #[test]
+    fn tdd_guidance_for_derive_actor_changes() {
+        let guidance =
+            tdd_guidance(&["internal/actors/scopes/derive/sampler_actor.go".to_string()]);
+        assert!(guidance.affected_areas.contains(&"actors-derive"));
+        assert!(
+            guidance.needs_infra,
+            "derive actor changes should recommend smoke-e2e"
+        );
+    }
+
+    #[test]
+    fn tdd_guidance_for_store_actor_changes() {
+        let guidance = tdd_guidance(&[
+            "internal/actors/scopes/store/candle_projection_actor.go".to_string(),
+        ]);
+        assert!(guidance.affected_areas.contains(&"actors-store"));
+        assert!(
+            guidance.needs_infra,
+            "store actor changes should recommend smoke-e2e"
+        );
+    }
+
+    #[test]
+    fn tdd_guidance_for_config_lifecycle_changes() {
+        let guidance =
+            tdd_guidance(&["internal/application/configctl/create_draft.go".to_string()]);
+        assert!(guidance.affected_areas.contains(&"config-lifecycle"));
+        // config-lifecycle requires smoke-e2e which needs infra
+        assert!(
+            guidance.needs_infra,
+            "config lifecycle changes should recommend smoke-e2e"
         );
     }
 
     #[test]
     fn tdd_guidance_includes_make_verify() {
-        let guidance = tdd_guidance(&["internal/domain/configctl/config.go".to_string()]);
+        let guidance =
+            tdd_guidance(&["internal/domain/observation/trade.go".to_string()]);
         assert!(
             guidance
                 .after_commands
@@ -565,8 +652,8 @@ mod tests {
     #[test]
     fn tdd_guidance_deduplicates_commands() {
         let guidance = tdd_guidance(&[
-            "internal/adapters/nats/codec.go".to_string(),
-            "internal/adapters/nats/configctl_gateway.go".to_string(),
+            "internal/adapters/nats/observation_publisher.go".to_string(),
+            "internal/adapters/nats/evidence_consumer.go".to_string(),
         ]);
         // Should not have duplicates
         let mut seen = std::collections::HashSet::new();
@@ -628,49 +715,36 @@ mod tests {
     }
 
     #[test]
-    fn relevant_checks_for_config_files() {
-        let checks = relevant_checks_for_path("deploy/configs/consumer.jsonc");
-        assert!(!checks.is_empty());
-        let (area_name, _) = &checks[0];
-        assert_eq!(*area_name, "config-files");
+    fn no_kafka_references() {
+        // market-foundry has no kafka — ensure coverage map is clean
+        for dim in DIMENSIONS {
+            assert!(
+                !dim.description.to_lowercase().contains("kafka"),
+                "dimension '{}' still references kafka",
+                dim.name
+            );
+        }
+        for area in SENSITIVE_AREAS {
+            assert!(
+                !area.name.contains("kafka"),
+                "sensitive area '{}' still references kafka",
+                area.name
+            );
+        }
     }
 
     #[test]
-    fn relevant_checks_for_kafka_adapter() {
-        let checks = relevant_checks_for_path("internal/adapters/kafka/consumer.go");
-        assert!(!checks.is_empty());
-        let (area_name, _) = &checks[0];
-        assert_eq!(*area_name, "kafka-adapters");
+    fn application_area_covers_all_app_subdirs() {
+        // Any path under internal/application/ should match the application area
+        let checks = relevant_checks_for_path("internal/application/derive/sampler.go");
+        let app_match = checks.iter().any(|(name, _)| *name == "application");
+        assert!(app_match, "internal/application/derive/ should match application area");
     }
 
     #[test]
-    fn relevant_checks_for_compose() {
-        let checks = relevant_checks_for_path("deploy/compose/docker-compose.yaml");
-        assert!(!checks.is_empty());
-        let (area_name, _) = &checks[0];
-        assert_eq!(*area_name, "compose");
-    }
-
-    #[test]
-    fn tdd_guidance_for_config_lifecycle_changes() {
-        let guidance =
-            tdd_guidance(&["internal/application/configctl/create_draft.go".to_string()]);
-        assert!(guidance.affected_areas.contains(&"config-lifecycle"));
-        // Should recommend scenario:config-lifecycle
-        assert!(
-            guidance
-                .before_commands
-                .iter()
-                .any(|c| c.contains("config-lifecycle")),
-            "config lifecycle changes should recommend config-lifecycle scenario"
-        );
-    }
-
-    #[test]
-    fn tdd_guidance_for_consumer_pipeline() {
-        let guidance =
-            tdd_guidance(&["internal/actors/scopes/consumer/topic_router.go".to_string()]);
-        assert!(guidance.affected_areas.contains(&"consumer-pipeline"));
-        assert!(guidance.needs_infra);
+    fn http_interface_area_matches_handlers() {
+        let checks = relevant_checks_for_path("internal/interfaces/http/handlers/evidence.go");
+        let http_match = checks.iter().any(|(name, _)| *name == "http-interface");
+        assert!(http_match, "HTTP handler files should match http-interface area");
     }
 }

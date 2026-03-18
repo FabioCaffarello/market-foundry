@@ -1,0 +1,26 @@
+{
+  // Store service: materializes evidence into a persistent read model.
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8081"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "pipeline": {
+    // Evidence families to project. Each family gets a consumer + projection actor pair.
+    // Omit this field or set to [] to enable all available families.
+    "families": ["candle", "tradeburst", "volume"],
+    // Signal families to project. Opt-in only — absent or empty means no signal activation.
+    "signal_families": ["rsi"],
+    // Decision families to project. Opt-in only — absent or empty means no decision activation.
+    "decision_families": ["rsi_oversold"],
+    // Strategy families to project. Opt-in only — absent or empty means no strategy activation.
+    "strategy_families": ["mean_reversion_entry"]
+  }
+}

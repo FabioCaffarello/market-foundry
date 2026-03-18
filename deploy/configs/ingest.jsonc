@@ -1,0 +1,15 @@
+{
+  // Ingest captures external market data and publishes observation events.
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8082"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  }
+}

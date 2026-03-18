@@ -562,7 +562,7 @@ fn step_remediation_hint(step_name: &str) -> String {
                 .to_string()
         }
         "runtime-bindings" => {
-            "run `raccoon-cli runtime-bindings` — check config → kafka → jetstream → validator routing"
+            "run `raccoon-cli runtime-bindings` — check config → NATS JetStream → observation/evidence routing"
                 .to_string()
         }
         "arch-guard" => {
@@ -573,7 +573,7 @@ fn step_remediation_hint(step_name: &str) -> String {
                 .to_string()
         }
         "runtime-smoke" => {
-            "ensure `make up-dataplane` is running, then `raccoon-cli runtime-smoke`".to_string()
+            "[deprecated] use `make smoke` or `make smoke-multi` for E2E testing".to_string()
         }
         other => format!("run `raccoon-cli {other}` for full details"),
     }
@@ -601,7 +601,7 @@ mod tests {
 
     fn nonexistent_config(profile: Profile) -> GateConfig {
         GateConfig {
-            project_root: std::path::PathBuf::from("/nonexistent/quality-service"),
+            project_root: std::path::PathBuf::from("/nonexistent/market-foundry"),
             profile,
             base_url: "http://127.0.0.1:8080".to_string(),
             fail_fast: false,
@@ -1406,7 +1406,7 @@ mod tests {
         assert!(contract.contains("raccoon-cli contract-audit"));
 
         let smoke = step_remediation_hint("runtime-smoke");
-        assert!(smoke.contains("make up-dataplane"));
+        assert!(smoke.contains("make smoke"));
 
         let unknown = step_remediation_hint("unknown-step");
         assert!(unknown.contains("raccoon-cli unknown-step"));
@@ -1728,7 +1728,7 @@ mod tests {
     #[test]
     fn fail_fast_skips_remaining_steps_after_failure() {
         let config = GateConfig {
-            project_root: std::path::PathBuf::from("/nonexistent/quality-service"),
+            project_root: std::path::PathBuf::from("/nonexistent/market-foundry"),
             profile: Profile::Fast,
             base_url: "http://127.0.0.1:8080".to_string(),
             fail_fast: true,
@@ -1761,7 +1761,7 @@ mod tests {
     #[test]
     fn fail_fast_disabled_runs_all_steps() {
         let config = GateConfig {
-            project_root: std::path::PathBuf::from("/nonexistent/quality-service"),
+            project_root: std::path::PathBuf::from("/nonexistent/market-foundry"),
             profile: Profile::Fast,
             base_url: "http://127.0.0.1:8080".to_string(),
             fail_fast: false,
@@ -1784,7 +1784,7 @@ mod tests {
     #[test]
     fn fail_fast_skip_reason_references_failed_step() {
         let config = GateConfig {
-            project_root: std::path::PathBuf::from("/nonexistent/quality-service"),
+            project_root: std::path::PathBuf::from("/nonexistent/market-foundry"),
             profile: Profile::Fast,
             base_url: "http://127.0.0.1:8080".to_string(),
             fail_fast: true,

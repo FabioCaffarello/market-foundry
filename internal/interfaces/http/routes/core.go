@@ -5,12 +5,66 @@ import (
 	"net/http"
 
 	configctlcontracts "internal/application/configctl/contracts"
-	validatorresultscontracts "internal/application/validatorresults/contracts"
-	runtimecontracts "internal/application/validatorruntime/contracts"
+	"internal/application/decisionclient"
+	"internal/application/evidenceclient"
+	"internal/application/signalclient"
+	"internal/application/strategyclient"
 	"internal/interfaces/http/handlers"
 	"internal/interfaces/http/webserver"
 	"internal/shared/problem"
 )
+
+// EvidenceFamilyDeps groups evidence query use cases by projection family.
+// Adding a new evidence type means adding one field here and one route block
+// in Evidence(). The gateway does not need to know how the store materializes
+// these projections — it only holds use case references.
+type EvidenceFamilyDeps struct {
+	// Candle family — latest + history
+	GetLatestCandle  handlersGetLatestCandleUseCase
+	GetCandleHistory handlersGetCandleHistoryUseCase
+	// TradeBurst family — latest only
+	GetLatestTradeBurst handlersGetLatestTradeBurstUseCase
+	// Volume family — latest only
+	GetLatestVolume handlersGetLatestVolumeUseCase
+}
+
+// HasAny reports whether at least one evidence use case is available.
+func (e EvidenceFamilyDeps) HasAny() bool {
+	return e.GetLatestCandle != nil || e.GetCandleHistory != nil || e.GetLatestTradeBurst != nil || e.GetLatestVolume != nil
+}
+
+// SignalFamilyDeps groups signal query use cases.
+// Adding a new signal operation means adding one field here and one route block in Signal().
+type SignalFamilyDeps struct {
+	GetLatestSignal handlersGetLatestSignalUseCase
+}
+
+// HasAny reports whether at least one signal use case is available.
+func (s SignalFamilyDeps) HasAny() bool {
+	return s.GetLatestSignal != nil
+}
+
+// DecisionFamilyDeps groups decision query use cases.
+// Adding a new decision operation means adding one field here and one route block in Decision().
+type DecisionFamilyDeps struct {
+	GetLatestDecision handlersGetLatestDecisionUseCase
+}
+
+// HasAny reports whether at least one decision use case is available.
+func (d DecisionFamilyDeps) HasAny() bool {
+	return d.GetLatestDecision != nil
+}
+
+// StrategyFamilyDeps groups strategy query use cases.
+// Adding a new strategy operation means adding one field here and one route block in Strategy().
+type StrategyFamilyDeps struct {
+	GetLatestStrategy handlersGetLatestStrategyUseCase
+}
+
+// HasAny reports whether at least one strategy use case is available.
+func (s StrategyFamilyDeps) HasAny() bool {
+	return s.GetLatestStrategy != nil
+}
 
 type Dependencies struct {
 	Readiness                    handlers.ReadinessChecker
@@ -24,8 +78,10 @@ type Dependencies struct {
 	ValidateConfig               handlersValidateConfigUseCase
 	CompileConfig                handlersCompileConfigUseCase
 	ActivateConfig               handlersActivateConfigUseCase
-	GetRuntime                   handlersGetValidatorRuntimeUseCase
-	ListValidationResults        handlersListValidationResultsUseCase
+	Evidence                     EvidenceFamilyDeps
+	Signal                       SignalFamilyDeps
+	Decision                     DecisionFamilyDeps
+	Strategy                     StrategyFamilyDeps
 }
 
 type handlersCreateDraftUseCase interface {
@@ -68,12 +124,32 @@ type handlersActivateConfigUseCase interface {
 	Execute(context.Context, configctlcontracts.ActivateConfigCommand) (configctlcontracts.ActivateConfigReply, *problem.Problem)
 }
 
-type handlersGetValidatorRuntimeUseCase interface {
-	Execute(context.Context, runtimecontracts.GetActiveRuntimeQuery) (runtimecontracts.GetActiveRuntimeReply, *problem.Problem)
+type handlersGetLatestCandleUseCase interface {
+	Execute(context.Context, evidenceclient.CandleLatestQuery) (evidenceclient.CandleLatestReply, *problem.Problem)
 }
 
-type handlersListValidationResultsUseCase interface {
-	Execute(context.Context, validatorresultscontracts.ListValidationResultsQuery) (validatorresultscontracts.ListValidationResultsReply, *problem.Problem)
+type handlersGetCandleHistoryUseCase interface {
+	Execute(context.Context, evidenceclient.CandleHistoryQuery) (evidenceclient.CandleHistoryReply, *problem.Problem)
+}
+
+type handlersGetLatestTradeBurstUseCase interface {
+	Execute(context.Context, evidenceclient.TradeBurstLatestQuery) (evidenceclient.TradeBurstLatestReply, *problem.Problem)
+}
+
+type handlersGetLatestVolumeUseCase interface {
+	Execute(context.Context, evidenceclient.VolumeLatestQuery) (evidenceclient.VolumeLatestReply, *problem.Problem)
+}
+
+type handlersGetLatestSignalUseCase interface {
+	Execute(context.Context, signalclient.SignalLatestQuery) (signalclient.SignalLatestReply, *problem.Problem)
+}
+
+type handlersGetLatestDecisionUseCase interface {
+	Execute(context.Context, decisionclient.DecisionLatestQuery) (decisionclient.DecisionLatestReply, *problem.Problem)
+}
+
+type handlersGetLatestStrategyUseCase interface {
+	Execute(context.Context, strategyclient.StrategyLatestQuery) (strategyclient.StrategyLatestReply, *problem.Problem)
 }
 
 func DefaultRoutes(deps Dependencies) []webserver.Route {
@@ -93,7 +169,18 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 		deps.CompileConfig,
 		deps.ActivateConfig,
 	)...)
-	routes = append(routes, RuntimeWithValidationResults(deps.GetRuntime, deps.ListActiveRuntimeProjections, deps.ListActiveIngestionBindings, deps.ListValidationResults)...)
+	if deps.Evidence.HasAny() {
+		routes = append(routes, Evidence(deps.Evidence)...)
+	}
+	if deps.Signal.HasAny() {
+		routes = append(routes, Signal(deps.Signal)...)
+	}
+	if deps.Decision.HasAny() {
+		routes = append(routes, Decision(deps.Decision)...)
+	}
+	if deps.Strategy.HasAny() {
+		routes = append(routes, Strategy(deps.Strategy)...)
+	}
 	return routes
 }
 

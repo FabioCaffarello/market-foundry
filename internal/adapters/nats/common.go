@@ -1,5 +1,9 @@
 package nats
 
+import "time"
+
+const defaultSetupTimeout = 10 * time.Second
+
 // error types are used in the metrics to identify the kind of error
 type ErrorType string
 

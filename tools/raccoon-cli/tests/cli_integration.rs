@@ -33,7 +33,7 @@ fn shows_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Engineering quality toolkit"))
+        .stdout(predicate::str::contains("Architecture guardian toolkit"))
         .stdout(predicate::str::contains("Quick start"));
 }
 
@@ -373,12 +373,12 @@ fn runtime_bindings_json_has_all_check_names() {
 
     // Core checks should always be present
     assert!(
-        check_names.contains(&"subject-pattern"),
-        "missing subject-pattern check"
+        check_names.contains(&"stream-ownership"),
+        "missing stream-ownership check"
     );
     assert!(
-        check_names.contains(&"routing-constants"),
-        "missing routing-constants check"
+        check_names.contains(&"consumer-binding"),
+        "missing consumer-binding check"
     );
     assert!(
         check_names.contains(&"lifecycle-events"),

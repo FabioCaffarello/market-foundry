@@ -3,75 +3,152 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 /// Runtime binding source-level constants extracted from Go source files.
+/// Reflects the market-foundry NATS/JetStream architecture:
+/// - Streams: CONFIGCTL_EVENTS, OBSERVATION_EVENTS, EVIDENCE_EVENTS, SIGNAL_EVENTS, DECISION_EVENTS, STRATEGY_EVENTS
+/// - Durable consumers: derive-observation, store-candle, store-trade-burst, store-volume, store-signal-rsi, store-decision-rsi_oversold, store-strategy-mean-reversion-entry
+/// - Query subjects: evidence.query.{candle,tradeburst,volume}.latest, evidence.query.candle.history, signal.query.rsi.latest, decision.query.rsi_oversold.latest, strategy.query.mean_reversion_entry.latest, configctl.control.config.*
+/// - Service binaries: configctl, gateway, ingest, derive, store
 #[derive(Debug, Clone, Default)]
 pub struct RuntimeBindingSource {
-    /// Subject prefix for data-plane ingestion (e.g., "dataplane.ingestion.received").
-    pub subject_prefix: String,
-    /// Wildcard subject pattern (e.g., "dataplane.ingestion.received.>").
-    pub subject_pattern: String,
-    /// Stream name -> list of subject patterns.
+    /// Stream name -> list of subject patterns found in source.
     pub stream_subjects: HashMap<String, Vec<String>>,
     /// Durable consumer name -> stream name.
     pub durable_consumers: HashMap<String, String>,
+    /// Query/request subjects found in source (e.g., "evidence.query.candle.latest").
+    pub query_subjects: HashSet<String>,
+    /// Publish subjects found in source (patterns like "observation.events.market.trade.*").
+    pub publish_subjects: HashSet<String>,
+    /// Service binary -> set of adapter types found (publisher, consumer, responder, kv).
+    pub service_adapters: HashMap<String, HashSet<String>>,
     /// Lifecycle event names found in source (e.g., "config.activated").
     pub lifecycle_events: HashSet<String>,
-    /// Kafka topics referenced in source or config.
-    pub kafka_topics_referenced: HashSet<String>,
-    /// Whether a bootstrap client exists (runtimebootstrap/client.go).
-    pub has_bootstrap_client: bool,
-    /// Whether a topology builder exists (dataplane/topology.go).
-    pub has_topology_builder: bool,
-    /// Whether a runtime cache exists (validator/runtime_cache.go).
-    pub has_runtime_cache: bool,
-    /// Whether a validation worker exists.
-    pub has_validation_worker: bool,
-    /// Bootstrap scopes from deploy configs: (scope_kind, scope_key).
-    pub bootstrap_scopes: Vec<(String, String)>,
+    /// Whether each key adapter file exists.
+    pub has_observation_publisher: bool,
+    pub has_observation_consumer: bool,
+    pub has_evidence_publisher: bool,
+    pub has_evidence_consumer: bool,
+    pub has_evidence_gateway: bool,
+    pub has_candle_kv_store: bool,
+    pub has_binding_watcher: bool,
+    pub has_signal_publisher: bool,
+    pub has_signal_consumer: bool,
+    pub has_signal_gateway: bool,
+    pub has_signal_kv_store: bool,
+    pub has_signal_registry: bool,
+    pub has_decision_publisher: bool,
+    pub has_decision_consumer: bool,
+    pub has_decision_gateway: bool,
+    pub has_decision_kv_store: bool,
+    pub has_decision_registry: bool,
+    pub has_strategy_publisher: bool,
+    pub has_strategy_consumer: bool,
+    pub has_strategy_gateway: bool,
+    pub has_strategy_kv_store: bool,
+    pub has_strategy_registry: bool,
+    // Risk domain adapter files (prepared for S64)
+    pub has_risk_publisher: bool,
+    pub has_risk_consumer: bool,
+    pub has_risk_gateway: bool,
+    pub has_risk_kv_store: bool,
+    pub has_risk_registry: bool,
 }
 
-/// Scan Go source files under `internal/` for runtime binding constants.
+/// Scan Go source files under `internal/` for market-foundry runtime constants.
 pub fn scan_runtime_bindings(internal_dir: &Path) -> Result<RuntimeBindingSource> {
     let mut src = RuntimeBindingSource::default();
 
+    if !internal_dir.is_dir() {
+        return Ok(src);
+    }
+
     scan_dir(internal_dir, &mut src)?;
 
-    // Check for key files existence
-    let bootstrap_path = internal_dir.join("application/runtimebootstrap/client.go");
-    src.has_bootstrap_client = bootstrap_path.is_file();
+    // Check for key adapter files
+    let adapters = internal_dir.join("adapters/nats");
+    src.has_observation_publisher = adapters.join("observation_publisher.go").is_file();
+    src.has_observation_consumer = adapters.join("observation_consumer.go").is_file();
+    src.has_evidence_publisher = adapters.join("evidence_publisher.go").is_file();
+    src.has_evidence_consumer = adapters.join("evidence_consumer.go").is_file();
+    src.has_evidence_gateway = adapters.join("evidence_gateway.go").is_file();
+    src.has_candle_kv_store = adapters.join("candle_kv_store.go").is_file();
+    src.has_binding_watcher = adapters.join("binding_event_consumer.go").is_file();
+    src.has_signal_publisher = adapters.join("signal_publisher.go").is_file();
+    src.has_signal_consumer = adapters.join("signal_consumer.go").is_file();
+    src.has_signal_gateway = adapters.join("signal_gateway.go").is_file();
+    src.has_signal_kv_store = adapters.join("signal_kv_store.go").is_file();
+    src.has_signal_registry = adapters.join("signal_registry.go").is_file();
+    src.has_decision_publisher = adapters.join("decision_publisher.go").is_file();
+    src.has_decision_consumer = adapters.join("decision_consumer.go").is_file();
+    src.has_decision_gateway = adapters.join("decision_gateway.go").is_file();
+    src.has_decision_kv_store = adapters.join("decision_kv_store.go").is_file();
+    src.has_decision_registry = adapters.join("decision_registry.go").is_file();
+    src.has_strategy_publisher = adapters.join("strategy_publisher.go").is_file();
+    src.has_strategy_consumer = adapters.join("strategy_consumer.go").is_file();
+    src.has_strategy_gateway = adapters.join("strategy_gateway.go").is_file();
+    src.has_strategy_kv_store = adapters.join("strategy_kv_store.go").is_file();
+    src.has_strategy_registry = adapters.join("strategy_registry.go").is_file();
+    // Risk domain adapter files (prepared for S64)
+    src.has_risk_publisher = adapters.join("risk_publisher.go").is_file();
+    src.has_risk_consumer = adapters.join("risk_consumer.go").is_file();
+    src.has_risk_gateway = adapters.join("risk_gateway.go").is_file();
+    src.has_risk_kv_store = adapters.join("risk_kv_store.go").is_file();
+    src.has_risk_registry = adapters.join("risk_registry.go").is_file();
 
-    let topology_path = internal_dir.join("application/dataplane/topology.go");
-    src.has_topology_builder = topology_path.is_file();
-
-    let cache_path = internal_dir.join("actors/scopes/validator/runtime_cache.go");
-    src.has_runtime_cache = cache_path.is_file();
-
-    let worker_path = internal_dir.join("actors/scopes/validator/validation_worker.go");
-    src.has_validation_worker = worker_path.is_file();
-
-    // Synthesize wildcard pattern from prefix if not found as literal
-    if !src.subject_prefix.is_empty() && src.subject_pattern.is_empty() {
-        src.subject_pattern = format!("{}.>", src.subject_prefix);
-    }
-
-    // Ensure stream subjects include the synthesized pattern
-    if !src.subject_prefix.is_empty() {
-        let wildcard = format!("{}.>", src.subject_prefix);
-        if let Some(subjects) = src.stream_subjects.get_mut("DATA_PLANE_INGESTION") {
-            if !subjects.contains(&wildcard) {
-                subjects.push(wildcard);
-            }
+    // Derive service adapter presence from actor scopes
+    let scopes = internal_dir.join("actors/scopes");
+    for service in &["ingest", "derive", "store"] {
+        let scope_dir = scopes.join(service);
+        if scope_dir.is_dir() {
+            let adapters_set = src.service_adapters.entry(service.to_string()).or_default();
+            scan_scope_for_adapters(&scope_dir, adapters_set)?;
         }
     }
 
-    // Also scan deploy/configs for bootstrap scopes (relative to internal's parent)
-    if let Some(project_root) = internal_dir.parent() {
-        let configs_dir = project_root.join("deploy/configs");
-        if configs_dir.is_dir() {
-            scan_bootstrap_scopes(&configs_dir, &mut src)?;
-        }
+    // Deduplicate subjects per stream
+    for subjects in src.stream_subjects.values_mut() {
+        subjects.sort();
+        subjects.dedup();
     }
 
     Ok(src)
+}
+
+fn scan_scope_for_adapters(dir: &Path, adapters: &mut HashSet<String>) -> Result<()> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.ends_with(".go") || name.ends_with("_test.go") {
+            continue;
+        }
+        if name.contains("publisher") {
+            adapters.insert("publisher".to_string());
+        }
+        if name.contains("consumer") {
+            adapters.insert("consumer".to_string());
+        }
+        if name.contains("responder") || name.contains("query") {
+            adapters.insert("responder".to_string());
+        }
+        if name.contains("websocket") {
+            adapters.insert("websocket".to_string());
+        }
+        if name.contains("sampler") {
+            adapters.insert("sampler".to_string());
+        }
+        if name.contains("projection") {
+            adapters.insert("projection".to_string());
+        }
+        if name.contains("binding_watcher") || name.contains("binding_event") {
+            adapters.insert("binding_watcher".to_string());
+        }
+    }
+
+    Ok(())
 }
 
 fn scan_dir(dir: &Path, src: &mut RuntimeBindingSource) -> Result<()> {
@@ -84,57 +161,26 @@ fn scan_dir(dir: &Path, src: &mut RuntimeBindingSource) -> Result<()> {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name.starts_with('.') || name == "vendor" || name == "testdata" {
+                continue;
+            }
             scan_dir(&path, src)?;
         } else if path.extension().and_then(|e| e.to_str()) == Some("go") {
-            scan_go_file(&path, src)?;
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                scan_go_file(&content, src);
+            }
         }
     }
 
     Ok(())
 }
 
-fn scan_go_file(path: &Path, src: &mut RuntimeBindingSource) -> Result<()> {
-    let content = std::fs::read_to_string(path)?;
-
-    extract_subject_prefix(&content, src);
-    extract_streams(&content, src);
-    extract_durables(&content, src);
-    extract_lifecycle_events(&content, src);
-
-    Ok(())
-}
-
-fn extract_subject_prefix(content: &str, src: &mut RuntimeBindingSource) {
-    // Look for: const subjectPrefix = "dataplane.ingestion.received"
-    // or: SubjectPrefix: "..."
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("//") {
-            continue;
-        }
-
-        // Match: const subjectPrefix = "..."
-        if trimmed.contains("subjectPrefix") || trimmed.contains("SubjectPrefix") {
-            for val in extract_all_quoted(trimmed) {
-                if val.starts_with("dataplane.") && val.contains("ingestion") {
-                    if !val.ends_with(".>") {
-                        src.subject_prefix = val;
-                    } else {
-                        src.subject_pattern = val;
-                    }
-                }
-            }
-        }
-
-        // Match: SubjectPattern: "..."
-        if trimmed.contains("SubjectPattern") {
-            for val in extract_all_quoted(trimmed) {
-                if val.ends_with(".>") && val.contains("dataplane") {
-                    src.subject_pattern = val;
-                }
-            }
-        }
-    }
+fn scan_go_file(content: &str, src: &mut RuntimeBindingSource) {
+    extract_streams(content, src);
+    extract_durables(content, src);
+    extract_subjects(content, src);
+    extract_lifecycle_events(content, src);
 }
 
 fn extract_streams(content: &str, src: &mut RuntimeBindingSource) {
@@ -163,12 +209,6 @@ fn extract_streams(content: &str, src: &mut RuntimeBindingSource) {
             }
         }
     }
-
-    // Deduplicate subjects per stream
-    for subjects in src.stream_subjects.values_mut() {
-        subjects.sort();
-        subjects.dedup();
-    }
 }
 
 fn extract_durables(content: &str, src: &mut RuntimeBindingSource) {
@@ -192,6 +232,49 @@ fn extract_durables(content: &str, src: &mut RuntimeBindingSource) {
     }
 }
 
+fn extract_subjects(content: &str, src: &mut RuntimeBindingSource) {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("//") {
+            continue;
+        }
+
+        for val in extract_all_quoted(trimmed) {
+            if !is_nats_subject(&val) {
+                continue;
+            }
+
+            if val.starts_with("observation.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("evidence.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("evidence.query.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("signal.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("signal.query.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("decision.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("decision.query.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("strategy.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("strategy.query.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("risk.events.") {
+                src.publish_subjects.insert(val);
+            } else if val.starts_with("risk.query.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("configctl.control.") {
+                src.query_subjects.insert(val);
+            } else if val.starts_with("configctl.events.") {
+                src.publish_subjects.insert(val);
+            }
+        }
+    }
+}
+
 fn extract_lifecycle_events(content: &str, src: &mut RuntimeBindingSource) {
     for line in content.lines() {
         let trimmed = line.trim();
@@ -199,8 +282,6 @@ fn extract_lifecycle_events(content: &str, src: &mut RuntimeBindingSource) {
             continue;
         }
 
-        // Match: EventActivated events.Name = "config.activated"
-        // or: EventDraftCreated events.Name = "config.draft_created"
         if trimmed.contains("events.Name") || trimmed.contains("EventName") {
             for val in extract_all_quoted(trimmed) {
                 if val.starts_with("config.") {
@@ -211,45 +292,7 @@ fn extract_lifecycle_events(content: &str, src: &mut RuntimeBindingSource) {
     }
 }
 
-fn scan_bootstrap_scopes(configs_dir: &Path, src: &mut RuntimeBindingSource) -> Result<()> {
-    let entries = match std::fs::read_dir(configs_dir) {
-        Ok(e) => e,
-        Err(_) => return Ok(()),
-    };
-
-    for entry in entries {
-        let entry = entry?;
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("jsonc") {
-            continue;
-        }
-
-        let raw = std::fs::read_to_string(&path)?;
-        let cleaned = strip_jsonc_comments(&raw);
-
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&cleaned) {
-            if let Some(bootstrap) = value.get("bootstrap") {
-                let kind = bootstrap
-                    .get("scope_kind")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("global");
-                let key = bootstrap
-                    .get("scope_key")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("default");
-                src.bootstrap_scopes
-                    .push((kind.to_string(), key.to_string()));
-            }
-        }
-    }
-
-    src.bootstrap_scopes.sort();
-    src.bootstrap_scopes.dedup();
-
-    Ok(())
-}
-
-// ── Helpers (shared with topology source scanner) ───────────────────
+// ── Helpers ─────────────────────────────────────────────────────────
 
 fn extract_all_quoted(s: &str) -> Vec<String> {
     let mut results = Vec::new();
@@ -346,101 +389,35 @@ fn find_stream_name_near(lines: &[&str], center: usize, radius: usize) -> Option
     None
 }
 
-fn strip_jsonc_comments(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut in_string = false;
-    let mut escape_next = false;
-    let chars: Vec<char> = input.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
-
-    while i < len {
-        if escape_next {
-            result.push(chars[i]);
-            escape_next = false;
-            i += 1;
-            continue;
-        }
-        if chars[i] == '\\' && in_string {
-            result.push(chars[i]);
-            escape_next = true;
-            i += 1;
-            continue;
-        }
-        if chars[i] == '"' {
-            in_string = !in_string;
-            result.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        if !in_string && i + 1 < len && chars[i] == '/' && chars[i + 1] == '/' {
-            while i < len && chars[i] != '\n' {
-                i += 1;
-            }
-            continue;
-        }
-        result.push(chars[i]);
-        i += 1;
-    }
-
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn extract_subject_prefix_from_const() {
-        let content = r#"
-const subjectPrefix = "dataplane.ingestion.received"
-"#;
-        let mut src = RuntimeBindingSource::default();
-        extract_subject_prefix(content, &mut src);
-        assert_eq!(src.subject_prefix, "dataplane.ingestion.received");
-    }
-
-    #[test]
-    fn extract_subject_prefix_and_pattern() {
-        let content = r#"
-    SubjectPrefix:    subjectPrefix,
-    SubjectPattern:   subjectPrefix + ".>",
-    SubjectPrefix:  "dataplane.ingestion.received",
-    SubjectPattern: "dataplane.ingestion.received.>",
-"#;
-        let mut src = RuntimeBindingSource::default();
-        extract_subject_prefix(content, &mut src);
-        assert_eq!(src.subject_prefix, "dataplane.ingestion.received");
-        assert_eq!(src.subject_pattern, "dataplane.ingestion.received.>");
-    }
-
-    #[test]
     fn extract_streams_from_source() {
         let content = r#"
-func DefaultDataPlaneRegistry() DataPlaneRegistry {
-    return DataPlaneRegistry{
-        Ingested: DataPlaneEventSpec{
-            Stream: StreamSpec{
-                Name:     "DATA_PLANE_INGESTION",
-                Subjects: []string{"dataplane.ingestion.received.>"},
-            },
+func DefaultObservationRegistry() ObservationRegistry {
+    return ObservationRegistry{
+        Stream: StreamSpec{
+            Name:     "OBSERVATION_EVENTS",
+            Subjects: []string{"observation.events.>"},
         },
     }
 }
 "#;
         let mut src = RuntimeBindingSource::default();
         extract_streams(content, &mut src);
-        assert!(src.stream_subjects.contains_key("DATA_PLANE_INGESTION"));
+        assert!(src.stream_subjects.contains_key("OBSERVATION_EVENTS"));
     }
 
     #[test]
     fn extract_durables_from_source() {
         let content = r#"
-    ValidatorIngested: ConsumerSpec{
-        Durable: "validator-dataplane-v1",
+    DeriveObservation: ConsumerSpec{
+        Durable: "derive-observation",
         Event: EventSpec{
             Stream: StreamSpec{
-                Name: "DATA_PLANE_INGESTION",
+                Name: "OBSERVATION_EVENTS",
             },
         },
     },
@@ -448,9 +425,55 @@ func DefaultDataPlaneRegistry() DataPlaneRegistry {
         let mut src = RuntimeBindingSource::default();
         extract_durables(content, &mut src);
         assert_eq!(
-            src.durable_consumers.get("validator-dataplane-v1"),
-            Some(&"DATA_PLANE_INGESTION".to_string())
+            src.durable_consumers.get("derive-observation"),
+            Some(&"OBSERVATION_EVENTS".to_string())
         );
+    }
+
+    #[test]
+    fn extract_subjects_classifies_observation() {
+        let content = r#"
+    subject := "observation.events.market.trade.binancef"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src
+            .publish_subjects
+            .contains("observation.events.market.trade.binancef"));
+    }
+
+    #[test]
+    fn extract_subjects_classifies_query() {
+        let content = r#"
+    subject := "evidence.query.candle.latest"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src.query_subjects.contains("evidence.query.candle.latest"));
+    }
+
+    #[test]
+    fn extract_subjects_classifies_evidence_events() {
+        let content = r#"
+    subject := "evidence.events.candle.sampled.BTCUSDT.1m"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src
+            .publish_subjects
+            .contains("evidence.events.candle.sampled.BTCUSDT.1m"));
+    }
+
+    #[test]
+    fn extract_subjects_classifies_configctl_control() {
+        let content = r#"
+    subject := "configctl.control.config.compile"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src
+            .query_subjects
+            .contains("configctl.control.config.compile"));
     }
 
     #[test]
@@ -458,15 +481,11 @@ func DefaultDataPlaneRegistry() DataPlaneRegistry {
         let content = r#"
     EventActivated               events.Name = "config.activated"
     EventDeactivated             events.Name = "config.deactivated"
-    EventIngestionRuntimeChanged events.Name = "config.ingestion_runtime_changed"
 "#;
         let mut src = RuntimeBindingSource::default();
         extract_lifecycle_events(content, &mut src);
         assert!(src.lifecycle_events.contains("config.activated"));
         assert!(src.lifecycle_events.contains("config.deactivated"));
-        assert!(src
-            .lifecycle_events
-            .contains("config.ingestion_runtime_changed"));
     }
 
     #[test]
@@ -482,62 +501,140 @@ func DefaultDataPlaneRegistry() DataPlaneRegistry {
     }
 
     #[test]
-    fn scan_bootstrap_scopes_from_jsonc() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("consumer.jsonc"),
-            r#"{
-  // consumer config
-  "bootstrap": {
-    "base_url": "http://server:8080",
-    "scope_kind": "global",
-    "scope_key": "default"
-  }
-}"#,
-        )
-        .unwrap();
-
-        let mut src = RuntimeBindingSource::default();
-        scan_bootstrap_scopes(dir.path(), &mut src).unwrap();
-        assert_eq!(
-            src.bootstrap_scopes,
-            vec![("global".into(), "default".into())]
-        );
-    }
-
-    #[test]
     fn scan_runtime_bindings_on_empty_dir() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("internal")).unwrap();
         let result = scan_runtime_bindings(&dir.path().join("internal")).unwrap();
-        assert!(result.subject_prefix.is_empty());
-        assert!(!result.has_bootstrap_client);
+        assert!(result.stream_subjects.is_empty());
+        assert!(!result.has_observation_publisher);
     }
 
     #[test]
-    fn scan_runtime_bindings_with_go_files() {
+    fn scan_runtime_bindings_returns_default_on_nonexistent() {
+        let result = scan_runtime_bindings(Path::new("/nonexistent")).unwrap();
+        assert!(result.stream_subjects.is_empty());
+        assert!(result.durable_consumers.is_empty());
+    }
+
+    #[test]
+    fn scan_runtime_bindings_detects_adapter_files() {
         let dir = tempfile::tempdir().unwrap();
         let internal = dir.path().join("internal");
-        let dataplane = internal.join("application/dataplane");
-        let bootstrap = internal.join("application/runtimebootstrap");
-        let validator = internal.join("actors/scopes/validator");
-        std::fs::create_dir_all(&dataplane).unwrap();
-        std::fs::create_dir_all(&bootstrap).unwrap();
-        std::fs::create_dir_all(&validator).unwrap();
+        let adapters = internal.join("adapters/nats");
+        std::fs::create_dir_all(&adapters).unwrap();
 
-        // Create registry.go
         std::fs::write(
-            dataplane.join("registry.go"),
-            r#"package dataplane
-const subjectPrefix = "dataplane.ingestion.received"
-func DefaultRegistry() Registry {
-    return Registry{
-        JetStream: JetStreamRegistry{
-            Ingested: IngestedRoute{
-                Stream: "DATA_PLANE_INGESTION",
-                SubjectPrefix: subjectPrefix,
-                SubjectPattern: "dataplane.ingestion.received.>",
-            },
+            adapters.join("observation_publisher.go"),
+            "package nats\n",
+        )
+        .unwrap();
+        std::fs::write(
+            adapters.join("observation_consumer.go"),
+            "package nats\n",
+        )
+        .unwrap();
+        std::fs::write(adapters.join("evidence_publisher.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("evidence_consumer.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("evidence_gateway.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("candle_kv_store.go"), "package nats\n").unwrap();
+        std::fs::write(
+            adapters.join("binding_event_consumer.go"),
+            "package nats\n",
+        )
+        .unwrap();
+
+        let result = scan_runtime_bindings(&internal).unwrap();
+        assert!(result.has_observation_publisher);
+        assert!(result.has_observation_consumer);
+        assert!(result.has_evidence_publisher);
+        assert!(result.has_evidence_consumer);
+        assert!(result.has_evidence_gateway);
+        assert!(result.has_candle_kv_store);
+        assert!(result.has_binding_watcher);
+    }
+
+    #[test]
+    fn scan_scope_for_adapters_detects_actors() {
+        let dir = tempfile::tempdir().unwrap();
+        let scope = dir.path().join("ingest");
+        std::fs::create_dir_all(&scope).unwrap();
+
+        std::fs::write(scope.join("publisher_actor.go"), "package ingest\n").unwrap();
+        std::fs::write(scope.join("websocket_actor.go"), "package ingest\n").unwrap();
+        std::fs::write(
+            scope.join("binding_watcher_actor.go"),
+            "package ingest\n",
+        )
+        .unwrap();
+
+        let mut adapters = HashSet::new();
+        scan_scope_for_adapters(&scope, &mut adapters).unwrap();
+        assert!(adapters.contains("publisher"));
+        assert!(adapters.contains("websocket"));
+        assert!(adapters.contains("binding_watcher"));
+    }
+
+    #[test]
+    fn extract_subjects_classifies_signal_events() {
+        let content = r#"
+    subject := "signal.events.rsi.generated.binancef.btcusdt.60"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src
+            .publish_subjects
+            .contains("signal.events.rsi.generated.binancef.btcusdt.60"));
+    }
+
+    #[test]
+    fn extract_subjects_classifies_signal_query() {
+        let content = r#"
+    subject := "signal.query.rsi.latest"
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_subjects(content, &mut src);
+        assert!(src.query_subjects.contains("signal.query.rsi.latest"));
+    }
+
+    #[test]
+    fn scan_runtime_bindings_detects_signal_adapter_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let internal = dir.path().join("internal");
+        let adapters = internal.join("adapters/nats");
+        std::fs::create_dir_all(&adapters).unwrap();
+
+        std::fs::write(adapters.join("signal_publisher.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("signal_consumer.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("signal_gateway.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("signal_kv_store.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("signal_registry.go"), "package nats\n").unwrap();
+
+        let result = scan_runtime_bindings(&internal).unwrap();
+        assert!(result.has_signal_publisher);
+        assert!(result.has_signal_consumer);
+        assert!(result.has_signal_gateway);
+        assert!(result.has_signal_kv_store);
+        assert!(result.has_signal_registry);
+    }
+
+    #[test]
+    fn scan_runtime_bindings_with_go_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let internal = dir.path().join("internal");
+        let nats_adapters = internal.join("adapters/nats");
+        std::fs::create_dir_all(&nats_adapters).unwrap();
+
+        std::fs::write(
+            nats_adapters.join("observation_registry.go"),
+            r#"package nats
+func DefaultObservationRegistry() ObservationRegistry {
+    return ObservationRegistry{
+        Stream: StreamSpec{
+            Name:     "OBSERVATION_EVENTS",
+            Subjects: []string{"observation.events.>"},
+        },
+        Consumer: ConsumerSpec{
+            Durable: "derive-observation",
         },
     }
 }
@@ -545,25 +642,14 @@ func DefaultRegistry() Registry {
         )
         .unwrap();
 
-        // Create topology.go
-        std::fs::write(dataplane.join("topology.go"), "package dataplane\n").unwrap();
-
-        // Create client.go
-        std::fs::write(bootstrap.join("client.go"), "package runtimebootstrap\n").unwrap();
-
-        // Create validator files
-        std::fs::write(validator.join("runtime_cache.go"), "package validator\n").unwrap();
         std::fs::write(
-            validator.join("validation_worker.go"),
-            "package validator\n",
+            nats_adapters.join("observation_publisher.go"),
+            "package nats\n",
         )
         .unwrap();
 
         let result = scan_runtime_bindings(&internal).unwrap();
-        assert_eq!(result.subject_prefix, "dataplane.ingestion.received");
-        assert!(result.has_bootstrap_client);
-        assert!(result.has_topology_builder);
-        assert!(result.has_runtime_cache);
-        assert!(result.has_validation_worker);
+        assert!(result.stream_subjects.contains_key("OBSERVATION_EVENTS"));
+        assert!(result.has_observation_publisher);
     }
 }

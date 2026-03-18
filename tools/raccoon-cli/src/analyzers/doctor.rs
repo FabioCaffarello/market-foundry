@@ -5,7 +5,7 @@ use std::path::Path;
 pub fn analyze(project_root: &Path) -> Result<Report> {
     let mut report = Report::new("doctor");
 
-    // Check that project root looks like quality-service
+    // Check that project root looks like market-foundry
     let go_work = project_root.join("go.work");
     if go_work.exists() {
         report.add(CheckResult::pass("project-root"));
@@ -17,7 +17,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
                 format!("go.work not found at {}", project_root.display()),
             )
             .with_why("go.work is the workspace root marker; all other checks depend on it")
-            .with_help("pass --project-root pointing to the quality-service root")],
+            .with_help("pass --project-root pointing to the market-foundry root")],
         ));
     }
 
@@ -89,7 +89,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
                 )
                 .with_why("topology-doctor reads .jsonc configs to validate transport consistency")
                 .with_help(
-                    "add service configs (consumer.jsonc, emulator.jsonc, validator.jsonc)",
+                    "add service configs (gateway.jsonc, ingest.jsonc, derive.jsonc, store.jsonc)",
                 )],
             ));
         }

@@ -5,6 +5,247 @@ use std::path::Path;
 
 use super::topology::{self, ComposeTopology, ServiceConfig, SourceTopology};
 
+// ── Constants ───────────────────────────────────────────────────────
+
+/// The five application binaries in market-foundry.
+const APP_BINARIES: &[&str] = &["configctl", "gateway", "ingest", "derive", "store"];
+
+/// Infrastructure services (no config file expected).
+const INFRA_SERVICES: &[&str] = &["nats"];
+
+/// Canonical JetStream stream names.
+const CANONICAL_STREAMS: &[&str] = &[
+    "CONFIGCTL_EVENTS",
+    "OBSERVATION_EVENTS",
+    "EVIDENCE_EVENTS",
+    "SIGNAL_EVENTS",
+    "DECISION_EVENTS",
+    "STRATEGY_EVENTS",
+];
+
+/// Old service names that should no longer appear in active code.
+const DEFUNCT_NAMES: &[&str] = &["consumer", "emulator", "validator"];
+
+/// Architecture docs that must exist and mention all services.
+const ARCH_DOCS: &[&str] = &[
+    "docs/architecture/runtime-target.md",
+    "docs/architecture/stream-taxonomy.md",
+    "docs/architecture/actor-ownership.md",
+    "docs/architecture/stream-families.md",
+    "docs/architecture/stream-ownership-matrix.md",
+    "docs/architecture/stream-family-catalog.md",
+    "docs/architecture/projection-family-matrix.md",
+    "docs/architecture/system-principles.md",
+];
+
+/// Stream names that must NOT appear in source yet (premature domain entry guard).
+const PROHIBITED_STREAMS: &[(&str, &str)] = &[
+    (
+        "PROJECTION_EVENTS",
+        "projection notification family is planned but not yet approved for implementation",
+    ),
+    (
+        "RISK_EVENTS",
+        "risk domain governance is active (S63) but implementation begins in S64 — do not add risk code until S64 is formally opened",
+    ),
+];
+
+/// Architecture docs specific to the signal domain that must exist.
+const SIGNAL_DOCS: &[&str] = &[
+    "docs/architecture/signal-domain-design.md",
+    "docs/architecture/signal-first-slice.md",
+    "docs/architecture/signal-stream-families.md",
+    "docs/architecture/signal-activation-and-ownership.md",
+    "docs/architecture/signal-projection-pattern.md",
+    "docs/architecture/signal-query-surface-guidelines.md",
+    "docs/architecture/signal-replay-idempotency-rules.md",
+    "docs/architecture/signal-family-01-contracts.md",
+];
+
+/// Expected signal NATS subjects that must exist in source.
+const SIGNAL_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
+    ("signal.events.rsi.generated", "RSI signal event subject — derive publishes finalized RSI signals"),
+    ("signal.query.rsi.latest", "RSI latest query subject — gateway queries store for latest RSI"),
+];
+
+/// Expected signal durable consumers.
+const SIGNAL_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    ("store-signal-rsi", "store consumes RSI signal events from SIGNAL_EVENTS for projection"),
+];
+
+/// Expected signal KV bucket names that must appear in source.
+const SIGNAL_EXPECTED_BUCKETS: &[(&str, &str)] = &[
+    ("SIGNAL_RSI_LATEST", "stores latest finalized RSI signal per partition key"),
+];
+
+/// Expected signal adapter files in internal/adapters/nats/.
+const SIGNAL_ADAPTER_FILES: &[(&str, &str)] = &[
+    ("signal_registry.go", "defines SIGNAL_EVENTS stream, consumer, and query specs"),
+    ("signal_publisher.go", "publishes signal events to SIGNAL_EVENTS stream"),
+    ("signal_consumer.go", "durable consumer for signal events in store"),
+    ("signal_gateway.go", "gateway adapter for signal NATS request/reply queries"),
+    ("signal_kv_store.go", "KV bucket store for latest signal projections"),
+];
+
+/// Expected signal domain/application files.
+const SIGNAL_DOMAIN_FILES: &[(&str, &str)] = &[
+    ("internal/domain/signal/signal.go", "signal domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
+    ("internal/domain/signal/events.go", "SignalGeneratedEvent definition"),
+    ("internal/application/signal/rsi_sampler.go", "RSI sampler (Wilder's smoothed moving average)"),
+    ("internal/application/signalclient/contracts.go", "signal query/reply contracts"),
+    ("internal/application/signalclient/get_latest_signal.go", "GetLatestSignal use case"),
+    ("internal/application/ports/signal.go", "SignalGateway port interface"),
+];
+
+// ── Decision domain governance constants ─────────────────────────────
+
+/// Architecture docs specific to the decision domain that must exist.
+const DECISION_DOCS: &[&str] = &[
+    "docs/architecture/decision-domain-design.md",
+    "docs/architecture/decision-first-slice.md",
+    "docs/architecture/decision-stream-families.md",
+    "docs/architecture/decision-activation-and-ownership.md",
+    "docs/architecture/decision-query-surface-guidelines.md",
+    "docs/architecture/decision-family-01-contracts.md",
+    "docs/architecture/decision-readiness-review.md",
+    "docs/architecture/decision-entry-prerequisites.md",
+];
+
+/// Expected decision NATS subjects that must exist in source.
+const DECISION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
+    ("decision.events.rsi_oversold.evaluated", "decision event subject — derive publishes finalized RSI oversold decisions"),
+    ("decision.query.rsi_oversold.latest", "decision latest query subject — gateway queries store for latest RSI oversold decision"),
+];
+
+/// Expected decision durable consumers.
+const DECISION_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    ("store-decision-rsi-oversold", "store consumes RSI oversold decision events from DECISION_EVENTS for projection"),
+];
+
+/// Expected decision KV bucket names that must appear in source.
+const DECISION_EXPECTED_BUCKETS: &[(&str, &str)] = &[
+    ("DECISION_RSI_OVERSOLD_LATEST", "stores latest finalized RSI oversold decision per partition key"),
+];
+
+/// Expected decision adapter files in internal/adapters/nats/.
+const DECISION_ADAPTER_FILES: &[(&str, &str)] = &[
+    ("decision_registry.go", "defines DECISION_EVENTS stream, consumer, and query specs"),
+    ("decision_publisher.go", "publishes decision events to DECISION_EVENTS stream"),
+    ("decision_consumer.go", "durable consumer for decision events in store"),
+    ("decision_gateway.go", "gateway adapter for decision NATS request/reply queries"),
+    ("decision_kv_store.go", "KV bucket store for latest decision projections"),
+];
+
+/// Expected decision domain/application files.
+const DECISION_DOMAIN_FILES: &[(&str, &str)] = &[
+    ("internal/domain/decision/decision.go", "decision domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
+    ("internal/domain/decision/events.go", "DecisionEvaluatedEvent definition"),
+    ("internal/application/decision/rsi_oversold_evaluator.go", "RSI oversold evaluator (threshold-based)"),
+    ("internal/application/decisionclient/contracts.go", "decision query/reply contracts"),
+    ("internal/application/decisionclient/get_latest_decision.go", "GetLatestDecision use case"),
+    ("internal/application/ports/decision.go", "DecisionGateway port interface"),
+];
+
+// ── Strategy domain governance constants ─────────────────────────────
+
+/// Architecture docs specific to the strategy domain that must exist.
+const STRATEGY_DOCS: &[&str] = &[
+    "docs/architecture/strategy-domain-design.md",
+    "docs/architecture/strategy-stream-families.md",
+    "docs/architecture/strategy-activation-and-ownership.md",
+    "docs/architecture/strategy-query-surface-guidelines.md",
+    "docs/architecture/strategy-readiness-review.md",
+    "docs/architecture/strategy-entry-prerequisites.md",
+    "docs/architecture/strategy-risks-and-blockers.md",
+    "docs/architecture/strategy-readiness-review-rerun.md",
+];
+
+/// Expected strategy NATS subjects that must exist in source.
+const STRATEGY_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
+    ("strategy.events.mean_reversion_entry.resolved", "strategy event subject — derive publishes finalized mean reversion entry strategies"),
+    ("strategy.query.mean_reversion_entry.latest", "strategy latest query subject — gateway queries store for latest mean reversion entry"),
+];
+
+/// Expected strategy durable consumers.
+const STRATEGY_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    ("store-strategy-mean-reversion-entry", "store consumes mean reversion entry strategy events from STRATEGY_EVENTS for projection"),
+];
+
+/// Expected strategy KV bucket names that must appear in source.
+const STRATEGY_EXPECTED_BUCKETS: &[(&str, &str)] = &[
+    ("STRATEGY_MEAN_REVERSION_ENTRY_LATEST", "stores latest finalized mean reversion entry strategy per partition key"),
+];
+
+/// Expected strategy adapter files in internal/adapters/nats/.
+const STRATEGY_ADAPTER_FILES: &[(&str, &str)] = &[
+    ("strategy_registry.go", "defines STRATEGY_EVENTS stream, consumer, and query specs"),
+    ("strategy_publisher.go", "publishes strategy events to STRATEGY_EVENTS stream"),
+    ("strategy_consumer.go", "durable consumer for strategy events in store"),
+    ("strategy_gateway.go", "gateway adapter for strategy NATS request/reply queries"),
+    ("strategy_kv_store.go", "KV bucket store for latest strategy projections"),
+];
+
+/// Expected strategy domain/application files.
+const STRATEGY_DOMAIN_FILES: &[(&str, &str)] = &[
+    ("internal/domain/strategy/strategy.go", "strategy domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
+    ("internal/domain/strategy/events.go", "StrategyResolvedEvent definition"),
+    ("internal/application/strategy/mean_reversion_entry_resolver.go", "mean reversion entry resolver (decision-to-strategy)"),
+    ("internal/application/strategyclient/contracts.go", "strategy query/reply contracts"),
+    ("internal/application/strategyclient/get_latest_strategy.go", "GetLatestStrategy use case"),
+    ("internal/application/ports/strategy.go", "StrategyGateway port interface"),
+];
+
+// ── Risk domain governance constants ─────────────────────────────────
+// Risk governance is active from S63. Implementation begins in S64.
+// These constants define the expected artifacts once risk is implemented.
+// Until S64 opens, RISK_EVENTS is in PROHIBITED_STREAMS.
+
+/// Architecture docs specific to the risk domain that must exist (produced by S62).
+const RISK_DOCS: &[&str] = &[
+    "docs/architecture/risk-domain-design.md",
+    "docs/architecture/risk-stream-families.md",
+    "docs/architecture/risk-activation-and-ownership.md",
+    "docs/architecture/risk-query-surface-guidelines.md",
+    "docs/architecture/risk-readiness-review.md",
+    "docs/architecture/risk-entry-prerequisites.md",
+    "docs/architecture/risk-risks-and-blockers.md",
+];
+
+/// Expected risk NATS subjects (activate after S64 opens implementation).
+const RISK_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
+    ("risk.events.position_exposure.assessed", "risk event subject — derive publishes finalized position exposure assessments"),
+    ("risk.query.position_exposure.latest", "risk latest query subject — gateway queries store for latest position exposure"),
+];
+
+/// Expected risk durable consumers (activate after S64 opens implementation).
+const RISK_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    ("store-risk-position-exposure", "store consumes position exposure risk events from RISK_EVENTS for projection"),
+];
+
+/// Expected risk KV bucket names (activate after S64 opens implementation).
+const RISK_EXPECTED_BUCKETS: &[(&str, &str)] = &[
+    ("RISK_POSITION_EXPOSURE_LATEST", "stores latest finalized position exposure risk assessment per partition key"),
+];
+
+/// Expected risk adapter files in internal/adapters/nats/ (activate after S64).
+const RISK_ADAPTER_FILES: &[(&str, &str)] = &[
+    ("risk_registry.go", "defines RISK_EVENTS stream, consumer, and query specs"),
+    ("risk_publisher.go", "publishes risk events to RISK_EVENTS stream"),
+    ("risk_consumer.go", "durable consumer for risk events in store"),
+    ("risk_gateway.go", "gateway adapter for risk NATS request/reply queries"),
+    ("risk_kv_store.go", "KV bucket store for latest risk projections"),
+];
+
+/// Expected risk domain/application files (activate after S64 opens implementation).
+const RISK_DOMAIN_FILES: &[(&str, &str)] = &[
+    ("internal/domain/risk/risk.go", "risk domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
+    ("internal/domain/risk/events.go", "RiskAssessedEvent definition"),
+    ("internal/application/risk/position_exposure_evaluator.go", "position exposure evaluator (strategy-to-risk)"),
+    ("internal/application/riskclient/contracts.go", "risk query/reply contracts"),
+    ("internal/application/riskclient/get_latest_risk.go", "GetLatestRisk use case"),
+    ("internal/application/ports/risk.go", "RiskGateway port interface"),
+];
+
 // ── Public API ──────────────────────────────────────────────────────
 
 pub fn analyze(project_root: &Path) -> Result<Report> {
@@ -15,11 +256,40 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
 
     // Phase 2: Run drift checks
     report.add(check_config_compose_drift(&evidence));
-    report.add(check_config_source_drift(&evidence));
-    report.add(check_binding_topology_drift(&evidence));
-    report.add(check_workflow_drift(&evidence));
-    report.add(check_contract_domain_drift(&evidence));
-    report.add(check_compose_profile_drift(&evidence));
+    report.add(check_binary_compose_drift(&evidence));
+    report.add(check_naming_identity_drift(&evidence));
+    report.add(check_docs_reality_drift(&evidence));
+    report.add(check_actor_scope_drift(&evidence));
+    report.add(check_stream_registry_drift(&evidence));
+    report.add(check_premature_domain_entry(&evidence));
+
+    // Phase 3: Signal domain governance checks
+    report.add(check_signal_docs_drift(&evidence));
+    report.add(check_signal_adapter_drift(&evidence));
+    report.add(check_signal_domain_drift(&evidence));
+    report.add(check_signal_config_drift(&evidence));
+    report.add(check_signal_contracts_drift(&evidence));
+
+    // Phase 4: Decision domain governance checks
+    report.add(check_decision_docs_drift(&evidence));
+    report.add(check_decision_adapter_drift(&evidence));
+    report.add(check_decision_domain_drift(&evidence));
+    report.add(check_decision_config_drift(&evidence));
+    report.add(check_decision_contracts_drift(&evidence));
+
+    // Phase 5: Strategy domain governance checks
+    report.add(check_strategy_docs_drift(&evidence));
+    report.add(check_strategy_adapter_drift(&evidence));
+    report.add(check_strategy_domain_drift(&evidence));
+    report.add(check_strategy_config_drift(&evidence));
+    report.add(check_strategy_contracts_drift(&evidence));
+
+    // Phase 6: Risk domain governance checks (S63)
+    // Risk docs must exist (S62 output). Premature entry is caught by Phase 2.
+    // Adapter/domain/config/contracts checks are prepared but NOT active —
+    // they will be activated when S64 removes RISK_EVENTS from PROHIBITED_STREAMS.
+    report.add(check_risk_docs_drift(&evidence));
+    report.add(check_risk_premature_implementation(&evidence));
 
     Ok(report)
 }
@@ -27,37 +297,37 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
 // ── Evidence gathering ──────────────────────────────────────────────
 
 struct Evidence {
+    project_root: std::path::PathBuf,
     configs: HashMap<String, ServiceConfig>,
     compose: Option<ComposeTopology>,
     source: Option<SourceTopology>,
     makefile_targets: HashSet<String>,
     dev_doc_targets: HashSet<String>,
-    dev_doc_cli_commands: HashSet<String>,
-    cli_subcommands: HashSet<String>,
-    domain_events: Vec<String>,
-    registry_events: Vec<String>,
-    config_bindings: Vec<ConfigBinding>,
+    existing_cmd_dirs: HashSet<String>,
+    existing_actor_scopes: HashSet<String>,
+    stale_references: Vec<StaleReference>,
 }
 
 #[derive(Debug, Clone)]
-struct ConfigBinding {
-    name: String,
-    topic: String,
-    source_file: String,
+struct StaleReference {
+    file: String,
+    line_num: usize,
+    pattern: String,
+    #[allow(dead_code)]
+    context: String,
 }
 
 fn gather_evidence(project_root: &Path) -> Result<Evidence> {
     let mut evidence = Evidence {
+        project_root: project_root.to_path_buf(),
         configs: HashMap::new(),
         compose: None,
         source: None,
         makefile_targets: HashSet::new(),
         dev_doc_targets: HashSet::new(),
-        dev_doc_cli_commands: HashSet::new(),
-        cli_subcommands: known_cli_subcommands(),
-        domain_events: Vec::new(),
-        registry_events: Vec::new(),
-        config_bindings: Vec::new(),
+        existing_cmd_dirs: HashSet::new(),
+        existing_actor_scopes: HashSet::new(),
+        stale_references: Vec::new(),
     };
 
     // Configs
@@ -72,14 +342,42 @@ fn gather_evidence(project_root: &Path) -> Result<Evidence> {
         evidence.compose = topology::compose::parse_compose(&compose_path).ok();
     }
 
-    // Source
+    // Source topology
     let internal_dir = project_root.join("internal");
     if internal_dir.is_dir() {
         evidence.source = topology::source::scan_source(&internal_dir).ok();
-        scan_domain_events(&internal_dir, &mut evidence.domain_events);
-        scan_registry_events(&internal_dir, &mut evidence.registry_events);
-        scan_config_bindings(&internal_dir, &mut evidence.config_bindings, project_root);
     }
+
+    // Binary directories
+    let cmd_dir = project_root.join("cmd");
+    if cmd_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&cmd_dir) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        evidence.existing_cmd_dirs.insert(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Actor scope directories
+    let scopes_dir = project_root.join("internal/actors/scopes");
+    if scopes_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&scopes_dir) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        evidence.existing_actor_scopes.insert(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    // Stale name references
+    scan_stale_references(project_root, &mut evidence.stale_references);
 
     // Makefile
     let makefile_path = project_root.join("Makefile");
@@ -90,239 +388,42 @@ fn gather_evidence(project_root: &Path) -> Result<Evidence> {
     // DEVELOPMENT.md
     let dev_doc_path = project_root.join("DEVELOPMENT.md");
     if dev_doc_path.is_file() {
-        let (targets, commands) = extract_dev_doc_references(&dev_doc_path);
-        evidence.dev_doc_targets = targets;
-        evidence.dev_doc_cli_commands = commands;
+        evidence.dev_doc_targets = extract_dev_doc_make_targets(&dev_doc_path);
     }
 
     Ok(evidence)
 }
 
-fn known_cli_subcommands() -> HashSet<String> {
-    [
-        "doctor",
-        "topology-doctor",
-        "contract-audit",
-        "runtime-bindings",
-        "arch-guard",
-        "runtime-smoke",
-        "scenario-smoke",
-        "results-inspect",
-        "quality-gate",
-        "trace-pack",
-        "drift-detect",
-    ]
-    .iter()
-    .map(|s| s.to_string())
-    .collect()
-}
-
 // ── Scanners ────────────────────────────────────────────────────────
 
-fn scan_domain_events(internal_dir: &Path, events: &mut Vec<String>) {
-    let domain_dir = internal_dir.join("domain");
-    if !domain_dir.is_dir() {
-        return;
-    }
-    scan_go_files_for_events(&domain_dir, events);
-}
-
-fn scan_go_files_for_events(dir: &Path, events: &mut Vec<String>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            scan_go_files_for_events(&path, events);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("go") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                extract_event_names(&content, events);
-            }
-        }
-    }
-}
-
-fn extract_event_names(content: &str, events: &mut Vec<String>) {
-    // Match patterns like: "config.draft_created" or "config.activated"
-    // Only extract from lines that look like event name assignments, not struct tags
-    let lines: Vec<&str> = content.lines().collect();
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("//") {
-            continue;
-        }
-
-        // Only consider lines in event-related context:
-        // - Contains EventName, event_name, Type:, or Name: in an event context
-        // - Or is near (within 5 lines of) "Event" or "event" keyword
-        let is_event_context = trimmed.contains("EventName")
-            || trimmed.contains("event_name")
-            || (trimmed.contains("Name") && nearby_contains(&lines, i, 5, "Event"));
-
-        if !is_event_context {
-            continue;
-        }
-
-        for val in extract_all_quoted(trimmed) {
-            if is_event_name(&val) {
-                events.push(val);
-            }
-        }
-    }
-    events.sort();
-    events.dedup();
-}
-
-fn nearby_contains(lines: &[&str], center: usize, radius: usize, keyword: &str) -> bool {
-    let start = center.saturating_sub(radius);
-    let end = (center + radius).min(lines.len());
-    for i in start..end {
-        if lines[i].contains(keyword) {
-            return true;
-        }
-    }
-    false
-}
-
-fn is_event_name(s: &str) -> bool {
-    if s.is_empty() || !s.contains('.') {
-        return false;
-    }
-    let parts: Vec<&str> = s.split('.').collect();
-    if parts.len() != 2 {
-        return false;
-    }
-    // Must be word.word_word style (e.g., config.draft_created)
-    // The second part must contain an underscore (verb_noun pattern) to distinguish
-    // from struct field access like "scope.key" or "artifact.id"
-    let domain = parts[0];
-    let action = parts[1];
-
-    if domain.is_empty() || action.is_empty() {
-        return false;
-    }
-
-    // Domain must be a known event domain or at least look like one
-    let valid_chars = |p: &str| {
-        p.chars()
-            .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
-    };
-
-    if !valid_chars(domain) || !valid_chars(action) {
-        return false;
-    }
-
-    // Action part must contain underscore (e.g., draft_created, not just "key" or "id")
-    // OR be a known lifecycle verb
-    let known_verbs = [
-        "activated",
-        "deactivated",
-        "compiled",
-        "validated",
-        "rejected",
-        "archived",
+fn scan_stale_references(project_root: &Path, refs: &mut Vec<StaleReference>) {
+    // Scan Go source and config files for residual old names
+    let scan_dirs = [
+        project_root.join("internal"),
+        project_root.join("cmd"),
+        project_root.join("deploy"),
     ];
-    action.contains('_') || known_verbs.contains(&action)
-}
 
-fn scan_registry_events(internal_dir: &Path, events: &mut Vec<String>) {
-    let adapters_dir = internal_dir.join("adapters");
-    if !adapters_dir.is_dir() {
-        return;
-    }
-    scan_registry_files(&adapters_dir, events);
-    events.sort();
-    events.dedup();
-}
+    // Patterns: old service names and the "server" -> "gateway" rename
+    let patterns: Vec<(&str, &str)> = vec![
+        ("consumer", "old service name 'consumer'"),
+        ("emulator", "old service name 'emulator'"),
+        ("validator", "old service name 'validator'"),
+    ];
 
-fn scan_registry_files(dir: &Path, events: &mut Vec<String>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            scan_registry_files(&path, events);
-        } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name.contains("registry") && name.ends_with(".go") {
-                if let Ok(content) = std::fs::read_to_string(&path) {
-                    // Extract event type values from registry specs
-                    for line in content.lines() {
-                        let trimmed = line.trim();
-                        if trimmed.starts_with("//") {
-                            continue;
-                        }
-                        if trimmed.contains("Type:") || trimmed.contains("type:") {
-                            for val in extract_all_quoted(trimmed) {
-                                if is_event_name(&val) {
-                                    events.push(val);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    for dir in &scan_dirs {
+        if dir.is_dir() {
+            scan_dir_for_patterns(dir, &patterns, refs, project_root);
         }
     }
 }
 
-fn scan_config_bindings(
-    internal_dir: &Path,
-    bindings: &mut Vec<ConfigBinding>,
+fn scan_dir_for_patterns(
+    dir: &Path,
+    patterns: &[(&str, &str)],
+    refs: &mut Vec<StaleReference>,
     project_root: &Path,
 ) {
-    // Scan test fixtures for binding examples
-    let tests_dir = project_root.join("tests/http");
-    if tests_dir.is_dir() {
-        scan_http_fixtures_for_bindings(&tests_dir, bindings);
-    }
-    // Scan deploy configs for binding declarations
-    let configs_dir = project_root.join("deploy/configs");
-    if configs_dir.is_dir() {
-        scan_configs_for_bindings(&configs_dir, bindings);
-    }
-    // Scan source for binding references
-    scan_source_for_bindings(internal_dir, bindings);
-}
-
-fn scan_http_fixtures_for_bindings(dir: &Path, bindings: &mut Vec<ConfigBinding>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("http") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                extract_bindings_from_json_content(&content, &path, bindings);
-            }
-        }
-    }
-}
-
-fn scan_configs_for_bindings(dir: &Path, bindings: &mut Vec<ConfigBinding>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("jsonc") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                extract_bindings_from_json_content(&content, &path, bindings);
-            }
-        }
-    }
-}
-
-fn scan_source_for_bindings(internal_dir: &Path, bindings: &mut Vec<ConfigBinding>) {
-    scan_go_for_bindings(internal_dir, bindings);
-}
-
-fn scan_go_for_bindings(dir: &Path, bindings: &mut Vec<ConfigBinding>) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return,
@@ -330,83 +431,68 @@ fn scan_go_for_bindings(dir: &Path, bindings: &mut Vec<ConfigBinding>) {
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            scan_go_for_bindings(&path, bindings);
-        } else if path.extension().and_then(|e| e.to_str()) == Some("go") {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                // Look for binding name references in test or fixture code
-                for line in content.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.starts_with("//") {
-                        continue;
-                    }
-                    if trimmed.contains("BindingName") || trimmed.contains("binding_name") {
-                        for val in extract_all_quoted(trimmed) {
-                            if !val.is_empty()
-                                && val.len() < 64
-                                && val
-                                    .chars()
-                                    .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-                            {
-                                bindings.push(ConfigBinding {
-                                    name: val,
-                                    topic: String::new(),
-                                    source_file: path.display().to_string(),
-                                });
-                            }
-                        }
-                    }
-                }
+            // Skip directories named after old services (they are tracked by other checks)
+            let dirname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if DEFUNCT_NAMES.contains(&dirname) {
+                continue;
+            }
+            scan_dir_for_patterns(&path, patterns, refs, project_root);
+        } else {
+            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if ext == "go" || ext == "jsonc" || ext == "yaml" || ext == "yml" {
+                scan_file_for_patterns(&path, patterns, refs, project_root);
             }
         }
     }
 }
 
-fn extract_bindings_from_json_content(
-    content: &str,
+fn scan_file_for_patterns(
     path: &Path,
-    bindings: &mut Vec<ConfigBinding>,
+    patterns: &[(&str, &str)],
+    refs: &mut Vec<StaleReference>,
+    project_root: &Path,
 ) {
-    // Look for "bindings" arrays with "name" and "topic" fields
-    // Simple heuristic: find "name": "..." and "topic": "..." near each other
-    let lines: Vec<&str> = content.lines().collect();
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim().trim_matches('"');
-        if trimmed.contains("\"name\"") && i + 5 < lines.len() {
-            let name = extract_json_string_value(trimmed, "name");
-            if let Some(name) = name {
-                // Look for topic nearby
-                let mut topic = None;
-                for j in i.saturating_sub(3)..((i + 5).min(lines.len())) {
-                    if let Some(t) = extract_json_string_value(lines[j].trim(), "topic") {
-                        topic = Some(t);
-                        break;
-                    }
-                }
-                if let Some(topic) = topic {
-                    bindings.push(ConfigBinding {
-                        name,
-                        topic,
-                        source_file: path.display().to_string(),
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+
+    let relative = path
+        .strip_prefix(project_root)
+        .unwrap_or(path)
+        .display()
+        .to_string();
+
+    for (line_num, line) in content.lines().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("//") || trimmed.starts_with("#") {
+            continue;
+        }
+        let lower = trimmed.to_lowercase();
+        for (pattern, description) in patterns {
+            // Match as whole word boundary: check chars before and after
+            let pat_lower = pattern.to_lowercase();
+            let mut search = lower.as_str();
+            while let Some(pos) = search.find(&pat_lower) {
+                let before_ok = pos == 0
+                    || !search.as_bytes()[pos - 1].is_ascii_alphanumeric();
+                let after_pos = pos + pat_lower.len();
+                let after_ok = after_pos >= search.len()
+                    || !search.as_bytes()[after_pos].is_ascii_alphanumeric();
+
+                if before_ok && after_ok {
+                    refs.push(StaleReference {
+                        file: relative.clone(),
+                        line_num: line_num + 1,
+                        pattern: description.to_string(),
+                        context: trimmed.chars().take(120).collect(),
                     });
+                    break; // one finding per line per pattern
                 }
+                search = &search[pos + pat_lower.len()..];
             }
         }
     }
-}
-
-fn extract_json_string_value(line: &str, key: &str) -> Option<String> {
-    let pattern = format!("\"{}\"", key);
-    if !line.contains(&pattern) {
-        return None;
-    }
-    // Find value after the key
-    let after_key = line.splitn(2, &pattern).nth(1)?;
-    let after_colon = after_key.splitn(2, ':').nth(1)?.trim();
-    // Extract quoted value
-    let start = after_colon.find('"')?;
-    let rest = &after_colon[start + 1..];
-    let end = rest.find('"')?;
-    Some(rest[..end].to_string())
 }
 
 fn extract_makefile_targets(path: &Path) -> HashSet<String> {
@@ -417,8 +503,6 @@ fn extract_makefile_targets(path: &Path) -> HashSet<String> {
     };
 
     for line in content.lines() {
-        // Match target declarations: "target:" or "target: deps"
-        // Skip variable assignments, comments, conditionals
         let trimmed = line.trim();
         if trimmed.starts_with('#')
             || trimmed.starts_with('\t')
@@ -434,7 +518,6 @@ fn extract_makefile_targets(path: &Path) -> HashSet<String> {
         {
             continue;
         }
-        // Skip variable assignments
         if trimmed.contains("?=")
             || trimmed.contains(":=")
             || trimmed.contains("+=")
@@ -442,15 +525,9 @@ fn extract_makefile_targets(path: &Path) -> HashSet<String> {
         {
             continue;
         }
-        // Skip .PHONY and .DEFAULT_GOAL
-        if trimmed.starts_with('.') {
+        if trimmed.starts_with('.') || trimmed.starts_with("$(") {
             continue;
         }
-        // Skip lines with $(...)
-        if trimmed.starts_with("$(") {
-            continue;
-        }
-        // Extract target name
         if let Some(colon_pos) = trimmed.find(':') {
             let target = trimmed[..colon_pos].trim();
             if !target.is_empty()
@@ -466,15 +543,13 @@ fn extract_makefile_targets(path: &Path) -> HashSet<String> {
     targets
 }
 
-fn extract_dev_doc_references(path: &Path) -> (HashSet<String>, HashSet<String>) {
+fn extract_dev_doc_make_targets(path: &Path) -> HashSet<String> {
     let mut targets = HashSet::new();
-    let mut commands = HashSet::new();
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
-        Err(_) => return (targets, commands),
+        Err(_) => return targets,
     };
 
-    // Common English words that follow "make" but aren't targets
     let make_stopwords: HashSet<&str> = [
         "a", "an", "the", "it", "is", "to", "your", "sure", "changes", "sense", "this", "that",
         "any", "no", "not", "use", "certain",
@@ -484,7 +559,6 @@ fn extract_dev_doc_references(path: &Path) -> (HashSet<String>, HashSet<String>)
     .collect();
 
     for line in content.lines() {
-        // Extract `make <target>` references
         let mut rest = line;
         while let Some(pos) = rest.find("make ") {
             let after = &rest[pos + 5..];
@@ -497,71 +571,25 @@ fn extract_dev_doc_references(path: &Path) -> (HashSet<String>, HashSet<String>)
             }
             rest = &after[end..];
         }
-
-        // Extract `raccoon-cli <subcommand>` references
-        let mut rest = line;
-        while let Some(pos) = rest.find("raccoon-cli ") {
-            let after = &rest[pos + 12..];
-            // Skip flags
-            let after = after.trim_start();
-            let cmd_start = if after.starts_with('-') {
-                // Find next non-flag word
-                let words: Vec<&str> = after.split_whitespace().collect();
-                let mut cmd = "";
-                for w in &words {
-                    if !w.starts_with('-') {
-                        cmd = w;
-                        break;
-                    }
-                }
-                cmd
-            } else {
-                let end = after
-                    .find(|c: char| c.is_whitespace())
-                    .unwrap_or(after.len());
-                &after[..end]
-            };
-            // Strip trailing backticks or punctuation
-            let cmd_clean = cmd_start.trim_end_matches(|c: char| {
-                c == '`' || c == '\'' || c == '"' || c == ',' || c == '.'
-            });
-            if !cmd_clean.is_empty() {
-                commands.insert(cmd_clean.to_string());
-            }
-            rest = &after[cmd_start.len()..];
-        }
     }
 
-    (targets, commands)
-}
-
-fn extract_all_quoted(s: &str) -> Vec<String> {
-    let mut results = Vec::new();
-    let mut rest = s;
-    while let Some(start) = rest.find('"') {
-        let after_quote = &rest[start + 1..];
-        if let Some(end) = after_quote.find('"') {
-            let value = &after_quote[..end];
-            if !value.is_empty() {
-                results.push(value.to_string());
-            }
-            rest = &after_quote[end + 1..];
-        } else {
-            break;
-        }
-    }
-    results
+    targets
 }
 
 // ── Drift checks ────────────────────────────────────────────────────
 
+/// Check 1: For each service, verify config file exists AND compose service exists.
+/// Check NATS URLs are consistent.
 fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
     let compose = match &evidence.compose {
         Some(c) => c,
         None => {
-            return CheckResult::skip("config-compose-drift", "docker-compose.yaml not available")
+            return CheckResult::skip(
+                "config-compose-drift",
+                "docker-compose.yaml not available",
+            )
         }
     };
 
@@ -572,63 +600,78 @@ fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
         );
     }
 
-    // Services with configs but not in compose
     let compose_services: HashSet<&str> = compose.services.keys().map(|s| s.as_str()).collect();
     let config_services: HashSet<&str> = evidence.configs.keys().map(|s| s.as_str()).collect();
+    let app_set: HashSet<&str> = APP_BINARIES.iter().copied().collect();
 
-    // Configs are expected for application services, not infra (nats, kafka)
-    let app_services: HashSet<&str> = ["configctl", "server", "consumer", "emulator", "validator"]
-        .iter()
-        .copied()
-        .collect();
-
+    // Configs without matching compose service
     for svc in config_services.difference(&compose_services) {
-        if app_services.contains(*svc) {
+        if app_set.contains(*svc) {
             findings.push(
                 Finding::warning(
                     "config-without-compose",
                     format!("config '{svc}' exists but no matching compose service"),
                 )
-                .with_why("config declares runtime settings for a service that doesn't exist in compose — the config is dead weight")
+                .with_why("config declares runtime settings for a service that doesn't exist in compose -- the config is dead weight")
                 .with_help(format!("add '{svc}' service to deploy/compose/docker-compose.yaml or remove deploy/configs/{svc}.jsonc")),
             );
         }
     }
 
     // App services in compose without config
-    for svc in compose_services.intersection(&app_services) {
+    for svc in compose_services.intersection(&app_set) {
         if !config_services.contains(*svc) {
             findings.push(
                 Finding::warning(
                     "compose-without-config",
                     format!("compose service '{svc}' has no deploy/configs/{svc}.jsonc"),
                 )
-                .with_why("service runs with default/hardcoded settings — explicit config makes behavior visible and auditable")
-                .with_help(format!("create deploy/configs/{svc}.jsonc with at minimum the transport settings")),
+                .with_why("service runs with default/hardcoded settings -- explicit config makes behavior visible and auditable")
+                .with_help(format!("create deploy/configs/{svc}.jsonc with at minimum the NATS transport settings")),
             );
         }
     }
 
-    // Transport drift: config declares kafka but compose service doesn't depend on kafka
-    for (name, cfg) in &evidence.configs {
-        if let Some(svc) = compose.services.get(name.as_str()) {
-            if !cfg.kafka_brokers.is_empty() && !svc.depends_on.contains(&"kafka".to_string()) {
+    // NATS URL consistency: all configs should point to the same NATS URL
+    let nats_urls: Vec<(&str, &str)> = evidence
+        .configs
+        .iter()
+        .filter_map(|(name, cfg)| {
+            cfg.nats_url
+                .as_deref()
+                .map(|url| (name.as_str(), url))
+        })
+        .collect();
+
+    if nats_urls.len() > 1 {
+        let first_url = nats_urls[0].1;
+        for (name, url) in &nats_urls[1..] {
+            if *url != first_url {
                 findings.push(
                     Finding::error(
-                        "transport-drift",
-                        format!("'{name}' config declares kafka brokers but compose service doesn't depend on kafka"),
+                        "nats-url-drift",
+                        format!(
+                            "service '{name}' uses NATS URL '{url}' but '{}' uses '{first_url}'",
+                            nats_urls[0].0
+                        ),
                     )
-                    .with_why("service will fail to start if kafka isn't running — the dependency must be declared")
-                    .with_help(format!("add 'kafka' to depends_on of '{name}' in docker-compose.yaml")),
+                    .with_why("inconsistent NATS URLs cause services to connect to different clusters")
+                    .with_help("ensure all configs use the same nats.url value"),
                 );
             }
+        }
+    }
+
+    // NATS dependency: configs declaring nats_url must depend on nats in compose
+    for (name, cfg) in &evidence.configs {
+        if let Some(svc) = compose.services.get(name.as_str()) {
             if cfg.nats_url.is_some() && !svc.depends_on.contains(&"nats".to_string()) {
                 findings.push(
                     Finding::error(
                         "transport-drift",
                         format!("'{name}' config declares nats url but compose service doesn't depend on nats"),
                     )
-                    .with_why("service will fail to connect if nats isn't running — the dependency must be declared")
+                    .with_why("service will fail to connect if nats isn't running")
                     .with_help(format!("add 'nats' to depends_on of '{name}' in docker-compose.yaml")),
                 );
             }
@@ -638,30 +681,291 @@ fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
     CheckResult::from_findings("config-compose-drift", findings)
 }
 
-fn check_config_source_drift(evidence: &Evidence) -> CheckResult {
+/// Check 2: For each expected binary, verify cmd/{name}/ exists AND compose service exists.
+fn check_binary_compose_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
-    let source = match &evidence.source {
-        Some(s) => s,
-        None => return CheckResult::skip("config-source-drift", "source not scanned"),
-    };
+    let compose_services: HashSet<&str> = evidence
+        .compose
+        .as_ref()
+        .map(|c| c.services.keys().map(|s| s.as_str()).collect())
+        .unwrap_or_default();
 
-    // Check that streams referenced in source exist as expected transport infrastructure
-    let expected_streams: Vec<&str> = vec!["DATA_PLANE_INGESTION", "CONFIGCTL_EVENTS"];
-    for stream in &expected_streams {
-        if !source.streams.contains_key(*stream) {
+    for binary in APP_BINARIES {
+        // Check cmd directory
+        if !evidence.existing_cmd_dirs.contains(*binary) {
             findings.push(
                 Finding::error(
-                    "stream-drift",
-                    format!("expected stream '{stream}' not found in source — may have been renamed or removed"),
+                    "missing-binary-dir",
+                    format!("expected binary directory cmd/{binary}/ does not exist"),
                 )
-                .with_why("durable consumers and subject routing depend on this stream name — renaming it without updating all references breaks the pipeline")
-                .with_help("search source for the stream constant and verify it matches the registry definition"),
+                .with_why(format!("'{binary}' is an expected service but has no entry point"))
+                .with_help(format!("create cmd/{binary}/main.go")),
+            );
+        }
+
+        // Check compose service
+        if evidence.compose.is_some() && !compose_services.contains(binary) {
+            // gateway maps to "server" in compose for backward compat -- skip if server exists
+            if *binary == "gateway" && compose_services.contains("server") {
+                findings.push(
+                    Finding::info(
+                        "gateway-server-alias",
+                        "compose uses 'server' instead of 'gateway' -- consider renaming for consistency",
+                    ),
+                );
+            } else {
+                findings.push(
+                    Finding::warning(
+                        "binary-without-compose",
+                        format!("binary '{binary}' exists but no matching compose service"),
+                    )
+                    .with_why("binary cannot be deployed via docker-compose without a service definition")
+                    .with_help(format!("add '{binary}' service to deploy/compose/docker-compose.yaml")),
+                );
+            }
+        }
+    }
+
+    // Check for compose services that are not expected binaries or infra
+    let all_known: HashSet<&str> = APP_BINARIES
+        .iter()
+        .chain(INFRA_SERVICES.iter())
+        .copied()
+        .collect();
+
+    for svc_name in &compose_services {
+        // Allow "server" as gateway alias
+        if *svc_name == "server" {
+            continue;
+        }
+        if !all_known.contains(svc_name) {
+            findings.push(
+                Finding::info(
+                    "unknown-compose-service",
+                    format!("compose service '{svc_name}' is not a recognized market-foundry binary"),
+                ),
             );
         }
     }
 
-    // Check that durable consumers still target the right streams
+    CheckResult::from_findings("binary-compose-drift", findings)
+}
+
+/// Check 3: Scan for residual old service names in active code.
+fn check_naming_identity_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    if evidence.stale_references.is_empty() {
+        return CheckResult::from_findings("naming-identity-drift", findings);
+    }
+
+    // Group by pattern for summary
+    let mut by_pattern: HashMap<&str, Vec<&StaleReference>> = HashMap::new();
+    for r in &evidence.stale_references {
+        by_pattern.entry(r.pattern.as_str()).or_default().push(r);
+    }
+
+    for (pattern, refs) in &by_pattern {
+        if refs.len() <= 3 {
+            // Report individually
+            for r in refs {
+                findings.push(
+                    Finding::warning(
+                        "stale-name",
+                        format!("{pattern} found in {}", r.file),
+                    )
+                    .with_location(format!("{}:{}", r.file, r.line_num))
+                    .with_why("residual old names cause confusion and may break tooling that expects the new architecture")
+                    .with_help("rename to the current service name or remove the reference"),
+                );
+            }
+        } else {
+            // Summarize
+            let files: HashSet<&str> = refs.iter().map(|r| r.file.as_str()).collect();
+            findings.push(
+                Finding::warning(
+                    "stale-name",
+                    format!(
+                        "{pattern}: {} occurrences across {} file(s)",
+                        refs.len(),
+                        files.len()
+                    ),
+                )
+                .with_why("residual old names cause confusion and may break tooling that expects the new architecture")
+                .with_help("grep for the pattern and update all references"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("naming-identity-drift", findings)
+}
+
+/// Check 4: Verify docs and Makefile are consistent with reality.
+fn check_docs_reality_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    // Check architecture docs exist
+    for doc_path in ARCH_DOCS {
+        let full = evidence.project_root.join(doc_path);
+        if !full.is_file() {
+            findings.push(
+                Finding::warning(
+                    "missing-arch-doc",
+                    format!("architecture doc '{doc_path}' does not exist"),
+                )
+                .with_why("missing documentation leaves the architecture undocumented and hard to onboard")
+                .with_help(format!("create {doc_path}")),
+            );
+        }
+    }
+
+    // Check runtime-target.md mentions all services
+    let runtime_target_path = evidence
+        .project_root
+        .join("docs/architecture/runtime-target.md");
+    if runtime_target_path.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&runtime_target_path) {
+            let lower = content.to_lowercase();
+            for binary in APP_BINARIES {
+                if !lower.contains(&binary.to_lowercase()) {
+                    findings.push(
+                        Finding::warning(
+                            "doc-service-missing",
+                            format!("runtime-target.md does not mention service '{binary}'"),
+                        )
+                        .with_location("docs/architecture/runtime-target.md")
+                        .with_why("architecture doc is incomplete -- developers won't know this service exists")
+                        .with_help(format!("add '{binary}' to the runtime-target.md service inventory")),
+                    );
+                }
+            }
+        }
+    }
+
+    // DEVELOPMENT.md / Makefile consistency
+    if evidence.makefile_targets.is_empty() && evidence.dev_doc_targets.is_empty() {
+        return CheckResult::from_findings("docs-reality-drift", findings);
+    }
+
+    // Targets referenced in DEVELOPMENT.md but not in Makefile
+    for target in &evidence.dev_doc_targets {
+        if !evidence.makefile_targets.contains(target) {
+            if ["test", "build", "docker-build"].contains(&target.as_str()) {
+                continue;
+            }
+            findings.push(
+                Finding::error(
+                    "doc-target-drift",
+                    format!("DEVELOPMENT.md references `make {target}` but target not found in Makefile"),
+                )
+                .with_why("developers following the documented workflow will get 'No rule to make target' errors")
+                .with_help(format!("add '{target}' target to Makefile or update DEVELOPMENT.md")),
+            );
+        }
+    }
+
+    // Key workflow targets that should be documented
+    let workflow_targets = ["check", "verify", "smoke", "up-all", "down", "logs"];
+    for target in &workflow_targets {
+        if evidence.makefile_targets.contains(*target) && !evidence.dev_doc_targets.contains(*target)
+        {
+            findings.push(
+                Finding::info(
+                    "undocumented-target",
+                    format!("Makefile has workflow target '{target}' not referenced in DEVELOPMENT.md"),
+                ),
+            );
+        }
+    }
+
+    CheckResult::from_findings("docs-reality-drift", findings)
+}
+
+/// Check 5: Verify each binary has a corresponding actor scope.
+fn check_actor_scope_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    if evidence.existing_actor_scopes.is_empty() {
+        return CheckResult::skip(
+            "actor-scope-drift",
+            "no actor scope directories found in internal/actors/scopes/",
+        );
+    }
+
+    // Services that should have actor scopes (gateway/configctl may share server scope)
+    let scope_expected: &[&str] = &["ingest", "derive", "store"];
+
+    for scope in scope_expected {
+        if !evidence.existing_actor_scopes.contains(*scope) {
+            findings.push(
+                Finding::error(
+                    "missing-actor-scope",
+                    format!("binary '{scope}' has no actor scope directory internal/actors/scopes/{scope}/"),
+                )
+                .with_why(format!("'{scope}' service has no actor hierarchy -- it cannot process messages"))
+                .with_help(format!("create internal/actors/scopes/{scope}/ with at minimum a supervisor actor")),
+            );
+        }
+    }
+
+    // Actor scopes that don't correspond to any binary
+    let binary_set: HashSet<&str> = APP_BINARIES.iter().copied().collect();
+    for scope in &evidence.existing_actor_scopes {
+        // Allow scopes that match binaries or are known shared scopes
+        if !binary_set.contains(scope.as_str()) && scope != "server" {
+            findings.push(
+                Finding::info(
+                    "orphan-actor-scope",
+                    format!("actor scope '{scope}' does not correspond to any expected binary"),
+                ),
+            );
+        }
+    }
+
+    CheckResult::from_findings("actor-scope-drift", findings)
+}
+
+/// Check 6: Scan Go source for JetStream stream names and verify they match canonical streams.
+fn check_stream_registry_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("stream-registry-drift", "source not scanned"),
+    };
+
+    let canonical: HashSet<&str> = CANONICAL_STREAMS.iter().copied().collect();
+
+    // Check that all canonical streams exist in source
+    for stream in CANONICAL_STREAMS {
+        if !source.streams.contains_key(*stream) {
+            findings.push(
+                Finding::error(
+                    "missing-canonical-stream",
+                    format!("canonical stream '{stream}' not found in source"),
+                )
+                .with_why("services depend on this stream for message routing -- missing definition breaks the pipeline")
+                .with_help("verify the registry adapter defines this stream"),
+            );
+        }
+    }
+
+    // Check for non-canonical streams (old or unexpected)
+    for stream_name in source.streams.keys() {
+        if !canonical.contains(stream_name.as_str()) {
+            findings.push(
+                Finding::warning(
+                    "non-canonical-stream",
+                    format!("stream '{stream_name}' is not in the canonical stream set"),
+                )
+                .with_why("unexpected streams may be leftovers from the old architecture or undocumented additions")
+                .with_help(format!("if '{stream_name}' is intentional, add it to the canonical stream list in docs/architecture/stream-taxonomy.md")),
+            );
+        }
+    }
+
+    // Check that durable consumers target existing streams
     for (durable, stream) in &source.durables {
         if !source.streams.contains_key(stream.as_str()) {
             findings.push(
@@ -669,52 +973,13 @@ fn check_config_source_drift(evidence: &Evidence) -> CheckResult {
                     "durable-target-drift",
                     format!("durable '{durable}' targets stream '{stream}' which doesn't exist"),
                 )
-                .with_why("durable consumer will fail to bind at runtime — messages will not be delivered")
+                .with_why("durable consumer will fail to bind at runtime -- messages will not be delivered")
                 .with_help(format!("update durable '{durable}' to reference an existing stream")),
             );
         }
     }
 
-    for durable in [
-        "validator-runtime-cache-v1",
-        "consumer-runtime-refresh-v1",
-        "emulator-runtime-refresh-v1",
-    ] {
-        if let Some(stream) = source.durables.get(durable) {
-            if stream != "CONFIGCTL_EVENTS" {
-                findings.push(
-                    Finding::error(
-                        "runtime-refresh-stream-drift",
-                        format!(
-                            "durable '{durable}' targets stream '{stream}' instead of 'CONFIGCTL_EVENTS'"
-                        ),
-                    )
-                    .with_why("runtime lifecycle and event-driven refresh depend on CONFIGCTL_EVENTS; wrong stream silently breaks convergence")
-                    .with_help(format!("update durable '{durable}' to target CONFIGCTL_EVENTS")),
-                );
-            }
-        }
-    }
-
-    // Check that subject prefixes in configs align with source subject patterns
-    let dataplane_prefix = "dataplane.ingestion.received";
-    let has_dataplane_subjects = source
-        .subjects
-        .iter()
-        .any(|s| s.starts_with(dataplane_prefix));
-
-    if !has_dataplane_subjects && !source.streams.is_empty() {
-        findings.push(
-            Finding::warning(
-                "subject-prefix-drift",
-                format!("no subjects with prefix '{dataplane_prefix}' found in source — subject naming may have drifted"),
-            )
-            .with_why("consumer and validator depend on predictable subject prefixes for routing")
-            .with_help("check dataplane registry for current subject prefix convention"),
-        );
-    }
-
-    // Verify stream-subject alignment (stream declares subjects that actually exist)
+    // Verify stream-subject alignment
     for (stream_name, stream_subjects) in &source.streams {
         for pattern in stream_subjects {
             let prefix = pattern.trim_end_matches(".>");
@@ -735,370 +1000,1395 @@ fn check_config_source_drift(evidence: &Evidence) -> CheckResult {
         }
     }
 
-    CheckResult::from_findings("config-source-drift", findings)
+    CheckResult::from_findings("stream-registry-drift", findings)
 }
 
-fn check_binding_topology_drift(evidence: &Evidence) -> CheckResult {
+/// Check 7: Detect premature domain entry — streams/subjects that must not appear yet.
+fn check_premature_domain_entry(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
     let source = match &evidence.source {
         Some(s) => s,
-        None => return CheckResult::skip("binding-topology-drift", "source not scanned"),
+        None => return CheckResult::skip("premature-domain-entry", "source not scanned"),
     };
 
-    // Check that discovered bindings reference topics that align with the routing infrastructure
-    let binding_names: HashSet<String> = evidence
-        .config_bindings
-        .iter()
-        .map(|b| b.name.clone())
-        .collect();
-
-    let binding_topics: HashSet<String> = evidence
-        .config_bindings
-        .iter()
-        .filter(|b| !b.topic.is_empty())
-        .map(|b| b.topic.clone())
-        .collect();
-
-    // If we have bindings with topics, verify the routing infrastructure supports them
-    if !binding_topics.is_empty() {
-        let has_dataplane_stream = source.streams.contains_key("DATA_PLANE_INGESTION");
-        if !has_dataplane_stream {
+    for (stream, reason) in PROHIBITED_STREAMS {
+        if source.streams.contains_key(*stream) {
             findings.push(
                 Finding::error(
-                    "binding-stream-drift",
-                    format!(
-                        "bindings reference {} topic(s) but DATA_PLANE_INGESTION stream not found in source",
-                        binding_topics.len()
-                    ),
+                    "premature-stream",
+                    format!("prohibited stream '{stream}' found in source"),
                 )
-                .with_why("ingested messages from these topics will have no stream to land in — data pipeline is broken")
-                .with_help("verify the dataplane registry defines DATA_PLANE_INGESTION stream"),
+                .with_why(*reason)
+                .with_help(format!(
+                    "remove all references to '{stream}' until the domain is formally approved for entry"
+                )),
             );
         }
 
-        let has_validator_durable = source.durables.contains_key("validator-dataplane-v1");
-        if !has_validator_durable {
-            findings.push(
-                Finding::error(
-                    "binding-consumer-drift",
-                    format!(
-                        "bindings reference {} topic(s) but validator durable consumer not found",
-                        binding_topics.len()
-                    ),
-                )
-                .with_why("messages will accumulate in the stream with no consumer processing them")
-                .with_help("verify the dataplane registry defines the validator durable consumer"),
-            );
-        }
-    }
-
-    // Check for duplicate binding names across sources
-    let mut seen_names: HashMap<&str, Vec<&str>> = HashMap::new();
-    for b in &evidence.config_bindings {
-        seen_names
-            .entry(b.name.as_str())
-            .or_default()
-            .push(b.source_file.as_str());
-    }
-    for (name, sources) in &seen_names {
-        if sources.len() > 2 {
-            // Allow config + test fixture duplicates, flag if more
-            let unique_sources: HashSet<&&str> = sources.iter().collect();
-            if unique_sources.len() > 2 {
+        // Also check subjects that would belong to this stream
+        let prefix = stream
+            .trim_end_matches("_EVENTS")
+            .to_lowercase();
+        for subject in &source.subjects {
+            if subject.starts_with(&format!("{prefix}.events."))
+                || subject.starts_with(&format!("{prefix}.query."))
+            {
                 findings.push(
-                    Finding::warning(
-                        "binding-duplicate",
-                        format!(
-                            "binding '{name}' appears in {} distinct sources",
-                            unique_sources.len()
-                        ),
+                    Finding::error(
+                        "premature-subject",
+                        format!("subject '{subject}' belongs to prohibited domain '{prefix}'"),
                     )
-                    .with_why("duplicate binding definitions risk inconsistency if one is updated and the others aren't")
-                    .with_help("consolidate to a single authoritative binding declaration"),
+                    .with_why(*reason),
                 );
             }
         }
     }
 
-    // Check bootstrap infrastructure exists
-    if !binding_names.is_empty() {
-        let has_bootstrap = source
-            .subjects
-            .iter()
-            .any(|s| s.contains("bootstrap") || s.contains("runtime"));
-        if !has_bootstrap {
-            findings.push(
-                Finding::info(
-                    "binding-bootstrap",
-                    "bindings exist but no bootstrap-related subjects found in source — bootstrap may use HTTP instead of NATS",
-                ),
-            );
-        }
-    }
-
-    CheckResult::from_findings("binding-topology-drift", findings)
+    CheckResult::from_findings("premature-domain-entry", findings)
 }
 
-fn check_workflow_drift(evidence: &Evidence) -> CheckResult {
+// ── Signal domain governance checks ─────────────────────────────────
+
+/// Check signal-docs-drift: verify all required signal architecture docs exist.
+fn check_signal_docs_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
-    if evidence.makefile_targets.is_empty() && evidence.dev_doc_targets.is_empty() {
-        return CheckResult::skip("workflow-drift", "no Makefile or DEVELOPMENT.md found");
-    }
-
-    // Targets referenced in DEVELOPMENT.md but not in Makefile
-    for target in &evidence.dev_doc_targets {
-        if !evidence.makefile_targets.contains(target) {
-            // Skip common false positives
-            if ["test", "build", "docker-build"].contains(&target.as_str()) {
-                // These might be parsed from different context
-                continue;
-            }
+    for doc_path in SIGNAL_DOCS {
+        let full = evidence.project_root.join(doc_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "signal-doc-present",
+                format!("signal doc present: {doc_path}"),
+            ));
+        } else {
             findings.push(
                 Finding::error(
-                    "doc-target-drift",
-                    format!("DEVELOPMENT.md references `make {target}` but target not found in Makefile"),
+                    "signal-doc-missing",
+                    format!("required signal architecture doc not found: {doc_path}"),
                 )
-                .with_why("developers following the documented workflow will get 'No rule to make target' errors")
-                .with_help(format!("add '{target}' target to Makefile or update DEVELOPMENT.md")),
+                .with_why("signal governance requires canonical design docs to prevent drift between architecture and implementation")
+                .with_help(format!("create {doc_path} following the pattern of existing evidence/stream docs")),
             );
         }
     }
 
-    // CLI commands referenced in DEVELOPMENT.md but not known subcommands
-    for cmd in &evidence.dev_doc_cli_commands {
-        if !evidence.cli_subcommands.contains(cmd) {
-            // Skip flags and noise
-            if cmd.starts_with('-') || cmd.len() < 3 {
-                continue;
-            }
+    CheckResult::from_findings("signal-docs-drift", findings)
+}
+
+/// Check signal-adapter-drift: verify all expected signal NATS adapter files exist.
+fn check_signal_adapter_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+
+    for (file, purpose) in SIGNAL_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(Finding::info(
+                "signal-adapter-present",
+                format!("signal adapter present: {file}"),
+            ));
+        } else {
             findings.push(
-                Finding::warning(
-                    "doc-command-drift",
-                    format!("DEVELOPMENT.md references `raccoon-cli {cmd}` which is not a known subcommand"),
+                Finding::error(
+                    "signal-adapter-missing",
+                    format!("signal adapter file missing: internal/adapters/nats/{file}"),
                 )
-                .with_why("developers will get CLI parse errors following the documentation")
-                .with_help(format!("update DEVELOPMENT.md to use a valid raccoon-cli subcommand")),
+                .with_why(*purpose)
+                .with_help(format!("create internal/adapters/nats/{file} following the evidence adapter pattern")),
             );
         }
     }
 
-    // Makefile workflow targets that should be documented
-    let workflow_targets = [
-        "check",
-        "verify",
-        "check-deep",
-        "smoke",
-        "trace-pack",
-        "results-inspect",
+    CheckResult::from_findings("signal-adapter-drift", findings)
+}
+
+/// Check signal-domain-drift: verify signal domain and application layer files exist.
+fn check_signal_domain_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (file_path, purpose) in SIGNAL_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "signal-domain-present",
+                format!("signal domain file present: {file_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "signal-domain-missing",
+                    format!("signal domain file missing: {file_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {file_path} following the evidence domain pattern")),
+            );
+        }
+    }
+
+    // Verify signal actors exist in derive and store scopes
+    let signal_actors: &[(&str, &str)] = &[
+        ("internal/actors/scopes/derive/signal_sampler_actor.go", "derive computes signal values from evidence"),
+        ("internal/actors/scopes/derive/signal_publisher_actor.go", "derive publishes signals to SIGNAL_EVENTS"),
+        ("internal/actors/scopes/store/signal_consumer_actor.go", "store consumes signal events for projection"),
+        ("internal/actors/scopes/store/signal_projection_actor.go", "store projects signals to KV buckets"),
     ];
-    for target in &workflow_targets {
-        if evidence.makefile_targets.contains(*target)
-            && !evidence.dev_doc_targets.contains(*target)
-        {
+
+    for (actor_path, purpose) in signal_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "signal-actor-present",
+                format!("signal actor present: {actor_path}"),
+            ));
+        } else {
             findings.push(
-                Finding::warning(
-                    "undocumented-target",
-                    format!(
-                        "Makefile has workflow target '{target}' not referenced in DEVELOPMENT.md"
-                    ),
+                Finding::error(
+                    "signal-actor-missing",
+                    format!("signal actor file missing: {actor_path}"),
                 )
-                .with_why("developers won't discover this workflow step from the documentation")
-                .with_help(format!(
-                    "add `make {target}` to the DEVELOPMENT.md workflow section"
-                )),
+                .with_why(*purpose)
+                .with_help(format!("create {actor_path} following the evidence actor pattern")),
             );
         }
     }
 
-    CheckResult::from_findings("workflow-drift", findings)
-}
+    // Verify signal HTTP interface exists
+    let signal_http: &[(&str, &str)] = &[
+        ("internal/interfaces/http/handlers/signal.go", "HTTP handler for signal queries"),
+        ("internal/interfaces/http/routes/signal.go", "HTTP route registration for signal endpoints"),
+    ];
 
-fn check_contract_domain_drift(evidence: &Evidence) -> CheckResult {
-    let mut findings = Vec::new();
-
-    if evidence.domain_events.is_empty() && evidence.registry_events.is_empty() {
-        return CheckResult::skip(
-            "contract-domain-drift",
-            "no domain events or registry events found",
-        );
-    }
-
-    let domain_set: HashSet<&str> = evidence.domain_events.iter().map(|s| s.as_str()).collect();
-    let registry_set: HashSet<&str> = evidence
-        .registry_events
-        .iter()
-        .map(|s| s.as_str())
-        .collect();
-
-    // Domain events not in registry (declared but never published)
-    for event in domain_set.difference(&registry_set) {
-        findings.push(
-            Finding::warning(
-                "domain-event-unregistered",
-                format!("domain event '{event}' has no matching registry spec"),
-            )
-            .with_why("event is defined but never wired to a transport — it cannot be consumed by other services")
-            .with_help("add a matching EventSpec to the adapter registry"),
-        );
-    }
-
-    // Registry events not in domain (transport spec without domain event)
-    for event in registry_set.difference(&domain_set) {
-        findings.push(
-            Finding::warning(
-                "registry-event-orphan",
-                format!("registry spec for '{event}' has no matching domain event definition"),
-            )
-            .with_why(
-                "transport is wired for an event that no domain code produces — spec may be stale",
-            )
-            .with_help("verify the domain event exists or remove the stale registry spec"),
-        );
-    }
-
-    CheckResult::from_findings("contract-domain-drift", findings)
-}
-
-fn check_compose_profile_drift(evidence: &Evidence) -> CheckResult {
-    let mut findings = Vec::new();
-
-    let compose = match &evidence.compose {
-        Some(c) => c,
-        None => {
-            return CheckResult::skip("compose-profile-drift", "docker-compose.yaml not available")
+    for (http_path, purpose) in signal_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "signal-http-present",
+                format!("signal HTTP file present: {http_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "signal-http-missing",
+                    format!("signal HTTP file missing: {http_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {http_path} following the evidence HTTP pattern")),
+            );
         }
+    }
+
+    CheckResult::from_findings("signal-domain-drift", findings)
+}
+
+/// Check signal-config-drift: verify signal_families config alignment between derive and store.
+fn check_signal_config_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let configs_dir = evidence.project_root.join("deploy/configs");
+
+    let derive_config = configs_dir.join("derive.jsonc");
+    let store_config = configs_dir.join("store.jsonc");
+
+    let derive_has_signal = if derive_config.is_file() {
+        match std::fs::read_to_string(&derive_config) {
+            Ok(content) => content.contains("signal_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
     };
 
-    // Collect all profiles
-    let mut profiles_per_service: Vec<(&str, &Vec<String>)> = Vec::new();
-    let mut all_profiles: HashSet<String> = HashSet::new();
-
-    for (name, svc) in &compose.services {
-        if !svc.profiles.is_empty() {
-            profiles_per_service.push((name.as_str(), &svc.profiles));
-            for p in &svc.profiles {
-                all_profiles.insert(p.clone());
-            }
+    let store_has_signal = if store_config.is_file() {
+        match std::fs::read_to_string(&store_config) {
+            Ok(content) => content.contains("signal_families"),
+            Err(_) => false,
         }
-    }
+    } else {
+        false
+    };
 
-    // Check for services without any profile assignment (they run in all profiles)
-    let infra_services: HashSet<&str> = ["nats", "kafka"].iter().copied().collect();
-    for (name, svc) in &compose.services {
-        if svc.profiles.is_empty() && !infra_services.contains(name.as_str()) {
-            // This is not necessarily drift, but worth noting
+    match (derive_has_signal, store_has_signal) {
+        (true, true) => {
             findings.push(Finding::info(
-                "profile-unassigned",
-                format!(
-                    "compose service '{name}' has no profile assignment — runs in all profiles"
-                ),
+                "signal-config-aligned",
+                "both derive.jsonc and store.jsonc declare signal_families",
             ));
         }
-    }
-
-    // Check that Makefile profile targets (up-core, up-runtime, up-dataplane) reference valid profiles
-    let expected_profiles = ["core", "runtime", "dataplane", "all"];
-    for profile in &expected_profiles {
-        if !all_profiles.contains(*profile) && !all_profiles.is_empty() {
-            // Only warn if compose uses profiles at all but this one is missing
+        (true, false) => {
+            findings.push(
+                Finding::error(
+                    "signal-config-asymmetry",
+                    "derive.jsonc has signal_families but store.jsonc does not",
+                )
+                .with_why("derive will produce signal events but store won't consume them — events accumulate with no projection")
+                .with_help("add pipeline.signal_families to deploy/configs/store.jsonc"),
+            );
+        }
+        (false, true) => {
+            findings.push(
+                Finding::error(
+                    "signal-config-asymmetry",
+                    "store.jsonc has signal_families but derive.jsonc does not",
+                )
+                .with_why("store consumer will idle because derive isn't producing signal events")
+                .with_help("add pipeline.signal_families to deploy/configs/derive.jsonc"),
+            );
+        }
+        (false, false) => {
             findings.push(
                 Finding::warning(
-                    "missing-profile",
-                    format!("expected compose profile '{profile}' not found in any service"),
+                    "signal-config-absent",
+                    "neither derive.jsonc nor store.jsonc declare signal_families",
                 )
-                .with_why(format!(
-                    "Makefile target 'up-{0}' uses --profile {0} which won't match any service",
-                    profile
-                ))
-                .with_help(format!(
-                    "assign profile '{profile}' to relevant services in docker-compose.yaml"
-                )),
+                .with_why("signal pipeline is inactive — this is safe but means no signal processing occurs")
+                .with_help("add pipeline.signal_families: [\"rsi\"] to both derive.jsonc and store.jsonc to activate"),
             );
         }
     }
 
-    CheckResult::from_findings("compose-profile-drift", findings)
+    CheckResult::from_findings("signal-config-drift", findings)
+}
+
+/// Check signal-contracts-drift: verify signal subjects, durables, and KV buckets exist in source.
+fn check_signal_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("signal-contracts-drift", "source not scanned"),
+    };
+
+    // Check signal subjects exist in source
+    for (subject, purpose) in SIGNAL_EXPECTED_SUBJECTS {
+        let found = source.subjects.iter().any(|s| s.contains(subject));
+        if found {
+            findings.push(Finding::info(
+                "signal-subject-present",
+                format!("signal subject found: {subject}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "signal-subject-missing",
+                    format!("signal subject not found in source: {subject}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/signal_registry.go for subject definitions"),
+            );
+        }
+    }
+
+    // Check signal durable consumers
+    for (durable, purpose) in SIGNAL_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "signal-durable-present",
+                format!("signal durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "signal-durable-missing",
+                    format!("signal durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/signal_registry.go for consumer spec"),
+            );
+        }
+    }
+
+    // Check signal KV bucket names in source
+    let nats_dir = evidence.project_root.join("internal/adapters/nats");
+    for (bucket, purpose) in SIGNAL_EXPECTED_BUCKETS {
+        let found = scan_dir_for_string(&nats_dir, bucket);
+        if found {
+            findings.push(Finding::info(
+                "signal-bucket-present",
+                format!("signal KV bucket found in source: {bucket}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "signal-bucket-missing",
+                    format!("signal KV bucket name not found in source: {bucket}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/signal_kv_store.go for bucket definition"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("signal-contracts-drift", findings)
+}
+
+// ── Decision domain governance checks ────────────────────────────────
+
+/// Check decision-docs-drift: verify all required decision architecture docs exist.
+fn check_decision_docs_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for doc_path in DECISION_DOCS {
+        let full = evidence.project_root.join(doc_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "decision-doc-present",
+                format!("decision doc present: {doc_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-doc-missing",
+                    format!("required decision architecture doc not found: {doc_path}"),
+                )
+                .with_why("decision governance requires canonical design docs to prevent drift between architecture and implementation")
+                .with_help(format!("create {doc_path} following the pattern of existing signal/evidence docs")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("decision-docs-drift", findings)
+}
+
+/// Check decision-adapter-drift: verify all expected decision NATS adapter files exist.
+fn check_decision_adapter_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+
+    for (file, purpose) in DECISION_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(Finding::info(
+                "decision-adapter-present",
+                format!("decision adapter present: {file}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-adapter-missing",
+                    format!("decision adapter file missing: internal/adapters/nats/{file}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create internal/adapters/nats/{file} following the signal adapter pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("decision-adapter-drift", findings)
+}
+
+/// Check decision-domain-drift: verify decision domain and application layer files exist.
+fn check_decision_domain_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (file_path, purpose) in DECISION_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "decision-domain-present",
+                format!("decision domain file present: {file_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-domain-missing",
+                    format!("decision domain file missing: {file_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {file_path} following the signal domain pattern")),
+            );
+        }
+    }
+
+    // Verify decision actors exist in derive and store scopes
+    let decision_actors: &[(&str, &str)] = &[
+        ("internal/actors/scopes/derive/decision_evaluator_actor.go", "derive evaluates signal data to produce decisions"),
+        ("internal/actors/scopes/derive/decision_publisher_actor.go", "derive publishes decisions to DECISION_EVENTS"),
+        ("internal/actors/scopes/store/decision_consumer_actor.go", "store consumes decision events for projection"),
+        ("internal/actors/scopes/store/decision_projection_actor.go", "store projects decisions to KV buckets"),
+    ];
+
+    for (actor_path, purpose) in decision_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "decision-actor-present",
+                format!("decision actor present: {actor_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-actor-missing",
+                    format!("decision actor file missing: {actor_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {actor_path} following the signal actor pattern")),
+            );
+        }
+    }
+
+    // Verify decision HTTP interface exists
+    let decision_http: &[(&str, &str)] = &[
+        ("internal/interfaces/http/handlers/decision.go", "HTTP handler for decision queries"),
+        ("internal/interfaces/http/routes/decision.go", "HTTP route registration for decision endpoints"),
+    ];
+
+    for (http_path, purpose) in decision_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "decision-http-present",
+                format!("decision HTTP file present: {http_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-http-missing",
+                    format!("decision HTTP file missing: {http_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {http_path} following the signal HTTP pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("decision-domain-drift", findings)
+}
+
+/// Check decision-config-drift: verify decision_families config alignment between derive and store.
+fn check_decision_config_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let configs_dir = evidence.project_root.join("deploy/configs");
+
+    let derive_config = configs_dir.join("derive.jsonc");
+    let store_config = configs_dir.join("store.jsonc");
+
+    let derive_has_decision = if derive_config.is_file() {
+        match std::fs::read_to_string(&derive_config) {
+            Ok(content) => content.contains("decision_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    let store_has_decision = if store_config.is_file() {
+        match std::fs::read_to_string(&store_config) {
+            Ok(content) => content.contains("decision_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    match (derive_has_decision, store_has_decision) {
+        (true, true) => {
+            findings.push(Finding::info(
+                "decision-config-aligned",
+                "both derive.jsonc and store.jsonc declare decision_families",
+            ));
+        }
+        (true, false) => {
+            findings.push(
+                Finding::error(
+                    "decision-config-asymmetry",
+                    "derive.jsonc has decision_families but store.jsonc does not",
+                )
+                .with_why("derive will produce decision events but store won't consume them — events accumulate with no projection")
+                .with_help("add pipeline.decision_families to deploy/configs/store.jsonc"),
+            );
+        }
+        (false, true) => {
+            findings.push(
+                Finding::error(
+                    "decision-config-asymmetry",
+                    "store.jsonc has decision_families but derive.jsonc does not",
+                )
+                .with_why("store consumer will idle because derive isn't producing decision events")
+                .with_help("add pipeline.decision_families to deploy/configs/derive.jsonc"),
+            );
+        }
+        (false, false) => {
+            findings.push(
+                Finding::warning(
+                    "decision-config-absent",
+                    "neither derive.jsonc nor store.jsonc declare decision_families",
+                )
+                .with_why("decision pipeline is inactive — this is safe but means no decision processing occurs")
+                .with_help("add pipeline.decision_families: [\"rsi_oversold\"] to both derive.jsonc and store.jsonc to activate"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("decision-config-drift", findings)
+}
+
+/// Check decision-contracts-drift: verify decision subjects, durables, and KV buckets exist in source.
+fn check_decision_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("decision-contracts-drift", "source not scanned"),
+    };
+
+    // Check decision subjects exist in source
+    for (subject, purpose) in DECISION_EXPECTED_SUBJECTS {
+        let found = source.subjects.iter().any(|s| s.contains(subject));
+        if found {
+            findings.push(Finding::info(
+                "decision-subject-present",
+                format!("decision subject found: {subject}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-subject-missing",
+                    format!("decision subject not found in source: {subject}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/decision_registry.go for subject definitions"),
+            );
+        }
+    }
+
+    // Check decision durable consumers
+    for (durable, purpose) in DECISION_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "decision-durable-present",
+                format!("decision durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-durable-missing",
+                    format!("decision durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/decision_registry.go for consumer spec"),
+            );
+        }
+    }
+
+    // Check decision KV bucket names in source
+    let nats_dir = evidence.project_root.join("internal/adapters/nats");
+    for (bucket, purpose) in DECISION_EXPECTED_BUCKETS {
+        let found = scan_dir_for_string(&nats_dir, bucket);
+        if found {
+            findings.push(Finding::info(
+                "decision-bucket-present",
+                format!("decision KV bucket found in source: {bucket}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "decision-bucket-missing",
+                    format!("decision KV bucket name not found in source: {bucket}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/decision_kv_store.go for bucket definition"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("decision-contracts-drift", findings)
+}
+
+// ── Strategy domain governance checks ─────────────────────────────────
+
+/// Check strategy-docs-drift: verify all required strategy architecture docs exist.
+fn check_strategy_docs_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for doc_path in STRATEGY_DOCS {
+        let full = evidence.project_root.join(doc_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "strategy-doc-present",
+                format!("strategy doc present: {doc_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-doc-missing",
+                    format!("required strategy architecture doc not found: {doc_path}"),
+                )
+                .with_why("strategy governance requires canonical design docs to prevent drift between architecture and implementation")
+                .with_help(format!("create {doc_path} following the pattern of existing decision/signal docs")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("strategy-docs-drift", findings)
+}
+
+/// Check strategy-adapter-drift: verify all expected strategy NATS adapter files exist.
+fn check_strategy_adapter_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+
+    for (file, purpose) in STRATEGY_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(Finding::info(
+                "strategy-adapter-present",
+                format!("strategy adapter present: {file}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-adapter-missing",
+                    format!("strategy adapter file missing: internal/adapters/nats/{file}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create internal/adapters/nats/{file} following the decision adapter pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("strategy-adapter-drift", findings)
+}
+
+/// Check strategy-domain-drift: verify strategy domain and application layer files exist.
+fn check_strategy_domain_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (file_path, purpose) in STRATEGY_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "strategy-domain-present",
+                format!("strategy domain file present: {file_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-domain-missing",
+                    format!("strategy domain file missing: {file_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {file_path} following the decision domain pattern")),
+            );
+        }
+    }
+
+    // Verify strategy actors exist in derive and store scopes
+    let strategy_actors: &[(&str, &str)] = &[
+        ("internal/actors/scopes/derive/strategy_resolver_actor.go", "derive resolves decision data into strategy output"),
+        ("internal/actors/scopes/derive/strategy_publisher_actor.go", "derive publishes strategies to STRATEGY_EVENTS"),
+        ("internal/actors/scopes/store/strategy_consumer_actor.go", "store consumes strategy events for projection"),
+        ("internal/actors/scopes/store/strategy_projection_actor.go", "store projects strategies to KV buckets"),
+    ];
+
+    for (actor_path, purpose) in strategy_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "strategy-actor-present",
+                format!("strategy actor present: {actor_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-actor-missing",
+                    format!("strategy actor file missing: {actor_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {actor_path} following the decision actor pattern")),
+            );
+        }
+    }
+
+    // Verify strategy HTTP interface exists
+    let strategy_http: &[(&str, &str)] = &[
+        ("internal/interfaces/http/handlers/strategy.go", "HTTP handler for strategy queries"),
+        ("internal/interfaces/http/routes/strategy.go", "HTTP route registration for strategy endpoints"),
+    ];
+
+    for (http_path, purpose) in strategy_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "strategy-http-present",
+                format!("strategy HTTP file present: {http_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-http-missing",
+                    format!("strategy HTTP file missing: {http_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {http_path} following the decision HTTP pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("strategy-domain-drift", findings)
+}
+
+/// Check strategy-config-drift: verify strategy_families config alignment between derive and store.
+fn check_strategy_config_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let configs_dir = evidence.project_root.join("deploy/configs");
+
+    let derive_config = configs_dir.join("derive.jsonc");
+    let store_config = configs_dir.join("store.jsonc");
+
+    let derive_has_strategy = if derive_config.is_file() {
+        match std::fs::read_to_string(&derive_config) {
+            Ok(content) => content.contains("strategy_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    let store_has_strategy = if store_config.is_file() {
+        match std::fs::read_to_string(&store_config) {
+            Ok(content) => content.contains("strategy_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    match (derive_has_strategy, store_has_strategy) {
+        (true, true) => {
+            findings.push(Finding::info(
+                "strategy-config-aligned",
+                "both derive.jsonc and store.jsonc declare strategy_families",
+            ));
+        }
+        (true, false) => {
+            findings.push(
+                Finding::error(
+                    "strategy-config-asymmetry",
+                    "derive.jsonc has strategy_families but store.jsonc does not",
+                )
+                .with_why("derive will produce strategy events but store won't consume them — events accumulate with no projection")
+                .with_help("add pipeline.strategy_families to deploy/configs/store.jsonc"),
+            );
+        }
+        (false, true) => {
+            findings.push(
+                Finding::error(
+                    "strategy-config-asymmetry",
+                    "store.jsonc has strategy_families but derive.jsonc does not",
+                )
+                .with_why("store consumer will idle because derive isn't producing strategy events")
+                .with_help("add pipeline.strategy_families to deploy/configs/derive.jsonc"),
+            );
+        }
+        (false, false) => {
+            findings.push(
+                Finding::warning(
+                    "strategy-config-absent",
+                    "neither derive.jsonc nor store.jsonc declare strategy_families",
+                )
+                .with_why("strategy pipeline is inactive — this is expected before strategy implementation begins")
+                .with_help("add pipeline.strategy_families: [\"mean_reversion_entry\"] to both derive.jsonc and store.jsonc when ready to activate"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("strategy-config-drift", findings)
+}
+
+/// Check strategy-contracts-drift: verify strategy subjects, durables, and KV buckets exist in source.
+fn check_strategy_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("strategy-contracts-drift", "source not scanned"),
+    };
+
+    // Check strategy subjects exist in source
+    for (subject, purpose) in STRATEGY_EXPECTED_SUBJECTS {
+        let found = source.subjects.iter().any(|s| s.contains(subject));
+        if found {
+            findings.push(Finding::info(
+                "strategy-subject-present",
+                format!("strategy subject found: {subject}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-subject-missing",
+                    format!("strategy subject not found in source: {subject}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/strategy_registry.go for subject definitions"),
+            );
+        }
+    }
+
+    // Check strategy durable consumers
+    for (durable, purpose) in STRATEGY_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "strategy-durable-present",
+                format!("strategy durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-durable-missing",
+                    format!("strategy durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/strategy_registry.go for consumer spec"),
+            );
+        }
+    }
+
+    // Check strategy KV bucket names in source
+    let nats_dir = evidence.project_root.join("internal/adapters/nats");
+    for (bucket, purpose) in STRATEGY_EXPECTED_BUCKETS {
+        let found = scan_dir_for_string(&nats_dir, bucket);
+        if found {
+            findings.push(Finding::info(
+                "strategy-bucket-present",
+                format!("strategy KV bucket found in source: {bucket}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "strategy-bucket-missing",
+                    format!("strategy KV bucket name not found in source: {bucket}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/strategy_kv_store.go for bucket definition"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("strategy-contracts-drift", findings)
+}
+
+/// Scan a directory recursively for a string pattern in .go files.
+fn scan_dir_for_string(dir: &Path, pattern: &str) -> bool {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if scan_dir_for_string(&path, pattern) {
+                return true;
+            }
+        } else if path.extension().and_then(|e| e.to_str()) == Some("go") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if content.contains(pattern) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+// ── Risk domain governance checks (S63) ──────────────────────────────
+
+/// Check risk-docs-drift: verify all required risk architecture docs exist (S62 output).
+fn check_risk_docs_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for doc_path in RISK_DOCS {
+        let full = evidence.project_root.join(doc_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "risk-doc-present",
+                format!("risk doc present: {doc_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-doc-missing",
+                    format!("required risk architecture doc not found: {doc_path}"),
+                )
+                .with_why("risk governance requires canonical design docs (S62) to prevent drift between architecture and future implementation")
+                .with_help(format!("create {doc_path} following the pattern of existing strategy/decision docs")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("risk-docs-drift", findings)
+}
+
+/// Check risk-premature-implementation: verify no risk implementation files exist yet.
+/// Risk domain is under governance (S63) but implementation begins only in S64.
+fn check_risk_premature_implementation(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    // Check for premature risk adapter files
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+    for (file, _purpose) in RISK_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(
+                Finding::error(
+                    "risk-premature-adapter",
+                    format!("risk adapter file found prematurely: internal/adapters/nats/{file}"),
+                )
+                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
+                .with_help(format!("remove internal/adapters/nats/{file} until S64 begins")),
+            );
+        }
+    }
+
+    // Check for premature risk domain files
+    for (file_path, _purpose) in RISK_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(
+                Finding::error(
+                    "risk-premature-domain",
+                    format!("risk domain file found prematurely: {file_path}"),
+                )
+                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
+                .with_help(format!("remove {file_path} until S64 begins")),
+            );
+        }
+    }
+
+    // Check for premature risk actors
+    let risk_actors: &[&str] = &[
+        "internal/actors/scopes/derive/risk_evaluator_actor.go",
+        "internal/actors/scopes/derive/risk_publisher_actor.go",
+        "internal/actors/scopes/store/risk_consumer_actor.go",
+        "internal/actors/scopes/store/risk_projection_actor.go",
+    ];
+
+    for actor_path in risk_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(
+                Finding::error(
+                    "risk-premature-actor",
+                    format!("risk actor file found prematurely: {actor_path}"),
+                )
+                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
+                .with_help(format!("remove {actor_path} until S64 begins")),
+            );
+        }
+    }
+
+    // Check for premature risk HTTP files
+    let risk_http: &[&str] = &[
+        "internal/interfaces/http/handlers/risk.go",
+        "internal/interfaces/http/routes/risk.go",
+    ];
+
+    for http_path in risk_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(
+                Finding::error(
+                    "risk-premature-http",
+                    format!("risk HTTP file found prematurely: {http_path}"),
+                )
+                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
+                .with_help(format!("remove {http_path} until S64 begins")),
+            );
+        }
+    }
+
+    // Check for premature risk config entries
+    let configs_dir = evidence.project_root.join("deploy/configs");
+    for config_name in &["derive.jsonc", "store.jsonc"] {
+        let config_path = configs_dir.join(config_name);
+        if config_path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&config_path) {
+                if content.contains("risk_families") {
+                    findings.push(
+                        Finding::error(
+                            "risk-premature-config",
+                            format!("{config_name} contains risk_families before S64 approval"),
+                        )
+                        .with_why("risk pipeline activation must wait for S64 to formally open")
+                        .with_help(format!("remove risk_families from deploy/configs/{config_name} until S64 begins")),
+                    );
+                }
+            }
+        }
+    }
+
+    if findings.is_empty() {
+        findings.push(Finding::info(
+            "risk-governance-clean",
+            "no premature risk implementation detected — domain is correctly governed pre-implementation",
+        ));
+    }
+
+    CheckResult::from_findings("risk-premature-implementation", findings)
+}
+
+// ── Risk domain drift checks (prepared for S64) ─────────────────────
+// These functions follow the exact same pattern as signal/decision/strategy.
+// They will be activated in analyze() when S64 formally opens risk implementation
+// and RISK_EVENTS is moved from PROHIBITED_STREAMS to CANONICAL_STREAMS.
+
+/// Check risk-adapter-drift: verify all expected risk NATS adapter files exist.
+/// Activate in S64.
+#[allow(dead_code)]
+fn check_risk_adapter_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+
+    for (file, purpose) in RISK_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(Finding::info(
+                "risk-adapter-present",
+                format!("risk adapter present: {file}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-adapter-missing",
+                    format!("risk adapter file missing: internal/adapters/nats/{file}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create internal/adapters/nats/{file} following the strategy adapter pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("risk-adapter-drift", findings)
+}
+
+/// Check risk-domain-drift: verify risk domain and application layer files exist.
+/// Activate in S64.
+#[allow(dead_code)]
+fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (file_path, purpose) in RISK_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "risk-domain-present",
+                format!("risk domain file present: {file_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-domain-missing",
+                    format!("risk domain file missing: {file_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {file_path} following the strategy domain pattern")),
+            );
+        }
+    }
+
+    // Verify risk actors exist in derive and store scopes
+    let risk_actors: &[(&str, &str)] = &[
+        ("internal/actors/scopes/derive/risk_evaluator_actor.go", "derive evaluates strategy data to produce risk assessments"),
+        ("internal/actors/scopes/derive/risk_publisher_actor.go", "derive publishes risk assessments to RISK_EVENTS"),
+        ("internal/actors/scopes/store/risk_consumer_actor.go", "store consumes risk events for projection"),
+        ("internal/actors/scopes/store/risk_projection_actor.go", "store projects risk assessments to KV buckets"),
+    ];
+
+    for (actor_path, purpose) in risk_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "risk-actor-present",
+                format!("risk actor present: {actor_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-actor-missing",
+                    format!("risk actor file missing: {actor_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {actor_path} following the strategy actor pattern")),
+            );
+        }
+    }
+
+    // Verify risk HTTP interface exists
+    let risk_http: &[(&str, &str)] = &[
+        ("internal/interfaces/http/handlers/risk.go", "HTTP handler for risk queries"),
+        ("internal/interfaces/http/routes/risk.go", "HTTP route registration for risk endpoints"),
+    ];
+
+    for (http_path, purpose) in risk_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "risk-http-present",
+                format!("risk HTTP file present: {http_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-http-missing",
+                    format!("risk HTTP file missing: {http_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {http_path} following the strategy HTTP pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("risk-domain-drift", findings)
+}
+
+/// Check risk-config-drift: verify risk_families config alignment between derive and store.
+/// Activate in S64.
+#[allow(dead_code)]
+fn check_risk_config_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let configs_dir = evidence.project_root.join("deploy/configs");
+
+    let derive_config = configs_dir.join("derive.jsonc");
+    let store_config = configs_dir.join("store.jsonc");
+
+    let derive_has_risk = if derive_config.is_file() {
+        match std::fs::read_to_string(&derive_config) {
+            Ok(content) => content.contains("risk_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    let store_has_risk = if store_config.is_file() {
+        match std::fs::read_to_string(&store_config) {
+            Ok(content) => content.contains("risk_families"),
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    match (derive_has_risk, store_has_risk) {
+        (true, true) => {
+            findings.push(Finding::info(
+                "risk-config-aligned",
+                "both derive.jsonc and store.jsonc declare risk_families",
+            ));
+        }
+        (true, false) => {
+            findings.push(
+                Finding::error(
+                    "risk-config-asymmetry",
+                    "derive.jsonc has risk_families but store.jsonc does not",
+                )
+                .with_why("derive will produce risk events but store won't consume them — events accumulate with no projection")
+                .with_help("add pipeline.risk_families to deploy/configs/store.jsonc"),
+            );
+        }
+        (false, true) => {
+            findings.push(
+                Finding::error(
+                    "risk-config-asymmetry",
+                    "store.jsonc has risk_families but derive.jsonc does not",
+                )
+                .with_why("store consumer will idle because derive isn't producing risk events")
+                .with_help("add pipeline.risk_families to deploy/configs/derive.jsonc"),
+            );
+        }
+        (false, false) => {
+            findings.push(
+                Finding::warning(
+                    "risk-config-absent",
+                    "neither derive.jsonc nor store.jsonc declare risk_families",
+                )
+                .with_why("risk pipeline is inactive — this is expected before risk implementation begins in S64")
+                .with_help("add pipeline.risk_families: [\"position_exposure\"] to both derive.jsonc and store.jsonc when S64 activates"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("risk-config-drift", findings)
+}
+
+/// Check risk-contracts-drift: verify risk subjects, durables, and KV buckets exist in source.
+/// Activate in S64.
+#[allow(dead_code)]
+fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("risk-contracts-drift", "source not scanned"),
+    };
+
+    // Check risk subjects exist in source
+    for (subject, purpose) in RISK_EXPECTED_SUBJECTS {
+        let found = source.subjects.iter().any(|s| s.contains(subject));
+        if found {
+            findings.push(Finding::info(
+                "risk-subject-present",
+                format!("risk subject found: {subject}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-subject-missing",
+                    format!("risk subject not found in source: {subject}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/risk_registry.go for subject definitions"),
+            );
+        }
+    }
+
+    // Check risk durable consumers
+    for (durable, purpose) in RISK_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "risk-durable-present",
+                format!("risk durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-durable-missing",
+                    format!("risk durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/risk_registry.go for consumer spec"),
+            );
+        }
+    }
+
+    // Check risk KV bucket names in source
+    let nats_dir = evidence.project_root.join("internal/adapters/nats");
+    for (bucket, purpose) in RISK_EXPECTED_BUCKETS {
+        let found = scan_dir_for_string(&nats_dir, bucket);
+        if found {
+            findings.push(Finding::info(
+                "risk-bucket-present",
+                format!("risk KV bucket found in source: {bucket}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "risk-bucket-missing",
+                    format!("risk KV bucket name not found in source: {bucket}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/risk_kv_store.go for bucket definition"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("risk-contracts-drift", findings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::{CheckStatus, Severity};
+    use topology::compose::ComposeService;
 
     // ── Helper builders ─────────────────────────────────────────────
 
-    fn make_consumer_config() -> ServiceConfig {
+    fn make_service_config(name: &str) -> ServiceConfig {
         ServiceConfig {
-            name: "consumer".into(),
-            kafka_brokers: vec!["kafka:9092".into()],
-            kafka_consumer_group: Some("quality-service-consumer-v1".into()),
-            kafka_client_id: Some("quality-service-consumer".into()),
+            name: name.into(),
             nats_url: Some("nats://nats:4222".into()),
-            bootstrap_base_url: Some("http://server:8080".into()),
-            bootstrap_reconcile_interval: Some("30s".into()),
+            ..Default::default()
         }
     }
 
-    fn make_emulator_config() -> ServiceConfig {
-        ServiceConfig {
-            name: "emulator".into(),
-            kafka_brokers: vec!["kafka:9092".into()],
-            kafka_consumer_group: None,
-            kafka_client_id: Some("quality-service-emulator".into()),
-            nats_url: None,
-            bootstrap_base_url: Some("http://server:8080".into()),
-            bootstrap_reconcile_interval: Some("30s".into()),
-        }
-    }
+    fn make_compose_topology() -> ComposeTopology {
+        let mut services = HashMap::new();
 
-    fn make_validator_config() -> ServiceConfig {
-        ServiceConfig {
-            name: "validator".into(),
-            kafka_brokers: vec![],
-            kafka_consumer_group: None,
-            kafka_client_id: None,
-            nats_url: Some("nats://nats:4222".into()),
-            bootstrap_base_url: None,
-            bootstrap_reconcile_interval: None,
+        services.insert(
+            "nats".into(),
+            ComposeService {
+                name: "nats".into(),
+                image: Some("nats:2.10-alpine".into()),
+                depends_on: vec![],
+                profiles: vec![],
+                ports: vec!["4222:4222".into()],
+                internal_port: None,
+            },
+        );
+
+        for svc in &["configctl", "gateway", "ingest", "derive", "store"] {
+            services.insert(
+                svc.to_string(),
+                ComposeService {
+                    name: svc.to_string(),
+                    image: Some(format!("market-foundry/{svc}:dev")),
+                    depends_on: vec!["nats".into()],
+                    profiles: vec![],
+                    ports: vec![],
+                    internal_port: None,
+                },
+            );
         }
+
+        ComposeTopology { services }
     }
 
     fn make_source_topology() -> SourceTopology {
         let mut streams = HashMap::new();
         streams.insert(
-            "DATA_PLANE_INGESTION".into(),
-            vec!["dataplane.ingestion.received.>".into()],
+            "CONFIGCTL_EVENTS".into(),
+            vec!["configctl.events.>".into()],
         );
         streams.insert(
-            "CONFIGCTL_EVENTS".into(),
-            vec!["configctl.events.config.>".into()],
+            "OBSERVATION_EVENTS".into(),
+            vec!["observation.events.>".into()],
+        );
+        streams.insert(
+            "EVIDENCE_EVENTS".into(),
+            vec!["evidence.events.>".into()],
+        );
+        streams.insert(
+            "SIGNAL_EVENTS".into(),
+            vec!["signal.events.>".into()],
+        );
+        streams.insert(
+            "DECISION_EVENTS".into(),
+            vec!["decision.events.>".into()],
+        );
+        streams.insert(
+            "STRATEGY_EVENTS".into(),
+            vec!["strategy.events.>".into()],
         );
 
         let mut durables = HashMap::new();
         durables.insert(
-            "validator-dataplane-v1".into(),
-            "DATA_PLANE_INGESTION".into(),
+            "derive-observation-v1".into(),
+            "OBSERVATION_EVENTS".into(),
         );
         durables.insert(
-            "validator-runtime-cache-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-evidence-v1".into(),
+            "EVIDENCE_EVENTS".into(),
         );
         durables.insert(
-            "consumer-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-signal-rsi".into(),
+            "SIGNAL_EVENTS".into(),
         );
         durables.insert(
-            "emulator-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-decision-rsi-oversold".into(),
+            "DECISION_EVENTS".into(),
         );
 
         let subjects = vec![
-            "dataplane.ingestion.received.>".into(),
-            "configctl.events.config.>".into(),
+            "configctl.events.>".into(),
             "configctl.events.config.activated".into(),
-            "configctl.control.create_draft".into(),
+            "observation.events.>".into(),
+            "observation.events.trade.received".into(),
+            "evidence.events.>".into(),
+            "evidence.events.candle.sampled".into(),
+            "signal.events.>".into(),
+            "signal.events.rsi.generated".into(),
+            "signal.query.rsi.latest".into(),
+            "decision.events.>".into(),
+            "decision.events.rsi_oversold.evaluated".into(),
+            "decision.query.rsi_oversold.latest".into(),
         ];
 
         SourceTopology {
@@ -1108,184 +2398,36 @@ mod tests {
         }
     }
 
-    fn make_compose_topology() -> ComposeTopology {
-        use topology::compose::ComposeService;
-        let mut services = HashMap::new();
-
-        services.insert(
-            "nats".into(),
-            ComposeService {
-                name: "nats".into(),
-                image: Some("nats:2.10.18-alpine".into()),
-                depends_on: vec![],
-                profiles: vec!["core".into(), "all".into()],
-                ports: vec!["4222:4222".into()],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "kafka".into(),
-            ComposeService {
-                name: "kafka".into(),
-                image: Some("bitnamilegacy/kafka:3.9.0".into()),
-                depends_on: vec![],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec![],
-                internal_port: Some("9092".into()),
-            },
-        );
-        services.insert(
-            "configctl".into(),
-            ComposeService {
-                name: "configctl".into(),
-                image: Some("quality-service/configctl:dev".into()),
-                depends_on: vec!["nats".into()],
-                profiles: vec!["core".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "server".into(),
-            ComposeService {
-                name: "server".into(),
-                image: Some("quality-service/server:dev".into()),
-                depends_on: vec!["nats".into(), "configctl".into()],
-                profiles: vec!["core".into(), "all".into()],
-                ports: vec!["8080:8080".into()],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "consumer".into(),
-            ComposeService {
-                name: "consumer".into(),
-                image: Some("quality-service/consumer:dev".into()),
-                depends_on: vec!["nats".into(), "server".into(), "kafka".into()],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "emulator".into(),
-            ComposeService {
-                name: "emulator".into(),
-                image: Some("quality-service/emulator:dev".into()),
-                depends_on: vec![
-                    "server".into(),
-                    "kafka".into(),
-                    "consumer".into(),
-                    "validator".into(),
-                ],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "validator".into(),
-            ComposeService {
-                name: "validator".into(),
-                image: Some("quality-service/validator:dev".into()),
-                depends_on: vec!["nats".into(), "configctl".into()],
-                profiles: vec!["runtime".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-
-        ComposeTopology { services }
-    }
-
     fn make_evidence() -> Evidence {
         let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        configs.insert("emulator".into(), make_emulator_config());
-        configs.insert("validator".into(), make_validator_config());
+        for svc in &["configctl", "gateway", "ingest", "derive", "store"] {
+            configs.insert(svc.to_string(), make_service_config(svc));
+        }
+
+        let existing_cmd_dirs: HashSet<String> = APP_BINARIES.iter().map(|s| s.to_string()).collect();
+        let existing_actor_scopes: HashSet<String> =
+            ["ingest", "derive", "store"].iter().map(|s| s.to_string()).collect();
 
         let mut makefile_targets = HashSet::new();
-        for t in &[
-            "help",
-            "tidy",
-            "test",
-            "build",
-            "up-core",
-            "up-runtime",
-            "up-dataplane",
-            "up-all",
-            "down",
-            "restart",
-            "logs",
-            "ps",
-            "clean",
-            "check",
-            "verify",
-            "check-deep",
-            "smoke",
-            "trace-pack",
-            "results-inspect",
-            "quality-gate",
-            "quality-gate-ci",
-            "quality-gate-deep",
-            "raccoon-build",
-            "raccoon-test",
-            "docker-build",
-            "compose-config",
-        ] {
+        for t in &["help", "tidy", "test", "build", "up-all", "down", "logs", "check", "verify", "smoke"] {
             makefile_targets.insert(t.to_string());
         }
 
         let mut dev_doc_targets = HashSet::new();
-        for t in &[
-            "check",
-            "verify",
-            "check-deep",
-            "smoke",
-            "trace-pack",
-            "results-inspect",
-            "up-dataplane",
-            "ps",
-            "logs",
-            "down",
-        ] {
+        for t in &["check", "verify", "smoke", "up-all", "down", "logs"] {
             dev_doc_targets.insert(t.to_string());
         }
 
         Evidence {
+            project_root: std::path::PathBuf::from("/tmp/market-foundry"),
             configs,
             compose: Some(make_compose_topology()),
             source: Some(make_source_topology()),
             makefile_targets,
             dev_doc_targets,
-            dev_doc_cli_commands: [
-                "doctor",
-                "topology-doctor",
-                "contract-audit",
-                "runtime-bindings",
-                "quality-gate",
-                "results-inspect",
-                "runtime-smoke",
-            ]
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
-            cli_subcommands: known_cli_subcommands(),
-            domain_events: vec![
-                "config.activated".into(),
-                "config.compiled".into(),
-                "config.deactivated".into(),
-                "config.draft_created".into(),
-                "config.validated".into(),
-            ],
-            registry_events: vec![
-                "config.activated".into(),
-                "config.compiled".into(),
-                "config.deactivated".into(),
-                "config.draft_created".into(),
-                "config.validated".into(),
-            ],
-            config_bindings: vec![],
+            existing_cmd_dirs,
+            existing_actor_scopes,
+            stale_references: Vec::new(),
         }
     }
 
@@ -1299,22 +2441,6 @@ mod tests {
     }
 
     #[test]
-    fn config_compose_drift_warns_config_without_service() {
-        let mut evidence = make_evidence();
-        // Add a config for a service not in compose
-        evidence.configs.insert(
-            "scheduler".into(),
-            ServiceConfig {
-                name: "scheduler".into(),
-                ..Default::default()
-            },
-        );
-        let result = check_config_compose_drift(&evidence);
-        // scheduler is not in app_services, so no warning
-        assert_eq!(result.status, CheckStatus::Pass);
-    }
-
-    #[test]
     fn config_compose_drift_skips_without_compose() {
         let mut evidence = make_evidence();
         evidence.compose = None;
@@ -1323,86 +2449,254 @@ mod tests {
     }
 
     #[test]
-    fn config_compose_drift_detects_transport_without_dependency() {
+    fn config_compose_drift_warns_config_without_service() {
         let mut evidence = make_evidence();
-        // Remove kafka dependency from consumer in compose
+        // Remove gateway from compose but keep its config
         let compose = evidence.compose.as_mut().unwrap();
-        let consumer = compose.services.get_mut("consumer").unwrap();
-        consumer.depends_on.retain(|d| d != "kafka");
-
+        compose.services.remove("gateway");
         let result = check_config_compose_drift(&evidence);
-        assert!(
-            result
-                .findings
-                .iter()
-                .any(|f| f.severity == Severity::Error && f.message.contains("kafka")),
-            "should detect kafka config without compose dependency"
-        );
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("gateway") && f.message.contains("no matching compose")));
+    }
+
+    #[test]
+    fn config_compose_drift_warns_compose_without_config() {
+        let mut evidence = make_evidence();
+        evidence.configs.remove("ingest");
+        let result = check_config_compose_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("ingest") && f.message.contains("no deploy/configs")));
     }
 
     #[test]
     fn config_compose_drift_detects_nats_without_dependency() {
         let mut evidence = make_evidence();
         let compose = evidence.compose.as_mut().unwrap();
-        let consumer = compose.services.get_mut("consumer").unwrap();
-        consumer.depends_on.retain(|d| d != "nats");
+        let ingest = compose.services.get_mut("ingest").unwrap();
+        ingest.depends_on.retain(|d| d != "nats");
 
         let result = check_config_compose_drift(&evidence);
         assert!(result.findings.iter().any(|f| f.severity == Severity::Error
             && f.message.contains("nats")
-            && f.message.contains("consumer")),);
+            && f.message.contains("ingest")));
     }
 
     #[test]
-    fn config_compose_drift_warns_compose_without_config() {
+    fn config_compose_drift_detects_nats_url_inconsistency() {
         let mut evidence = make_evidence();
-        evidence.configs.remove("consumer");
+        evidence
+            .configs
+            .get_mut("derive")
+            .unwrap()
+            .nats_url = Some("nats://other-nats:4222".into());
+
         let result = check_config_compose_drift(&evidence);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.message.contains("consumer") && f.message.contains("no deploy/configs")));
+            .any(|f| f.severity == Severity::Error && f.check == "nats-url-drift"));
     }
 
-    // ── config-source-drift ─────────────────────────────────────────
+    // ── binary-compose-drift ────────────────────────────────────────
 
     #[test]
-    fn config_source_drift_passes_when_aligned() {
+    fn binary_compose_drift_passes_when_aligned() {
         let evidence = make_evidence();
-        let result = check_config_source_drift(&evidence);
+        let result = check_binary_compose_drift(&evidence);
         assert_eq!(result.status, CheckStatus::Pass);
     }
 
     #[test]
-    fn config_source_drift_skips_without_source() {
+    fn binary_compose_drift_detects_missing_cmd_dir() {
         let mut evidence = make_evidence();
-        evidence.source = None;
-        let result = check_config_source_drift(&evidence);
+        evidence.existing_cmd_dirs.remove("derive");
+        let result = check_binary_compose_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("cmd/derive")));
+    }
+
+    #[test]
+    fn binary_compose_drift_detects_missing_compose_service() {
+        let mut evidence = make_evidence();
+        let compose = evidence.compose.as_mut().unwrap();
+        compose.services.remove("store");
+        let result = check_binary_compose_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("store") && f.message.contains("no matching compose")));
+    }
+
+    // ── naming-identity-drift ───────────────────────────────────────
+
+    #[test]
+    fn naming_identity_drift_passes_when_clean() {
+        let evidence = make_evidence();
+        let result = check_naming_identity_drift(&evidence);
+        assert_eq!(result.status, CheckStatus::Pass);
+        assert!(result.findings.is_empty());
+    }
+
+    #[test]
+    fn naming_identity_drift_reports_stale_references() {
+        let mut evidence = make_evidence();
+        evidence.stale_references.push(StaleReference {
+            file: "internal/foo/bar.go".into(),
+            line_num: 42,
+            pattern: "old service name 'consumer'".into(),
+            context: "// references consumer service".into(),
+        });
+        let result = check_naming_identity_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.check == "stale-name" && f.message.contains("consumer")));
+    }
+
+    #[test]
+    fn naming_identity_drift_summarizes_many_refs() {
+        let mut evidence = make_evidence();
+        for i in 0..5 {
+            evidence.stale_references.push(StaleReference {
+                file: format!("internal/file{i}.go"),
+                line_num: i + 1,
+                pattern: "old service name 'validator'".into(),
+                context: "validator reference".into(),
+            });
+        }
+        let result = check_naming_identity_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("5 occurrences")));
+    }
+
+    // ── docs-reality-drift ──────────────────────────────────────────
+
+    #[test]
+    fn docs_reality_drift_detects_makefile_target_gap() {
+        let mut evidence = make_evidence();
+        evidence.dev_doc_targets.insert("nonexistent".into());
+        let result = check_docs_reality_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("nonexistent")));
+    }
+
+    #[test]
+    fn docs_reality_drift_passes_when_aligned() {
+        let evidence = make_evidence();
+        let result = check_docs_reality_drift(&evidence);
+        // May have info-level findings for missing arch docs but should not fail
+        let has_errors = result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error);
+        assert!(!has_errors);
+    }
+
+    // ── actor-scope-drift ───────────────────────────────────────────
+
+    #[test]
+    fn actor_scope_drift_passes_when_aligned() {
+        let evidence = make_evidence();
+        let result = check_actor_scope_drift(&evidence);
+        assert_eq!(result.status, CheckStatus::Pass);
+    }
+
+    #[test]
+    fn actor_scope_drift_skips_when_empty() {
+        let mut evidence = make_evidence();
+        evidence.existing_actor_scopes.clear();
+        let result = check_actor_scope_drift(&evidence);
         assert_eq!(result.status, CheckStatus::Skip);
     }
 
     #[test]
-    fn config_source_drift_detects_missing_stream() {
+    fn actor_scope_drift_detects_missing_scope() {
         let mut evidence = make_evidence();
-        let source = evidence.source.as_mut().unwrap();
-        source.streams.remove("DATA_PLANE_INGESTION");
-
-        let result = check_config_source_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("DATA_PLANE_INGESTION")));
+        evidence.existing_actor_scopes.remove("derive");
+        let result = check_actor_scope_drift(&evidence);
+        assert!(result.findings.iter().any(|f| f.severity == Severity::Error
+            && f.message.contains("derive")
+            && f.message.contains("actor scope")));
     }
 
     #[test]
-    fn config_source_drift_detects_durable_orphan() {
+    fn actor_scope_drift_flags_orphan_scope() {
+        let mut evidence = make_evidence();
+        evidence
+            .existing_actor_scopes
+            .insert("unknown_scope".into());
+        let result = check_actor_scope_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("unknown_scope")));
+    }
+
+    // ── stream-registry-drift ───────────────────────────────────────
+
+    #[test]
+    fn stream_registry_drift_passes_when_aligned() {
+        let evidence = make_evidence();
+        let result = check_stream_registry_drift(&evidence);
+        assert_eq!(result.status, CheckStatus::Pass);
+    }
+
+    #[test]
+    fn stream_registry_drift_skips_without_source() {
+        let mut evidence = make_evidence();
+        evidence.source = None;
+        let result = check_stream_registry_drift(&evidence);
+        assert_eq!(result.status, CheckStatus::Skip);
+    }
+
+    #[test]
+    fn stream_registry_drift_detects_missing_canonical_stream() {
+        let mut evidence = make_evidence();
+        let source = evidence.source.as_mut().unwrap();
+        source.streams.remove("EVIDENCE_EVENTS");
+
+        let result = check_stream_registry_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("EVIDENCE_EVENTS")));
+    }
+
+    #[test]
+    fn stream_registry_drift_warns_non_canonical_stream() {
+        let mut evidence = make_evidence();
+        let source = evidence.source.as_mut().unwrap();
+        source
+            .streams
+            .insert("DATA_PLANE_INGESTION".into(), vec![]);
+
+        let result = check_stream_registry_drift(&evidence);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.check == "non-canonical-stream"
+                && f.message.contains("DATA_PLANE_INGESTION")));
+    }
+
+    #[test]
+    fn stream_registry_drift_detects_durable_orphan() {
         let mut evidence = make_evidence();
         let source = evidence.source.as_mut().unwrap();
         source
             .durables
             .insert("orphan-durable".into(), "NONEXISTENT_STREAM".into());
 
-        let result = check_config_source_drift(&evidence);
+        let result = check_stream_registry_drift(&evidence);
         assert!(result
             .findings
             .iter()
@@ -1410,491 +2704,43 @@ mod tests {
     }
 
     #[test]
-    fn config_source_drift_warns_missing_subject_prefix() {
-        let mut evidence = make_evidence();
-        let source = evidence.source.as_mut().unwrap();
-        source.subjects.clear();
-
-        let result = check_config_source_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Warning));
-    }
-
-    // ── binding-topology-drift ──────────────────────────────────────
-
-    #[test]
-    fn binding_topology_drift_passes_empty_bindings() {
-        let evidence = make_evidence();
-        let result = check_binding_topology_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Pass);
-    }
-
-    #[test]
-    fn binding_topology_drift_skips_without_source() {
-        let mut evidence = make_evidence();
-        evidence.source = None;
-        let result = check_binding_topology_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Skip);
-    }
-
-    #[test]
-    fn binding_topology_drift_detects_missing_stream() {
-        let mut evidence = make_evidence();
-        evidence.config_bindings.push(ConfigBinding {
-            name: "orders".into(),
-            topic: "orders.v1".into(),
-            source_file: "test.jsonc".into(),
-        });
-        let source = evidence.source.as_mut().unwrap();
-        source.streams.remove("DATA_PLANE_INGESTION");
-
-        let result = check_binding_topology_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("DATA_PLANE_INGESTION")));
-    }
-
-    #[test]
-    fn binding_topology_drift_detects_missing_durable() {
-        let mut evidence = make_evidence();
-        evidence.config_bindings.push(ConfigBinding {
-            name: "orders".into(),
-            topic: "orders.v1".into(),
-            source_file: "test.jsonc".into(),
-        });
-        let source = evidence.source.as_mut().unwrap();
-        source.durables.remove("validator-dataplane-v1");
-
-        let result = check_binding_topology_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("durable")));
-    }
-
-    // ── workflow-drift ──────────────────────────────────────────────
-
-    #[test]
-    fn workflow_drift_passes_when_aligned() {
-        let evidence = make_evidence();
-        let result = check_workflow_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Pass);
-    }
-
-    #[test]
-    fn workflow_drift_skips_when_no_sources() {
-        let mut evidence = make_evidence();
-        evidence.makefile_targets.clear();
-        evidence.dev_doc_targets.clear();
-        let result = check_workflow_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Skip);
-    }
-
-    #[test]
-    fn workflow_drift_detects_doc_target_not_in_makefile() {
-        let mut evidence = make_evidence();
-        evidence
-            .dev_doc_targets
-            .insert("deploy-staging".to_string());
-
-        let result = check_workflow_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("deploy-staging")));
-    }
-
-    #[test]
-    fn workflow_drift_detects_unknown_cli_command() {
-        let mut evidence = make_evidence();
-        evidence
-            .dev_doc_cli_commands
-            .insert("deep-audit".to_string());
-
-        let result = check_workflow_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("deep-audit")));
-    }
-
-    #[test]
-    fn workflow_drift_warns_undocumented_workflow_target() {
-        let mut evidence = make_evidence();
-        // Remove "check" from dev doc but keep in makefile
-        evidence.dev_doc_targets.remove("check");
-
-        let result = check_workflow_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Warning && f.message.contains("check")));
-    }
-
-    // ── contract-domain-drift ───────────────────────────────────────
-
-    #[test]
-    fn contract_domain_drift_passes_when_aligned() {
-        let evidence = make_evidence();
-        let result = check_contract_domain_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Pass);
-    }
-
-    #[test]
-    fn contract_domain_drift_skips_when_empty() {
-        let mut evidence = make_evidence();
-        evidence.domain_events.clear();
-        evidence.registry_events.clear();
-        let result = check_contract_domain_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Skip);
-    }
-
-    #[test]
-    fn contract_domain_drift_warns_domain_event_not_in_registry() {
-        let mut evidence = make_evidence();
-        evidence.domain_events.push("config.rejected".into());
-
-        let result = check_contract_domain_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("config.rejected")
-                && f.message.contains("no matching registry")));
-    }
-
-    #[test]
-    fn contract_domain_drift_warns_registry_event_not_in_domain() {
-        let mut evidence = make_evidence();
-        evidence
-            .registry_events
-            .push("config.ingestion_runtime_changed".into());
-
-        let result = check_contract_domain_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("config.ingestion_runtime_changed")
-                && f.message.contains("no matching domain")));
-    }
-
-    // ── compose-profile-drift ───────────────────────────────────────
-
-    #[test]
-    fn compose_profile_drift_passes_when_aligned() {
-        let evidence = make_evidence();
-        let result = check_compose_profile_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Pass);
-    }
-
-    #[test]
-    fn compose_profile_drift_skips_without_compose() {
-        let mut evidence = make_evidence();
-        evidence.compose = None;
-        let result = check_compose_profile_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Skip);
-    }
-
-    #[test]
-    fn compose_profile_drift_warns_missing_expected_profile() {
-        let mut evidence = make_evidence();
-        // Remove "runtime" profile from validator
-        let compose = evidence.compose.as_mut().unwrap();
-        let validator = compose.services.get_mut("validator").unwrap();
-        validator.profiles.retain(|p| p != "runtime");
-        // Also remove from all services to ensure "runtime" is truly absent
-        for svc in compose.services.values_mut() {
-            svc.profiles.retain(|p| p != "runtime");
-        }
-
-        let result = check_compose_profile_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("runtime")));
-    }
-
-    // ── Makefile parser ─────────────────────────────────────────────
-
-    #[test]
-    fn extract_makefile_targets_finds_standard_targets() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Makefile");
-        std::fs::write(
-            &path,
-            r#"
-SHELL := /usr/bin/env bash
-GO ?= go
-
-.PHONY: help tidy test build
-
-help:
-	@echo "help"
-
-tidy:
-	go mod tidy
-
-test:
-	go test ./...
-
-build: tidy
-	go build
-
-up-core:
-	docker compose up
-"#,
-        )
-        .unwrap();
-
-        let targets = extract_makefile_targets(&path);
-        assert!(targets.contains("help"), "targets: {targets:?}");
-        assert!(targets.contains("tidy"));
-        assert!(targets.contains("test"));
-        assert!(targets.contains("build"));
-        assert!(targets.contains("up-core"));
-    }
-
-    #[test]
-    fn extract_makefile_targets_skips_variables() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Makefile");
-        std::fs::write(
-            &path,
-            r#"
-GO ?= go
-SHELL := /usr/bin/env bash
-BUILD_DIR ?= bin
-
-real-target:
-	echo ok
-"#,
-        )
-        .unwrap();
-
-        let targets = extract_makefile_targets(&path);
-        assert!(!targets.contains("GO"));
-        assert!(!targets.contains("SHELL"));
-        assert!(!targets.contains("BUILD_DIR"));
-        assert!(targets.contains("real-target"));
-    }
-
-    #[test]
-    fn extract_makefile_targets_handles_empty_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Makefile");
-        std::fs::write(&path, "").unwrap();
-
-        let targets = extract_makefile_targets(&path);
-        assert!(targets.is_empty());
-    }
-
-    #[test]
-    fn extract_makefile_targets_handles_missing_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("Makefile");
-
-        let targets = extract_makefile_targets(&path);
-        assert!(targets.is_empty());
-    }
-
-    // ── DEVELOPMENT.md parser ───────────────────────────────────────
-
-    #[test]
-    fn extract_dev_doc_references_finds_make_targets() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("DEVELOPMENT.md");
-        std::fs::write(
-            &path,
-            r#"
-# Workflow
-
-```sh
-make check
-make verify
-make up-dataplane
-```
-
-Run `make smoke` to test.
-"#,
-        )
-        .unwrap();
-
-        let (targets, _) = extract_dev_doc_references(&path);
-        assert!(targets.contains("check"), "targets: {targets:?}");
-        assert!(targets.contains("verify"));
-        assert!(targets.contains("up-dataplane"));
-        assert!(targets.contains("smoke"));
-    }
-
-    #[test]
-    fn extract_dev_doc_references_finds_cli_commands() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("DEVELOPMENT.md");
-        std::fs::write(
-            &path,
-            r#"
-```sh
-raccoon-cli doctor
-raccoon-cli --json topology-doctor
-raccoon-cli -v contract-audit
-```
-"#,
-        )
-        .unwrap();
-
-        let (_, commands) = extract_dev_doc_references(&path);
-        assert!(commands.contains("doctor"), "commands: {commands:?}");
-        assert!(commands.contains("topology-doctor"));
-        assert!(commands.contains("contract-audit"));
-    }
-
-    #[test]
-    fn extract_dev_doc_handles_empty_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("DEVELOPMENT.md");
-        std::fs::write(&path, "").unwrap();
-
-        let (targets, commands) = extract_dev_doc_references(&path);
-        assert!(targets.is_empty());
-        assert!(commands.is_empty());
-    }
-
-    // ── Event name detection ────────────────────────────────────────
-
-    #[test]
-    fn is_event_name_valid_events() {
-        assert!(is_event_name("config.activated"));
-        assert!(is_event_name("config.draft_created"));
-        assert!(is_event_name("config.ingestion_runtime_changed"));
-    }
-
-    #[test]
-    fn is_event_name_rejects_non_events() {
-        assert!(!is_event_name(""));
-        assert!(!is_event_name("single_word"));
-        assert!(!is_event_name("too.many.dots.here"));
-        assert!(!is_event_name("HAS.CAPS"));
-        assert!(!is_event_name("nats://url:4222"));
-    }
-
-    // ── Full integration ────────────────────────────────────────────
-
-    #[test]
-    fn analyze_on_empty_dir() {
-        let dir = tempfile::tempdir().unwrap();
-        let report = analyze(dir.path()).unwrap();
-        assert_eq!(report.title, "drift-detect");
-        // Most checks should skip gracefully
-        let skip_count = report
-            .checks
-            .iter()
-            .filter(|c| c.status == CheckStatus::Skip)
-            .count();
-        assert!(skip_count >= 3, "expected most checks to skip on empty dir");
-    }
-
-    #[test]
-    fn analyze_on_minimal_project() {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(dir.path().join("deploy/configs")).unwrap();
-        std::fs::write(
-            dir.path().join("deploy/configs/consumer.jsonc"),
-            r#"{"kafka": {"brokers": ["kafka:9092"]}, "nats": {"url": "nats://nats:4222"}}"#,
-        )
-        .unwrap();
-        std::fs::write(dir.path().join("Makefile"), "check:\n\techo ok\n").unwrap();
-
-        let report = analyze(dir.path()).unwrap();
-        assert_eq!(report.title, "drift-detect");
-    }
-
-    // ── JSON string value extraction ────────────────────────────────
-
-    #[test]
-    fn extract_json_string_value_finds_value() {
-        let val = extract_json_string_value(r#""name": "orders""#, "name");
-        assert_eq!(val, Some("orders".to_string()));
-    }
-
-    #[test]
-    fn extract_json_string_value_returns_none_for_missing_key() {
-        let val = extract_json_string_value(r#""name": "orders""#, "topic");
-        assert_eq!(val, None);
-    }
-
-    #[test]
-    fn extract_json_string_value_handles_spaces() {
-        let val = extract_json_string_value(r#"  "topic" : "orders.v1"  "#, "topic");
-        assert_eq!(val, Some("orders.v1".to_string()));
-    }
-
-    // ── Edge cases ──────────────────────────────────────────────────
-
-    #[test]
-    fn config_compose_drift_with_empty_configs_skips() {
-        let mut evidence = make_evidence();
-        evidence.configs.clear();
-        let result = check_config_compose_drift(&evidence);
-        assert_eq!(result.status, CheckStatus::Skip);
-    }
-
-    #[test]
-    fn config_source_drift_detects_orphan_stream_subject() {
+    fn stream_registry_drift_warns_unmatched_subject_pattern() {
         let mut evidence = make_evidence();
         let source = evidence.source.as_mut().unwrap();
         source
             .streams
-            .insert("ORPHAN_STREAM".into(), vec!["orphan.events.>".into()]);
+            .insert("EVIDENCE_EVENTS".into(), vec!["unmatched.pattern.>".into()]);
 
-        let result = check_config_source_drift(&evidence);
+        let result = check_stream_registry_drift(&evidence);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.message.contains("ORPHAN_STREAM")));
+            .any(|f| f.check == "stream-subject-drift"
+                && f.message.contains("unmatched.pattern")));
+    }
+
+    // ── Integration ─────────────────────────────────────────────────
+
+    #[test]
+    fn full_report_passes_when_aligned() {
+        let evidence = make_evidence();
+        let mut report = Report::new("drift-detect");
+        report.add(check_config_compose_drift(&evidence));
+        report.add(check_binary_compose_drift(&evidence));
+        report.add(check_naming_identity_drift(&evidence));
+        report.add(check_actor_scope_drift(&evidence));
+        report.add(check_stream_registry_drift(&evidence));
+        assert!(report.passed());
     }
 
     #[test]
-    fn binding_topology_drift_with_bindings_and_full_infra_passes() {
+    fn full_report_fails_on_missing_stream() {
         let mut evidence = make_evidence();
-        evidence.config_bindings.push(ConfigBinding {
-            name: "orders".into(),
-            topic: "orders.v1".into(),
-            source_file: "test.jsonc".into(),
-        });
+        let source = evidence.source.as_mut().unwrap();
+        source.streams.remove("OBSERVATION_EVENTS");
 
-        let result = check_binding_topology_drift(&evidence);
-        // Should pass because DATA_PLANE_INGESTION stream and validator-dataplane-v1 durable exist
-        let errors = result
-            .findings
-            .iter()
-            .filter(|f| f.severity == Severity::Error)
-            .count();
-        assert_eq!(errors, 0, "expected no errors with full infra");
-    }
-
-    #[test]
-    fn findings_have_why_and_help() {
-        let mut evidence = make_evidence();
-        evidence
-            .dev_doc_targets
-            .insert("nonexistent-target".to_string());
-
-        let result = check_workflow_drift(&evidence);
-        for finding in &result.findings {
-            if finding.severity == Severity::Error {
-                assert!(
-                    finding.why.is_some(),
-                    "error finding should have why: {:?}",
-                    finding
-                );
-                assert!(
-                    finding.help.is_some(),
-                    "error finding should have help: {:?}",
-                    finding
-                );
-            }
-        }
+        let mut report = Report::new("drift-detect");
+        report.add(check_stream_registry_drift(&evidence));
+        assert!(!report.passed());
     }
 }

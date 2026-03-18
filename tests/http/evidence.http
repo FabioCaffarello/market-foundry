@@ -1,0 +1,152 @@
+### ----------------------------------------------------------------------------
+### Evidence query — Multi-symbol E2E smoke
+### ----------------------------------------------------------------------------
+### This file validates the multi-symbol vertical slice:
+###   Binance WS → ingest → OBSERVATION_EVENTS → derive → store → gateway HTTP
+###
+### Scenario: 2 symbols (btcusdt, ethusdt) × 2 timeframes (60s, 300s)
+###
+### Prerequisites:
+###   make up           # starts nats, configctl, gateway, ingest, derive, store
+###   make seed-multi   # seeds configctl with btcusdt + ethusdt bindings
+###   wait ~90s         # ingest needs to connect WS + derive needs a 60s window
+###
+### Or use the automated smoke scripts:
+###   make smoke            # single symbol (btcusdt)
+###   make smoke-multi      # multi-symbol (btcusdt + ethusdt)
+
+@baseUrl = http://127.0.0.1:8080
+
+### 1. Health check — gateway is alive
+GET {{baseUrl}}/healthz
+Accept: application/json
+
+###
+
+### 2. Readiness check — gateway can reach configctl and store
+GET {{baseUrl}}/readyz
+Accept: application/json
+
+###
+
+### --- BTCUSDT (symbol 1) ---
+
+### 3. Latest 60s candle — btcusdt
+### Expected: 200 with candle data (after ~75s) or 200 with null candle (if < 60s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 4. Latest 300s candle — btcusdt
+### Expected: 200 with candle data (after ~6min) or 200 with null candle (if < 300s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+###
+
+### --- ETHUSDT (symbol 2) ---
+
+### 5. Latest 60s candle — ethusdt
+### Expected: 200 with candle data (after ~75s) or 200 with null candle (if < 60s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 6. Latest 300s candle — ethusdt
+### Expected: 200 with candle data (after ~6min) or 200 with null candle (if < 300s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+###
+
+### --- HISTORY queries ---
+
+### 7. Candle history — btcusdt 60s (last 5)
+### Expected: 200 with candles array (may be empty if < 2 windows finalized)
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&limit=5
+Accept: application/json
+
+###
+
+### 8. Candle history — btcusdt 300s (last 3)
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=300&limit=3
+Accept: application/json
+
+###
+
+### 9. Candle history — ethusdt 60s (default limit=10)
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### --- RANGE queries (S20) ---
+
+### 10. Range query — btcusdt 60s, last hour
+### since/until are unix seconds. Adjust to current time window.
+### Example: since = now - 3600, until = now
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=20
+Accept: application/json
+
+###
+
+### 11. Range query — since only (open-ended upper bound)
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&limit=10
+Accept: application/json
+
+###
+
+### 12. Range query — until only (open-ended lower bound)
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&until=1710003600&limit=10
+Accept: application/json
+
+###
+
+### --- TRADE BURST queries (S23) ---
+
+### 13. Latest trade burst — btcusdt 60s
+### Expected: 200 with trade_burst data (after ~75s) or 200 with null (if < 60s)
+GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 14. Latest trade burst — btcusdt 300s
+GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 15. Latest trade burst — ethusdt 60s
+GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### --- Error handling ---
+
+### 16. Missing params — should return 400 (validation error)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 17. Empty params — should return 400
+GET {{baseUrl}}/evidence/candles/latest
+Accept: application/json
+
+###
+
+### 18. History — invalid limit (> 100) — should return 400
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&limit=999
+Accept: application/json
+
+###
+
+### 19. History — since after until — should return 400
+GET {{baseUrl}}/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&since=1710003600&until=1710000000
+Accept: application/json
+
+###

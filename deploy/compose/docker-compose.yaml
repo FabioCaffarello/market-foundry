@@ -11,7 +11,7 @@ x-service-defaults: &service-defaults
       max-size: "10m"
       max-file: "5"
   networks:
-    - quality-service-network
+    - market-foundry-network
 
 x-go-build: &go-build
   context: ../..
@@ -39,46 +39,16 @@ services:
       retries: 12
       start_period: 5s
 
-  kafka:
-    <<: *service-defaults
-    image: bitnamilegacy/kafka:3.9.0
-    ports:
-      - "127.0.0.1:19092:19092"
-    environment:
-      KAFKA_CFG_NODE_ID: 0
-      KAFKA_CFG_PROCESS_ROLES: controller,broker
-      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
-      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
-      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://127.0.0.1:19092
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
-      KAFKA_KRAFT_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
-      ALLOW_PLAINTEXT_LISTENER: "yes"
-    volumes:
-      - kafka_data:/bitnami/kafka
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list >/dev/null 2>&1"]
-      interval: 10s
-      timeout: 10s
-      retries: 12
-      start_period: 20s
-    profiles: ["dataplane", "all"]
-
   configctl:
     <<: *go-service
     build:
       <<: *go-build
       args:
         SERVICE: configctl
-    image: quality-service/configctl:dev
-    command: ["-config", "/etc/quality-service/configctl.jsonc"]
+    image: market-foundry/configctl:dev
+    command: ["-config", "/etc/market-foundry/configctl.jsonc"]
     volumes:
-      - ../configs/configctl.jsonc:/etc/quality-service/configctl.jsonc:ro
+      - ../configs/configctl.jsonc:/etc/market-foundry/configctl.jsonc:ro
     depends_on:
       nats:
         condition: service_healthy
@@ -88,24 +58,60 @@ services:
       timeout: 3s
       retries: 6
       start_period: 10s
-    profiles: ["core", "all"]
 
-  server:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8.8
+    container_name: market-raccoon-clickhouse
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse/
+      - clickhouse_logs:/var/log/clickhouse-server/
+      - ../clickhouse/config/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
+      - ../clickhouse/users/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
+    cap_add:
+      - SYS_NICE
+    networks:
+      - market-raccoon-network
+    env_file:
+      - ../envs/local.env
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --port 9000 --user ${CLICKHOUSE_USER:-default} --password ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in env file} --query 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.00"
+
+  gateway:
     <<: *go-service
     build:
       <<: *go-build
       args:
-        SERVICE: server
-    image: quality-service/server:dev
-    command: ["-config", "/etc/quality-service/server.jsonc"]
+        SERVICE: gateway
+    image: market-foundry/gateway:dev
+    command: ["-config", "/etc/market-foundry/gateway.jsonc"]
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
-      - ../configs/server.jsonc:/etc/quality-service/server.jsonc:ro
+      - ../configs/gateway.jsonc:/etc/market-foundry/gateway.jsonc:ro
     depends_on:
       nats:
         condition: service_healthy
       configctl:
+        condition: service_healthy
+      store:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
@@ -113,89 +119,79 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
-    profiles: ["core", "all"]
 
-  validator:
+  ingest:
     <<: *go-service
     build:
       <<: *go-build
       args:
-        SERVICE: validator
-    image: quality-service/validator:dev
-    command: ["-config", "/etc/quality-service/validator.jsonc"]
+        SERVICE: ingest
+    image: market-foundry/ingest:dev
+    command: ["-config", "/etc/market-foundry/ingest.jsonc"]
     volumes:
-      - ../configs/validator.jsonc:/etc/quality-service/validator.jsonc:ro
+      - ../configs/ingest.jsonc:/etc/market-foundry/ingest.jsonc:ro
     depends_on:
       nats:
         condition: service_healthy
       configctl:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "test -r /proc/1/cmdline && grep -qa '/usr/local/bin/service' /proc/1/cmdline"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
       start_period: 10s
-    profiles: ["runtime", "all"]
 
-  consumer:
+  derive:
     <<: *go-service
     build:
       <<: *go-build
       args:
-        SERVICE: consumer
-    image: quality-service/consumer:dev
-    command: ["-config", "/etc/quality-service/consumer.jsonc"]
+        SERVICE: derive
+    image: market-foundry/derive:dev
+    command: ["-config", "/etc/market-foundry/derive.jsonc"]
     volumes:
-      - ../configs/consumer.jsonc:/etc/quality-service/consumer.jsonc:ro
+      - ../configs/derive.jsonc:/etc/market-foundry/derive.jsonc:ro
     depends_on:
       nats:
         condition: service_healthy
-      server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "test -r /proc/1/cmdline && grep -qa '/usr/local/bin/service' /proc/1/cmdline"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
       start_period: 10s
-    profiles: ["dataplane", "all"]
 
-  emulator:
+  store:
     <<: *go-service
     build:
       <<: *go-build
       args:
-        SERVICE: emulator
-    image: quality-service/emulator:dev
-    command: ["-config", "/etc/quality-service/emulator.jsonc"]
+        SERVICE: store
+    image: market-foundry/store:dev
+    command: ["-config", "/etc/market-foundry/store.jsonc"]
     volumes:
-      - ../configs/emulator.jsonc:/etc/quality-service/emulator.jsonc:ro
+      - ../configs/store.jsonc:/etc/market-foundry/store.jsonc:ro
     depends_on:
       nats:
         condition: service_healthy
-      server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      consumer:
-        condition: service_healthy
-      validator:
+      derive:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "test -r /proc/1/cmdline && grep -qa '/usr/local/bin/service' /proc/1/cmdline"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
       start_period: 10s
-    profiles: ["dataplane", "all"]
 
 networks:
-  quality-service-network:
+  market-foundry-network:
     driver: bridge
 
 volumes:
   nats_data:
-  kafka_data:
+    name: market-foundry-nats-data
+  clickhouse_data:
+    name: market-foundry-clickhouse-data
+  clickhouse_logs:
+    name: market-foundry-clickhouse-logs

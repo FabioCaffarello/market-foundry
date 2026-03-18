@@ -96,7 +96,7 @@ func (uc *CompileConfigUseCase) buildArtifact(set configdomain.ConfigSet, versio
 
 	runtimeLoader := command.RuntimeLoader
 	if runtimeLoader == "" {
-		runtimeLoader = "validator:v1"
+		runtimeLoader = "configctl-sync/v1"
 	}
 
 	compilerVersion := command.CompilerVersion

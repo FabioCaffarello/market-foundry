@@ -1,0 +1,75 @@
+### ----------------------------------------------------------------------------
+### Decision query — RSI Oversold first slice (S43)
+### ----------------------------------------------------------------------------
+### Validates the decision domain vertical slice:
+###   derive (RSI signal → RSI Oversold evaluator) → DECISION_EVENTS → store (projection) → gateway HTTP
+###
+### Prerequisites:
+###   make up           # starts nats, configctl, gateway, ingest, derive, store
+###   make seed         # seeds configctl with btcusdt binding
+###   wait ~20min       # RSI needs 15 finalized 60s candles for warm-up;
+###                     # decision evaluates immediately after each signal
+###
+### Note: Decision evaluates after every RSI signal. The first decision
+### appears at the same time as the first RSI signal (~15 minutes).
+
+@baseUrl = http://127.0.0.1:8080
+
+### 1. Latest RSI Oversold decision — btcusdt 60s
+### Expected: 200 with decision data (after warm-up) or 200 with null decision
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 2. Latest RSI Oversold decision — btcusdt 300s
+### Expected: 200 with decision data (after 15x300s = 75min warm-up) or null
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 3. Unknown decision type — should return 400
+GET {{baseUrl}}/decision/unknown/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 4. Missing timeframe — should return 400
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Multi-symbol verification (S46)
+### ----------------------------------------------------------------------------
+### Prerequisites:
+###   make seed-multi    # seeds configctl with btcusdt + ethusdt
+###   wait ~20min        # RSI warm-up + decision evaluation
+
+### 5. Latest RSI Oversold decision — ethusdt 60s
+### Expected: 200 with decision data (after warm-up) or 200 with null
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 6. Latest RSI Oversold decision — ethusdt 300s
+### Expected: 200 with decision data (after 75min warm-up) or null
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 7. Cross-symbol back-to-back comparison — btcusdt vs ethusdt 60s
+### Execute #1 and #5 back-to-back; verify different symbol fields in response
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###

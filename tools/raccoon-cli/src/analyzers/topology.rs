@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::models::{CheckResult, Finding, Report};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 
 pub mod compose;
@@ -13,29 +13,27 @@ pub use source::SourceTopology;
 
 // ── Discovered topology ─────────────────────────────────────────────
 
-/// A stage in the pipeline (emulator, kafka, consumer, nats/jetstream, validator).
+/// A stage in the market-foundry pipeline (nats, configctl, gateway, ingest, derive, store).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub enum Stage {
-    Emulator,
-    Kafka,
-    Consumer,
-    JetStream,
-    Validator,
+    Nats,
     ConfigCtl,
-    Server,
+    Gateway,
+    Ingest,
+    Derive,
+    Store,
 }
 
 impl std::fmt::Display for Stage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Stage::Emulator => write!(f, "emulator"),
-            Stage::Kafka => write!(f, "kafka"),
-            Stage::Consumer => write!(f, "consumer"),
-            Stage::JetStream => write!(f, "jetstream"),
-            Stage::Validator => write!(f, "validator"),
+            Stage::Nats => write!(f, "nats"),
             Stage::ConfigCtl => write!(f, "configctl"),
-            Stage::Server => write!(f, "server"),
+            Stage::Gateway => write!(f, "gateway"),
+            Stage::Ingest => write!(f, "ingest"),
+            Stage::Derive => write!(f, "derive"),
+            Stage::Store => write!(f, "store"),
         }
     }
 }
@@ -60,6 +58,34 @@ pub struct Topology {
     pub edges: Vec<Edge>,
 }
 
+// ── Constants ────────────────────────────────────────────────────────
+
+const EXPECTED_CONFIG_SERVICES: &[&str] = &["configctl", "gateway", "ingest", "derive", "store"];
+
+const EXPECTED_COMPOSE_SERVICES: &[&str] =
+    &["nats", "configctl", "gateway", "ingest", "derive", "store"];
+
+const EXPECTED_STREAMS: &[&str] = &["CONFIGCTL_EVENTS", "OBSERVATION_EVENTS", "EVIDENCE_EVENTS"];
+
+const EXPECTED_DURABLES: &[&str] = &[
+    "derive-observation",
+    "store-candle",
+    "store-trade-burst",
+    "store-volume",
+];
+
+const EXPECTED_SUBJECT_PREFIXES: &[&str] = &[
+    "configctl.events.config",
+    "configctl.control.config",
+    "observation.events.market.trade",
+    "evidence.events.candle.sampled",
+    "evidence.events.tradeburst.sampled",
+    "evidence.events.volume.sampled",
+    "evidence.query.candle",
+    "evidence.query.tradeburst",
+    "evidence.query.volume",
+];
+
 // ── Main analysis entry point ────────────────────────────────────────
 
 pub fn analyze(project_root: &Path) -> Result<Report> {
@@ -79,7 +105,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
                 "configs-dir",
                 "deploy/configs directory not found",
             )
-            .with_why("all topology checks depend on service configs to validate transport consistency")
+            .with_why("all topology checks depend on service configs to validate NATS consistency")
             .with_help("run `raccoon-cli doctor` to verify project structure first")],
         ));
         return Ok(report);
@@ -129,10 +155,8 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     }
 
     // Phase 4: Cross-validate
-    report.add(check_kafka_broker_consistency(&topo));
     report.add(check_nats_url_consistency(&topo));
-    report.add(check_bootstrap_url_consistency(&topo));
-    report.add(check_bootstrap_reconcile_consistency(&topo));
+    report.add(check_nats_compose_alignment(&topo));
     report.add(check_stream_subject_alignment(&topo));
     report.add(check_durable_stream_alignment(&topo));
     report.add(check_pipeline_continuity(&topo));
@@ -144,102 +168,43 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
 
 fn check_configs(configs: &HashMap<String, ServiceConfig>) -> CheckResult {
     let mut findings = Vec::new();
-    let expected = ["consumer", "emulator", "validator"];
 
-    for name in &expected {
+    for name in EXPECTED_CONFIG_SERVICES {
         if !configs.contains_key(*name) {
-            findings.push(Finding::warning(
-                "config-present",
-                format!("config for '{name}' not found in deploy/configs/"),
-            ));
-        }
-    }
-
-    // Consumer must have both kafka and nats
-    if let Some(consumer) = configs.get("consumer") {
-        if consumer.kafka_brokers.is_empty() {
-            findings.push(Finding::error(
-                "consumer-kafka",
-                "consumer config has no kafka brokers",
-            )
-            .with_why("consumer bridges Kafka to JetStream; without kafka config the pipeline is broken")
-            .with_help("add kafka.brokers to deploy/configs/consumer.jsonc"));
-        }
-        if consumer.nats_url.is_none() {
-            findings.push(Finding::error(
-                "consumer-nats",
-                "consumer config has no nats url",
-            )
-            .with_why("consumer publishes to JetStream via NATS; without it data never reaches the validator")
-            .with_help("add nats.url to deploy/configs/consumer.jsonc"));
-        }
-        if consumer.kafka_consumer_group.is_none() {
             findings.push(
-                Finding::warning("consumer-group", "consumer config has no consumer_group")
-                    .with_why(
-                        "without a consumer group, Kafka assigns a random one on each restart",
-                    )
-                    .with_help("add kafka.consumer_group to deploy/configs/consumer.jsonc"),
+                Finding::warning(
+                    "config-present",
+                    format!("config for '{name}' not found in deploy/configs/"),
+                )
+                .with_help(format!("create deploy/configs/{name}.jsonc")),
             );
         }
     }
 
-    // Emulator must have kafka and nats
-    if let Some(emulator) = configs.get("emulator") {
-        if emulator.kafka_brokers.is_empty() {
-            findings.push(Finding::error(
-                "emulator-kafka",
-                "emulator config has no kafka brokers",
-            )
-            .with_why("emulator produces test data to Kafka; without it no data enters the pipeline")
-            .with_help("add kafka.brokers to deploy/configs/emulator.jsonc"));
-        }
-        if emulator.nats_url.is_none() {
-            findings.push(Finding::error(
-                "emulator-nats",
-                "emulator config has no nats url",
-            )
-            .with_why("emulator now listens for config.ingestion_runtime_changed to refresh aggregate bootstrap; without NATS it stays stale after runtime changes")
-            .with_help("add nats.url to deploy/configs/emulator.jsonc"));
-        }
-    }
-
-    for (service, help_path) in [
-        ("consumer", "deploy/configs/consumer.jsonc"),
-        ("emulator", "deploy/configs/emulator.jsonc"),
-    ] {
-        if let Some(cfg) = configs.get(service) {
-            match cfg.bootstrap_reconcile_interval.as_deref().map(str::trim) {
-                Some("") | None => {
-                    findings.push(Finding::error(
-                        "bootstrap-reconcile-interval",
-                        format!("{service} config has no bootstrap.reconcile_interval"),
+    // Every service must have NATS config with url and enabled
+    for name in EXPECTED_CONFIG_SERVICES {
+        if let Some(cfg) = configs.get(*name) {
+            if cfg.nats_url.is_none() {
+                findings.push(
+                    Finding::error(
+                        "nats-config",
+                        format!("'{name}' config has no nats.url"),
                     )
-                    .with_why("event-driven refresh is primary, but the dataplane now relies on bounded bootstrap reconciliation as the self-healing fallback")
-                    .with_help(format!("add bootstrap.reconcile_interval to {help_path}")));
-                }
-                Some("0s") => {
-                    findings.push(Finding::warning(
-                        "bootstrap-reconcile-interval",
-                        format!("{service} config disables bootstrap reconciliation with 0s"),
-                    )
-                    .with_why("a zero interval removes the fallback path that recovers from missed local runtime-change events")
-                    .with_help(format!("set bootstrap.reconcile_interval to a bounded non-zero duration in {help_path}")));
-                }
-                Some(_) => {}
+                    .with_why("all services communicate via NATS; without a URL the service cannot connect")
+                    .with_help(format!("add nats.url to deploy/configs/{name}.jsonc")),
+                );
             }
-        }
-    }
-
-    // Validator must have nats
-    if let Some(validator) = configs.get("validator") {
-        if validator.nats_url.is_none() {
-            findings.push(Finding::error(
-                "validator-nats",
-                "validator config has no nats url",
-            )
-            .with_why("validator consumes from JetStream via NATS; without it validation never runs")
-            .with_help("add nats.url to deploy/configs/validator.jsonc"));
+            if cfg.nats_enabled.is_none() {
+                findings.push(
+                    Finding::warning(
+                        "nats-enabled",
+                        format!("'{name}' config does not declare nats.enabled"),
+                    )
+                    .with_help(format!(
+                        "add nats.enabled to deploy/configs/{name}.jsonc"
+                    )),
+                );
+            }
         }
     }
 
@@ -248,24 +213,19 @@ fn check_configs(configs: &HashMap<String, ServiceConfig>) -> CheckResult {
 
 fn check_compose(ct: &ComposeTopology) -> CheckResult {
     let mut findings = Vec::new();
-    let expected = [
-        "nats",
-        "kafka",
-        "configctl",
-        "server",
-        "consumer",
-        "emulator",
-        "validator",
-    ];
 
-    for name in &expected {
+    for name in EXPECTED_COMPOSE_SERVICES {
         if !ct.services.contains_key(*name) {
-            findings.push(Finding::error(
-                "compose-service",
-                format!("service '{name}' not found in docker-compose"),
-            )
-            .with_why("runtime-smoke expects all services to be defined; missing services break the local environment")
-            .with_help(format!("add '{name}' service to deploy/compose/docker-compose.yaml")));
+            findings.push(
+                Finding::error(
+                    "compose-service",
+                    format!("service '{name}' not found in docker-compose"),
+                )
+                .with_why("local development requires all services; missing ones break `make up`")
+                .with_help(format!(
+                    "add '{name}' service to deploy/compose/docker-compose.yaml"
+                )),
+            );
         }
     }
 
@@ -276,13 +236,10 @@ fn check_compose_dependencies(ct: &ComposeTopology) -> CheckResult {
     let mut findings = Vec::new();
 
     let expected_deps: &[(&str, &[&str])] = &[
-        ("consumer", &["nats", "server", "kafka"]),
-        (
-            "emulator",
-            &["nats", "server", "kafka", "consumer", "validator"],
-        ),
-        ("validator", &["nats", "configctl"]),
-        ("server", &["nats", "configctl"]),
+        ("gateway", &["nats", "configctl", "store"]),
+        ("ingest", &["nats", "configctl"]),
+        ("derive", &["nats"]),
+        ("store", &["nats", "derive"]),
         ("configctl", &["nats"]),
     ];
 
@@ -308,70 +265,85 @@ fn check_compose_dependencies(ct: &ComposeTopology) -> CheckResult {
 fn check_compose_runtime_contract(ct: &ComposeTopology) -> CheckResult {
     let mut findings = Vec::new();
 
-    let expected_profiles: &[(&str, &[&str])] = &[
-        ("configctl", &["core", "all"]),
-        ("server", &["core", "all"]),
-        ("validator", &["runtime", "all"]),
-        ("kafka", &["dataplane", "all"]),
-        ("consumer", &["dataplane", "all"]),
-        ("emulator", &["dataplane", "all"]),
+    // Verify expected port mappings (only gateway and nats expose host ports)
+    let expected_ports: &[(&str, &str)] = &[
+        ("nats", "4222:4222"),
+        ("nats", "8222:8222"),
+        ("gateway", "8080:8080"),
     ];
 
-    for (service, profiles) in expected_profiles {
+    for (service, port_fragment) in expected_ports {
         if let Some(svc) = ct.services.get(*service) {
-            for profile in *profiles {
-                if !svc.profiles.iter().any(|current| current == profile) {
-                    findings.push(Finding::error(
-                        "compose-profile",
-                        format!("'{service}' must include compose profile '{profile}'"),
+            if !svc.ports.iter().any(|port| port.contains(port_fragment)) {
+                findings.push(
+                    Finding::error(
+                        "compose-port",
+                        format!(
+                            "'{service}' must expose local port mapping containing '{port_fragment}'"
+                        ),
                     )
                     .with_location(format!("docker-compose.yaml:{service}"))
-                    .with_why("profile drift breaks `make up-core`, `make up-runtime`, `make up-dataplane` and smoke selection")
-                    .with_help(format!("add '{profile}' to service '{service}' profiles")));
+                    .with_why("local smoke tests and operator workflows depend on stable host port mappings")
+                    .with_help(format!(
+                        "restore a port mapping containing '{port_fragment}' for '{service}'"
+                    )),
+                );
+            }
+        }
+    }
+
+    // Verify Go services use correct docker image pattern: market-foundry/{service}:dev
+    let go_services = ["configctl", "gateway", "ingest", "derive", "store"];
+    for service in &go_services {
+        if let Some(svc) = ct.services.get(*service) {
+            let expected_image = format!("market-foundry/{service}:dev");
+            if let Some(image) = &svc.image {
+                if !image.contains(&expected_image) {
+                    findings.push(
+                        Finding::warning(
+                            "compose-image",
+                            format!(
+                                "'{service}' image '{image}' does not match expected '{expected_image}'"
+                            ),
+                        )
+                        .with_location(format!("docker-compose.yaml:{service}"))
+                        .with_help(format!("set service '{service}' image to '{expected_image}'")),
+                    );
                 }
             }
         }
     }
 
-    let expected_images = [
-        ("nats", "nats:2.10.18-alpine"),
-        ("kafka", "bitnamilegacy/kafka:3.9.0"),
-    ];
-
-    for (service, image) in expected_images {
-        if let Some(svc) = ct.services.get(service) {
-            if svc.image.as_deref() != Some(image) {
-                findings.push(Finding::error(
-                    "compose-image",
-                    format!(
-                        "'{service}' image drifted from '{image}' to '{}'",
-                        svc.image.as_deref().unwrap_or("<missing>")
-                    ),
-                )
-                .with_location(format!("docker-compose.yaml:{service}"))
-                .with_why("the project freezes these broker image families to keep local runtime behavior predictable")
-                .with_help(format!("set service '{service}' image to '{image}'")));
+    // Verify NATS image is pinned
+    if let Some(nats) = ct.services.get("nats") {
+        if let Some(image) = &nats.image {
+            if !image.starts_with("nats:") {
+                findings.push(
+                    Finding::error(
+                        "compose-image",
+                        format!("nats image '{image}' does not look like a standard nats image"),
+                    )
+                    .with_location("docker-compose.yaml:nats"),
+                );
             }
         }
     }
 
-    let expected_ports = [
-        ("nats", "4222:4222"),
-        ("nats", "8222:8222"),
-        ("server", "8080:8080"),
-        ("kafka", "19092:19092"),
-    ];
-
-    for (service, port_fragment) in expected_ports {
-        if let Some(svc) = ct.services.get(service) {
-            if !svc.ports.iter().any(|port| port.contains(port_fragment)) {
-                findings.push(Finding::error(
-                    "compose-port",
-                    format!("'{service}' must expose local port mapping containing '{port_fragment}'"),
-                )
-                .with_location(format!("docker-compose.yaml:{service}"))
-                .with_why("local smoke, trace collection and operator workflows depend on these stable host port mappings")
-                .with_help(format!("restore a port mapping containing '{port_fragment}' for '{service}'")));
+    // Verify healthchecks: all services with depends_on should be depended on via condition
+    // This is a lightweight heuristic — compose parser already extracts depends_on
+    for service in EXPECTED_COMPOSE_SERVICES {
+        if *service == "nats" {
+            continue; // nats is infrastructure, not a Go service
+        }
+        if let Some(svc) = ct.services.get(*service) {
+            if svc.image.is_none() {
+                findings.push(
+                    Finding::warning(
+                        "compose-image",
+                        format!("'{service}' has no image defined"),
+                    )
+                    .with_location(format!("docker-compose.yaml:{service}")),
+                );
             }
         }
     }
@@ -382,15 +354,18 @@ fn check_compose_runtime_contract(ct: &ComposeTopology) -> CheckResult {
 fn check_source_streams(st: &SourceTopology) -> CheckResult {
     let mut findings = Vec::new();
 
-    let expected_streams = ["DATA_PLANE_INGESTION", "CONFIGCTL_EVENTS"];
-    for stream in &expected_streams {
+    for stream in EXPECTED_STREAMS {
         if !st.streams.contains_key(*stream) {
-            findings.push(Finding::error(
-                "stream-defined",
-                format!("expected stream '{stream}' not found in source"),
-            )
-            .with_why("JetStream streams are required for durable message delivery in the pipeline")
-            .with_help("verify the stream constant is defined in the NATS adapter or JetStream setup code"));
+            findings.push(
+                Finding::error(
+                    "stream-defined",
+                    format!("expected stream '{stream}' not found in source"),
+                )
+                .with_why("JetStream streams are required for durable message delivery in the pipeline")
+                .with_help(
+                    "verify the stream constant is defined in the NATS adapter registry code",
+                ),
+            );
         }
     }
 
@@ -400,13 +375,7 @@ fn check_source_streams(st: &SourceTopology) -> CheckResult {
 fn check_source_durables(st: &SourceTopology) -> CheckResult {
     let mut findings = Vec::new();
 
-    let expected_durables = [
-        "validator-dataplane-v1",
-        "validator-runtime-cache-v1",
-        "consumer-runtime-refresh-v1",
-        "emulator-runtime-refresh-v1",
-    ];
-    for durable in &expected_durables {
+    for durable in EXPECTED_DURABLES {
         if !st.durables.contains_key(*durable) {
             findings.push(Finding::error(
                 "durable-defined",
@@ -421,13 +390,7 @@ fn check_source_durables(st: &SourceTopology) -> CheckResult {
 fn check_source_subjects(st: &SourceTopology) -> CheckResult {
     let mut findings = Vec::new();
 
-    let expected_prefixes = [
-        "dataplane.ingestion.received",
-        "configctl.events.config",
-        "configctl.control",
-    ];
-
-    for prefix in &expected_prefixes {
+    for prefix in EXPECTED_SUBJECT_PREFIXES {
         let found = st.subjects.iter().any(|s| s.starts_with(prefix));
         if !found {
             findings.push(Finding::warning(
@@ -438,72 +401,6 @@ fn check_source_subjects(st: &SourceTopology) -> CheckResult {
     }
 
     CheckResult::from_findings("source-subjects", findings)
-}
-
-fn check_kafka_broker_consistency(topo: &Topology) -> CheckResult {
-    let mut findings = Vec::new();
-    let mut broker_sets: Vec<(String, Vec<String>)> = Vec::new();
-
-    for (name, cfg) in &topo.configs {
-        if !cfg.kafka_brokers.is_empty() {
-            broker_sets.push((name.clone(), cfg.kafka_brokers.clone()));
-        }
-    }
-
-    if broker_sets.len() >= 2 {
-        let reference = &broker_sets[0].1;
-        for (name, brokers) in &broker_sets[1..] {
-            let ref_set: HashSet<_> = reference.iter().collect();
-            let this_set: HashSet<_> = brokers.iter().collect();
-            if ref_set != this_set {
-                findings.push(Finding::warning(
-                    "kafka-brokers",
-                    format!(
-                        "kafka brokers differ between '{}' ({:?}) and '{}' ({:?})",
-                        broker_sets[0].0, reference, name, brokers
-                    ),
-                ));
-            }
-        }
-    }
-
-    // Cross-check with compose
-    if let Some(compose) = &topo.compose {
-        if let Some(kafka) = compose.services.get("kafka") {
-            for (name, cfg) in &topo.configs {
-                for broker in &cfg.kafka_brokers {
-                    // Extract hostname from broker address
-                    let host = broker.split(':').next().unwrap_or(broker);
-                    if host != "kafka" && host != "localhost" && host != "127.0.0.1" {
-                        findings.push(Finding::warning(
-                            "kafka-broker-host",
-                            format!(
-                                "'{name}' config broker '{broker}' hostname doesn't match compose service name 'kafka'"
-                            ),
-                        ));
-                    }
-                }
-            }
-            // Check internal port matches
-            let internal_port = kafka.internal_port.as_deref().unwrap_or("9092");
-            for (name, cfg) in &topo.configs {
-                for broker in &cfg.kafka_brokers {
-                    if let Some(port) = broker.split(':').nth(1) {
-                        if port != internal_port {
-                            findings.push(Finding::error(
-                                "kafka-port",
-                                format!(
-                                    "'{name}' broker port {port} doesn't match compose internal port {internal_port}"
-                                ),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    CheckResult::from_findings("kafka-broker-consistency", findings)
 }
 
 fn check_nats_url_consistency(topo: &Topology) -> CheckResult {
@@ -534,83 +431,36 @@ fn check_nats_url_consistency(topo: &Topology) -> CheckResult {
     CheckResult::from_findings("nats-url-consistency", findings)
 }
 
-fn check_bootstrap_url_consistency(topo: &Topology) -> CheckResult {
+fn check_nats_compose_alignment(topo: &Topology) -> CheckResult {
     let mut findings = Vec::new();
-    let mut urls: Vec<(String, String)> = Vec::new();
 
-    for (name, cfg) in &topo.configs {
-        if let Some(url) = &cfg.bootstrap_base_url {
-            urls.push((name.clone(), url.clone()));
-        }
-    }
-
-    if urls.len() >= 2 {
-        let reference = &urls[0].1;
-        for (name, url) in &urls[1..] {
-            if url != reference {
-                findings.push(Finding::warning(
-                    "bootstrap-url",
-                    format!(
-                        "bootstrap base_url differs between '{}' ({}) and '{}' ({})",
-                        urls[0].0, reference, name, url
-                    ),
-                ));
-            }
-        }
-    }
-
-    // Cross-check with compose server port
     if let Some(compose) = &topo.compose {
-        if compose.services.contains_key("server") {
+        if compose.services.contains_key("nats") {
             for (name, cfg) in &topo.configs {
-                if let Some(url) = &cfg.bootstrap_base_url {
+                if let Some(url) = &cfg.nats_url {
                     let host = url
-                        .trim_start_matches("http://")
-                        .trim_start_matches("https://");
+                        .trim_start_matches("nats://")
+                        .trim_start_matches("tls://");
                     let hostname = host.split(':').next().unwrap_or(host);
-                    if hostname != "server" && hostname != "localhost" && hostname != "127.0.0.1" {
-                        findings.push(Finding::warning(
-                            "bootstrap-host",
-                            format!(
-                                "'{name}' bootstrap URL hostname '{hostname}' doesn't match compose service 'server'"
-                            ),
-                        ));
+                    if hostname != "nats" && hostname != "localhost" && hostname != "127.0.0.1" {
+                        findings.push(
+                            Finding::warning(
+                                "nats-host",
+                                format!(
+                                    "'{name}' NATS URL hostname '{hostname}' doesn't match compose service 'nats'"
+                                ),
+                            )
+                            .with_help(format!(
+                                "set nats.url to 'nats://nats:4222' in deploy/configs/{name}.jsonc"
+                            )),
+                        );
                     }
                 }
             }
         }
     }
 
-    CheckResult::from_findings("bootstrap-url-consistency", findings)
-}
-
-fn check_bootstrap_reconcile_consistency(topo: &Topology) -> CheckResult {
-    let mut findings = Vec::new();
-    let consumer = topo
-        .configs
-        .get("consumer")
-        .and_then(|cfg| cfg.bootstrap_reconcile_interval.clone());
-    let emulator = topo
-        .configs
-        .get("emulator")
-        .and_then(|cfg| cfg.bootstrap_reconcile_interval.clone());
-
-    if let (Some(consumer_interval), Some(emulator_interval)) = (consumer, emulator) {
-        if consumer_interval != emulator_interval {
-            findings.push(Finding::warning(
-                "bootstrap-reconcile-consistency",
-                format!(
-                    "bootstrap.reconcile_interval differs between consumer ({consumer_interval}) and emulator ({emulator_interval})"
-                ),
-            )
-            .with_why("the repository treats dataplane self-healing as a shared operational seam; divergent intervals make refresh recovery harder to reason about")
-            .with_help(
-                "align bootstrap.reconcile_interval in deploy/configs/consumer.jsonc and deploy/configs/emulator.jsonc",
-            ));
-        }
-    }
-
-    CheckResult::from_findings("bootstrap-reconcile-consistency", findings)
+    CheckResult::from_findings("nats-compose-alignment", findings)
 }
 
 fn check_stream_subject_alignment(topo: &Topology) -> CheckResult {
@@ -623,8 +473,6 @@ fn check_stream_subject_alignment(topo: &Topology) -> CheckResult {
     // For each stream, verify its subjects appear in the global subject list
     for (stream_name, stream_subjects) in &source.streams {
         for subject_pattern in stream_subjects {
-            // A wildcard pattern like "dataplane.ingestion.received.>" should match
-            // concrete subjects starting with the prefix
             let prefix = subject_pattern.trim_end_matches(".>");
             let has_matching = source
                 .subjects
@@ -668,59 +516,105 @@ fn check_durable_stream_alignment(topo: &Topology) -> CheckResult {
 fn check_pipeline_continuity(topo: &Topology) -> CheckResult {
     let mut findings = Vec::new();
 
-    // Verify the pipeline: emulator -> kafka -> consumer -> jetstream -> validator
-    // Each stage must be a compose service and have matching config
-    let pipeline = [
-        ("emulator", "kafka", "emulator produces to kafka"),
-        ("consumer", "kafka", "consumer reads from kafka"),
-        ("consumer", "nats", "consumer publishes to jetstream"),
-        ("validator", "nats", "validator consumes from jetstream"),
-    ];
-
-    for (service, transport, description) in &pipeline {
-        let has_transport = topo
+    // All services must have NATS config (the sole transport)
+    let pipeline_services = ["ingest", "derive", "store", "gateway", "configctl"];
+    for service in &pipeline_services {
+        let has_nats = topo
             .configs
             .get(*service)
-            .map_or(false, |cfg| match *transport {
-                "kafka" => !cfg.kafka_brokers.is_empty(),
-                "nats" => cfg.nats_url.is_some(),
-                _ => false,
-            });
+            .map_or(false, |cfg| cfg.nats_url.is_some());
 
-        if !has_transport {
+        if !has_nats {
             findings.push(Finding::error(
                 "pipeline-continuity",
-                format!("{description}: '{service}' has no {transport} config"),
+                format!("'{service}' has no NATS config — cannot participate in the pipeline"),
             ));
         }
     }
 
-    // Verify consumer bridges kafka to nats (has both)
-    if let Some(consumer) = topo.configs.get("consumer") {
-        if consumer.kafka_brokers.is_empty() || consumer.nats_url.is_none() {
-            findings.push(Finding::error(
-                "pipeline-bridge",
-                "consumer must have both kafka and nats to bridge the pipeline",
-            ));
-        }
-    }
-
-    // Verify the dataplane stream exists and has a durable consumer
+    // Verify the observation stream exists and has a durable consumer (derive-observation)
     if let Some(source) = &topo.source {
-        let has_dataplane_stream = source.streams.contains_key("DATA_PLANE_INGESTION");
-        let has_validator_durable = source.durables.contains_key("validator-dataplane-v1");
+        let has_observation_stream = source.streams.contains_key("OBSERVATION_EVENTS");
+        let has_derive_durable = source.durables.contains_key("derive-observation");
 
-        if has_dataplane_stream && !has_validator_durable {
+        if has_observation_stream && !has_derive_durable {
             findings.push(Finding::error(
                 "pipeline-subscriber",
-                "DATA_PLANE_INGESTION stream exists but validator durable consumer not found",
+                "OBSERVATION_EVENTS stream exists but derive-observation durable consumer not found",
             ));
         }
-        if !has_dataplane_stream && has_validator_durable {
+        if !has_observation_stream && has_derive_durable {
             findings.push(Finding::error(
                 "pipeline-stream",
-                "validator durable consumer exists but DATA_PLANE_INGESTION stream not found",
+                "derive-observation durable exists but OBSERVATION_EVENTS stream not found",
             ));
+        }
+
+        // Verify the evidence stream exists and has at least one store durable consumer
+        let has_evidence_stream = source.streams.contains_key("EVIDENCE_EVENTS");
+        let has_store_durable = source.durables.contains_key("store-candle")
+            || source.durables.contains_key("store-trade-burst")
+            || source.durables.contains_key("store-volume");
+
+        if has_evidence_stream && !has_store_durable {
+            findings.push(Finding::error(
+                "pipeline-subscriber",
+                "EVIDENCE_EVENTS stream exists but no store durable consumers found (expected store-candle, store-trade-burst, store-volume)",
+            ));
+        }
+        if !has_evidence_stream && has_store_durable {
+            findings.push(Finding::error(
+                "pipeline-stream",
+                "store durable consumers exist but EVIDENCE_EVENTS stream not found",
+            ));
+        }
+
+        // Signal pipeline continuity: SIGNAL_EVENTS ↔ store-signal-rsi
+        let has_signal_stream = source.streams.contains_key("SIGNAL_EVENTS");
+        let has_signal_durable = source.durables.contains_key("store-signal-rsi");
+
+        if has_signal_stream && !has_signal_durable {
+            findings.push(Finding::error(
+                "pipeline-subscriber",
+                "SIGNAL_EVENTS stream exists but no store-signal-rsi durable consumer found",
+            ).with_why("signal events will accumulate with no consumer projecting them")
+             .with_help("add store-signal-rsi consumer spec in internal/adapters/nats/signal_registry.go"));
+        }
+        if !has_signal_stream && has_signal_durable {
+            findings.push(Finding::error(
+                "pipeline-stream",
+                "store-signal-rsi durable consumer exists but SIGNAL_EVENTS stream not found",
+            ).with_why("consumer will fail to bind at runtime")
+             .with_help("add SIGNAL_EVENTS stream spec in internal/adapters/nats/signal_registry.go"));
+        }
+
+        // Strategy pipeline continuity: STRATEGY_EVENTS ↔ store-strategy-mean-reversion-entry
+        let has_strategy_stream = source.streams.contains_key("STRATEGY_EVENTS");
+        let has_strategy_durable = source.durables.contains_key("store-strategy-mean-reversion-entry");
+
+        if has_strategy_stream && !has_strategy_durable {
+            findings.push(Finding::error(
+                "pipeline-subscriber",
+                "STRATEGY_EVENTS stream exists but no store-strategy-mean-reversion-entry durable consumer found",
+            ).with_why("strategy events will accumulate with no consumer projecting them")
+             .with_help("add store-strategy-mean-reversion-entry consumer spec in internal/adapters/nats/strategy_registry.go"));
+        }
+        if !has_strategy_stream && has_strategy_durable {
+            findings.push(Finding::error(
+                "pipeline-stream",
+                "store-strategy-mean-reversion-entry durable consumer exists but STRATEGY_EVENTS stream not found",
+            ).with_why("consumer will fail to bind at runtime")
+             .with_help("add STRATEGY_EVENTS stream spec in internal/adapters/nats/strategy_registry.go"));
+        }
+
+        // Guard: premature projection events entry
+        let has_projection_stream = source.streams.contains_key("PROJECTION_EVENTS");
+        if has_projection_stream {
+            findings.push(Finding::error(
+                "premature-projection-entry",
+                "PROJECTION_EVENTS stream found in source — projection notification family is not yet approved for entry",
+            ).with_why("projection events are planned but not yet needed; gateway is stateless")
+             .with_help("remove PROJECTION_EVENTS references until the projection family is formally approved"));
         }
     }
 
@@ -732,76 +626,104 @@ mod tests {
     use super::*;
     use crate::models::Severity;
 
-    fn make_consumer_config() -> ServiceConfig {
+    fn make_service_config(name: &str) -> ServiceConfig {
         ServiceConfig {
-            name: "consumer".into(),
-            kafka_brokers: vec!["kafka:9092".into()],
-            kafka_consumer_group: Some("quality-service-consumer-v1".into()),
-            kafka_client_id: Some("quality-service-consumer".into()),
+            name: name.into(),
             nats_url: Some("nats://nats:4222".into()),
-            bootstrap_base_url: Some("http://server:8080".into()),
-            bootstrap_reconcile_interval: Some("30s".into()),
+            nats_enabled: Some(true),
+            nats_request_timeout: Some("5s".into()),
         }
     }
 
-    fn make_emulator_config() -> ServiceConfig {
-        ServiceConfig {
-            name: "emulator".into(),
-            kafka_brokers: vec!["kafka:9092".into()],
-            kafka_consumer_group: None,
-            kafka_client_id: Some("quality-service-emulator".into()),
-            nats_url: Some("nats://nats:4222".into()),
-            bootstrap_base_url: Some("http://server:8080".into()),
-            bootstrap_reconcile_interval: Some("30s".into()),
+    fn make_all_configs() -> HashMap<String, ServiceConfig> {
+        let mut configs = HashMap::new();
+        for name in EXPECTED_CONFIG_SERVICES {
+            configs.insert(name.to_string(), make_service_config(name));
         }
-    }
-
-    fn make_validator_config() -> ServiceConfig {
-        ServiceConfig {
-            name: "validator".into(),
-            kafka_brokers: vec![],
-            kafka_consumer_group: None,
-            kafka_client_id: None,
-            nats_url: Some("nats://nats:4222".into()),
-            bootstrap_base_url: None,
-            bootstrap_reconcile_interval: None,
-        }
+        configs
     }
 
     fn make_source_topology() -> SourceTopology {
         let mut streams = HashMap::new();
         streams.insert(
-            "DATA_PLANE_INGESTION".into(),
-            vec!["dataplane.ingestion.received.>".into()],
-        );
-        streams.insert(
             "CONFIGCTL_EVENTS".into(),
             vec!["configctl.events.config.>".into()],
+        );
+        streams.insert(
+            "OBSERVATION_EVENTS".into(),
+            vec!["observation.events.market.trade.>".into()],
+        );
+        streams.insert(
+            "EVIDENCE_EVENTS".into(),
+            vec![
+                "evidence.events.candle.sampled.>".into(),
+                "evidence.events.tradeburst.sampled.>".into(),
+                "evidence.events.volume.sampled.>".into(),
+            ],
+        );
+        streams.insert(
+            "SIGNAL_EVENTS".into(),
+            vec!["signal.events.>".into()],
+        );
+        streams.insert(
+            "DECISION_EVENTS".into(),
+            vec!["decision.events.>".into()],
+        );
+        streams.insert(
+            "STRATEGY_EVENTS".into(),
+            vec!["strategy.events.>".into()],
         );
 
         let mut durables = HashMap::new();
         durables.insert(
-            "validator-dataplane-v1".into(),
-            "DATA_PLANE_INGESTION".into(),
+            "derive-observation".into(),
+            "OBSERVATION_EVENTS".into(),
         );
         durables.insert(
-            "validator-runtime-cache-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-candle".into(),
+            "EVIDENCE_EVENTS".into(),
         );
         durables.insert(
-            "consumer-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-trade-burst".into(),
+            "EVIDENCE_EVENTS".into(),
         );
         durables.insert(
-            "emulator-runtime-refresh-v1".into(),
-            "CONFIGCTL_EVENTS".into(),
+            "store-volume".into(),
+            "EVIDENCE_EVENTS".into(),
+        );
+        durables.insert(
+            "store-signal-rsi".into(),
+            "SIGNAL_EVENTS".into(),
+        );
+        durables.insert(
+            "store-decision-rsi-oversold".into(),
+            "DECISION_EVENTS".into(),
+        );
+        durables.insert(
+            "store-strategy-mean-reversion-entry".into(),
+            "STRATEGY_EVENTS".into(),
         );
 
         let subjects = vec![
-            "dataplane.ingestion.received.>".into(),
+            "configctl.control.config.>".into(),
             "configctl.events.config.>".into(),
             "configctl.events.config.activated".into(),
-            "configctl.control.create_draft".into(),
+            "evidence.events.candle.sampled.>".into(),
+            "evidence.events.tradeburst.sampled.>".into(),
+            "evidence.events.volume.sampled.>".into(),
+            "evidence.query.candle.latest".into(),
+            "evidence.query.tradeburst.latest".into(),
+            "evidence.query.volume.latest".into(),
+            "observation.events.market.trade.>".into(),
+            "signal.events.>".into(),
+            "signal.events.rsi.generated.>".into(),
+            "signal.query.rsi.latest".into(),
+            "decision.events.>".into(),
+            "decision.events.rsi_oversold.evaluated.>".into(),
+            "decision.query.rsi_oversold.latest".into(),
+            "strategy.events.>".into(),
+            "strategy.events.mean_reversion_entry.resolved.>".into(),
+            "strategy.query.mean_reversion_entry.latest".into(),
         ];
 
         SourceTopology {
@@ -826,74 +748,57 @@ mod tests {
             },
         );
         services.insert(
-            "kafka".into(),
-            compose::ComposeService {
-                name: "kafka".into(),
-                image: Some("bitnamilegacy/kafka:3.9.0".into()),
-                depends_on: vec![],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec!["127.0.0.1:19092:19092".into()],
-                internal_port: Some("9092".into()),
-            },
-        );
-        services.insert(
             "configctl".into(),
             compose::ComposeService {
                 name: "configctl".into(),
-                image: Some("quality-service/configctl:dev".into()),
+                image: Some("market-foundry/configctl:dev".into()),
                 depends_on: vec!["nats".into()],
-                profiles: vec!["core".into(), "all".into()],
+                profiles: vec![],
                 ports: vec![],
                 internal_port: None,
             },
         );
         services.insert(
-            "server".into(),
+            "gateway".into(),
             compose::ComposeService {
-                name: "server".into(),
-                image: Some("quality-service/server:dev".into()),
-                depends_on: vec!["nats".into(), "configctl".into()],
-                profiles: vec!["core".into(), "all".into()],
+                name: "gateway".into(),
+                image: Some("market-foundry/gateway:dev".into()),
+                depends_on: vec!["nats".into(), "configctl".into(), "store".into()],
+                profiles: vec![],
                 ports: vec!["127.0.0.1:8080:8080".into()],
                 internal_port: None,
             },
         );
         services.insert(
-            "consumer".into(),
+            "ingest".into(),
             compose::ComposeService {
-                name: "consumer".into(),
-                image: Some("quality-service/consumer:dev".into()),
-                depends_on: vec!["nats".into(), "server".into(), "kafka".into()],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "emulator".into(),
-            compose::ComposeService {
-                name: "emulator".into(),
-                image: Some("quality-service/emulator:dev".into()),
-                depends_on: vec![
-                    "nats".into(),
-                    "server".into(),
-                    "kafka".into(),
-                    "consumer".into(),
-                    "validator".into(),
-                ],
-                profiles: vec!["dataplane".into(), "all".into()],
-                ports: vec![],
-                internal_port: None,
-            },
-        );
-        services.insert(
-            "validator".into(),
-            compose::ComposeService {
-                name: "validator".into(),
-                image: Some("quality-service/validator:dev".into()),
+                name: "ingest".into(),
+                image: Some("market-foundry/ingest:dev".into()),
                 depends_on: vec!["nats".into(), "configctl".into()],
-                profiles: vec!["runtime".into(), "all".into()],
-                ports: vec![],
+                profiles: vec![],
+                ports: vec!["127.0.0.1:8082:8082".into()],
+                internal_port: None,
+            },
+        );
+        services.insert(
+            "derive".into(),
+            compose::ComposeService {
+                name: "derive".into(),
+                image: Some("market-foundry/derive:dev".into()),
+                depends_on: vec!["nats".into()],
+                profiles: vec![],
+                ports: vec!["127.0.0.1:8083:8083".into()],
+                internal_port: None,
+            },
+        );
+        services.insert(
+            "store".into(),
+            compose::ComposeService {
+                name: "store".into(),
+                image: Some("market-foundry/store:dev".into()),
+                depends_on: vec!["nats".into(), "derive".into()],
+                profiles: vec![],
+                ports: vec!["127.0.0.1:8081:8081".into()],
                 internal_port: None,
             },
         );
@@ -903,82 +808,220 @@ mod tests {
 
     #[test]
     fn config_check_passes_with_all_services() {
-        let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        configs.insert("emulator".into(), make_emulator_config());
-        configs.insert("validator".into(), make_validator_config());
-
+        let configs = make_all_configs();
         let result = check_configs(&configs);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
     fn config_check_warns_missing_service() {
-        let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        // missing emulator and validator
+        let mut configs = make_all_configs();
+        configs.remove("ingest");
+        configs.remove("derive");
 
         let result = check_configs(&configs);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.severity == Severity::Warning));
+            .any(|f| f.severity == Severity::Warning && f.message.contains("ingest")));
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Warning && f.message.contains("derive")));
     }
 
     #[test]
-    fn config_check_errors_consumer_without_kafka() {
-        let mut configs = HashMap::new();
-        let mut consumer = make_consumer_config();
-        consumer.kafka_brokers.clear();
-        configs.insert("consumer".into(), consumer);
-        configs.insert("emulator".into(), make_emulator_config());
-        configs.insert("validator".into(), make_validator_config());
+    fn config_check_errors_service_without_nats_url() {
+        let mut configs = make_all_configs();
+        configs.get_mut("ingest").unwrap().nats_url = None;
 
         let result = check_configs(&configs);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("kafka")));
+            .any(|f| f.severity == Severity::Error && f.message.contains("ingest")));
     }
 
     #[test]
-    fn kafka_broker_consistency_ok_when_matching() {
-        let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        topo.configs
-            .insert("emulator".into(), make_emulator_config());
+    fn config_check_warns_service_without_nats_enabled() {
+        let mut configs = make_all_configs();
+        configs.get_mut("store").unwrap().nats_enabled = None;
 
-        let result = check_kafka_broker_consistency(&topo);
+        let result = check_configs(&configs);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.check == "nats-enabled" && f.message.contains("store")));
+    }
+
+    #[test]
+    fn compose_check_passes_with_all_services() {
+        let ct = make_compose_topology();
+        let result = check_compose(&ct);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn kafka_broker_consistency_warns_on_mismatch() {
-        let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        let mut emulator = make_emulator_config();
-        emulator.kafka_brokers = vec!["other-host:9092".into()];
-        topo.configs.insert("emulator".into(), emulator);
+    fn compose_check_errors_missing_service() {
+        let mut ct = make_compose_topology();
+        ct.services.remove("derive");
 
-        let result = check_kafka_broker_consistency(&topo);
+        let result = check_compose(&ct);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.severity == Severity::Warning));
+            .any(|f| f.severity == Severity::Error && f.message.contains("derive")));
+    }
+
+    #[test]
+    fn compose_dependencies_passes_when_correct() {
+        let ct = make_compose_topology();
+        let result = check_compose_dependencies(&ct);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn compose_dependencies_warns_on_missing_dep() {
+        let mut ct = make_compose_topology();
+        ct.services
+            .get_mut("gateway")
+            .unwrap()
+            .depends_on
+            .retain(|d| d != "store");
+
+        let result = check_compose_dependencies(&ct);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("gateway") && f.message.contains("store")));
+    }
+
+    #[test]
+    fn compose_runtime_contract_passes_when_correct() {
+        let ct = make_compose_topology();
+        let result = check_compose_runtime_contract(&ct);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn compose_runtime_contract_fails_on_missing_port() {
+        let mut ct = make_compose_topology();
+        ct.services.get_mut("gateway").unwrap().ports.clear();
+
+        let result = check_compose_runtime_contract(&ct);
+        assert_eq!(result.status, crate::models::CheckStatus::Fail);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.check == "compose-port" && f.message.contains("gateway")));
+    }
+
+    #[test]
+    fn compose_runtime_contract_warns_on_wrong_image() {
+        let mut ct = make_compose_topology();
+        ct.services.get_mut("ingest").unwrap().image =
+            Some("wrong-project/ingest:dev".into());
+
+        let result = check_compose_runtime_contract(&ct);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.check == "compose-image" && f.message.contains("ingest")));
     }
 
     #[test]
     fn nats_url_consistency_ok_when_matching() {
         let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        topo.configs
-            .insert("validator".into(), make_validator_config());
+        topo.configs = make_all_configs();
 
         let result = check_nats_url_consistency(&topo);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn nats_url_consistency_warns_on_mismatch() {
+        let mut topo = Topology::default();
+        topo.configs = make_all_configs();
+        topo.configs.get_mut("derive").unwrap().nats_url =
+            Some("nats://other-host:4222".into());
+
+        let result = check_nats_url_consistency(&topo);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Warning));
+    }
+
+    #[test]
+    fn nats_compose_alignment_warns_on_bad_hostname() {
+        let mut topo = Topology::default();
+        topo.configs = make_all_configs();
+        topo.configs.get_mut("ingest").unwrap().nats_url =
+            Some("nats://wrong-host:4222".into());
+        topo.compose = Some(make_compose_topology());
+
+        let result = check_nats_compose_alignment(&topo);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("wrong-host")));
+    }
+
+    #[test]
+    fn source_streams_passes_with_all_streams() {
+        let st = make_source_topology();
+        let result = check_source_streams(&st);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn source_streams_errors_on_missing_stream() {
+        let mut st = make_source_topology();
+        st.streams.remove("EVIDENCE_EVENTS");
+
+        let result = check_source_streams(&st);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("EVIDENCE_EVENTS")));
+    }
+
+    #[test]
+    fn source_durables_passes_with_all_durables() {
+        let st = make_source_topology();
+        let result = check_source_durables(&st);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn source_durables_errors_on_missing_durable() {
+        let mut st = make_source_topology();
+        st.durables.remove("store-candle");
+
+        let result = check_source_durables(&st);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.severity == Severity::Error && f.message.contains("store-candle")));
+    }
+
+    #[test]
+    fn source_subjects_passes_with_all_prefixes() {
+        let st = make_source_topology();
+        let result = check_source_subjects(&st);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn source_subjects_warns_on_missing_prefix() {
+        let mut st = make_source_topology();
+        st.subjects.retain(|s| !s.starts_with("evidence.query"));
+
+        let result = check_source_subjects(&st);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("evidence.query.candle")));
     }
 
     #[test]
@@ -998,36 +1041,18 @@ mod tests {
     }
 
     #[test]
-    fn pipeline_continuity_passes_with_complete_config() {
+    fn durable_stream_alignment_passes_when_all_match() {
         let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        topo.configs
-            .insert("emulator".into(), make_emulator_config());
-        topo.configs
-            .insert("validator".into(), make_validator_config());
         topo.source = Some(make_source_topology());
-
-        let result = check_pipeline_continuity(&topo);
+        let result = check_durable_stream_alignment(&topo);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn pipeline_continuity_fails_without_validator_nats() {
-        let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        topo.configs
-            .insert("emulator".into(), make_emulator_config());
-        let mut validator = make_validator_config();
-        validator.nats_url = None;
-        topo.configs.insert("validator".into(), validator);
-
-        let result = check_pipeline_continuity(&topo);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("validator")));
+    fn durable_stream_alignment_skips_without_source() {
+        let topo = Topology::default();
+        let result = check_durable_stream_alignment(&topo);
+        assert_eq!(result.status, crate::models::CheckStatus::Skip);
     }
 
     #[test]
@@ -1063,176 +1088,60 @@ mod tests {
     }
 
     #[test]
-    fn durable_stream_alignment_skips_without_source() {
-        let topo = Topology::default();
-        let result = check_durable_stream_alignment(&topo);
-        assert_eq!(result.status, crate::models::CheckStatus::Skip);
-    }
-
-    #[test]
-    fn durable_stream_alignment_passes_when_all_match() {
+    fn pipeline_continuity_passes_with_complete_config() {
         let mut topo = Topology::default();
+        topo.configs = make_all_configs();
         topo.source = Some(make_source_topology());
-        let result = check_durable_stream_alignment(&topo);
+
+        let result = check_pipeline_continuity(&topo);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]
-    fn nats_url_consistency_warns_on_mismatch() {
+    fn pipeline_continuity_fails_without_nats() {
         let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        let mut validator = make_validator_config();
-        validator.nats_url = Some("nats://other-host:4222".into());
-        topo.configs.insert("validator".into(), validator);
-
-        let result = check_nats_url_consistency(&topo);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Warning));
-    }
-
-    #[test]
-    fn bootstrap_url_consistency_warns_on_mismatch() {
-        let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        let mut emulator = make_emulator_config();
-        emulator.bootstrap_base_url = Some("http://other-server:9090".into());
-        topo.configs.insert("emulator".into(), emulator);
-
-        let result = check_bootstrap_url_consistency(&topo);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Warning));
-    }
-
-    #[test]
-    fn pipeline_continuity_fails_without_consumer_bridge() {
-        let mut topo = Topology::default();
-        let mut consumer = make_consumer_config();
-        consumer.kafka_brokers.clear(); // remove kafka → broken bridge
-        topo.configs.insert("consumer".into(), consumer);
-        topo.configs
-            .insert("emulator".into(), make_emulator_config());
-        topo.configs
-            .insert("validator".into(), make_validator_config());
+        topo.configs = make_all_configs();
+        topo.configs.get_mut("derive").unwrap().nats_url = None;
 
         let result = check_pipeline_continuity(&topo);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.severity == Severity::Error));
+            .any(|f| f.severity == Severity::Error && f.message.contains("derive")));
     }
 
     #[test]
-    fn compose_runtime_contract_passes_when_frozen_invariants_match() {
-        let topo = make_compose_topology();
-        let result = check_compose_runtime_contract(&topo);
-        assert_eq!(result.status, crate::models::CheckStatus::Pass);
-    }
-
-    #[test]
-    fn compose_runtime_contract_fails_on_profile_image_and_port_drift() {
-        let mut topo = make_compose_topology();
-        topo.services
-            .get_mut("kafka")
-            .unwrap()
-            .profiles
-            .retain(|profile| profile != "dataplane");
-        topo.services.get_mut("nats").unwrap().image = Some("nats:latest".into());
-        topo.services
-            .get_mut("server")
-            .unwrap()
-            .ports
-            .retain(|port| !port.contains("8080:8080"));
-
-        let result = check_compose_runtime_contract(&topo);
-        assert_eq!(result.status, crate::models::CheckStatus::Fail);
-        assert!(result.findings.iter().any(|f| f.check == "compose-profile"));
-        assert!(result.findings.iter().any(|f| f.check == "compose-image"));
-        assert!(result.findings.iter().any(|f| f.check == "compose-port"));
-    }
-
-    #[test]
-    fn config_check_errors_emulator_without_kafka() {
-        let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        let mut emulator = make_emulator_config();
-        emulator.kafka_brokers.clear();
-        configs.insert("emulator".into(), emulator);
-        configs.insert("validator".into(), make_validator_config());
-
-        let result = check_configs(&configs);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("emulator")));
-    }
-
-    #[test]
-    fn config_check_errors_emulator_without_nats() {
-        let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        let mut emulator = make_emulator_config();
-        emulator.nats_url = None;
-        configs.insert("emulator".into(), emulator);
-        configs.insert("validator".into(), make_validator_config());
-
-        let result = check_configs(&configs);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("nats")));
-    }
-
-    #[test]
-    fn config_check_errors_validator_without_nats() {
-        let mut configs = HashMap::new();
-        configs.insert("consumer".into(), make_consumer_config());
-        configs.insert("emulator".into(), make_emulator_config());
-        let mut validator = make_validator_config();
-        validator.nats_url = None;
-        configs.insert("validator".into(), validator);
-
-        let result = check_configs(&configs);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::Error && f.message.contains("validator")));
-    }
-
-    #[test]
-    fn config_check_errors_when_reconcile_interval_missing() {
-        let mut configs = HashMap::new();
-        let mut consumer = make_consumer_config();
-        consumer.bootstrap_reconcile_interval = None;
-        configs.insert("consumer".into(), consumer);
-        configs.insert("emulator".into(), make_emulator_config());
-        configs.insert("validator".into(), make_validator_config());
-
-        let result = check_configs(&configs);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.check == "bootstrap-reconcile-interval" && f.severity == Severity::Error));
-    }
-
-    #[test]
-    fn bootstrap_reconcile_consistency_warns_on_mismatch() {
+    fn pipeline_continuity_errors_on_orphan_durable() {
         let mut topo = Topology::default();
-        topo.configs
-            .insert("consumer".into(), make_consumer_config());
-        let mut emulator = make_emulator_config();
-        emulator.bootstrap_reconcile_interval = Some("45s".into());
-        topo.configs.insert("emulator".into(), emulator);
+        topo.configs = make_all_configs();
+        let mut source = make_source_topology();
+        source.streams.remove("OBSERVATION_EVENTS");
+        // derive-observation durable still present but stream is gone
+        topo.source = Some(source);
 
-        let result = check_bootstrap_reconcile_consistency(&topo);
-        assert!(result.findings.iter().any(
-            |f| f.check == "bootstrap-reconcile-consistency" && f.severity == Severity::Warning
-        ));
+        let result = check_pipeline_continuity(&topo);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("OBSERVATION_EVENTS")));
+    }
+
+    #[test]
+    fn pipeline_continuity_errors_on_orphan_stream() {
+        let mut topo = Topology::default();
+        topo.configs = make_all_configs();
+        let mut source = make_source_topology();
+        source.durables.remove("store-candle");
+        source.durables.remove("store-trade-burst");
+        source.durables.remove("store-volume");
+        // EVIDENCE_EVENTS stream still present but all store durables are gone
+        topo.source = Some(source);
+
+        let result = check_pipeline_continuity(&topo);
+        assert!(result
+            .findings
+            .iter()
+            .any(|f| f.message.contains("store durable consumers")));
     }
 
     #[test]
@@ -1242,7 +1151,6 @@ mod tests {
 
         let report = analyze(dir.path()).unwrap();
         assert_eq!(report.title, "topology-doctor");
-        // Should proceed past phase 1 with empty configs
     }
 
     #[test]

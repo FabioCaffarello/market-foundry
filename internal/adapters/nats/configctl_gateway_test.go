@@ -6,7 +6,6 @@ import (
 
 	"internal/application/configctl/contracts"
 	sharedruntime "internal/application/runtimecontracts"
-	runtimecontracts "internal/application/validatorruntime/contracts"
 	"internal/shared/requestctx"
 )
 
@@ -233,7 +232,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 					SchemaVersion: "runtime/v1",
 					Checksum:      "checksum-1",
 					StorageRef:    "memory://artifacts/core/v1",
-					RuntimeLoader: "validator:v1",
+					RuntimeLoader: "configctl-sync/v1",
 				},
 			}},
 		},
@@ -244,7 +243,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	runtimeProjectionClient := &requestReplyClientSpy{reply: replyBytes}
-	runtimeProjectionReply, prob := NewConfigctlGateway(runtimeProjectionClient, "validator.bootstrap").ListActiveRuntimeProjections(context.Background(), contracts.ListActiveRuntimeProjectionsQuery{
+	runtimeProjectionReply, prob := NewConfigctlGateway(runtimeProjectionClient, "server.http").ListActiveRuntimeProjections(context.Background(), contracts.ListActiveRuntimeProjectionsQuery{
 		ScopeKind: "tenant",
 		ScopeKey:  "br",
 	})
@@ -253,40 +252,5 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 	if runtimeProjectionClient.subject != registry.ListActiveRuntimeProjections.Subject || len(runtimeProjectionReply.Runtimes) != 1 {
 		t.Fatalf("unexpected runtime projections gateway result")
-	}
-}
-
-func TestValidatorRuntimeGatewayGetActiveRuntime(t *testing.T) {
-	t.Parallel()
-
-	registry := DefaultValidatorRuntimeRegistry()
-	request := mustDecodeRequest[runtimecontracts.GetActiveRuntimeQuery](t, registry.GetActive, mustEncodeRequest(t, registry.GetActive, runtimecontracts.GetActiveRuntimeQuery{}))
-	replyBytes, err := encodeControlReply(
-		registry.GetActive,
-		"validator.runtime",
-		request,
-		runtimecontracts.GetActiveRuntimeReply{
-			Runtime: runtimecontracts.ActiveRuntimeRecord{
-				RuntimeRecord: sharedruntime.RuntimeRecord{
-					Config: sharedruntime.ConfigRecord{
-						Key:       "core",
-						VersionID: "cfg-123",
-					},
-				},
-			},
-		},
-		nil,
-	)
-	if err != nil {
-		t.Fatalf("encode runtime reply: %v", err)
-	}
-
-	client := &requestReplyClientSpy{reply: replyBytes}
-	reply, prob := NewValidatorRuntimeGateway(client, "server.http").GetActiveRuntime(context.Background(), runtimecontracts.GetActiveRuntimeQuery{})
-	if prob != nil {
-		t.Fatalf("get active runtime: %v", prob)
-	}
-	if client.subject != registry.GetActive.Subject || reply.Runtime.Config.VersionID != "cfg-123" {
-		t.Fatalf("unexpected runtime gateway result")
 	}
 }

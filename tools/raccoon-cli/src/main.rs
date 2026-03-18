@@ -17,10 +17,10 @@ use std::process;
 #[derive(Parser)]
 #[command(
     name = "raccoon-cli",
-    about = "Engineering quality toolkit for quality-service",
-    long_about = "Engineering quality toolkit for quality-service.\n\n\
-        Validates project structure, data pipeline topology, messaging contracts,\n\
-        runtime bindings, and runtime behavior — fully isolated from the Go runtime.",
+    about = "Architecture guardian toolkit for market-foundry",
+    long_about = "Architecture guardian toolkit for market-foundry.\n\n\
+        Validates project structure, service topology, messaging contracts,\n\
+        runtime bindings, layer boundaries, and architectural drift — fully isolated from the Go runtime.",
     version,
     propagate_version = true,
     after_help = "Quick start:\n  \
@@ -72,19 +72,19 @@ enum Commands {
     /// Validate project structure (go.work, internal/, deploy/, tests/)
     #[command(after_help = "Examples:\n  \
         raccoon-cli doctor\n  \
-        raccoon-cli --project-root /path/to/quality-service doctor")]
+        raccoon-cli --project-root /path/to/market-foundry doctor")]
     Doctor,
-    /// Audit the data pipeline topology: emulator -> kafka -> consumer -> jetstream -> validator
+    /// Audit the service topology: gateway, configctl, ingest, derive, store via NATS/JetStream
     #[command(after_help = "Examples:\n  \
         raccoon-cli topology-doctor\n  \
         raccoon-cli --json topology-doctor")]
     TopologyDoctor,
-    /// Audit messaging contracts and invariants across Kafka, NATS/JetStream, and internal transports
+    /// Audit messaging contracts and invariants across NATS/JetStream transports
     #[command(after_help = "Examples:\n  \
         raccoon-cli contract-audit\n  \
         raccoon-cli --json contract-audit | jq '.checks[] | select(.status == \"fail\")'")]
     ContractAudit,
-    /// Inspect runtime bindings: config → kafka → jetstream → validator routing
+    /// Inspect runtime bindings: config → NATS JetStream → observation/evidence routing
     #[command(after_help = "Examples:\n  \
         raccoon-cli runtime-bindings\n  \
         raccoon-cli --json runtime-bindings")]
@@ -126,7 +126,7 @@ enum Commands {
         after_help = "Examples:\n  \
             raccoon-cli arch-guard\n  \
             raccoon-cli --json arch-guard\n  \
-            raccoon-cli arch-guard --project-root /path/to/quality-service"
+            raccoon-cli arch-guard --project-root /path/to/market-foundry"
     )]
     ArchGuard,
     /// Trace a symbol across the repository: definitions, structural references, contracts, and packages
@@ -165,18 +165,18 @@ enum Commands {
         #[arg(long)]
         no_lsp: bool,
     },
-    /// Run end-to-end smoke test against a live local environment (requires `make up-dataplane`)
+    /// [DEPRECATED] Run end-to-end smoke test — legacy quality-service command, not functional
     #[command(after_help = "Examples:\n  \
         raccoon-cli runtime-smoke\n  \
         raccoon-cli runtime-smoke --base-url http://localhost:9090")]
     RuntimeSmoke {
-        /// Base URL for the quality-service HTTP API
+        /// Base URL for the HTTP API
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
     },
-    /// Run a named validation scenario against a live local environment
+    /// [DEPRECATED] Run a named validation scenario — legacy quality-service command, not functional
     #[command(
-        long_about = "Run a named, reproducible validation scenario against the quality-service cluster.\n\n\
+        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
             Each scenario declares preconditions, executes a deterministic sequence of checks,\n\
             and reports structured pass/fail results.\n\n\
             Available scenarios:\n  \
@@ -195,18 +195,18 @@ enum Commands {
         /// Scenario name to execute (omit with --list to see all scenarios)
         #[arg(required_unless_present = "list")]
         scenario: Option<String>,
-        /// Base URL for the quality-service HTTP API
+        /// Base URL for the HTTP API (deprecated)
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
         /// List all available scenarios and exit
         #[arg(long)]
         list: bool,
     },
-    /// Inspect validation results from the running validator
+    /// [DEPRECATED] Inspect validation results — legacy quality-service command, not functional
     #[command(
-        long_about = "Inspect validation results produced by the quality-service validator.\n\n\
+        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
             Shows summaries of pass/fail counts, binding breakdowns, violation rules,\n\
-            and individual result details. Requires a running quality-service.",
+            and individual result details. This command is no longer functional.",
         after_help = "Examples:\n  \
             raccoon-cli results-inspect\n  \
             raccoon-cli results-inspect --failed-only\n  \
@@ -214,7 +214,7 @@ enum Commands {
             raccoon-cli results-inspect --binding orders --limit 50"
     )]
     ResultsInspect {
-        /// Base URL for the quality-service HTTP API
+        /// Base URL for the HTTP API (deprecated)
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
         /// Scope kind for the results query
@@ -295,7 +295,7 @@ enum Commands {
             contract surface, and where test coverage is weak.",
         after_help = "Examples:\n  \
             raccoon-cli tdd internal/adapters/nats/codec.go\n  \
-            raccoon-cli tdd deploy/configs/consumer.jsonc internal/actors/scopes/validator/supervisor.go\n  \
+            raccoon-cli tdd deploy/configs/derive.jsonc internal/actors/scopes/derive/derive_supervisor.go\n  \
             raccoon-cli tdd  # uses git status to detect changed files\n  \
             raccoon-cli --json tdd internal/domain/configctl/config.go\n  \
             raccoon-cli -v tdd  # verbose: show symbols, risks, and per-file details"
@@ -307,11 +307,11 @@ enum Commands {
     },
     /// Run consolidated quality gate with per-step timing and a single exit code
     #[command(
-        long_about = "Run consolidated quality gate: doctor + topology + contracts + runtime-bindings + smoke.\n\n\
+        long_about = "Run consolidated quality gate: doctor + topology + contracts + runtime-bindings + arch-guard + drift-detect.\n\n\
             Profiles:\n  \
-              fast  — doctor + topology-doctor + contract-audit + runtime-bindings (default, no infra needed)\n  \
+              fast  — doctor + topology-doctor + contract-audit + runtime-bindings + arch-guard + drift-detect (default, no infra needed)\n  \
               ci    — same as fast, warnings become failures (strict)\n  \
-              deep  — all checks including runtime-smoke (requires `make up-dataplane`)",
+              deep  — all checks (runtime-smoke is deprecated, use make smoke instead)",
         after_help = "Examples:\n  \
             raccoon-cli quality-gate\n  \
             raccoon-cli quality-gate --profile ci --json\n  \
@@ -547,9 +547,9 @@ enum Commands {
         #[arg(trailing_var_arg = true)]
         files: Vec<String>,
     },
-    /// Collect diagnostic evidence from the running cluster into a trace pack
+    /// [DEPRECATED] Collect diagnostic evidence — legacy quality-service command, not functional
     #[command(
-        long_about = "Collect diagnostic evidence from the running quality-service cluster.\n\n\
+        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
             Produces a timestamped directory (or .tar.gz) with compose status, API responses,\n\
             deploy configs, and recent service logs — everything needed to diagnose a failure\n\
             without live cluster access.",
@@ -559,7 +559,7 @@ enum Commands {
             raccoon-cli trace-pack --log-lines 500 --output-dir /tmp/traces"
     )]
     TracePack {
-        /// Base URL for the quality-service HTTP API
+        /// Base URL for the HTTP API (deprecated)
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
         /// Directory where the trace pack will be written
