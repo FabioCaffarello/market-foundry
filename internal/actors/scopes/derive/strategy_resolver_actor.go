@@ -76,8 +76,11 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 		return
 	}
 
+	meta := events.NewMetadata().
+		WithCorrelationID(msg.CorrelationID).
+		WithCausationID(msg.CausationID)
 	event := domainstrategy.StrategyResolvedEvent{
-		Metadata: events.NewMetadata().WithCorrelationID(msg.CorrelationID),
+		Metadata: meta,
 		Strategy: strat,
 	}
 
@@ -92,7 +95,8 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 			StrategyConfidence: strat.Confidence,
 			Timeframe:          strat.Timeframe,
 			Timestamp:          strat.Timestamp,
-			CorrelationID:      event.Metadata.CorrelationID,
+			CorrelationID:      meta.CorrelationID,
+			CausationID:        meta.ID,
 		})
 	}
 
@@ -100,5 +104,7 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 		"direction", string(strat.Direction),
 		"confidence", strat.Confidence,
 		"timestamp", strat.Timestamp.Format(time.RFC3339),
+		"correlation_id", msg.CorrelationID,
+		"causation_id", msg.CausationID,
 	)
 }

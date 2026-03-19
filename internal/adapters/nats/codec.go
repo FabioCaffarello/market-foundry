@@ -79,12 +79,13 @@ func decodeControlReply[T any](spec ControlSpec, data []byte) (T, *problem.Probl
 	return env.Payload, nil
 }
 
-func encodeEvent[T any](spec EventSpec, source string, payload T, correlationID string) ([]byte, *problem.Problem) {
+func encodeEvent[T any](spec EventSpec, source string, payload T, correlationID, causationID string) ([]byte, *problem.Problem) {
 	env := envelope.New(envelope.KindEvent, spec.Type, payload).
 		WithSource(source).
 		WithSubject(spec.Subject).
 		WithContentType(contentTypeCBOR).
-		WithCorrelationID(correlationID)
+		WithCorrelationID(correlationID).
+		WithCausationID(causationID)
 
 	if prob := env.Validate(); prob != nil {
 		return nil, prob

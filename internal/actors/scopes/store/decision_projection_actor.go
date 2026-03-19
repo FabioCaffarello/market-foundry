@@ -153,6 +153,8 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 			"outcome", string(dec.Outcome),
 			"confidence", dec.Confidence,
 			"timestamp", dec.Timestamp.Format(time.RFC3339),
+			"correlation_id", msg.Event.Metadata.CorrelationID,
+			"causation_id", msg.Event.Metadata.CausationID,
 		)
 	}
 }

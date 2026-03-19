@@ -6,7 +6,7 @@ DOCKER ?= docker
 COMPOSE_FILE ?= deploy/compose/docker-compose.yaml
 COMPOSE := $(DOCKER) compose -f $(COMPOSE_FILE)
 BUILD_DIR ?= bin
-BUILDABLE_SERVICES := configctl derive gateway ingest store
+BUILDABLE_SERVICES := configctl derive execute gateway ingest store
 
 RACCOON_DIR := tools/raccoon-cli
 RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
@@ -17,7 +17,7 @@ define RUN_IN_MODULES
 	@MODULE='$(MODULE)' ./scripts/utils/for-each-module.sh $(1)
 endef
 
-.PHONY: help tidy test build docker-build compose-config up down restart logs ps clean \
+.PHONY: help tidy test test-integration build docker-build compose-config up down restart logs ps clean \
        raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep \
        check check-deep verify smoke smoke-multi seed seed-multi \
        coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing
@@ -26,10 +26,11 @@ help:
 	@echo "Targets:"
 	@echo "  make tidy                 - run go mod tidy in workspace modules"
 	@echo "  make test                 - run go test ./... in workspace modules"
+	@echo "  make test-integration     - run integration tests (requires embedded NATS)"
 	@echo "  make build                - build local service binaries into $(BUILD_DIR)/"
 	@echo "  make docker-build         - build docker images for local services"
 	@echo "  make compose-config       - render and validate the compose file"
-	@echo "  make up                   - start the stack (nats + configctl + gateway + ingest + derive + store)"
+	@echo "  make up                   - start the stack (nats + configctl + gateway + ingest + derive + store + execute)"
 	@echo "  make down                 - stop the compose stack"
 	@echo "  make restart              - restart the whole stack or SERVICE=<name>"
 	@echo "  make logs                 - stream logs for the whole stack or SERVICE=<name>"
@@ -85,6 +86,26 @@ test:
 			continue; \
 		fi; \
 		(cd "$$module" && $(GO) test $$packages); \
+	done
+
+test-integration:
+	@echo "Running integration tests (build tag: integration)..."
+	@modules=(); \
+	if [[ -n "$(MODULE)" ]]; then \
+		modules+=("$(MODULE)"); \
+	else \
+		while IFS= read -r module; do \
+			modules+=("$$module"); \
+		done < <(./scripts/utils/list-modules.sh); \
+	fi; \
+	for module in "$${modules[@]}"; do \
+		[[ -z "$$module" ]] && continue; \
+		packages="$$(cd "$$module" && $(GO) list -tags=integration ./... 2>/dev/null || true)"; \
+		if [[ -z "$$packages" ]]; then \
+			continue; \
+		fi; \
+		echo ">>> $$module: $(GO) test -tags=integration ./..."; \
+		(cd "$$module" && $(GO) test -tags=integration -count=1 $$packages); \
 	done
 
 build:

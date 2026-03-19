@@ -28,11 +28,13 @@ type DeriveSupervisor struct {
 	decRegistry        adapternats.DecisionRegistry
 	stratRegistry      adapternats.StrategyRegistry
 	riskRegistry       adapternats.RiskRegistry
+	execRegistry       adapternats.ExecutionRegistry
 	processors         []FamilyProcessor
 	signalProcessors   []SignalFamilyProcessor
 	decisionProcessors []DecisionFamilyProcessor
 	strategyProcessors []StrategyFamilyProcessor
 	riskProcessors     []RiskFamilyProcessor
+	executionProcessors []ExecutionFamilyProcessor
 	sources            map[string]*actor.PID // key: source → SourceScopeActor PID
 	timeframes         []time.Duration
 	publisherTracker   *healthz.Tracker
@@ -89,6 +91,7 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	s.decRegistry = adapternats.DefaultDecisionRegistry()
 	s.stratRegistry = adapternats.DefaultStrategyRegistry()
 	s.riskRegistry = adapternats.DefaultRiskRegistry()
+	s.execRegistry = adapternats.DefaultExecutionRegistry()
 	consumerSpec := adapternats.DeriveObservationConsumer()
 
 	// All available family processors — one entry per evidence type.
@@ -217,9 +220,9 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "position_exposure",
 			ActorPrefix: "risk-position-exposure",
-			NewActor: func(source, symbol string, tf time.Duration, riskPub *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
 				return NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub,
+					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
 				})
 			},
 		},
@@ -230,6 +233,30 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 			s.riskProcessors = append(s.riskProcessors, p)
 		} else {
 			s.logger.Info("risk family processor skipped (not in pipeline.risk_families)",
+				"family", p.Family,
+			)
+		}
+	}
+
+	// Execution family processors — opt-in via pipeline.execution_families.
+	// Unlike evidence families, absent = no execution activation.
+	allExecutionProcessors := []ExecutionFamilyProcessor{
+		{
+			Family:      "paper_order",
+			ActorPrefix: "execution-paper-order",
+			NewActor: func(source, symbol string, tf time.Duration, execPub *actor.PID) actor.Producer {
+				return NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, ExecutionPublisherPID: execPub,
+				})
+			},
+		},
+	}
+
+	for _, p := range allExecutionProcessors {
+		if s.cfg.Pipeline.IsExecutionFamilyEnabled(p.Family) {
+			s.executionProcessors = append(s.executionProcessors, p)
+		} else {
+			s.logger.Info("execution family processor skipped (not in pipeline.execution_families)",
 				"family", p.Family,
 			)
 		}
@@ -277,6 +304,10 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	for i, p := range s.riskProcessors {
 		riskFamilies[i] = p.Family
 	}
+	executionFamilies := make([]string, len(s.executionProcessors))
+	for i, p := range s.executionProcessors {
+		executionFamilies[i] = p.Family
+	}
 
 	activationMode := "all (no pipeline.families configured)"
 	if s.cfg.Pipeline.EnabledFamilies() != nil {
@@ -289,6 +320,7 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		"decision_families", decisionFamilies,
 		"strategy_families", strategyFamilies,
 		"risk_families", riskFamilies,
+		"execution_families", executionFamilies,
 		"timeframes_s", tfSeconds,
 		"consumer", consumerSpec.Durable,
 		"input_stream", consumerSpec.Event.Stream.Name,
@@ -311,14 +343,16 @@ func (s *DeriveSupervisor) ensureSourceScope(c *actor.Context, source string) *a
 		SignalRegistry:     s.sigRegistry,
 		DecisionRegistry:   s.decRegistry,
 		StrategyRegistry:   s.stratRegistry,
-		RiskRegistry:       s.riskRegistry,
-		Timeframes:         s.timeframes,
-		Processors:         s.processors,
-		SignalProcessors:   s.signalProcessors,
-		DecisionProcessors: s.decisionProcessors,
-		StrategyProcessors: s.strategyProcessors,
-		RiskProcessors:     s.riskProcessors,
-		PublisherTracker:   s.publisherTracker,
+		RiskRegistry:        s.riskRegistry,
+		ExecutionRegistry:   s.execRegistry,
+		Timeframes:          s.timeframes,
+		Processors:          s.processors,
+		SignalProcessors:    s.signalProcessors,
+		DecisionProcessors:  s.decisionProcessors,
+		StrategyProcessors:  s.strategyProcessors,
+		RiskProcessors:      s.riskProcessors,
+		ExecutionProcessors: s.executionProcessors,
+		PublisherTracker:    s.publisherTracker,
 	}), childName)
 
 	s.sources[source] = pid

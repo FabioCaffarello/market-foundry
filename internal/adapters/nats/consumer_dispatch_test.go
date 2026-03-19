@@ -66,7 +66,7 @@ func TestObservationConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(reg.TradeReceived, "ingest", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(reg.TradeReceived, "ingest", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -128,7 +128,7 @@ func TestEvidenceConsumer_OnMessage_ValidCandle(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(reg.CandleSampled, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(reg.CandleSampled, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -187,7 +187,7 @@ func TestTradeBurstConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(reg.TradeBurstSampled, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(reg.TradeBurstSampled, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -225,7 +225,7 @@ func TestVolumeConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(reg.VolumeSampled, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(reg.VolumeSampled, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -264,7 +264,7 @@ func TestSignalConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -303,7 +303,7 @@ func TestDecisionConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -342,7 +342,7 @@ func TestStrategyConsumer_OnMessage_ValidEvent(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec.Event, "derive", event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}

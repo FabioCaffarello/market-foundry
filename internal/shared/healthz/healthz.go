@@ -17,6 +17,10 @@ type Tracker struct {
 	name        string
 	lastEventAt atomic.Int64 // unix nanoseconds
 	eventCount  atomic.Int64
+	errorCount  atomic.Int64
+
+	mu      sync.Mutex
+	counters map[string]*atomic.Int64
 }
 
 // NewTracker creates a tracker for the given component name.
@@ -28,6 +32,50 @@ func NewTracker(name string) *Tracker {
 func (t *Tracker) RecordEvent() {
 	t.lastEventAt.Store(time.Now().UnixNano())
 	t.eventCount.Add(1)
+}
+
+// RecordError marks that an error occurred during event processing.
+// This keeps the tracker alive (updates lastEventAt) while separately
+// counting errors for operational visibility.
+func (t *Tracker) RecordError() {
+	t.lastEventAt.Store(time.Now().UnixNano())
+	t.errorCount.Add(1)
+}
+
+// ErrorCount returns how many errors have been recorded.
+func (t *Tracker) ErrorCount() int64 {
+	return t.errorCount.Load()
+}
+
+// Counter returns a named atomic counter, creating it on first access.
+// Use this to expose domain-specific stats (e.g., "filled", "skipped_stale")
+// that will appear in /statusz alongside standard event/error counts.
+func (t *Tracker) Counter(name string) *atomic.Int64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.counters == nil {
+		t.counters = make(map[string]*atomic.Int64)
+	}
+	c, ok := t.counters[name]
+	if !ok {
+		c = &atomic.Int64{}
+		t.counters[name] = c
+	}
+	return c
+}
+
+// Counters returns a snapshot of all custom counters.
+func (t *Tracker) Counters() map[string]int64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.counters) == 0 {
+		return nil
+	}
+	snap := make(map[string]int64, len(t.counters))
+	for k, v := range t.counters {
+		snap[k] = v.Load()
+	}
+	return snap
 }
 
 // Name returns the tracker's component name.
@@ -65,11 +113,13 @@ type ReadinessCheck struct {
 
 // trackerStatus is the JSON representation of a single tracker.
 type trackerStatus struct {
-	Name         string `json:"name"`
-	LastEventAt  string `json:"last_event_at,omitempty"`
-	EventCount   int64  `json:"event_count"`
-	IdleSeconds  int    `json:"idle_seconds,omitempty"`
-	IdleWarning  bool   `json:"idle_warning,omitempty"`
+	Name        string           `json:"name"`
+	LastEventAt string           `json:"last_event_at,omitempty"`
+	EventCount  int64            `json:"event_count"`
+	ErrorCount  int64            `json:"error_count,omitempty"`
+	IdleSeconds int              `json:"idle_seconds,omitempty"`
+	IdleWarning bool             `json:"idle_warning,omitempty"`
+	Counters    map[string]int64 `json:"counters,omitempty"`
 }
 
 // statusResponse is returned by /statusz.
@@ -80,14 +130,14 @@ type statusResponse struct {
 
 // HealthServer provides /healthz, /readyz, and /statusz endpoints.
 type HealthServer struct {
-	addr            string
-	checks          []ReadinessCheck
-	trackers        []*Tracker
-	idleThreshold   time.Duration
-	server          *http.Server
-	logger          *slog.Logger
-	stopHeartbeat   context.CancelFunc
-	heartbeatWg     sync.WaitGroup
+	addr          string
+	checks        []ReadinessCheck
+	trackers      []*Tracker
+	idleThreshold time.Duration
+	server        *http.Server
+	logger        *slog.Logger
+	stopHeartbeat context.CancelFunc
+	heartbeatWg   sync.WaitGroup
 }
 
 // Option configures the HealthServer.
@@ -144,6 +194,25 @@ func (s *HealthServer) Start() error {
 	return err
 }
 
+// StartInBackground starts the health server in a goroutine and logs any
+// startup error. This is the canonical way to launch the health server
+// alongside an actor engine.
+func (s *HealthServer) StartInBackground() {
+	go func() {
+		if err := s.Start(); err != nil {
+			s.logger.Error("health server failed", "error", err)
+		}
+	}()
+}
+
+// GracefulShutdown stops the health server with the given timeout.
+// This is the canonical shutdown companion to StartInBackground.
+func (s *HealthServer) GracefulShutdown(timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return s.Shutdown(ctx)
+}
+
 // Shutdown gracefully stops the health server.
 func (s *HealthServer) Shutdown(ctx context.Context) error {
 	if s.stopHeartbeat != nil {
@@ -184,6 +253,7 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 		ts := trackerStatus{
 			Name:       t.Name(),
 			EventCount: t.EventCount(),
+			ErrorCount: t.ErrorCount(),
 		}
 		if last := t.LastEventAt(); !last.IsZero() {
 			ts.LastEventAt = last.Format(time.RFC3339)
@@ -193,6 +263,7 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 				ts.IdleWarning = true
 			}
 		}
+		ts.Counters = t.Counters()
 		resp.Trackers = append(resp.Trackers, ts)
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -210,7 +281,8 @@ func (s *HealthServer) heartbeatLoop(ctx context.Context) {
 		case <-ticker.C:
 			for _, t := range s.trackers {
 				count := t.EventCount()
-				if count == 0 {
+				errCount := t.ErrorCount()
+				if count == 0 && errCount == 0 {
 					continue // not yet active
 				}
 				idle := t.IdleSince()
@@ -220,6 +292,7 @@ func (s *HealthServer) heartbeatLoop(ctx context.Context) {
 						"idle_seconds", int(idle.Seconds()),
 						"last_event", t.LastEventAt().Format(time.RFC3339),
 						"event_count", count,
+						"error_count", errCount,
 					)
 				}
 			}

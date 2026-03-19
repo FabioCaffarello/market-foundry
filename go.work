@@ -3,6 +3,7 @@ go 1.25.7
 use (
 	./cmd/configctl
 	./cmd/derive
+	./cmd/execute
 	./cmd/gateway
 	./cmd/ingest
 	./cmd/store

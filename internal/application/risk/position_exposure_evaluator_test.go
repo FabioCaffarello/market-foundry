@@ -171,3 +171,91 @@ func TestPositionExposureEvaluator_ParametersPresent(t *testing.T) {
 		t.Error("expected max_portfolio_exposure_pct parameter")
 	}
 }
+
+func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt"}
+	timeframes := []int{60, 300}
+	now := time.Now().UTC()
+
+	results := make(map[string]domainrisk.RiskAssessment)
+
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
+			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tf, now)
+			if !ok {
+				t.Fatalf("expected evaluation to succeed for %s/%d", sym, tf)
+			}
+			key := r.PartitionKey()
+			results[key] = r
+		}
+	}
+
+	// Verify all 4 combinations produced unique results
+	expectedCount := len(symbols) * len(timeframes)
+	if len(results) != expectedCount {
+		t.Fatalf("expected %d unique results, got %d", expectedCount, len(results))
+	}
+
+	// Verify each result has correct symbol and timeframe
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
+			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tf, now)
+			if r.Symbol != sym {
+				t.Errorf("expected symbol %s, got %s", sym, r.Symbol)
+			}
+			if r.Timeframe != tf {
+				t.Errorf("expected timeframe %d, got %d", tf, r.Timeframe)
+			}
+			if prob := r.Validate(); prob != nil {
+				t.Errorf("risk for %s/%d should be valid: %s", sym, tf, prob.Message)
+			}
+		}
+	}
+}
+
+func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
+	now := time.Now().UTC()
+
+	evalBTC := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	evalETH := apprisk.NewPositionExposureEvaluator("binancef", "ethusdt", 60)
+
+	rBTC, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	if !ok {
+		t.Fatal("BTC evaluation should succeed")
+	}
+	rETH, ok := evalETH.Evaluate("mean_reversion_entry", "short", "0.7500", 60, now)
+	if !ok {
+		t.Fatal("ETH evaluation should succeed")
+	}
+
+	// Verify symbol isolation
+	if rBTC.Symbol == rETH.Symbol {
+		t.Fatal("symbols should differ between evaluators")
+	}
+	if rBTC.Symbol != "btcusdt" {
+		t.Errorf("BTC symbol bleed: got %s", rBTC.Symbol)
+	}
+	if rETH.Symbol != "ethusdt" {
+		t.Errorf("ETH symbol bleed: got %s", rETH.Symbol)
+	}
+
+	// Verify partition key isolation
+	if rBTC.PartitionKey() == rETH.PartitionKey() {
+		t.Fatalf("partition keys should differ: %s", rBTC.PartitionKey())
+	}
+
+	// Verify dedup key isolation
+	if rBTC.DeduplicationKey() == rETH.DeduplicationKey() {
+		t.Fatal("dedup keys should differ between symbols")
+	}
+
+	// Verify strategies preserve their respective directions
+	if rBTC.Strategies[0].Direction != "long" {
+		t.Errorf("BTC strategy direction bleed: got %s", rBTC.Strategies[0].Direction)
+	}
+	if rETH.Strategies[0].Direction != "short" {
+		t.Errorf("ETH strategy direction bleed: got %s", rETH.Strategies[0].Direction)
+	}
+}

@@ -136,7 +136,7 @@ services:
       configctl:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -156,7 +156,7 @@ services:
       nats:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -178,7 +178,29 @@ services:
       derive:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  execute:
+    <<: *go-service
+    build:
+      <<: *go-build
+      args:
+        SERVICE: execute
+    image: market-foundry/execute:dev
+    command: ["-config", "/etc/market-foundry/execute.jsonc"]
+    volumes:
+      - ../configs/execute.jsonc:/etc/market-foundry/execute.jsonc:ro
+    depends_on:
+      nats:
+        condition: service_healthy
+      derive:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6

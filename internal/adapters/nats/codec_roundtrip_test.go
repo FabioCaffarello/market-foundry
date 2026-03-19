@@ -49,7 +49,7 @@ func TestCodecRoundtrip_ObservationTradeReceived(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, source, original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, source, original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -102,7 +102,7 @@ func TestCodecRoundtrip_EvidenceCandleSampled(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -153,7 +153,7 @@ func TestCodecRoundtrip_EvidenceTradeBurstSampled(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -193,7 +193,7 @@ func TestCodecRoundtrip_EvidenceVolumeSampled(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -230,7 +230,7 @@ func TestCodecRoundtrip_SignalGenerated(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -274,7 +274,7 @@ func TestCodecRoundtrip_DecisionEvaluated(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -319,7 +319,7 @@ func TestCodecRoundtrip_StrategyResolved(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, "derive", original, original.Metadata.CorrelationID, original.Metadata.CausationID)
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}
@@ -388,7 +388,7 @@ func TestCodecDecode_RejectsWrongType(t *testing.T) {
 		},
 	}
 
-	data, prob := encodeEvent(encodeSpec, "test", event, "")
+	data, prob := encodeEvent(encodeSpec, "test", event, "", "")
 	if prob != nil {
 		t.Fatalf("encode: %v", prob)
 	}

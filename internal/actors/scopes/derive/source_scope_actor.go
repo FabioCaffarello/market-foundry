@@ -55,7 +55,15 @@ type StrategyFamilyProcessor struct {
 type RiskFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, riskPublisherPID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, timeframe time.Duration, riskPublisherPID, scopePID *actor.PID) actor.Producer
+}
+
+// ExecutionFamilyProcessor describes one execution family's processing pipeline within derive.
+// Each execution family gets one evaluator actor per symbol/timeframe combination.
+type ExecutionFamilyProcessor struct {
+	Family      string
+	ActorPrefix string
+	NewActor    func(source, symbol string, timeframe time.Duration, executionPublisherPID *actor.PID) actor.Producer
 }
 
 // SourceScopeConfig holds the configuration for a source scope actor.
@@ -67,12 +75,14 @@ type SourceScopeConfig struct {
 	DecisionRegistry    adapternats.DecisionRegistry
 	StrategyRegistry    adapternats.StrategyRegistry
 	RiskRegistry        adapternats.RiskRegistry
+	ExecutionRegistry   adapternats.ExecutionRegistry
 	Timeframes          []time.Duration
 	Processors          []FamilyProcessor
 	SignalProcessors    []SignalFamilyProcessor
 	DecisionProcessors  []DecisionFamilyProcessor
 	StrategyProcessors  []StrategyFamilyProcessor
 	RiskProcessors      []RiskFamilyProcessor
+	ExecutionProcessors []ExecutionFamilyProcessor
 	PublisherTracker    *healthz.Tracker
 }
 
@@ -89,12 +99,14 @@ type SourceScopeActor struct {
 	signalPublisherPID   *actor.PID
 	decisionPublisherPID *actor.PID
 	strategyPublisherPID *actor.PID
-	riskPublisherPID     *actor.PID
-	samplers             map[string][]*actor.PID // key: symbol → evidence sampler PIDs
-	signalSamplers       map[string][]*actor.PID // key: symbol → signal sampler PIDs
-	decisionEvaluators   map[string][]*actor.PID // key: symbol → decision evaluator PIDs
-	strategyResolvers    map[string][]*actor.PID // key: symbol → strategy resolver PIDs
-	riskEvaluators       map[string][]*actor.PID // key: symbol → risk evaluator PIDs
+	riskPublisherPID      *actor.PID
+	executionPublisherPID *actor.PID
+	samplers              map[string][]*actor.PID // key: symbol → evidence sampler PIDs
+	signalSamplers        map[string][]*actor.PID // key: symbol → signal sampler PIDs
+	decisionEvaluators    map[string][]*actor.PID // key: symbol → decision evaluator PIDs
+	strategyResolvers     map[string][]*actor.PID // key: symbol → strategy resolver PIDs
+	riskEvaluators        map[string][]*actor.PID // key: symbol → risk evaluator PIDs
+	executionEvaluators   map[string][]*actor.PID // key: symbol → execution evaluator PIDs
 }
 
 func NewSourceScopeActor(cfg SourceScopeConfig) actor.Producer {
@@ -106,7 +118,8 @@ func NewSourceScopeActor(cfg SourceScopeConfig) actor.Producer {
 			signalSamplers:     make(map[string][]*actor.PID),
 			decisionEvaluators: make(map[string][]*actor.PID),
 			strategyResolvers:  make(map[string][]*actor.PID),
-			riskEvaluators:     make(map[string][]*actor.PID),
+			riskEvaluators:      make(map[string][]*actor.PID),
+			executionEvaluators: make(map[string][]*actor.PID),
 		}
 	}
 }
@@ -133,6 +146,9 @@ func (a *SourceScopeActor) Receive(c *actor.Context) {
 		for _, pids := range a.riskEvaluators {
 			total += len(pids)
 		}
+		for _, pids := range a.executionEvaluators {
+			total += len(pids)
+		}
 		a.logger.Info("source scope stopped",
 			"symbols", len(a.samplers),
 			"total_samplers", total,
@@ -155,6 +171,9 @@ func (a *SourceScopeActor) Receive(c *actor.Context) {
 
 	case strategyResolvedMessage:
 		a.routeStrategyToRisk(c, msg)
+
+	case riskAssessedMessage:
+		a.routeRiskToExecution(c, msg)
 
 	default:
 		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {
@@ -212,6 +231,16 @@ func (a *SourceScopeActor) start(c *actor.Context) {
 		}), "risk-publisher")
 	}
 
+	// Spawn execution publisher only if execution processors are configured.
+	if len(a.cfg.ExecutionProcessors) > 0 {
+		a.executionPublisherPID = c.SpawnChild(NewExecutionPublisherActor(ExecutionPublisherConfig{
+			URL:      a.cfg.NATSURL,
+			Source:   "derive.execution-publisher." + a.cfg.Source,
+			Registry: a.cfg.ExecutionRegistry,
+			Tracker:  a.cfg.PublisherTracker,
+		}), "execution-publisher")
+	}
+
 	tfSeconds := make([]int, len(a.cfg.Timeframes))
 	for i, tf := range a.cfg.Timeframes {
 		tfSeconds[i] = int(tf.Seconds())
@@ -236,12 +265,17 @@ func (a *SourceScopeActor) start(c *actor.Context) {
 	for i, p := range a.cfg.RiskProcessors {
 		riskFamilies[i] = p.Family
 	}
+	executionFamilies := make([]string, len(a.cfg.ExecutionProcessors))
+	for i, p := range a.cfg.ExecutionProcessors {
+		executionFamilies[i] = p.Family
+	}
 	a.logger.Info("source scope started",
 		"families", families,
 		"signal_families", signalFamilies,
 		"decision_families", decisionFamilies,
 		"strategy_families", strategyFamilies,
 		"risk_families", riskFamilies,
+		"execution_families", executionFamilies,
 		"timeframes_s", tfSeconds,
 	)
 }
@@ -309,12 +343,25 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.RiskProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.riskPublisherPID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.riskPublisherPID, scopePID), name)
 			riskPids = append(riskPids, pid)
 		}
 	}
 	if len(riskPids) > 0 {
 		a.riskEvaluators[symbol] = riskPids
+	}
+
+	// Spawn execution evaluators.
+	var executionPids []*actor.PID
+	for _, proc := range a.cfg.ExecutionProcessors {
+		for _, tf := range a.cfg.Timeframes {
+			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.executionPublisherPID), name)
+			executionPids = append(executionPids, pid)
+		}
+	}
+	if len(executionPids) > 0 {
+		a.executionEvaluators[symbol] = executionPids
 	}
 
 	total := 0
@@ -333,6 +380,9 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, p := range a.riskEvaluators {
 		total += len(p)
 	}
+	for _, p := range a.executionEvaluators {
+		total += len(p)
+	}
 	a.logger.Info("samplers activated",
 		"symbol", symbol,
 		"evidence_families", len(a.cfg.Processors),
@@ -340,6 +390,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 		"decision_families", len(a.cfg.DecisionProcessors),
 		"strategy_families", len(a.cfg.StrategyProcessors),
 		"risk_families", len(a.cfg.RiskProcessors),
+		"execution_families", len(a.cfg.ExecutionProcessors),
 		"timeframe_count", len(a.cfg.Timeframes),
 		"total_samplers", total,
 	)
@@ -396,6 +447,18 @@ func (a *SourceScopeActor) routeDecisionToStrategy(c *actor.Context, msg decisio
 // The strategyResolvedMessage is sent by strategy resolver actors via the scope PID.
 func (a *SourceScopeActor) routeStrategyToRisk(c *actor.Context, msg strategyResolvedMessage) {
 	pids, exists := a.riskEvaluators[msg.Symbol]
+	if !exists {
+		return
+	}
+	for _, pid := range pids {
+		c.Send(pid, msg)
+	}
+}
+
+// routeRiskToExecution fans out risk assessment notifications to execution evaluators.
+// The riskAssessedMessage is sent by risk evaluator actors via the scope PID.
+func (a *SourceScopeActor) routeRiskToExecution(c *actor.Context, msg riskAssessedMessage) {
+	pids, exists := a.executionEvaluators[msg.Symbol]
 	if !exists {
 		return
 	}

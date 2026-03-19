@@ -1,0 +1,37 @@
+{
+  // Execute service: consumes execution intents, submits to venue adapter, publishes fills.
+  // Activation gates: kill switch, staleness guard, domain validation, trace propagation.
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8084"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  // Venue adapter selection. Only "paper_simulator" is allowed until venue activation gate ceremony.
+  // Adding a new venue type requires: activation gate review, adapter implementation, governance update.
+  "venue": {
+    "type": "paper_simulator",
+    // Maximum age before an execution intent is considered stale (30s–600s, default 120s).
+    "staleness_max_age": "120s",
+    // Timeout for venue adapter SubmitOrder calls (1s–60s, default 10s).
+    "submit_timeout": "10s"
+  },
+  "pipeline": {
+    // Execution families consumed by this binary.
+    // Only paper_order is supported — venue_market_order requires activation gate ceremony.
+    "execution_families": ["paper_order"],
+    // Risk family dependency (required for pipeline validation).
+    "risk_families": ["position_exposure"],
+    // Upstream dependencies for risk (transitive validation).
+    "strategy_families": ["mean_reversion_entry"],
+    "decision_families": ["rsi_oversold"],
+    "signal_families": ["rsi"],
+    "families": ["candle", "tradeburst", "volume"]
+  }
+}

@@ -1,0 +1,89 @@
+package execution
+
+import (
+	"fmt"
+	"time"
+
+	domainexec "internal/domain/execution"
+)
+
+// PaperOrderEvaluator translates a risk assessment into a paper order execution intent.
+// Pure application logic — no I/O, no actor references, no NATS dependency.
+// Receives risk values as primitive data (not risk.RiskAssessment structs) per domain isolation.
+type PaperOrderEvaluator struct {
+	source    string
+	symbol    string
+	timeframe int
+}
+
+func NewPaperOrderEvaluator(source, symbol string, timeframe int) *PaperOrderEvaluator {
+	return &PaperOrderEvaluator{
+		source:    source,
+		symbol:    symbol,
+		timeframe: timeframe,
+	}
+}
+
+// Evaluate processes a risk assessment and produces a paper order execution intent.
+// riskDisposition is "approved", "modified", or "rejected".
+// strategyDirection is "long", "short", or "flat".
+// maxPositionPct is the risk-constrained position size (decimal string).
+// Returns an ExecutionIntent and true if evaluation succeeded.
+func (e *PaperOrderEvaluator) Evaluate(
+	riskType, riskDisposition, riskConfidence, maxPositionPct string,
+	strategyDirection, strategyConfidence string,
+	riskTimeframe int,
+	ts time.Time,
+) (domainexec.ExecutionIntent, bool) {
+	// Determine side from disposition + direction.
+	var side domainexec.Side
+	var quantity string
+
+	switch {
+	case riskDisposition == "rejected":
+		side = domainexec.SideNone
+		quantity = "0"
+	case strategyDirection == "flat":
+		side = domainexec.SideNone
+		quantity = "0"
+	case strategyDirection == "long" && (riskDisposition == "approved" || riskDisposition == "modified"):
+		side = domainexec.SideBuy
+		quantity = maxPositionPct
+	case strategyDirection == "short" && (riskDisposition == "approved" || riskDisposition == "modified"):
+		side = domainexec.SideSell
+		quantity = maxPositionPct
+	default:
+		// Unknown direction or disposition — no action.
+		side = domainexec.SideNone
+		quantity = "0"
+	}
+
+	if quantity == "" {
+		quantity = "0"
+	}
+
+	return domainexec.ExecutionIntent{
+		Type:      "paper_order",
+		Source:    e.source,
+		Symbol:    e.symbol,
+		Timeframe: e.timeframe,
+		Side:      side,
+		Quantity:  quantity,
+		Status:    domainexec.StatusSubmitted,
+		Risk: domainexec.RiskInput{
+			Type:        riskType,
+			Disposition: riskDisposition,
+			Confidence:  riskConfidence,
+			Timeframe:   riskTimeframe,
+		},
+		Parameters: map[string]string{
+			"risk_type":           riskType,
+			"risk_disposition":    riskDisposition,
+			"strategy_direction":  strategyDirection,
+			"strategy_confidence": strategyConfidence,
+			"max_position_pct":    fmt.Sprintf("%s", maxPositionPct),
+		},
+		Final:     true,
+		Timestamp: ts,
+	}, true
+}

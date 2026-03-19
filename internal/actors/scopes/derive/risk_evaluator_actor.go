@@ -15,10 +15,11 @@ import (
 
 // RiskEvaluatorConfig holds the configuration for a risk evaluator actor.
 type RiskEvaluatorConfig struct {
-	Source          string
-	Symbol          string
-	Timeframe       time.Duration
+	Source           string
+	Symbol           string
+	Timeframe        time.Duration
 	RiskPublisherPID *actor.PID
+	ScopePID         *actor.PID // for downstream fan-out to execution evaluators
 }
 
 // PositionExposureEvaluatorActor owns a PositionExposureEvaluator and publishes risk assessments.
@@ -76,15 +77,42 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 	}
 
 	event := domainrisk.RiskAssessedEvent{
-		Metadata:       events.NewMetadata().WithCorrelationID(msg.CorrelationID),
+		Metadata: events.NewMetadata().
+			WithCorrelationID(msg.CorrelationID).
+			WithCausationID(msg.CausationID),
 		RiskAssessment: assessment,
 	}
 
 	c.Send(a.cfg.RiskPublisherPID, publishRiskMessage{Event: event})
 
+	// Fan out to execution evaluators via scope.
+	if a.cfg.ScopePID != nil {
+		stratDirection := ""
+		stratConfidence := ""
+		if len(assessment.Strategies) > 0 {
+			stratDirection = assessment.Strategies[0].Direction
+			stratConfidence = assessment.Strategies[0].Confidence
+		}
+		c.Send(a.cfg.ScopePID, riskAssessedMessage{
+			Symbol:             a.cfg.Symbol,
+			RiskType:           assessment.Type,
+			RiskDisposition:    string(assessment.Disposition),
+			RiskConfidence:     assessment.Confidence,
+			MaxPositionPct:     assessment.Constraints.MaxPositionSize,
+			StrategyDirection:  stratDirection,
+			StrategyConfidence: stratConfidence,
+			Timeframe:          assessment.Timeframe,
+			Timestamp:          assessment.Timestamp,
+			CorrelationID:      msg.CorrelationID,
+			CausationID:        event.Metadata.ID,
+		})
+	}
+
 	a.logger.Info("position exposure risk assessed",
 		"disposition", string(assessment.Disposition),
 		"confidence", assessment.Confidence,
 		"timestamp", assessment.Timestamp.Format(time.RFC3339),
+		"correlation_id", msg.CorrelationID,
+		"causation_id", msg.CausationID,
 	)
 }

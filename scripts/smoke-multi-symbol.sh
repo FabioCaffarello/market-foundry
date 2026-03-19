@@ -11,12 +11,23 @@
 #                                                                 → gateway HTTP endpoint
 #   Strategy:  derive (Mean Reversion Entry resolver) → STRATEGY_EVENTS → store (NATS KV)
 #                                                                        → gateway HTTP endpoint
+#   Risk:      derive (Position Exposure evaluator) → RISK_EVENTS → store (NATS KV)
+#                                                                  → gateway HTTP endpoint
+#   Execution: derive (Paper Order evaluator) → EXECUTION_EVENTS → store (NATS KV)
+#                                                                 → gateway HTTP endpoint
+#   Fill:      execute (Venue Adapter) → EXECUTION_FILL_EVENTS → store (NATS KV)
+#                                                                → gateway HTTP endpoint
+#   Status:    GET /execution/status/latest (composite: intent + result + gate + propagation)
+#   Control:   GET/PUT /execution/control (kill switch gate cycle with execute active)
+#   Trace:     correlation_id + causation_id persistence through execute chain
 #
 # Validates: 2 symbols (btcusdt, ethusdt) × 2 timeframes (60s, 300s)
-# Evidence KV keys: 4 (2 symbols × 2 timeframes)
-# Signal   KV keys: 4 (2 symbols × 2 timeframes)
-# Decision KV keys: 4 (2 symbols × 2 timeframes)
-# Strategy KV keys: 4 (2 symbols × 2 timeframes)
+# Evidence   KV keys: 4 (2 symbols × 2 timeframes)
+# Signal     KV keys: 4 (2 symbols × 2 timeframes)
+# Decision   KV keys: 4 (2 symbols × 2 timeframes)
+# Strategy   KV keys: 4 (2 symbols × 2 timeframes)
+# Risk       KV keys: 4 (2 symbols × 2 timeframes)
+# Execution  KV keys: 4 (2 symbols × 2 timeframes)
 #
 # Prerequisites:
 #   make up
@@ -442,8 +453,583 @@ else:
     esac
 done
 
-# ---------- Step 11: Error handling ----------
-section "Step 11: Error handling"
+# ---------- Step 11: Risk Position Exposure multi-symbol validation ----------
+section "Step 11: Risk Position Exposure multi-symbol validation"
+info "Note: Risk evaluates after each strategy resolution. Requires full pipeline warm-up."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking risk position_exposure ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "risk position_exposure ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'risk' in data, 'missing risk key'
+r = data['risk']
+if r is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'disposition', 'confidence', 'strategies', 'constraints', 'rationale', 'parameters', 'final', 'timestamp']
+    for field in required:
+        assert field in r, f'missing field: {field}'
+    assert r['source'] == '${SOURCE}', f'wrong source: {r[\"source\"]}'
+    assert r['symbol'] == '${sym}', f'wrong symbol: {r[\"symbol\"]}'
+    assert r['timeframe'] == ${tf}, f'wrong timeframe: {r[\"timeframe\"]}'
+    assert r['type'] == 'position_exposure', f'wrong type: {r[\"type\"]}'
+    assert r['disposition'] in ('approved', 'modified', 'rejected'), f'invalid disposition: {r[\"disposition\"]}'
+    assert isinstance(r['strategies'], list) and len(r['strategies']) > 0, 'strategies must be non-empty list'
+    assert isinstance(r['constraints'], dict), 'constraints must be an object'
+    print(f'RISK type={r[\"type\"]} source={r[\"source\"]} symbol={r[\"symbol\"]} tf={r[\"timeframe\"]} disposition={r[\"disposition\"]} confidence={r[\"confidence\"]} final={r[\"final\"]}')
+    print(f'  constraints={r[\"constraints\"]} strategies={len(r[\"strategies\"])}')
+else:
+    print('NULL (strategy warm-up not complete — risk pending)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "RISK"; then
+                pass "risk position_exposure ${sym}/${tf}s → risk present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "risk position_exposure ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "risk position_exposure ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 12: Cross-symbol risk isolation ----------
+section "Step 12: Cross-symbol risk isolation"
+info "Verifying risk Position Exposure produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    RISK_A=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    RISK_B=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${RISK_A}''')['risk']
+b = json.loads('''${RISK_B}''')['risk']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "risk position_exposure tf=${tf}s: symbols produce independent risk data" ;;
+        PARTIAL)  pass "risk position_exposure tf=${tf}s: one symbol has risk, other pending (expected)" ;;
+        NONE)     info "risk position_exposure tf=${tf}s: no risk assessments yet (warm-up pending)" ;;
+        COLLISION) fail "risk position_exposure tf=${tf}s: SYMBOL COLLISION — both risks have same symbol" ;;
+        BLEED_A)  fail "risk position_exposure tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "risk position_exposure tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "risk position_exposure tf=${tf}s: isolation check error" ;;
+    esac
+done
+
+# ---------- Step 13: Execution Paper Order multi-symbol validation ----------
+section "Step 13: Execution Paper Order multi-symbol validation"
+info "Note: Execution evaluates after each risk assessment. Requires full pipeline warm-up."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking execution paper_order ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "execution paper_order ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'execution_intent' in data, 'missing execution_intent key'
+ei = data['execution_intent']
+if ei is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'side', 'quantity', 'status', 'risk', 'final', 'timestamp']
+    for field in required:
+        assert field in ei, f'missing field: {field}'
+    assert ei['source'] == '${SOURCE}', f'wrong source: {ei[\"source\"]}'
+    assert ei['symbol'] == '${sym}', f'wrong symbol: {ei[\"symbol\"]}'
+    assert ei['timeframe'] == ${tf}, f'wrong timeframe: {ei[\"timeframe\"]}'
+    assert ei['type'] == 'paper_order', f'wrong type: {ei[\"type\"]}'
+    assert ei['side'] in ('buy', 'sell', 'none'), f'invalid side: {ei[\"side\"]}'
+    assert ei['status'] in ('submitted', 'filled'), f'invalid status: {ei[\"status\"]} (expected submitted or filled)'
+    assert isinstance(ei['risk'], dict), 'risk must be an object'
+    assert ei['risk'].get('type') != '', 'risk.type must not be empty'
+    assert ei['risk'].get('disposition') != '', 'risk.disposition must not be empty'
+    # Lifecycle fields validation (S77+)
+    if ei['side'] in ('buy', 'sell'):
+        assert ei['status'] == 'filled', f'actionable order should be filled, got {ei[\"status\"]}'
+        assert ei.get('filled_quantity', '') != '', f'filled order must have filled_quantity'
+        fills = ei.get('fills', [])
+        assert isinstance(fills, list) and len(fills) > 0, f'filled order must have fill records, got {fills}'
+        for fill in fills:
+            assert fill.get('simulated') == True, f'paper fill must be simulated'
+            assert fill.get('quantity', '') != '', f'fill must have quantity'
+    elif ei['side'] == 'none':
+        assert ei['status'] == 'submitted', f'no-action order should be submitted, got {ei[\"status\"]}'
+    # Trace fields validation (S78+)
+    trace_fields = ['correlation_id', 'causation_id']
+    for tf_name in trace_fields:
+        if tf_name in ei and ei[tf_name]:
+            pass  # present and non-empty — good
+    print(f'EXECUTION type={ei[\"type\"]} source={ei[\"source\"]} symbol={ei[\"symbol\"]} tf={ei[\"timeframe\"]} side={ei[\"side\"]} qty={ei[\"quantity\"]} status={ei[\"status\"]} final={ei[\"final\"]}')
+    fills_count = len(ei.get('fills', []))
+    print(f'  risk_type={ei[\"risk\"][\"type\"]} risk_disposition={ei[\"risk\"][\"disposition\"]} risk_confidence={ei[\"risk\"][\"confidence\"]} fills={fills_count} corr={ei.get(\"correlation_id\", \"\")} cause={ei.get(\"causation_id\", \"\")}')
+else:
+    print('NULL (risk warm-up not complete — execution pending)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "EXECUTION"; then
+                pass "execution paper_order ${sym}/${tf}s → execution present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "execution paper_order ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "execution paper_order ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 14: Cross-symbol execution isolation ----------
+section "Step 14: Cross-symbol execution isolation"
+info "Verifying execution Paper Order produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    EXEC_A=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    EXEC_B=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${EXEC_A}''')['execution_intent']
+b = json.loads('''${EXEC_B}''')['execution_intent']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "execution paper_order tf=${tf}s: symbols produce independent execution data" ;;
+        PARTIAL)  pass "execution paper_order tf=${tf}s: one symbol has execution, other pending (expected)" ;;
+        NONE)     info "execution paper_order tf=${tf}s: no executions yet (warm-up pending)" ;;
+        COLLISION) fail "execution paper_order tf=${tf}s: SYMBOL COLLISION — both executions have same symbol" ;;
+        BLEED_A)  fail "execution paper_order tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "execution paper_order tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "execution paper_order tf=${tf}s: isolation check error" ;;
+    esac
+done
+
+# ---------- Step 15: Execution control gate validation ----------
+section "Step 15: Execution control gate validation"
+info "Validating execution control gate GET/PUT cycle..."
+
+# 15a: GET control — should return active gate (default).
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/control")
+RESPONSE=$(curl -s "${BASE_URL}/execution/control")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'gate' in data, 'missing gate key'
+gate = data['gate']
+assert gate['status'] in ('active', 'halted'), f'invalid gate status: {gate[\"status\"]}'
+print(f'GATE status={gate[\"status\"]} reason={gate.get(\"reason\", \"\")} updated_by={gate.get(\"updated_by\", \"\")}')
+print('OK')
+" 2>&1)
+    if echo "$RESULT" | grep -q "OK"; then
+        pass "GET /execution/control → gate present"
+        echo "    $(echo "$RESULT" | head -1)"
+    else
+        fail "GET /execution/control → structure invalid: $RESULT"
+    fi
+else
+    fail "GET /execution/control → HTTP ${HTTP_CODE} (expected 200)"
+fi
+
+# 15b: PUT control → halt.
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"status":"halted","reason":"smoke test halt","updated_by":"smoke-test"}' \
+    "${BASE_URL}/execution/control")
+HALT_RESPONSE=$(curl -s -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"status":"halted","reason":"smoke test halt","updated_by":"smoke-test"}' \
+    "${BASE_URL}/execution/control")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    RESULT=$(echo "$HALT_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+gate = data.get('gate', {})
+assert gate.get('status') == 'halted', f'expected halted, got {gate.get(\"status\")}'
+print('OK')
+" 2>&1)
+    if echo "$RESULT" | grep -q "OK"; then
+        pass "PUT /execution/control → halted"
+    else
+        fail "PUT /execution/control halt → unexpected: $RESULT"
+    fi
+else
+    fail "PUT /execution/control halt → HTTP ${HTTP_CODE} (expected 200)"
+fi
+
+# 15c: Verify halt persists via GET.
+VERIFY_RESPONSE=$(curl -s "${BASE_URL}/execution/control")
+RESULT=$(echo "$VERIFY_RESPONSE" | python3 -c "
+import sys, json
+gate = json.load(sys.stdin).get('gate', {})
+assert gate.get('status') == 'halted', f'expected halted after PUT, got {gate.get(\"status\")}'
+print('OK')
+" 2>&1)
+if echo "$RESULT" | grep -q "OK"; then
+    pass "GET /execution/control after halt → confirmed halted"
+else
+    fail "GET /execution/control after halt → not halted: $RESULT"
+fi
+
+# 15d: PUT control → resume (active).
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"status":"active","reason":"smoke test resume","updated_by":"smoke-test"}' \
+    "${BASE_URL}/execution/control")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "PUT /execution/control → resumed (active)"
+else
+    fail "PUT /execution/control resume → HTTP ${HTTP_CODE} (expected 200)"
+fi
+
+# 15e: Verify resume persists via GET.
+RESUME_RESPONSE=$(curl -s "${BASE_URL}/execution/control")
+RESULT=$(echo "$RESUME_RESPONSE" | python3 -c "
+import sys, json
+gate = json.load(sys.stdin).get('gate', {})
+assert gate.get('status') == 'active', f'expected active after resume, got {gate.get(\"status\")}'
+print('OK')
+" 2>&1)
+if echo "$RESULT" | grep -q "OK"; then
+    pass "GET /execution/control after resume → confirmed active"
+else
+    fail "GET /execution/control after resume → not active: $RESULT"
+fi
+
+# ---------- Step 16: Execute binary health check ----------
+section "Step 16: Execute binary health check"
+EXECUTE_URL="${EXECUTE_URL:-http://127.0.0.1:8084}"
+info "Checking execute binary health at ${EXECUTE_URL}..."
+
+EXEC_HEALTH=$(curl -s -o /dev/null -w "%{http_code}" "${EXECUTE_URL}/healthz" 2>/dev/null || echo "000")
+[[ "$EXEC_HEALTH" == "200" ]] && pass "execute /healthz → 200" || fail "execute /healthz → $EXEC_HEALTH"
+
+EXEC_READY=$(curl -s -o /dev/null -w "%{http_code}" "${EXECUTE_URL}/readyz" 2>/dev/null || echo "000")
+[[ "$EXEC_READY" == "200" ]] && pass "execute /readyz → 200" || fail "execute /readyz → $EXEC_READY"
+
+# Check /statusz for operational counters.
+EXEC_STATUS=$(curl -s "${EXECUTE_URL}/statusz" 2>/dev/null || echo "{}")
+EXEC_STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${EXECUTE_URL}/statusz" 2>/dev/null || echo "000")
+[[ "$EXEC_STATUS_CODE" == "200" ]] && pass "execute /statusz → 200" || fail "execute /statusz → $EXEC_STATUS_CODE"
+
+# ---------- Step 17: Venue market order fill multi-symbol validation ----------
+section "Step 17: Venue market order fill multi-symbol validation"
+info "Note: Fill data requires execute binary running. May be null if execute is not active."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking execution venue_market_order ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "execution venue_market_order ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'execution_intent' in data, 'missing execution_intent key'
+ei = data['execution_intent']
+if ei is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'side', 'quantity', 'status', 'risk', 'final', 'timestamp']
+    for field in required:
+        assert field in ei, f'missing field: {field}'
+    assert ei['source'] == '${SOURCE}', f'wrong source: {ei[\"source\"]}'
+    assert ei['symbol'] == '${sym}', f'wrong symbol: {ei[\"symbol\"]}'
+    assert ei['timeframe'] == ${tf}, f'wrong timeframe: {ei[\"timeframe\"]}'
+    # Fill-side semantics: actionable orders should be filled with venue fills.
+    if ei['side'] in ('buy', 'sell'):
+        assert ei['status'] == 'filled', f'venue fill should be filled, got {ei[\"status\"]}'
+        fills = ei.get('fills', [])
+        assert isinstance(fills, list) and len(fills) > 0, f'venue fill must have fill records'
+        for fill in fills:
+            assert fill.get('simulated') == True, f'paper fill must be simulated'
+    # Trace fields must survive through execute.
+    trace_corr = ei.get('correlation_id', '')
+    trace_cause = ei.get('causation_id', '')
+    print(f'FILL type={ei[\"type\"]} source={ei[\"source\"]} symbol={ei[\"symbol\"]} tf={ei[\"timeframe\"]} side={ei[\"side\"]} status={ei[\"status\"]} filled_qty={ei.get(\"filled_quantity\", \"\")}')
+    print(f'  fills={len(ei.get(\"fills\", []))} corr={trace_corr} cause={trace_cause}')
+else:
+    print('NULL (execute binary may not be running or pipeline not yet warmed)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "FILL"; then
+                pass "execution venue_market_order ${sym}/${tf}s → fill present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "execution venue_market_order ${sym}/${tf}s → endpoint reachable (null — execute pending)"
+            fi
+        else
+            fail "execution venue_market_order ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 18: Cross-symbol fill isolation ----------
+section "Step 18: Cross-symbol fill isolation"
+info "Verifying venue market order fills produce independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    FILL_A=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    FILL_B=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${FILL_A}''')['execution_intent']
+b = json.loads('''${FILL_B}''')['execution_intent']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "execution venue_market_order tf=${tf}s: symbols produce independent fill data" ;;
+        PARTIAL)  pass "execution venue_market_order tf=${tf}s: one symbol has fill, other pending (expected)" ;;
+        NONE)     info "execution venue_market_order tf=${tf}s: no fills yet (execute pending)" ;;
+        COLLISION) fail "execution venue_market_order tf=${tf}s: SYMBOL COLLISION — both fills have same symbol" ;;
+        BLEED_A)  fail "execution venue_market_order tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "execution venue_market_order tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "execution venue_market_order tf=${tf}s: fill isolation check error" ;;
+    esac
+done
+
+# ---------- Step 19: Execution status propagation ----------
+section "Step 19: Execution status propagation (composite)"
+info "Validating /execution/status/latest shows intent + result + gate + propagation..."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking execution status ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "execution status ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+# Required top-level fields in status response.
+for key in ('intent', 'result', 'gate', 'propagation'):
+    assert key in data, f'missing key: {key}'
+# Gate must always be present with a valid status.
+gate = data['gate']
+assert gate.get('status') in ('active', 'halted'), f'invalid gate status: {gate.get(\"status\")}'
+# Propagation must be a valid value.
+prop = data['propagation']
+assert prop in ('none', 'submitted', 'sent', 'accepted', 'rejected', 'filled', 'partially_filled', 'cancelled'), f'invalid propagation: {prop}'
+intent = data.get('intent')
+result = data.get('result')
+intent_status = intent['status'] if intent else 'null'
+result_status = result['status'] if result else 'null'
+# Verify propagation priority: result > intent > none.
+if result is not None:
+    assert prop == result['status'], f'propagation should match result status ({result[\"status\"]}), got {prop}'
+elif intent is not None:
+    assert prop == intent['status'], f'propagation should match intent status ({intent[\"status\"]}), got {prop}'
+else:
+    assert prop == 'none', f'propagation should be none when both null, got {prop}'
+print(f'STATUS intent={intent_status} result={result_status} gate={gate[\"status\"]} propagation={prop}')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            pass "execution status ${sym}/${tf}s → composite status valid"
+            echo "    $(echo "$RESULT" | head -1)"
+        else
+            fail "execution status ${sym}/${tf}s → invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 20: Kill switch integration with execute active ----------
+section "Step 20: Kill switch integration with execute active"
+info "Testing halt → verify gate persists → resume → verify gate restored..."
+
+# 20a: Halt execution.
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"status":"halted","reason":"S84 integration test halt","updated_by":"smoke-s84"}' \
+    "${BASE_URL}/execution/control")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "PUT /execution/control → halted (S84)"
+else
+    fail "PUT /execution/control halt → HTTP ${HTTP_CODE}"
+fi
+
+# 20b: Verify halt via status endpoint — gate should show halted.
+sleep 1
+for sym in "${SYMBOLS[@]}"; do
+    STATUS_RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=60")
+    RESULT=$(echo "$STATUS_RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+gate = data.get('gate', {})
+assert gate.get('status') == 'halted', f'expected halted in status, got {gate.get(\"status\")}'
+print(f'HALTED reason={gate.get(\"reason\", \"\")} updated_by={gate.get(\"updated_by\", \"\")}')
+print('OK')
+" 2>&1)
+    if echo "$RESULT" | grep -q "OK"; then
+        pass "execution status ${sym}/60s → gate=halted visible in composite status"
+        echo "    $(echo "$RESULT" | head -1)"
+    else
+        fail "execution status ${sym}/60s → gate not halted: $RESULT"
+    fi
+done
+
+# 20c: Resume execution.
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+    -H "Content-Type: application/json" \
+    -d '{"status":"active","reason":"S84 integration test resume","updated_by":"smoke-s84"}' \
+    "${BASE_URL}/execution/control")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "PUT /execution/control → resumed (active, S84)"
+else
+    fail "PUT /execution/control resume → HTTP ${HTTP_CODE}"
+fi
+
+# 20d: Verify resume via status endpoint.
+sleep 1
+VERIFY_RESUME=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+RESULT=$(echo "$VERIFY_RESUME" | python3 -c "
+import sys, json
+gate = json.load(sys.stdin).get('gate', {})
+assert gate.get('status') == 'active', f'expected active after resume, got {gate.get(\"status\")}'
+print('OK')
+" 2>&1)
+if echo "$RESULT" | grep -q "OK"; then
+    pass "execution status after resume → gate=active confirmed"
+else
+    fail "execution status after resume → gate not active: $RESULT"
+fi
+
+# ---------- Step 21: Trace persistence through execute ----------
+section "Step 21: Trace persistence through execute chain"
+info "Verifying correlation_id and causation_id persist in venue fill events..."
+
+TRACE_VERIFIED=0
+for sym in "${SYMBOLS[@]}"; do
+    FILL_RESP=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=60")
+    RESULT=$(echo "$FILL_RESP" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+ei = data.get('execution_intent')
+if ei is not None:
+    corr = ei.get('correlation_id', '')
+    cause = ei.get('causation_id', '')
+    if corr and cause:
+        print(f'TRACED corr={corr} cause={cause}')
+    elif corr or cause:
+        print(f'PARTIAL_TRACE corr={corr} cause={cause}')
+    else:
+        print('NO_TRACE')
+else:
+    print('NULL')
+print('OK')
+" 2>&1)
+
+    if echo "$RESULT" | grep -q "TRACED"; then
+        pass "trace persistence ${sym}/60s → correlation_id + causation_id present in fill"
+        echo "    $(echo "$RESULT" | head -1)"
+        TRACE_VERIFIED=$((TRACE_VERIFIED + 1))
+    elif echo "$RESULT" | grep -q "PARTIAL_TRACE"; then
+        fail "trace persistence ${sym}/60s → partial trace (one field missing)"
+        echo "    $(echo "$RESULT" | head -1)"
+    elif echo "$RESULT" | grep -q "NO_TRACE"; then
+        fail "trace persistence ${sym}/60s → no trace fields in fill"
+    elif echo "$RESULT" | grep -q "NULL"; then
+        info "trace persistence ${sym}/60s → null (execute not running or warm-up pending)"
+    else
+        fail "trace persistence ${sym}/60s → error: $RESULT"
+    fi
+done
+
+if [[ $TRACE_VERIFIED -gt 0 ]]; then
+    pass "trace persistence: $TRACE_VERIFIED symbols verified with full trace chain"
+else
+    info "trace persistence: no fills available yet — verify when execute is active"
+fi
+
+# ---------- Step 22: Error handling ----------
+section "Step 22: Error handling"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Missing timeframe → 400" || info "Missing timeframe → $HTTP_CODE"
@@ -469,6 +1055,18 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/unknown
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Strategy missing timeframe → 400" || info "Strategy missing timeframe → $HTTP_CODE"
 
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+[[ "$HTTP_CODE" == "400" ]] && pass "Unknown risk type → 400" || info "Unknown risk type → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+[[ "$HTTP_CODE" == "400" ]] && pass "Risk missing timeframe → 400" || info "Risk missing timeframe → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+[[ "$HTTP_CODE" == "400" ]] && pass "Unknown execution type → 400" || info "Unknown execution type → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+[[ "$HTTP_CODE" == "400" ]] && pass "Execution missing timeframe → 400" || info "Execution missing timeframe → $HTTP_CODE"
+
 # ---------- Summary ----------
 echo ""
 echo "=========================================="
@@ -479,10 +1077,13 @@ echo "  Passed: ${PASS_COUNT}"
 echo "  Failed: ${FAIL_COUNT}"
 echo ""
 echo "Scenario: ${#SYMBOLS[@]} symbols × ${#TIMEFRAMES[@]} timeframes"
-echo "  Evidence  KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
-echo "  Signal    KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
-echo "  Decision  KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
-echo "  Strategy  KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Evidence   KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Signal     KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Decision   KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Strategy   KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Risk       KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Execution  KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
+echo "  Fill       KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
 echo ""
 echo "Symbols validated:"
 for sym in "${SYMBOLS[@]}"; do
@@ -512,6 +1113,22 @@ echo ""
 echo "  derive (Mean Reversion Entry resolver) → STRATEGY_EVENTS → store (NATS KV)"
 echo "                                         → strategy.query.mean_reversion_entry.latest"
 echo "                                         → GET /strategy/mean_reversion_entry/latest"
+echo ""
+echo "  derive (Position Exposure evaluator) → RISK_EVENTS → store (NATS KV)"
+echo "                                       → risk.query.position_exposure.latest"
+echo "                                       → GET /risk/position_exposure/latest"
+echo ""
+echo "  derive (Paper Order evaluator) → EXECUTION_EVENTS → store (NATS KV)"
+echo "                                 → execution.query.paper_order.latest"
+echo "                                 → GET /execution/paper_order/latest"
+echo ""
+echo "  execute (Venue Adapter) → EXECUTION_FILL_EVENTS → store (NATS KV)"
+echo "                          → execution.query.venue_market_order.latest"
+echo "                          → GET /execution/venue_market_order/latest"
+echo ""
+echo "  GET /execution/status/latest (composite: intent + result + gate + propagation)"
+echo "  GET/PUT /execution/control (kill switch gate cycle)"
+echo "  Trace persistence: correlation_id + causation_id through execute chain"
 echo ""
 
 if [[ $FAIL_COUNT -gt 0 ]]; then

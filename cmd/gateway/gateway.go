@@ -100,3 +100,35 @@ func newRiskGateway(config settings.AppConfig) (ports.RiskGateway, func() error,
 	gateway := adapternats.NewRiskGateway(requestClient, "gateway.http")
 	return gateway, requestClient.Close, nil
 }
+
+// newExecutionGateway creates a NATS request/reply client for querying execution projections.
+// Optional: degrades gracefully if the store is not running.
+func newExecutionGateway(config settings.AppConfig) (ports.ExecutionGateway, func() error, *problem.Problem) {
+	if !config.NATS.Enabled {
+		return nil, nil, nil
+	}
+
+	requestClient, err := adapternats.NewNATSRequestClientWithURL(config.NATS.URL, config.NATS.RequestTimeoutDuration())
+	if err != nil {
+		return nil, nil, problem.Wrap(err, problem.Unavailable, "failed to initialize execution request client")
+	}
+
+	gateway := adapternats.NewExecutionGateway(requestClient, "gateway.http")
+	return gateway, requestClient.Close, nil
+}
+
+// newExecutionControlGateway creates a NATS request/reply client for execution control operations.
+// Optional: degrades gracefully if the store is not running.
+func newExecutionControlGateway(config settings.AppConfig) (ports.ExecutionControlGateway, func() error, *problem.Problem) {
+	if !config.NATS.Enabled {
+		return nil, nil, nil
+	}
+
+	requestClient, err := adapternats.NewNATSRequestClientWithURL(config.NATS.URL, config.NATS.RequestTimeoutDuration())
+	if err != nil {
+		return nil, nil, problem.Wrap(err, problem.Unavailable, "failed to initialize execution control request client")
+	}
+
+	gateway := adapternats.NewExecutionControlGateway(requestClient, "gateway.http")
+	return gateway, requestClient.Close, nil
+}

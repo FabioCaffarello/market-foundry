@@ -171,6 +171,55 @@ func TestHealthServer_Statusz_IdleWarning(t *testing.T) {
 	}
 }
 
+func TestTracker_Counters(t *testing.T) {
+	tr := healthz.NewTracker("venue-adapter")
+
+	// Counters are created on first access.
+	tr.Counter("filled").Add(3)
+	tr.Counter("skipped_stale").Add(1)
+
+	if tr.Counter("filled").Load() != 3 {
+		t.Fatalf("expected 3, got %d", tr.Counter("filled").Load())
+	}
+
+	snap := tr.Counters()
+	if snap["filled"] != 3 || snap["skipped_stale"] != 1 {
+		t.Fatalf("unexpected counters: %v", snap)
+	}
+}
+
+func TestHealthServer_Statusz_WithCounters(t *testing.T) {
+	tr := healthz.NewTracker("venue-adapter")
+	tr.RecordEvent()
+	tr.Counter("filled").Add(5)
+	tr.Counter("skipped_halt").Add(2)
+
+	srv := healthz.NewHealthServer(":0", nil, []*healthz.Tracker{tr})
+	handler := testHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/statusz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	trackers := resp["trackers"].([]any)
+	first := trackers[0].(map[string]any)
+	counters := first["counters"].(map[string]any)
+	if counters["filled"] != float64(5) {
+		t.Fatalf("expected filled=5, got %v", counters["filled"])
+	}
+	if counters["skipped_halt"] != float64(2) {
+		t.Fatalf("expected skipped_halt=2, got %v", counters["skipped_halt"])
+	}
+}
+
 // testHandler builds an http.Handler from the HealthServer for testing
 // without starting a real listener.
 func testHandler(srv *healthz.HealthServer) http.Handler {

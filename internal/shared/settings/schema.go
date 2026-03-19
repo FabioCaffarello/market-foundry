@@ -11,6 +11,7 @@ type AppConfig struct {
 	Log      LogConfig      `json:"log"`
 	HTTP     HTTPConfig     `json:"http"`
 	NATS     NATSConfig     `json:"nats"`
+	Venue    VenueConfig    `json:"venue"`
 	Pipeline PipelineConfig `json:"pipeline"`
 }
 
@@ -40,6 +41,21 @@ var knownRiskFamilies = map[string]bool{
 	"position_exposure": true,
 }
 
+// knownExecutionFamilies lists the two execution families with distinct ownership:
+//
+//   paper_order:        Paper family — derive-owned intent events (simulated evaluation).
+//                       Stream: EXECUTION_EVENTS. KV: EXECUTION_PAPER_ORDER_LATEST.
+//
+//   venue_market_order: Venue family — execute-owned fill events (venue submission results).
+//                       Stream: EXECUTION_FILL_EVENTS. KV: EXECUTION_VENUE_MARKET_ORDER_LATEST.
+//
+// Both families can be enabled simultaneously. Enabling venue_market_order does NOT
+// disable paper_order — they coexist with independent streams, consumers, and projections.
+var knownExecutionFamilies = map[string]bool{
+	"paper_order":        true,
+	"venue_market_order": true,
+}
+
 // ── Cross-layer dependency rules ────────────────────────────────────
 // Each signal family declares which evidence families it requires.
 // Each decision family declares which signal families it requires.
@@ -61,6 +77,96 @@ var riskDependsOnStrategy = map[string][]string{
 	"position_exposure": {"mean_reversion_entry"},
 }
 
+var executionDependsOnRisk = map[string][]string{
+	"paper_order":        {"position_exposure"},
+	"venue_market_order": {"position_exposure"},
+}
+
+// ── Venue adapter types ───────────────────────────────────────────
+// These are the valid venue adapter types. Only paper_simulator is approved.
+// Adding a new type requires an activation gate ceremony.
+
+type VenueType string
+
+const (
+	VenueTypePaperSimulator         VenueType = "paper_simulator"
+	VenueTypeBinanceFuturesTestnet  VenueType = "binance_futures_testnet"
+)
+
+var knownVenueTypes = map[VenueType]bool{
+	VenueTypePaperSimulator:        true,
+	VenueTypeBinanceFuturesTestnet: true,
+}
+
+// VenueConfig controls venue adapter selection for the execute binary.
+// Optional for binaries that don't submit orders (derive, store, gateway).
+type VenueConfig struct {
+	Type              VenueType `json:"type"`
+	StalenessMaxAge   string    `json:"staleness_max_age,omitempty"`
+	SubmitTimeout     string    `json:"submit_timeout,omitempty"`
+}
+
+// Validate checks that the venue type, if set, is a known value.
+func (v VenueConfig) Validate() *problem.Problem {
+	if v.Type == "" {
+		return nil // optional — not every binary uses venue
+	}
+	var issues []problem.ValidationIssue
+	if !knownVenueTypes[v.Type] {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "venue.type",
+			Message: fmt.Sprintf("unknown venue type %q; allowed: paper_simulator, binance_futures_testnet", v.Type),
+			Value:   string(v.Type),
+		})
+	}
+	if v.StalenessMaxAge != "" {
+		d, err := time.ParseDuration(v.StalenessMaxAge)
+		if err != nil {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.staleness_max_age",
+				Message: "must be a valid duration",
+				Value:   v.StalenessMaxAge,
+			})
+		} else if d < 30*time.Second || d > 600*time.Second {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.staleness_max_age",
+				Message: "must be between 30s and 600s",
+				Value:   v.StalenessMaxAge,
+			})
+		}
+	}
+	if v.SubmitTimeout != "" {
+		d, err := time.ParseDuration(v.SubmitTimeout)
+		if err != nil {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.submit_timeout",
+				Message: "must be a valid duration",
+				Value:   v.SubmitTimeout,
+			})
+		} else if d < 1*time.Second || d > 60*time.Second {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.submit_timeout",
+				Message: "must be between 1s and 60s",
+				Value:   v.SubmitTimeout,
+			})
+		}
+	}
+	if len(issues) == 0 {
+		return nil
+	}
+	return validationProblem("venue config is invalid", issues...)
+}
+
+// StalenessMaxAgeDuration returns the configured staleness max age or the default (120s).
+func (v VenueConfig) StalenessMaxAgeDuration() time.Duration {
+	return parseDurationOrDefault(v.StalenessMaxAge, 120*time.Second)
+}
+
+// SubmitTimeoutDuration returns the configured venue submit timeout or the default (10s).
+func (v VenueConfig) SubmitTimeoutDuration() time.Duration {
+	return parseDurationOrDefault(v.SubmitTimeout, 10*time.Second)
+}
+
 // PipelineConfig holds optional processing parameters used by derive and store.
 type PipelineConfig struct {
 	Timeframes       []int    `json:"timeframes"`
@@ -68,7 +174,8 @@ type PipelineConfig struct {
 	SignalFamilies   []string `json:"signal_families"`
 	DecisionFamilies []string `json:"decision_families"`
 	StrategyFamilies []string `json:"strategy_families"`
-	RiskFamilies     []string `json:"risk_families"`
+	RiskFamilies      []string `json:"risk_families"`
+	ExecutionFamilies []string `json:"execution_families"`
 }
 
 // TimeframeDurations returns the configured timeframes as durations.
@@ -185,6 +292,28 @@ func (p PipelineConfig) EnabledRiskFamilies() []string {
 	}
 	result := make([]string, len(p.RiskFamilies))
 	copy(result, p.RiskFamilies)
+	return result
+}
+
+// IsExecutionFamilyEnabled returns true if the given execution family name is in the configured
+// execution_families list. Like risk families, absent execution_families means NO execution
+// activation (opt-in, not backward-compatible default).
+func (p PipelineConfig) IsExecutionFamilyEnabled(family string) bool {
+	for _, f := range p.ExecutionFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledExecutionFamilies returns the configured execution families list.
+func (p PipelineConfig) EnabledExecutionFamilies() []string {
+	if len(p.ExecutionFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.ExecutionFamilies))
+	copy(result, p.ExecutionFamilies)
 	return result
 }
 
@@ -330,6 +459,35 @@ func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 		}
 	}
 
+	// 10. Reject unknown execution family names.
+	for _, f := range p.ExecutionFamilies {
+		if !knownExecutionFamilies[f] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.execution_families",
+				Message: fmt.Sprintf("unknown execution family %q", f),
+				Value:   f,
+			})
+		}
+	}
+
+	// 11. Execution → risk dependency: each enabled execution must have its
+	//     required risk families enabled.
+	for _, exec := range p.ExecutionFamilies {
+		deps, ok := executionDependsOnRisk[exec]
+		if !ok {
+			continue
+		}
+		for _, rsk := range deps {
+			if !p.IsRiskFamilyEnabled(rsk) {
+				issues = append(issues, problem.ValidationIssue{
+					Field:   "pipeline.execution_families",
+					Message: fmt.Sprintf("execution family %q requires risk family %q to be enabled", exec, rsk),
+					Value:   exec,
+				})
+			}
+		}
+	}
+
 	if len(issues) == 0 {
 		return nil
 	}
@@ -374,6 +532,7 @@ func (c AppConfig) Validate() *problem.Problem {
 	issues = append(issues, extractIssues(c.Log.Validate())...)
 	issues = append(issues, extractIssues(c.HTTP.Validate())...)
 	issues = append(issues, extractIssues(c.NATS.Validate())...)
+	issues = append(issues, extractIssues(c.Venue.Validate())...)
 	issues = append(issues, extractIssues(c.Pipeline.ValidatePipeline())...)
 
 	if len(issues) == 0 {

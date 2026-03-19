@@ -1,5 +1,14 @@
 *.zip
+*.env
 bin
 target
 trace-pack-*
 references
+
+# Compiled service binaries at repo root (build artifacts, not source).
+/configctl
+/derive
+/execute
+/gateway
+/ingest
+/store

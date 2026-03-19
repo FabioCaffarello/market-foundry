@@ -151,3 +151,80 @@ func TestRiskAssessment_DeduplicationKey(t *testing.T) {
 		t.Fatalf("expected suffix %q, got %q", expectedSuffix, got[len(prefix):])
 	}
 }
+
+func TestRiskAssessment_MultiSymbol_PartitionKeyIsolation(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	timeframes := []int{60, 300}
+	keys := make(map[string]string) // partition key → symbol
+
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			r := risk.RiskAssessment{Source: "binancef", Symbol: sym, Timeframe: tf}
+			key := r.PartitionKey()
+			if existing, collision := keys[key]; collision {
+				t.Fatalf("partition key collision: %q used by both %q and %q", key, existing, sym)
+			}
+			keys[key] = sym
+		}
+	}
+
+	expectedCount := len(symbols) * len(timeframes)
+	if len(keys) != expectedCount {
+		t.Fatalf("expected %d unique partition keys, got %d", expectedCount, len(keys))
+	}
+}
+
+func TestRiskAssessment_MultiSymbol_DeduplicationKeyIsolation(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt"}
+	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
+	dedupKeys := make(map[string]string)
+
+	for _, sym := range symbols {
+		r := risk.RiskAssessment{
+			Type:      "position_exposure",
+			Source:    "binancef",
+			Symbol:    sym,
+			Timeframe: 60,
+			Timestamp: ts,
+		}
+		key := r.DeduplicationKey()
+		if existing, collision := dedupKeys[key]; collision {
+			t.Fatalf("dedup key collision: %q used by both %q and %q", key, existing, sym)
+		}
+		dedupKeys[key] = sym
+	}
+
+	if len(dedupKeys) != len(symbols) {
+		t.Fatalf("expected %d unique dedup keys, got %d", len(symbols), len(dedupKeys))
+	}
+}
+
+func TestRiskAssessment_MultiSymbol_NoOwnershipBleed(t *testing.T) {
+	// Verify that two assessments for different symbols maintain independent field values
+	// and no cross-symbol contamination occurs through shared references.
+	r1 := validRisk()
+	r1.Symbol = "btcusdt"
+
+	r2 := validRisk()
+	r2.Symbol = "ethusdt"
+
+	if r1.Symbol == r2.Symbol {
+		t.Fatal("symbols should differ")
+	}
+	if r1.PartitionKey() == r2.PartitionKey() {
+		t.Fatalf("partition keys should differ: %q vs %q", r1.PartitionKey(), r2.PartitionKey())
+	}
+	if r1.Source != r2.Source {
+		t.Fatal("source should be shared across symbols")
+	}
+	if r1.Type != r2.Type {
+		t.Fatal("type should be shared across symbols")
+	}
+	// Validate both independently pass validation
+	if prob := r1.Validate(); prob != nil {
+		t.Fatalf("r1 should be valid: %s", prob.Message)
+	}
+	if prob := r2.Validate(); prob != nil {
+		t.Fatalf("r2 should be valid: %s", prob.Message)
+	}
+}

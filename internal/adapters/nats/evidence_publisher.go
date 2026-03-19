@@ -69,7 +69,7 @@ func (p *EvidencePublisher) PublishCandle(ctx context.Context, event evidence.Ca
 		event.Candle.Timeframe,
 	)
 
-	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}
@@ -102,7 +102,7 @@ func (p *EvidencePublisher) PublishTradeBurst(ctx context.Context, event evidenc
 		event.TradeBurst.Timeframe,
 	)
 
-	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}
@@ -135,7 +135,7 @@ func (p *EvidencePublisher) PublishVolume(ctx context.Context, event evidence.Vo
 		event.Volume.Timeframe,
 	)
 
-	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}

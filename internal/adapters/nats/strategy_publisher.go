@@ -72,7 +72,7 @@ func (p *StrategyPublisher) PublishStrategy(ctx context.Context, event strategy.
 		event.Strategy.Timeframe,
 	)
 
-	data, prob := encodeEvent(*spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(*spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}

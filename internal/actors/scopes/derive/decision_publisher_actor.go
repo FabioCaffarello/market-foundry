@@ -71,6 +71,7 @@ func (a *DecisionPublisherActor) Receive(c *actor.Context) {
 				"source", msg.Event.Decision.Source,
 				"symbol", msg.Event.Decision.Symbol,
 				"timeframe", msg.Event.Decision.Timeframe,
+				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()

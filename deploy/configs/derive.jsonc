@@ -26,6 +26,8 @@
     // Strategy families to resolve from decisions. Opt-in only — absent means no strategy activation.
     "strategy_families": ["mean_reversion_entry"],
     // Risk families to evaluate from strategies. Opt-in only — absent means no risk activation.
-    "risk_families": ["position_exposure"]
+    "risk_families": ["position_exposure"],
+    // Execution families to derive from risk assessments. Opt-in only — absent means no execution activation.
+    "execution_families": ["paper_order"]
   }
 }

@@ -76,8 +76,11 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 		return
 	}
 
+	meta := events.NewMetadata().
+		WithCorrelationID(msg.CorrelationID).
+		WithCausationID(msg.CausationID)
 	event := domaindecision.DecisionEvaluatedEvent{
-		Metadata: events.NewMetadata().WithCorrelationID(msg.CorrelationID),
+		Metadata: meta,
 		Decision: dec,
 	}
 
@@ -93,6 +96,7 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 			Timeframe:          dec.Timeframe,
 			Timestamp:          dec.Timestamp,
 			CorrelationID:      msg.CorrelationID,
+			CausationID:        meta.ID,
 		})
 	}
 
@@ -100,5 +104,7 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 		"outcome", string(dec.Outcome),
 		"confidence", dec.Confidence,
 		"timestamp", dec.Timestamp.Format(time.RFC3339),
+		"correlation_id", msg.CorrelationID,
+		"causation_id", msg.CausationID,
 	)
 }

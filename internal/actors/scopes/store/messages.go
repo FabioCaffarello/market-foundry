@@ -3,6 +3,7 @@ package store
 import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
+	"internal/domain/execution"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -41,4 +42,14 @@ type strategyReceivedMessage struct {
 // riskReceivedMessage is sent from the risk consumer actor to the risk projection actor.
 type riskReceivedMessage struct {
 	Event risk.RiskAssessedEvent
+}
+
+// executionReceivedMessage is sent from the execution consumer actor to the execution projection actor.
+type executionReceivedMessage struct {
+	Event execution.PaperOrderSubmittedEvent
+}
+
+// fillReceivedMessage is sent from the fill consumer actor to the fill projection actor.
+type fillReceivedMessage struct {
+	Event execution.VenueOrderFilledEvent
 }

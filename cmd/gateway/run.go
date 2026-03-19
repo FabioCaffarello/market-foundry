@@ -6,6 +6,7 @@ import (
 	configctlclient "internal/application/configctlclient"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/executionclient"
 	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
@@ -147,6 +148,46 @@ func Run(config settings.AppConfig) {
 		getLatestRiskUseCase = riskclient.NewGetLatestRiskUseCase(riskGateway)
 	}
 
+	// Execution gateway — queries the store binary for execution read models.
+	// Optional: degrades gracefully if the store is not running.
+	execGateway, execCloseFn, execProb := newExecutionGateway(config)
+	if execProb != nil {
+		logger.Warn("execution gateway unavailable", "error", execProb)
+	}
+	if execCloseFn != nil {
+		defer func() {
+			if err := execCloseFn(); err != nil {
+				logger.Error("close execution gateway", "error", err)
+			}
+		}()
+	}
+	var getLatestExecutionUseCase *executionclient.GetLatestExecutionUseCase
+	var getExecutionStatusUseCase *executionclient.GetExecutionStatusUseCase
+	if execGateway != nil {
+		getLatestExecutionUseCase = executionclient.NewGetLatestExecutionUseCase(execGateway)
+		getExecutionStatusUseCase = executionclient.NewGetExecutionStatusUseCase(execGateway)
+	}
+
+	// Execution control gateway — get/set the execution control gate.
+	// Optional: degrades gracefully if the store is not running.
+	execControlGateway, execControlCloseFn, execControlProb := newExecutionControlGateway(config)
+	if execControlProb != nil {
+		logger.Warn("execution control gateway unavailable", "error", execControlProb)
+	}
+	if execControlCloseFn != nil {
+		defer func() {
+			if err := execControlCloseFn(); err != nil {
+				logger.Error("close execution control gateway", "error", err)
+			}
+		}()
+	}
+	var getExecutionControlUseCase *executionclient.GetExecutionControlUseCase
+	var setExecutionControlUseCase *executionclient.SetExecutionControlUseCase
+	if execControlGateway != nil {
+		getExecutionControlUseCase = executionclient.NewGetExecutionControlUseCase(execControlGateway)
+		setExecutionControlUseCase = executionclient.NewSetExecutionControlUseCase(execControlGateway)
+	}
+
 	gatewayRoutes := routes.DefaultRoutes(routes.Dependencies{
 		Readiness:                    newGatewayReadinessChecker(config, gateway, evGateway),
 		CreateDraft:                  createDraftUseCase,
@@ -176,6 +217,12 @@ func Run(config settings.AppConfig) {
 		},
 		Risk: routes.RiskFamilyDeps{
 			GetLatestRisk: getLatestRiskUseCase,
+		},
+		Execution: routes.ExecutionFamilyDeps{
+			GetLatestExecution:  getLatestExecutionUseCase,
+			GetExecutionStatus:  getExecutionStatusUseCase,
+			GetExecutionControl: getExecutionControlUseCase,
+			SetExecutionControl: setExecutionControlUseCase,
 		},
 	})
 

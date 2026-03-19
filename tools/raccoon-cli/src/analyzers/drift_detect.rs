@@ -8,7 +8,7 @@ use super::topology::{self, ComposeTopology, ServiceConfig, SourceTopology};
 // ── Constants ───────────────────────────────────────────────────────
 
 /// The five application binaries in market-foundry.
-const APP_BINARIES: &[&str] = &["configctl", "gateway", "ingest", "derive", "store"];
+const APP_BINARIES: &[&str] = &["configctl", "gateway", "ingest", "derive", "store", "execute"];
 
 /// Infrastructure services (no config file expected).
 const INFRA_SERVICES: &[&str] = &["nats"];
@@ -21,6 +21,9 @@ const CANONICAL_STREAMS: &[&str] = &[
     "SIGNAL_EVENTS",
     "DECISION_EVENTS",
     "STRATEGY_EVENTS",
+    "RISK_EVENTS",
+    "EXECUTION_EVENTS",
+    "EXECUTION_FILL_EVENTS",
 ];
 
 /// Old service names that should no longer appear in active code.
@@ -43,10 +46,6 @@ const PROHIBITED_STREAMS: &[(&str, &str)] = &[
     (
         "PROJECTION_EVENTS",
         "projection notification family is planned but not yet approved for implementation",
-    ),
-    (
-        "RISK_EVENTS",
-        "risk domain governance is active (S63) but implementation begins in S64 — do not add risk code until S64 is formally opened",
     ),
 ];
 
@@ -246,6 +245,84 @@ const RISK_DOMAIN_FILES: &[(&str, &str)] = &[
     ("internal/application/ports/risk.go", "RiskGateway port interface"),
 ];
 
+// ── Execution domain governance constants (S70→S83) ──────────────────
+// Execution governance active from S70. Implementation completed S71→S82.
+// Execute binary governance hardened in S83.
+
+/// Architecture docs specific to the execution domain that must exist.
+const EXECUTION_DOCS: &[&str] = &[
+    "docs/architecture/execution-domain-design.md",
+    "docs/architecture/execution-stream-families.md",
+    "docs/architecture/execution-activation-and-ownership.md",
+    "docs/architecture/execution-query-surface-guidelines.md",
+    "docs/architecture/execution-readiness-review.md",
+    "docs/architecture/execution-entry-prerequisites.md",
+    "docs/architecture/execution-risks-and-blockers.md",
+    "docs/architecture/execute-runtime-and-activation-model.md",
+    "docs/architecture/execute-governance-and-activation-model.md",
+    "docs/architecture/execution-family-separation-after-paper-step.md",
+    "docs/architecture/venue-routing-and-ownership-split.md",
+    "docs/architecture/post-paper-action-boundary-readiness-review.md",
+    "docs/architecture/post-paper-risks-and-blockers.md",
+    "docs/architecture/next-frontier-entry-prerequisites.md",
+    "docs/architecture/pre-venue-fill-reconciliation-model.md",
+    "docs/architecture/async-fill-and-venue-intake-design.md",
+    "docs/architecture/venue-credentials-and-activation-prerequisites.md",
+    "docs/architecture/post-paper-ci-and-validation-baseline.md",
+];
+
+/// Expected execution NATS subjects — all active post-S80.
+const EXECUTION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
+    ("execution.events.paper_order.submitted", "execution event subject — derive publishes finalized paper order intents"),
+    ("execution.query.paper_order.latest", "execution latest query subject — gateway queries store for latest paper order intent"),
+    ("execution.fill.venue_market_order", "fill event subject — execute publishes venue order fill confirmations"),
+    ("execution.query.status.latest", "execution status composite query — gateway queries for combined status"),
+    ("execution.control.get", "execution control gate read — gateway/execute reads kill switch state"),
+    ("execution.control.set", "execution control gate write — gateway sets kill switch state"),
+];
+
+/// Expected execution durable consumers — all active post-S80.
+const EXECUTION_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    ("store-execution-paper-order", "store consumes paper order execution events from EXECUTION_EVENTS for projection"),
+    ("execute-venue-market-order-intake", "execute consumes paper order intents from EXECUTION_EVENTS for venue submission (transitional bridge — paper mode)"),
+    ("store-execution-venue-market-order-fill", "store consumes fill events from EXECUTION_FILL_EVENTS for projection"),
+];
+
+/// Expected execution KV bucket names — all active post-S80.
+const EXECUTION_EXPECTED_BUCKETS: &[(&str, &str)] = &[
+    ("EXECUTION_PAPER_ORDER_LATEST", "stores latest finalized paper order execution intent per partition key"),
+    ("EXECUTION_VENUE_MARKET_ORDER_LATEST", "stores latest venue market order fill per partition key"),
+    ("EXECUTION_CONTROL", "stores global execution control gate (kill switch)"),
+];
+
+/// Expected execution adapter files in internal/adapters/nats/ — all active post-S80.
+const EXECUTION_ADAPTER_FILES: &[(&str, &str)] = &[
+    ("execution_registry.go", "defines EXECUTION_EVENTS and EXECUTION_FILL_EVENTS streams, consumers, and query specs"),
+    ("execution_publisher.go", "publishes execution events and fill events to JetStream"),
+    ("execution_consumer.go", "durable consumer for execution events in store/execute"),
+    ("execution_gateway.go", "gateway adapter for execution NATS request/reply queries"),
+    ("execution_kv_store.go", "KV bucket store for latest execution projections"),
+    ("execution_control_gateway.go", "gateway adapter for execution control gate NATS request/reply"),
+    ("execution_control_kv_store.go", "KV bucket store for execution control gate (kill switch)"),
+];
+
+/// Expected execution domain/application files — all active post-S80.
+const EXECUTION_DOMAIN_FILES: &[(&str, &str)] = &[
+    ("internal/domain/execution/execution.go", "execution domain entity (ExecutionIntent) with Validate(), PartitionKey(), DeduplicationKey()"),
+    ("internal/domain/execution/events.go", "PaperOrderSubmittedEvent and VenueOrderFilledEvent definitions"),
+    ("internal/domain/execution/control.go", "ControlGate domain entity for execution kill switch"),
+    ("internal/application/execution/paper_order_evaluator.go", "paper order evaluator (risk-to-execution)"),
+    ("internal/application/execution/paper_venue_adapter.go", "paper venue adapter (simulated order execution)"),
+    ("internal/application/execution/staleness_guard.go", "staleness guard for execution intent temporal validation"),
+    ("internal/application/executionclient/contracts.go", "execution query/reply contracts"),
+    ("internal/application/executionclient/control_contracts.go", "execution control gate query/reply contracts"),
+    ("internal/application/executionclient/get_latest_execution.go", "GetLatestExecution use case"),
+    ("internal/application/executionclient/get_execution_status.go", "GetExecutionStatus use case"),
+    ("internal/application/executionclient/get_execution_control.go", "GetExecutionControl use case"),
+    ("internal/application/ports/execution.go", "ExecutionGateway and ExecutionControlGateway port interfaces"),
+    ("internal/application/ports/venue.go", "VenuePort interface for venue adapter boundary"),
+];
+
 // ── Public API ──────────────────────────────────────────────────────
 
 pub fn analyze(project_root: &Path) -> Result<Report> {
@@ -284,12 +361,21 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     report.add(check_strategy_config_drift(&evidence));
     report.add(check_strategy_contracts_drift(&evidence));
 
-    // Phase 6: Risk domain governance checks (S63)
-    // Risk docs must exist (S62 output). Premature entry is caught by Phase 2.
-    // Adapter/domain/config/contracts checks are prepared but NOT active —
-    // they will be activated when S64 removes RISK_EVENTS from PROHIBITED_STREAMS.
+    // Phase 6: Risk domain governance checks (S64 — active)
+    // Risk is now implemented. Full drift checks are active.
     report.add(check_risk_docs_drift(&evidence));
-    report.add(check_risk_premature_implementation(&evidence));
+    report.add(check_risk_adapter_drift(&evidence));
+    report.add(check_risk_domain_drift(&evidence));
+    report.add(check_risk_config_drift(&evidence));
+    report.add(check_risk_contracts_drift(&evidence));
+
+    // Phase 7: Execution domain governance checks (S71 — active)
+    // Execution is now implemented. Full drift checks are active.
+    report.add(check_execution_docs_drift(&evidence));
+    report.add(check_execution_adapter_drift(&evidence));
+    report.add(check_execution_domain_drift(&evidence));
+    report.add(check_execution_config_drift(&evidence));
+    report.add(check_execution_contracts_drift(&evidence));
 
     Ok(report)
 }
@@ -1918,121 +2004,40 @@ fn check_risk_docs_drift(evidence: &Evidence) -> CheckResult {
     CheckResult::from_findings("risk-docs-drift", findings)
 }
 
-/// Check risk-premature-implementation: verify no risk implementation files exist yet.
-/// Risk domain is under governance (S63) but implementation begins only in S64.
-fn check_risk_premature_implementation(evidence: &Evidence) -> CheckResult {
+// ── Execution domain governance checks (S70) ─────────────────────────
+
+/// Check execution-docs-drift: verify all required execution architecture docs exist (S69 output).
+fn check_execution_docs_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
-    // Check for premature risk adapter files
-    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
-    for (file, _purpose) in RISK_ADAPTER_FILES {
-        if adapters_dir.join(file).is_file() {
-            findings.push(
-                Finding::error(
-                    "risk-premature-adapter",
-                    format!("risk adapter file found prematurely: internal/adapters/nats/{file}"),
-                )
-                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
-                .with_help(format!("remove internal/adapters/nats/{file} until S64 begins")),
-            );
-        }
-    }
-
-    // Check for premature risk domain files
-    for (file_path, _purpose) in RISK_DOMAIN_FILES {
-        let full = evidence.project_root.join(file_path);
+    for doc_path in EXECUTION_DOCS {
+        let full = evidence.project_root.join(doc_path);
         if full.is_file() {
+            findings.push(Finding::info(
+                "execution-doc-present",
+                format!("execution doc present: {doc_path}"),
+            ));
+        } else {
             findings.push(
                 Finding::error(
-                    "risk-premature-domain",
-                    format!("risk domain file found prematurely: {file_path}"),
+                    "execution-doc-missing",
+                    format!("required execution architecture doc not found: {doc_path}"),
                 )
-                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
-                .with_help(format!("remove {file_path} until S64 begins")),
+                .with_why("execution governance requires canonical design docs (S69) to prevent drift between architecture and future implementation")
+                .with_help(format!("create {doc_path} following the pattern of existing risk/strategy docs")),
             );
         }
     }
 
-    // Check for premature risk actors
-    let risk_actors: &[&str] = &[
-        "internal/actors/scopes/derive/risk_evaluator_actor.go",
-        "internal/actors/scopes/derive/risk_publisher_actor.go",
-        "internal/actors/scopes/store/risk_consumer_actor.go",
-        "internal/actors/scopes/store/risk_projection_actor.go",
-    ];
-
-    for actor_path in risk_actors {
-        let full = evidence.project_root.join(actor_path);
-        if full.is_file() {
-            findings.push(
-                Finding::error(
-                    "risk-premature-actor",
-                    format!("risk actor file found prematurely: {actor_path}"),
-                )
-                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
-                .with_help(format!("remove {actor_path} until S64 begins")),
-            );
-        }
-    }
-
-    // Check for premature risk HTTP files
-    let risk_http: &[&str] = &[
-        "internal/interfaces/http/handlers/risk.go",
-        "internal/interfaces/http/routes/risk.go",
-    ];
-
-    for http_path in risk_http {
-        let full = evidence.project_root.join(http_path);
-        if full.is_file() {
-            findings.push(
-                Finding::error(
-                    "risk-premature-http",
-                    format!("risk HTTP file found prematurely: {http_path}"),
-                )
-                .with_why("risk implementation has not been approved yet — S64 must formally open before risk code is added")
-                .with_help(format!("remove {http_path} until S64 begins")),
-            );
-        }
-    }
-
-    // Check for premature risk config entries
-    let configs_dir = evidence.project_root.join("deploy/configs");
-    for config_name in &["derive.jsonc", "store.jsonc"] {
-        let config_path = configs_dir.join(config_name);
-        if config_path.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&config_path) {
-                if content.contains("risk_families") {
-                    findings.push(
-                        Finding::error(
-                            "risk-premature-config",
-                            format!("{config_name} contains risk_families before S64 approval"),
-                        )
-                        .with_why("risk pipeline activation must wait for S64 to formally open")
-                        .with_help(format!("remove risk_families from deploy/configs/{config_name} until S64 begins")),
-                    );
-                }
-            }
-        }
-    }
-
-    if findings.is_empty() {
-        findings.push(Finding::info(
-            "risk-governance-clean",
-            "no premature risk implementation detected — domain is correctly governed pre-implementation",
-        ));
-    }
-
-    CheckResult::from_findings("risk-premature-implementation", findings)
+    CheckResult::from_findings("execution-docs-drift", findings)
 }
 
-// ── Risk domain drift checks (prepared for S64) ─────────────────────
+// ── Risk domain drift checks (activated S70, risk implemented S64) ────
 // These functions follow the exact same pattern as signal/decision/strategy.
-// They will be activated in analyze() when S64 formally opens risk implementation
-// and RISK_EVENTS is moved from PROHIBITED_STREAMS to CANONICAL_STREAMS.
+// Activated in S70 after risk implementation was completed in S64.
 
 /// Check risk-adapter-drift: verify all expected risk NATS adapter files exist.
-/// Activate in S64.
-#[allow(dead_code)]
+/// Activated in S70 (risk implementation opened in S64).
 fn check_risk_adapter_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
     let adapters_dir = evidence.project_root.join("internal/adapters/nats");
@@ -2059,8 +2064,7 @@ fn check_risk_adapter_drift(evidence: &Evidence) -> CheckResult {
 }
 
 /// Check risk-domain-drift: verify risk domain and application layer files exist.
-/// Activate in S64.
-#[allow(dead_code)]
+/// Activated in S70 (risk implementation opened in S64).
 fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
@@ -2139,8 +2143,7 @@ fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
 }
 
 /// Check risk-config-drift: verify risk_families config alignment between derive and store.
-/// Activate in S64.
-#[allow(dead_code)]
+/// Activated in S70 (risk implementation opened in S64).
 fn check_risk_config_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
@@ -2210,8 +2213,7 @@ fn check_risk_config_drift(evidence: &Evidence) -> CheckResult {
 }
 
 /// Check risk-contracts-drift: verify risk subjects, durables, and KV buckets exist in source.
-/// Activate in S64.
-#[allow(dead_code)]
+/// Activated in S70 (risk implementation opened in S64).
 fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
     let mut findings = Vec::new();
 
@@ -2281,6 +2283,308 @@ fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
     }
 
     CheckResult::from_findings("risk-contracts-drift", findings)
+}
+
+// ── Execution domain drift checks (activated S71, execution implemented S71) ────
+// These functions follow the exact same pattern as signal/decision/strategy/risk.
+// Activated in S71 after execution implementation was completed.
+
+/// Check execution-adapter-drift: verify all expected execution NATS adapter files exist.
+/// Activated in S71 (execution implementation opened in S71).
+fn check_execution_adapter_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+    let adapters_dir = evidence.project_root.join("internal/adapters/nats");
+
+    for (file, purpose) in EXECUTION_ADAPTER_FILES {
+        if adapters_dir.join(file).is_file() {
+            findings.push(Finding::info(
+                "execution-adapter-present",
+                format!("execution adapter present: {file}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-adapter-missing",
+                    format!("execution adapter file missing: internal/adapters/nats/{file}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create internal/adapters/nats/{file} following the risk adapter pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("execution-adapter-drift", findings)
+}
+
+/// Check execution-domain-drift: verify execution domain and application layer files exist.
+/// Activated in S71, hardened in S83 (execute scope actors + control + venue files added).
+fn check_execution_domain_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    for (file_path, purpose) in EXECUTION_DOMAIN_FILES {
+        let full = evidence.project_root.join(file_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "execution-domain-present",
+                format!("execution domain file present: {file_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-domain-missing",
+                    format!("execution domain file missing: {file_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {file_path} following the risk domain pattern")),
+            );
+        }
+    }
+
+    // Verify execution actors exist in derive, store, and execute scopes
+    let execution_actors: &[(&str, &str)] = &[
+        ("internal/actors/scopes/derive/execution_evaluator_actor.go", "derive evaluates risk data to produce execution intents"),
+        ("internal/actors/scopes/derive/execution_publisher_actor.go", "derive publishes execution intents to EXECUTION_EVENTS"),
+        ("internal/actors/scopes/store/execution_consumer_actor.go", "store consumes execution events for projection"),
+        ("internal/actors/scopes/store/execution_projection_actor.go", "store projects execution intents to KV buckets"),
+        ("internal/actors/scopes/execute/execute_supervisor.go", "execute binary root actor — venue adapter lifecycle and consumer wiring"),
+        ("internal/actors/scopes/execute/venue_adapter_actor.go", "execute processes intents through kill switch, staleness guard, and venue port"),
+    ];
+
+    for (actor_path, purpose) in execution_actors {
+        let full = evidence.project_root.join(actor_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "execution-actor-present",
+                format!("execution actor present: {actor_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-actor-missing",
+                    format!("execution actor file missing: {actor_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {actor_path} following the risk actor pattern")),
+            );
+        }
+    }
+
+    // Verify execution HTTP interface exists
+    let execution_http: &[(&str, &str)] = &[
+        ("internal/interfaces/http/handlers/execution.go", "HTTP handler for execution queries"),
+        ("internal/interfaces/http/routes/execution.go", "HTTP route registration for execution endpoints"),
+    ];
+
+    for (http_path, purpose) in execution_http {
+        let full = evidence.project_root.join(http_path);
+        if full.is_file() {
+            findings.push(Finding::info(
+                "execution-http-present",
+                format!("execution HTTP file present: {http_path}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-http-missing",
+                    format!("execution HTTP file missing: {http_path}"),
+                )
+                .with_why(*purpose)
+                .with_help(format!("create {http_path} following the risk HTTP pattern")),
+            );
+        }
+    }
+
+    CheckResult::from_findings("execution-domain-drift", findings)
+}
+
+/// Check execution-config-drift: verify execution_families config alignment between derive, store, and execute.
+/// Activated in S71, hardened in S83 to include execute.jsonc and venue config.
+fn check_execution_config_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let configs_dir = evidence.project_root.join("deploy/configs");
+
+    let has_execution = |name: &str| -> bool {
+        let path = configs_dir.join(name);
+        if path.is_file() {
+            match std::fs::read_to_string(&path) {
+                Ok(content) => content.contains("execution_families"),
+                Err(_) => false,
+            }
+        } else {
+            false
+        }
+    };
+
+    let derive_has = has_execution("derive.jsonc");
+    let store_has = has_execution("store.jsonc");
+    let execute_has = has_execution("execute.jsonc");
+
+    // derive ↔ store symmetry
+    match (derive_has, store_has) {
+        (true, true) => {
+            findings.push(Finding::info(
+                "execution-config-aligned",
+                "both derive.jsonc and store.jsonc declare execution_families",
+            ));
+        }
+        (true, false) => {
+            findings.push(
+                Finding::error(
+                    "execution-config-asymmetry",
+                    "derive.jsonc has execution_families but store.jsonc does not",
+                )
+                .with_why("derive will produce execution events but store won't consume them — events accumulate with no projection")
+                .with_help("add pipeline.execution_families to deploy/configs/store.jsonc"),
+            );
+        }
+        (false, true) => {
+            findings.push(
+                Finding::error(
+                    "execution-config-asymmetry",
+                    "store.jsonc has execution_families but derive.jsonc does not",
+                )
+                .with_why("store consumer will idle because derive isn't producing execution events")
+                .with_help("add pipeline.execution_families to deploy/configs/derive.jsonc"),
+            );
+        }
+        (false, false) => {
+            findings.push(
+                Finding::warning(
+                    "execution-config-absent",
+                    "neither derive.jsonc nor store.jsonc declare execution_families",
+                )
+                .with_why("execution pipeline is inactive")
+                .with_help("add pipeline.execution_families to derive.jsonc and store.jsonc"),
+            );
+        }
+    }
+
+    // execute.jsonc must exist and declare execution_families
+    if !execute_has {
+        let execute_path = configs_dir.join("execute.jsonc");
+        if !execute_path.is_file() {
+            findings.push(
+                Finding::error(
+                    "execution-config-missing-execute",
+                    "deploy/configs/execute.jsonc does not exist",
+                )
+                .with_why("execute binary requires its own config for venue adapter selection and pipeline validation")
+                .with_help("create deploy/configs/execute.jsonc with venue and pipeline sections"),
+            );
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-config-asymmetry",
+                    "execute.jsonc exists but does not declare execution_families",
+                )
+                .with_why("execute binary will not know which execution families to consume")
+                .with_help("add pipeline.execution_families to deploy/configs/execute.jsonc"),
+            );
+        }
+    } else {
+        findings.push(Finding::info(
+            "execution-config-execute-present",
+            "execute.jsonc declares execution_families",
+        ));
+    }
+
+    // Venue config check in execute.jsonc
+    let execute_path = configs_dir.join("execute.jsonc");
+    if execute_path.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&execute_path) {
+            if content.contains("\"venue\"") {
+                findings.push(Finding::info(
+                    "execution-venue-config-present",
+                    "execute.jsonc declares venue adapter configuration",
+                ));
+            } else {
+                findings.push(
+                    Finding::warning(
+                        "execution-venue-config-absent",
+                        "execute.jsonc does not declare venue adapter configuration",
+                    )
+                    .with_why("execute binary uses config-driven venue adapter selection (S83) — absent venue section falls back to paper_simulator")
+                    .with_help("add venue section with type field to deploy/configs/execute.jsonc"),
+                );
+            }
+        }
+    }
+
+    CheckResult::from_findings("execution-config-drift", findings)
+}
+
+/// Check execution-contracts-drift: verify execution subjects, durables, and KV buckets exist in source.
+/// Activated in S71 (execution implementation opened in S71).
+fn check_execution_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("execution-contracts-drift", "source not scanned"),
+    };
+
+    // Check execution subjects exist in source
+    for (subject, purpose) in EXECUTION_EXPECTED_SUBJECTS {
+        let found = source.subjects.iter().any(|s| s.contains(subject));
+        if found {
+            findings.push(Finding::info(
+                "execution-subject-present",
+                format!("execution subject found: {subject}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-subject-missing",
+                    format!("execution subject not found in source: {subject}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/execution_registry.go for subject definitions"),
+            );
+        }
+    }
+
+    // Check execution durable consumers
+    for (durable, purpose) in EXECUTION_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "execution-durable-present",
+                format!("execution durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-durable-missing",
+                    format!("execution durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/execution_registry.go for consumer spec"),
+            );
+        }
+    }
+
+    // Check execution KV bucket names in source
+    let nats_dir = evidence.project_root.join("internal/adapters/nats");
+    for (bucket, purpose) in EXECUTION_EXPECTED_BUCKETS {
+        let found = scan_dir_for_string(&nats_dir, bucket);
+        if found {
+            findings.push(Finding::info(
+                "execution-bucket-present",
+                format!("execution KV bucket found in source: {bucket}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "execution-bucket-missing",
+                    format!("execution KV bucket name not found in source: {bucket}"),
+                )
+                .with_why(*purpose)
+                .with_help("check internal/adapters/nats/execution_kv_store.go for bucket definition"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("execution-contracts-drift", findings)
 }
 
 #[cfg(test)]
@@ -2357,6 +2661,14 @@ mod tests {
             "STRATEGY_EVENTS".into(),
             vec!["strategy.events.>".into()],
         );
+        streams.insert(
+            "RISK_EVENTS".into(),
+            vec!["risk.events.>".into()],
+        );
+        streams.insert(
+            "EXECUTION_EVENTS".into(),
+            vec!["execution.events.>".into()],
+        );
 
         let mut durables = HashMap::new();
         durables.insert(
@@ -2375,6 +2687,18 @@ mod tests {
             "store-decision-rsi-oversold".into(),
             "DECISION_EVENTS".into(),
         );
+        durables.insert(
+            "store-strategy-mean-reversion-entry".into(),
+            "STRATEGY_EVENTS".into(),
+        );
+        durables.insert(
+            "store-risk-position-exposure".into(),
+            "RISK_EVENTS".into(),
+        );
+        durables.insert(
+            "store-execution-paper-order".into(),
+            "EXECUTION_EVENTS".into(),
+        );
 
         let subjects = vec![
             "configctl.events.>".into(),
@@ -2389,6 +2713,15 @@ mod tests {
             "decision.events.>".into(),
             "decision.events.rsi_oversold.evaluated".into(),
             "decision.query.rsi_oversold.latest".into(),
+            "strategy.events.>".into(),
+            "strategy.events.mean_reversion_entry.resolved".into(),
+            "strategy.query.mean_reversion_entry.latest".into(),
+            "risk.events.>".into(),
+            "risk.events.position_exposure.assessed".into(),
+            "risk.query.position_exposure.latest".into(),
+            "execution.events.>".into(),
+            "execution.events.paper_order.submitted".into(),
+            "execution.query.paper_order.latest".into(),
         ];
 
         SourceTopology {

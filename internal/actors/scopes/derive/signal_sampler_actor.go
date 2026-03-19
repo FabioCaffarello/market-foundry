@@ -76,8 +76,9 @@ func (a *RSISignalSamplerActor) onCandleFinalized(c *actor.Context, msg candleFi
 		return
 	}
 
+	meta := events.NewMetadata().WithCorrelationID(msg.CorrelationID)
 	event := domainsignal.SignalGeneratedEvent{
-		Metadata: events.NewMetadata().WithCorrelationID(msg.CorrelationID),
+		Metadata: meta,
 		Signal:   sig,
 	}
 
@@ -92,11 +93,13 @@ func (a *RSISignalSamplerActor) onCandleFinalized(c *actor.Context, msg candleFi
 			Timeframe:     sig.Timeframe,
 			Timestamp:     sig.Timestamp,
 			CorrelationID: msg.CorrelationID,
+			CausationID:   meta.ID,
 		})
 	}
 
 	a.logger.Info("rsi signal generated",
 		"value", sig.Value,
 		"timestamp", sig.Timestamp.Format(time.RFC3339),
+		"correlation_id", msg.CorrelationID,
 	)
 }

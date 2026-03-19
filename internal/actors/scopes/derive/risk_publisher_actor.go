@@ -71,6 +71,7 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 				"source", msg.Event.RiskAssessment.Source,
 				"symbol", msg.Event.RiskAssessment.Symbol,
 				"timeframe", msg.Event.RiskAssessment.Timeframe,
+				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()

@@ -23,6 +23,8 @@
     // Strategy families to project. Opt-in only — absent or empty means no strategy activation.
     "strategy_families": ["mean_reversion_entry"],
     // Risk families to project. Opt-in only — absent or empty means no risk activation.
-    "risk_families": ["position_exposure"]
+    "risk_families": ["position_exposure"],
+    // Execution families to project. Opt-in only — absent or empty means no execution activation.
+    "execution_families": ["paper_order", "venue_market_order"]
   }
 }

@@ -7,6 +7,7 @@ import (
 	configctlcontracts "internal/application/configctl/contracts"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/executionclient"
 	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
@@ -78,6 +79,20 @@ func (r RiskFamilyDeps) HasAny() bool {
 	return r.GetLatestRisk != nil
 }
 
+// ExecutionFamilyDeps groups execution query and control use cases.
+// Adding a new execution operation means adding one field here and one route block in Execution().
+type ExecutionFamilyDeps struct {
+	GetLatestExecution  handlersGetLatestExecutionUseCase
+	GetExecutionStatus  handlersGetExecutionStatusUseCase
+	GetExecutionControl handlersGetExecutionControlUseCase
+	SetExecutionControl handlersSetExecutionControlUseCase
+}
+
+// HasAny reports whether at least one execution use case is available.
+func (e ExecutionFamilyDeps) HasAny() bool {
+	return e.GetLatestExecution != nil || e.GetExecutionStatus != nil || e.GetExecutionControl != nil
+}
+
 type Dependencies struct {
 	Readiness                    handlers.ReadinessChecker
 	CreateDraft                  handlersCreateDraftUseCase
@@ -95,6 +110,7 @@ type Dependencies struct {
 	Decision                     DecisionFamilyDeps
 	Strategy                     StrategyFamilyDeps
 	Risk                         RiskFamilyDeps
+	Execution                    ExecutionFamilyDeps
 }
 
 type handlersCreateDraftUseCase interface {
@@ -169,6 +185,22 @@ type handlersGetLatestRiskUseCase interface {
 	Execute(context.Context, riskclient.RiskLatestQuery) (riskclient.RiskLatestReply, *problem.Problem)
 }
 
+type handlersGetLatestExecutionUseCase interface {
+	Execute(context.Context, executionclient.ExecutionLatestQuery) (executionclient.ExecutionLatestReply, *problem.Problem)
+}
+
+type handlersGetExecutionStatusUseCase interface {
+	Execute(context.Context, executionclient.ExecutionStatusQuery) (executionclient.ExecutionStatusReply, *problem.Problem)
+}
+
+type handlersGetExecutionControlUseCase interface {
+	Execute(context.Context, executionclient.ExecutionControlQuery) (executionclient.ExecutionControlReply, *problem.Problem)
+}
+
+type handlersSetExecutionControlUseCase interface {
+	Execute(context.Context, executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem)
+}
+
 func DefaultRoutes(deps Dependencies) []webserver.Route {
 	readiness := deps.Readiness
 	if readiness == nil {
@@ -200,6 +232,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Risk.HasAny() {
 		routes = append(routes, Risk(deps.Risk)...)
+	}
+	if deps.Execution.HasAny() {
+		routes = append(routes, Execution(deps.Execution)...)
 	}
 	return routes
 }

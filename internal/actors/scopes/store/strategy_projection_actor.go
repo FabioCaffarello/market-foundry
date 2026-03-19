@@ -55,6 +55,7 @@ func (a *StrategyProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -153,6 +154,30 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 			"direction", string(strat.Direction),
 			"confidence", strat.Confidence,
 			"timestamp", strat.Timestamp.Format(time.RFC3339),
+			"correlation_id", msg.Event.Metadata.CorrelationID,
+			"causation_id", msg.Event.Metadata.CausationID,
+		)
+	}
+}
+
+func (a *StrategyProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
 		)
 	}
 }

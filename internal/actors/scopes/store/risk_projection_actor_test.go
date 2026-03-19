@@ -212,6 +212,89 @@ func TestRiskProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
 	}
 }
 
+func TestRiskProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt"}
+	timeframes := []int{60, 300}
+
+	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	tracker := healthz.NewTracker("test")
+	a := riskActor(store, tracker)
+
+	now := time.Now()
+	eventCount := 0
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			assessment := validRiskAssessment(now.Add(time.Duration(eventCount) * time.Minute))
+			assessment.Symbol = sym
+			assessment.Timeframe = tf
+			a.onRisk(riskReceivedMessage{Event: risk.RiskAssessedEvent{RiskAssessment: assessment}})
+			eventCount++
+		}
+	}
+
+	expectedCount := int64(len(symbols) * len(timeframes))
+	if got := a.stats.received.Load(); got != expectedCount {
+		t.Fatalf("expected received=%d, got %d", expectedCount, got)
+	}
+	if got := a.stats.materialized.Load(); got != expectedCount {
+		t.Fatalf("expected materialized=%d, got %d", expectedCount, got)
+	}
+	if store.putCalls != int(expectedCount) {
+		t.Fatalf("expected %d put calls, got %d", expectedCount, store.putCalls)
+	}
+	if got := int64(tracker.EventCount()); got != expectedCount {
+		t.Fatalf("expected tracker count=%d, got %d", expectedCount, got)
+	}
+}
+
+func TestRiskProjection_MultiSymbol_NoBleed_PartitionKeys(t *testing.T) {
+	// Verify that risk assessments for different symbols produce distinct partition keys,
+	// ensuring KV store isolation.
+	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	timeframes := []int{60, 300}
+	keys := make(map[string]string) // partition key → symbol
+
+	now := time.Now()
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			assessment := validRiskAssessment(now)
+			assessment.Symbol = sym
+			assessment.Timeframe = tf
+			key := assessment.PartitionKey()
+			if existing, collision := keys[key]; collision {
+				t.Fatalf("partition key collision: %q used by both %q and %q", key, existing, sym)
+			}
+			keys[key] = sym
+		}
+	}
+
+	expectedCount := len(symbols) * len(timeframes)
+	if len(keys) != expectedCount {
+		t.Fatalf("expected %d unique partition keys, got %d", expectedCount, len(keys))
+	}
+}
+
+func TestRiskProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
+	// Verify that deduplication keys are unique per symbol even at the same timestamp.
+	symbols := []string{"btcusdt", "ethusdt"}
+	ts := time.Now()
+	dedupKeys := make(map[string]string)
+
+	for _, sym := range symbols {
+		assessment := validRiskAssessment(ts)
+		assessment.Symbol = sym
+		key := assessment.DeduplicationKey()
+		if existing, collision := dedupKeys[key]; collision {
+			t.Fatalf("dedup key collision: %q used by both %q and %q", key, existing, sym)
+		}
+		dedupKeys[key] = sym
+	}
+
+	if len(dedupKeys) != len(symbols) {
+		t.Fatalf("expected %d unique dedup keys, got %d", len(symbols), len(dedupKeys))
+	}
+}
+
 func TestRiskProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
 	store := &mockRiskStore{putResult: adapternats.PutWritten}
 	a := riskActor(store, nil)

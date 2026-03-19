@@ -63,7 +63,7 @@ func (p *ObservationPublisher) PublishTrade(ctx context.Context, event observati
 	spec := p.registry.TradeReceived
 	subject := spec.Subject + "." + event.Trade.Source
 
-	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}

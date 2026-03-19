@@ -5,14 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 
+	"time"
+
 	actorcommon "internal/actors/common"
 	adapternats "internal/adapters/nats"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
+	"internal/application/executionclient"
 	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/domain/evidence"
+	"internal/domain/execution"
 	"internal/shared/problem"
 
 	"github.com/anthdm/hollywood/actor"
@@ -26,7 +30,8 @@ type QueryResponderConfig struct {
 	SignalRegistry   *adapternats.SignalRegistry   // nil when no signal families are enabled
 	DecisionRegistry *adapternats.DecisionRegistry // nil when no decision families are enabled
 	StrategyRegistry *adapternats.StrategyRegistry // nil when no strategy families are enabled
-	RiskRegistry     *adapternats.RiskRegistry     // nil when no risk families are enabled
+	RiskRegistry      *adapternats.RiskRegistry      // nil when no risk families are enabled
+	ExecutionRegistry *adapternats.ExecutionRegistry // nil when no execution families are enabled
 }
 
 // QueryResponderActor serves evidence and signal queries from the NATS KV stores.
@@ -40,7 +45,10 @@ type QueryResponderActor struct {
 	signalRSIStore           *adapternats.SignalKVStore
 	decisionRSIOversoldStore             *adapternats.DecisionKVStore
 	strategyMeanReversionEntryStore      *adapternats.StrategyKVStore
-	riskPositionExposureStore            *adapternats.RiskKVStore
+	riskPositionExposureStore             *adapternats.RiskKVStore
+	executionPaperOrderStore             *adapternats.ExecutionKVStore
+	executionVenueMarketOrderStore       *adapternats.ExecutionKVStore
+	executionControlStore                *adapternats.ExecutionControlKVStore
 	responder                            *adapternats.RequestReplyResponder
 }
 
@@ -98,6 +106,21 @@ func (a *QueryResponderActor) Receive(c *actor.Context) {
 		if a.riskPositionExposureStore != nil {
 			if err := a.riskPositionExposureStore.Close(); err != nil {
 				a.logger.Error("close risk position exposure query KV store", "error", err)
+			}
+		}
+		if a.executionPaperOrderStore != nil {
+			if err := a.executionPaperOrderStore.Close(); err != nil {
+				a.logger.Error("close execution paper order query KV store", "error", err)
+			}
+		}
+		if a.executionVenueMarketOrderStore != nil {
+			if err := a.executionVenueMarketOrderStore.Close(); err != nil {
+				a.logger.Error("close execution venue market order query KV store", "error", err)
+			}
+		}
+		if a.executionControlStore != nil {
+			if err := a.executionControlStore.Close(); err != nil {
+				a.logger.Error("close execution control query KV store", "error", err)
 			}
 		}
 
@@ -228,6 +251,67 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		))
 	}
 
+	// Wire execution query routes if execution families are enabled.
+	if a.cfg.ExecutionRegistry != nil {
+		execStore := adapternats.NewExecutionKVStore(a.cfg.NATSURL, adapternats.ExecutionPaperOrderLatestBucket)
+		if err := execStore.Start(); err != nil {
+			a.logger.Error("start execution paper order query KV store", "error", err)
+			c.Engine().Poison(c.PID())
+			return
+		}
+		a.executionPaperOrderStore = execStore
+
+		routes = append(routes, adapternats.NewTypedControlRoute(
+			a.cfg.ExecutionRegistry.PaperOrderLatest,
+			a.cfg.Source,
+			a.handleExecutionPaperOrderLatest,
+		))
+
+		// Open a read-only KV store connection for venue market order fill queries.
+		venueStore := adapternats.NewExecutionKVStore(a.cfg.NATSURL, adapternats.ExecutionVenueMarketOrderLatestBucket)
+		if err := venueStore.Start(); err != nil {
+			a.logger.Error("start execution venue market order query KV store", "error", err)
+			c.Engine().Poison(c.PID())
+			return
+		}
+		a.executionVenueMarketOrderStore = venueStore
+
+		routes = append(routes, adapternats.NewTypedControlRoute(
+			a.cfg.ExecutionRegistry.VenueMarketOrderLatest,
+			a.cfg.Source,
+			a.handleExecutionVenueMarketOrderLatest,
+		))
+
+		// Wire composite status query (reads both KV stores + control).
+		routes = append(routes, adapternats.NewTypedControlRoute(
+			a.cfg.ExecutionRegistry.StatusLatest,
+			a.cfg.Source,
+			a.handleExecutionStatusLatest,
+		))
+
+		// Wire execution control gate (get + set).
+		controlStore := adapternats.NewExecutionControlKVStore(a.cfg.NATSURL)
+		if err := controlStore.Start(); err != nil {
+			a.logger.Error("start execution control KV store", "error", err)
+			c.Engine().Poison(c.PID())
+			return
+		}
+		a.executionControlStore = controlStore
+
+		routes = append(routes,
+			adapternats.NewTypedControlRoute(
+				a.cfg.ExecutionRegistry.ControlGet,
+				a.cfg.Source,
+				a.handleExecutionControlGet,
+			),
+			adapternats.NewTypedControlRoute(
+				a.cfg.ExecutionRegistry.ControlSet,
+				a.cfg.Source,
+				a.handleExecutionControlSet,
+			),
+		)
+	}
+
 	responder := adapternats.NewRequestReplyResponder(a.cfg.NATSURL, routes)
 	if err := responder.Start(); err != nil {
 		a.logger.Error("start query responder", "error", err)
@@ -269,6 +353,18 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		logFields = append(logFields,
 			"subject_risk_position_exposure_latest", a.cfg.RiskRegistry.PositionExposureLatest.Subject,
 			"bucket_risk_position_exposure_latest", adapternats.RiskPositionExposureLatestBucket,
+		)
+	}
+	if a.cfg.ExecutionRegistry != nil {
+		logFields = append(logFields,
+			"subject_execution_paper_order_latest", a.cfg.ExecutionRegistry.PaperOrderLatest.Subject,
+			"bucket_execution_paper_order_latest", adapternats.ExecutionPaperOrderLatestBucket,
+			"subject_execution_venue_market_order_latest", a.cfg.ExecutionRegistry.VenueMarketOrderLatest.Subject,
+			"bucket_execution_venue_market_order_latest", adapternats.ExecutionVenueMarketOrderLatestBucket,
+			"subject_execution_status_latest", a.cfg.ExecutionRegistry.StatusLatest.Subject,
+			"subject_execution_control_get", a.cfg.ExecutionRegistry.ControlGet.Subject,
+			"subject_execution_control_set", a.cfg.ExecutionRegistry.ControlSet.Subject,
+			"bucket_execution_control", adapternats.ExecutionControlBucket,
 		)
 	}
 	a.logger.Info("query responder started", logFields...)
@@ -348,4 +444,75 @@ func (a *QueryResponderActor) handleRiskPositionExposureLatest(ctx context.Conte
 	}
 
 	return riskclient.RiskLatestReply{RiskAssessment: assessment}, nil
+}
+
+func (a *QueryResponderActor) handleExecutionPaperOrderLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionLatestReply, *problem.Problem) {
+	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return executionclient.ExecutionLatestReply{}, prob
+	}
+
+	return executionclient.ExecutionLatestReply{ExecutionIntent: intent}, nil
+}
+
+func (a *QueryResponderActor) handleExecutionVenueMarketOrderLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionLatestReply, *problem.Problem) {
+	intent, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return executionclient.ExecutionLatestReply{}, prob
+	}
+
+	return executionclient.ExecutionLatestReply{ExecutionIntent: intent}, nil
+}
+
+func (a *QueryResponderActor) handleExecutionControlGet(ctx context.Context, _ executionclient.ExecutionControlQuery) (executionclient.ExecutionControlReply, *problem.Problem) {
+	gate, prob := a.executionControlStore.Get(ctx)
+	if prob != nil {
+		return executionclient.ExecutionControlReply{}, prob
+	}
+	return executionclient.ExecutionControlReply{Gate: gate}, nil
+}
+
+func (a *QueryResponderActor) handleExecutionControlSet(ctx context.Context, cmd executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem) {
+	gate := execution.ControlGate{
+		Status:    execution.GateStatus(cmd.Status),
+		Reason:    cmd.Reason,
+		UpdatedAt: time.Now().UTC(),
+		UpdatedBy: cmd.UpdatedBy,
+	}
+
+	if prob := a.executionControlStore.Put(ctx, gate); prob != nil {
+		return executionclient.ExecutionControlReply{}, prob
+	}
+
+	a.logger.Info("execution control gate updated",
+		"status", cmd.Status,
+		"reason", cmd.Reason,
+		"updated_by", cmd.UpdatedBy,
+	)
+
+	return executionclient.ExecutionControlReply{Gate: gate}, nil
+}
+
+func (a *QueryResponderActor) handleExecutionStatusLatest(ctx context.Context, query executionclient.ExecutionStatusQuery) (executionclient.ExecutionStatusReply, *problem.Problem) {
+	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return executionclient.ExecutionStatusReply{}, prob
+	}
+
+	result, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return executionclient.ExecutionStatusReply{}, prob
+	}
+
+	gate, prob := a.executionControlStore.Get(ctx)
+	if prob != nil {
+		return executionclient.ExecutionStatusReply{}, prob
+	}
+
+	return executionclient.ExecutionStatusReply{
+		Intent:      intent,
+		Result:      result,
+		Gate:        gate,
+		Propagation: executionclient.DeriveEffectivePropagation(intent, result),
+	}, nil
 }

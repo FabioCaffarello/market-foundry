@@ -6,6 +6,7 @@ import (
 	"internal/application/ingest"
 	"internal/domain/decision"
 	"internal/domain/evidence"
+	"internal/domain/execution"
 	"internal/domain/observation"
 	"internal/domain/risk"
 	"internal/domain/signal"
@@ -64,6 +65,7 @@ type signalGeneratedMessage struct {
 	Timeframe     int
 	Timestamp     time.Time
 	CorrelationID string
+	CausationID   string // event ID of the signal that caused this fan-out
 }
 
 // publishDecisionMessage is sent from decision evaluator actors to the decision publisher actor.
@@ -81,6 +83,7 @@ type decisionEvaluatedMessage struct {
 	Timeframe          int
 	Timestamp          time.Time
 	CorrelationID      string
+	CausationID        string // event ID of the decision that caused this fan-out
 }
 
 // publishStrategyMessage is sent from strategy resolver actors to the strategy publisher actor.
@@ -98,9 +101,32 @@ type strategyResolvedMessage struct {
 	Timeframe          int
 	Timestamp          time.Time
 	CorrelationID      string
+	CausationID        string // event ID of the strategy that caused this fan-out
 }
 
 // publishRiskMessage is sent from risk evaluator actors to the risk publisher actor.
 type publishRiskMessage struct {
 	Event risk.RiskAssessedEvent
+}
+
+// riskAssessedMessage is sent from risk evaluator actors to the SourceScopeActor,
+// which fans it out to execution evaluator actors for the matching symbol.
+// Contains primitive data per domain isolation (no risk.RiskAssessment struct).
+type riskAssessedMessage struct {
+	Symbol              string
+	RiskType            string
+	RiskDisposition     string
+	RiskConfidence      string
+	MaxPositionPct      string
+	StrategyDirection   string
+	StrategyConfidence  string
+	Timeframe           int
+	Timestamp           time.Time
+	CorrelationID       string
+	CausationID         string // event ID of the risk assessment that caused this fan-out
+}
+
+// publishExecutionMessage is sent from execution evaluator actors to the execution publisher actor.
+type publishExecutionMessage struct {
+	Event execution.PaperOrderSubmittedEvent
 }

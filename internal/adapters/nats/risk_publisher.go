@@ -72,7 +72,7 @@ func (p *RiskPublisher) PublishRisk(ctx context.Context, event risk.RiskAssessed
 		event.RiskAssessment.Timeframe,
 	)
 
-	data, prob := encodeEvent(*spec, p.source, event, event.Metadata.CorrelationID)
+	data, prob := encodeEvent(*spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
 	if prob != nil {
 		return prob
 	}

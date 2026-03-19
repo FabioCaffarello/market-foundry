@@ -62,7 +62,7 @@ func (p *DomainEventPublisher) Publish(ctx context.Context, event events.Event) 
 	if prob != nil {
 		return prob
 	}
-	data, prob := encodeEvent(spec, p.source, event, event.EventMetadata().CorrelationID)
+	data, prob := encodeEvent(spec, p.source, event, event.EventMetadata().CorrelationID, event.EventMetadata().CausationID)
 	if prob != nil {
 		return prob
 	}

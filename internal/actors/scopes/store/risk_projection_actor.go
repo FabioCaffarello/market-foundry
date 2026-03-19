@@ -156,6 +156,8 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 			"disposition", string(assessment.Disposition),
 			"confidence", assessment.Confidence,
 			"timestamp", assessment.Timestamp.Format(time.RFC3339),
+			"correlation_id", msg.Event.Metadata.CorrelationID,
+			"causation_id", msg.Event.Metadata.CausationID,
 		)
 	}
 }

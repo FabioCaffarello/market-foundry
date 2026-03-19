@@ -82,6 +82,18 @@ type RiskPipeline struct {
 	NewConsumer    func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.RiskRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
 }
 
+// ExecutionPipeline describes one execution type's projection pipeline in the store.
+// Uses ExecutionRegistry for consumers and IsExecutionFamilyEnabled for activation (opt-in).
+type ExecutionPipeline struct {
+	Family         string
+	ProjectionName string
+	ConsumerName   string
+	Buckets        []string
+	ConsumerSpec   adapternats.ConsumerSpec
+	NewProjection  func(natsURL string, tracker *healthz.Tracker) actor.Producer
+	NewConsumer    func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.ExecutionRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
+}
+
 // StoreSupervisor is the root actor for the store binary.
 // It materializes evidence events into a persistent read model (NATS KV)
 // and serves queries from the gateway. Projection pipelines are registered
@@ -379,7 +391,73 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 		}
 	}
 
-	// Spawn query responder (serves evidence, signal, decision, strategy, and risk queries).
+	// --- Execution pipelines (opt-in via pipeline.execution_families) ---
+	execRegistry := adapternats.DefaultExecutionRegistry()
+
+	// Paper Family: materializes paper_order intents from derive.
+	// Venue Family: materializes venue_market_order fills from execute.
+	// Both families have independent consumers, projections, and KV buckets.
+	allExecutionPipelines := []ExecutionPipeline{
+		{
+			Family:         "paper_order",
+			ProjectionName: "execution-paper-order-projection",
+			ConsumerName:   "execution-paper-order-consumer",
+			Buckets:        []string{adapternats.ExecutionPaperOrderLatestBucket},
+			ConsumerSpec:   adapternats.StorePaperOrderExecutionConsumer(),
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewExecutionProjectionActor(ExecutionProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  adapternats.ExecutionPaperOrderLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.ExecutionRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
+				return NewExecutionConsumerActor(ExecutionConsumerConfig{
+					URL: natsURL, ConsumerSpec: spec, Registry: registry, ProjectionPID: projPID, Tracker: tracker,
+				})
+			},
+		},
+		{
+			Family:         "venue_market_order",
+			ProjectionName: "execution-venue-market-order-projection",
+			ConsumerName:   "execution-venue-market-order-consumer",
+			Buckets:        []string{adapternats.ExecutionVenueMarketOrderLatestBucket},
+			ConsumerSpec:   adapternats.StoreVenueMarketOrderFillConsumer(),
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewFillProjectionActor(FillProjectionConfig{
+					NATSURL:      natsURL,
+					Bucket:       adapternats.ExecutionVenueMarketOrderLatestBucket,
+					IntentBucket: adapternats.ExecutionPaperOrderLatestBucket,
+					Tracker:      tracker,
+				})
+			},
+			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, registry adapternats.ExecutionRegistry, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
+				return NewFillConsumerActor(FillConsumerConfig{
+					URL: natsURL, ConsumerSpec: spec, Registry: registry, ProjectionPID: projPID, Tracker: tracker,
+				})
+			},
+		},
+	}
+
+	var enabledExecutionFamilies []string
+	for _, ep := range allExecutionPipelines {
+		if s.cfg.Pipeline.IsExecutionFamilyEnabled(ep.Family) {
+			projTracker := s.trackers[ep.ProjectionName]
+			consTracker := s.trackers[ep.ConsumerName]
+
+			projPID := ctx.SpawnChild(ep.NewProjection(s.cfg.NATS.URL, projTracker), ep.ProjectionName)
+			ctx.SpawnChild(ep.NewConsumer(s.cfg.NATS.URL, ep.ConsumerSpec, execRegistry, projPID, consTracker), ep.ConsumerName)
+
+			allBuckets = append(allBuckets, ep.Buckets...)
+			enabledExecutionFamilies = append(enabledExecutionFamilies, ep.Family)
+		} else {
+			s.logger.Info("execution pipeline skipped (not in pipeline.execution_families)",
+				"family", ep.Family,
+			)
+		}
+	}
+
+	// Spawn query responder (serves evidence, signal, decision, strategy, risk, and execution queries).
 	qrCfg := QueryResponderConfig{
 		NATSURL:  s.cfg.NATS.URL,
 		Source:   "store.query-responder",
@@ -396,6 +474,9 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 	}
 	if len(enabledRiskFamilies) > 0 {
 		qrCfg.RiskRegistry = &riskRegistry
+	}
+	if len(enabledExecutionFamilies) > 0 {
+		qrCfg.ExecutionRegistry = &execRegistry
 	}
 	ctx.SpawnChild(NewQueryResponderActor(qrCfg), "query-responder")
 
@@ -417,6 +498,7 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 		"decision_families", enabledDecisionFamilies,
 		"strategy_families", enabledStrategyFamilies,
 		"risk_families", enabledRiskFamilies,
+		"execution_families", enabledExecutionFamilies,
 		"consumers", durables,
 		"stream", evRegistry.CandleSampled.Stream.Name,
 		"buckets", allBuckets,

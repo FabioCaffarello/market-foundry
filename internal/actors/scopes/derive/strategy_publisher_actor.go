@@ -71,6 +71,7 @@ func (a *StrategyPublisherActor) Receive(c *actor.Context) {
 				"source", msg.Event.Strategy.Source,
 				"symbol", msg.Event.Strategy.Symbol,
 				"timeframe", msg.Event.Strategy.Timeframe,
+				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
