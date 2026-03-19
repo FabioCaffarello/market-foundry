@@ -4,7 +4,7 @@ This file establishes the repository-wide operating contract for AI agents worki
 
 ## Repository Status
 
-**Pre-absorption phase** — sanitized from quality-service origin, prepared for marketmonkey absorption.
+**Post first-slice phase** — sanitized, first vertical slice complete, architectural recentralization done. Prepared for next vertical slice expansion.
 
 ## Default Validation Workflow
 
@@ -51,24 +51,18 @@ Dependencies flow inward only. The raccoon-cli enforces this via `make arch-guar
 | Service | Purpose |
 |---------|---------|
 | configctl | Config lifecycle management (NATS actors) |
-| gateway | HTTP API gateway |
-| nats | Message bus infrastructure |
-
-## Foundation Components
-
-These are preserved as building blocks for the next phase:
-
-- `internal/shared/` — settings, bootstrap, memdb, problem, envelope, events, requestctx
-- `internal/domain/configctl/` — config lifecycle domain
-- `internal/actors/common/` — actor engine, lifecycle management
-- `internal/adapters/nats/` — NATS connection, request/reply, configctl gateway
-- `internal/interfaces/http/` — HTTP webserver, handlers, routing
+| gateway | HTTP API gateway (HTTP↔NATS translator) |
+| ingest | Market data capture: exchange WebSocket → observation events |
+| derive | Evidence derivation: observations → candles, volumes |
+| store | Read model materialization: NATS KV projections |
+| execute | Execution control service |
+| nats | Message bus infrastructure (external) |
 
 ## Prohibited Patterns
 
 Do not reintroduce:
 - Kafka adapters or infrastructure
-- Validator/consumer/emulator services
+- Old quality-service binaries (validator, consumer, emulator)
 - Quality-service naming or identity
 - `.context/` directory structure
 

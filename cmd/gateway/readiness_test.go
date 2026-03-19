@@ -64,6 +64,18 @@ func (s *readinessEvidenceGatewayStub) GetLatestCandle(_ context.Context, _ evid
 	return s.reply, s.prob
 }
 
+func (s *readinessEvidenceGatewayStub) GetCandleHistory(_ context.Context, _ evidenceclient.CandleHistoryQuery) (evidenceclient.CandleHistoryReply, *problem.Problem) {
+	return evidenceclient.CandleHistoryReply{}, nil
+}
+
+func (s *readinessEvidenceGatewayStub) GetLatestTradeBurst(_ context.Context, _ evidenceclient.TradeBurstLatestQuery) (evidenceclient.TradeBurstLatestReply, *problem.Problem) {
+	return evidenceclient.TradeBurstLatestReply{}, nil
+}
+
+func (s *readinessEvidenceGatewayStub) GetLatestVolume(_ context.Context, _ evidenceclient.VolumeLatestQuery) (evidenceclient.VolumeLatestReply, *problem.Problem) {
+	return evidenceclient.VolumeLatestReply{}, nil
+}
+
 func TestGatewayReadinessCheckerPassesWithConfigctl(t *testing.T) {
 	t.Parallel()
 

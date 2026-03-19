@@ -9,6 +9,7 @@ pub struct ServiceConfig {
     /// NATS URL configured for this service.
     pub nats_url: Option<String>,
     /// Source file path.
+    #[allow(dead_code)]
     pub source_file: String,
     /// Evidence families configured in pipeline.families (empty = all enabled).
     pub families: Vec<String>,

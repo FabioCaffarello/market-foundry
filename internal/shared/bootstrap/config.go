@@ -32,7 +32,7 @@ func Initialize(path string) (*Runtime, *problem.Problem) {
 		return nil, prob
 	}
 
-	logger := BuildLogger(cfg.Log)
+	logger := BuildLogger(cfg.Log, "")
 	slog.SetDefault(logger)
 
 	return &Runtime{

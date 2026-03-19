@@ -21,6 +21,7 @@ type SignalProjectionConfig struct {
 }
 
 type signalProjectionStats struct {
+	received        atomic.Int64
 	materialized    atomic.Int64
 	skippedStale    atomic.Int64
 	skippedDedup    atomic.Int64
@@ -54,6 +55,7 @@ func (a *SignalProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -88,6 +90,7 @@ func (a *SignalProjectionActor) start(c *actor.Context) {
 }
 
 func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
+	a.stats.received.Add(1)
 	sig := msg.Event.Signal
 
 	// Gate 1: Only materialize finalized signals.
@@ -115,6 +118,9 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 	result, prob := a.store.Put(ctx, sig)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize signal latest",
 			"error", prob.Message,
 			"type", sig.Type,
@@ -140,6 +146,7 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + sig.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {
@@ -154,9 +161,32 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 	}
 }
 
+func (a *SignalProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
+		)
+	}
+}
+
 func (a *SignalProjectionActor) logStats() {
 	a.logger.Info("signal projection stats",
 		"bucket", a.cfg.Bucket,
+		"received", a.stats.received.Load(),
 		"materialized", a.stats.materialized.Load(),
 		"skipped_stale", a.stats.skippedStale.Load(),
 		"skipped_dedup", a.stats.skippedDedup.Load(),

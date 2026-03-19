@@ -42,7 +42,7 @@ func TestConfigSetLifecycleTransitions(t *testing.T) {
 		t.Fatalf("expected no diagnostics, got %+v", diagnostics)
 	}
 
-	artifact, prob := NewCompilationArtifact("artifact-1", "runtime/v1", "artifact-checksum", "memory://artifacts/core/v1", "validator:v1", "compiler/1", createdAt.Add(2*time.Minute))
+	artifact, prob := NewCompilationArtifact("artifact-1", "runtime/v1", "artifact-checksum", "memory://artifacts/core/v1", "configctl-sync/v1", "compiler/1", createdAt.Add(2*time.Minute))
 	if prob != nil {
 		t.Fatalf("new artifact: %v", prob)
 	}
@@ -109,7 +109,7 @@ func TestConfigSetRejectsInvalidLifecycleTransitions(t *testing.T) {
 		t.Fatalf("new config set: %v", prob)
 	}
 
-	artifact, prob := NewCompilationArtifact("artifact-1", "runtime/v1", "artifact-checksum", "memory://artifacts/core/v1", "validator:v1", "compiler/1", time.Unix(11, 0).UTC())
+	artifact, prob := NewCompilationArtifact("artifact-1", "runtime/v1", "artifact-checksum", "memory://artifacts/core/v1", "configctl-sync/v1", "compiler/1", time.Unix(11, 0).UTC())
 	if prob != nil {
 		t.Fatalf("new artifact: %v", prob)
 	}
@@ -139,9 +139,66 @@ func TestCreateDraftVersionBlocksConcurrentOpenCandidate(t *testing.T) {
 	}
 }
 
+func TestDocumentValidationRejectsInvalidBindingTopicFormat(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		topic string
+		valid bool
+	}{
+		{"binancef.btcusdt", true},
+		{"orders.v1", true},
+		{"source_a.symbol_b", true},
+		{"BINANCEF.BTCUSDT", false},  // uppercase
+		{"binancef", false},           // no dot separator
+		{".btcusdt", false},           // empty source
+		{"binancef.", false},           // empty symbol
+		{"a.b.c", false},              // extra segment (parsed as source=a, symbol=b.c — dot in symbol)
+		{"source name.symbol", false}, // space in source
+	}
+
+	for _, tt := range tests {
+		source := `{
+			"metadata":{"name":"test"},
+			"bindings":[{"name":"b1","topic":"` + tt.topic + `"}],
+			"fields":[{"name":"f1","type":"string"}],
+			"rules":[{"name":"r1","field":"f1","operator":"required"}]
+		}`
+		_, diagnostics, prob := InspectDocument(ConfigSource{Format: FormatJSON, Content: source})
+		if prob != nil {
+			t.Fatalf("topic %q: unexpected problem: %v", tt.topic, prob)
+		}
+		hasDiag := len(diagnostics) > 0
+		if tt.valid && hasDiag {
+			t.Errorf("topic %q: expected valid, got diagnostics: %+v", tt.topic, diagnostics)
+		}
+		if !tt.valid && !hasDiag {
+			t.Errorf("topic %q: expected diagnostics for invalid topic", tt.topic)
+		}
+	}
+}
+
+func TestNewCompilationArtifactRejectsUnknownSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	_, prob := NewCompilationArtifact("a-1", "unknown/v99", "checksum", "memory://ref", "configctl-sync/v1", "c/1", time.Unix(10, 0).UTC())
+	if prob == nil {
+		t.Fatal("expected validation error for unknown schema version")
+	}
+}
+
+func TestNewCompilationArtifactRejectsUnknownRuntimeLoader(t *testing.T) {
+	t.Parallel()
+
+	_, prob := NewCompilationArtifact("a-1", "runtime/v1", "checksum", "memory://ref", "unknown-loader/v1", "c/1", time.Unix(10, 0).UTC())
+	if prob == nil {
+		t.Fatal("expected validation error for unknown runtime loader")
+	}
+}
+
 func validSource() string {
 	return `{
-		"metadata":{"name":"Core Quality Config","description":"baseline quality checks"},
+		"metadata":{"name":"Core Market Config","description":"baseline market checks"},
 		"bindings":[{"name":"orders","topic":"orders.v1"}],
 		"fields":[
 			{"name":"order_id","type":"string","required":true},

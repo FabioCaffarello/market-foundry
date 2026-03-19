@@ -7,7 +7,6 @@ import (
 	"internal/application/decisionclient"
 	"internal/domain/decision"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestDecisionUseCase interface {
@@ -46,8 +45,7 @@ func (h *DecisionWebHandler) GetLatestDecision(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestDecision.Execute(ctx, decisionclient.DecisionLatestQuery{
+	result, prob := h.getLatestDecision.Execute(r.Context(), decisionclient.DecisionLatestQuery{
 		Type:      decisionType,
 		Source:    key.Source,
 		Symbol:    key.Symbol,

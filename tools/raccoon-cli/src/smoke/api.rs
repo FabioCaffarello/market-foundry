@@ -3,7 +3,7 @@ use std::time::Duration;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// HTTP client wrapper for quality-service API calls.
+/// HTTP client wrapper for market-foundry API calls.
 pub struct ApiClient {
     base_url: String,
     correlation_id: String,

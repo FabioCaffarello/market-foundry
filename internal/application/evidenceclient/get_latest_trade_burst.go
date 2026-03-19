@@ -23,7 +23,7 @@ func NewGetLatestTradeBurstUseCase(gateway tradeBurstGateway) *GetLatestTradeBur
 
 func (uc *GetLatestTradeBurstUseCase) Execute(ctx context.Context, query TradeBurstLatestQuery) (TradeBurstLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return TradeBurstLatestReply{}, problem.New(problem.Unavailable, "evidence service is unavailable")
+		return TradeBurstLatestReply{}, problem.New(problem.Unavailable, "evidence gateway is unavailable")
 	}
 
 	if query.Source == "" {

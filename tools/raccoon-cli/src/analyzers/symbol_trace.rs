@@ -1173,7 +1173,7 @@ type ActivateConfigCommand struct {
             r#"package configctl
 
 import (
-	domain "example.com/quality-service/internal/domain/configctl"
+	domain "internal/domain/configctl"
 )
 
 func CreateDraft(id string) domain.ConfigSet {
@@ -1190,7 +1190,7 @@ func CreateDraft(id string) domain.ConfigSet {
             r#"package nats
 
 import (
-	domain "example.com/quality-service/internal/domain/configctl"
+	domain "internal/domain/configctl"
 )
 
 func Encode(s domain.ConfigSet) ([]byte, error) {
@@ -1211,7 +1211,7 @@ func Decode(data []byte) (domain.ConfigSet, error) {
             r#"package configctl
 
 import (
-	domain "example.com/quality-service/internal/domain/configctl"
+	domain "internal/domain/configctl"
 )
 
 type Supervisor struct {

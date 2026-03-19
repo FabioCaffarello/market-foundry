@@ -110,7 +110,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
             vec![
                 Finding::error("arch-guard", "internal/ directory not found")
                     .with_why("arch-guard scans internal/ for layer dependency violations")
-                    .with_help("pass --project-root pointing to the quality-service root"),
+                    .with_help("pass --project-root pointing to the project root"),
             ],
         ));
         return Ok(report);
@@ -417,7 +417,7 @@ fn check_tooling_boundary(project_root: &Path) -> CheckResult {
                     continue;
                 }
                 let is_use_stmt =
-                    trimmed.starts_with("use ") && trimmed.contains("quality_service");
+                    trimmed.starts_with("use ") && trimmed.contains("market_foundry");
                 let is_mod_stmt = trimmed.starts_with("mod ") && trimmed.contains("internal");
                 if is_use_stmt || is_mod_stmt {
                     findings.push(
@@ -871,31 +871,31 @@ mod tests {
 
         fs::write(
             dir.path().join("internal/application/configctl/usecase.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/domain/configctl\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/domain/configctl\"\n)\n",
         )
         .unwrap();
 
         fs::write(
             dir.path().join("internal/adapters/nats/gateway.go"),
-            "package nats\n\nimport (\n\t\"quality-service/internal/application/configctl\"\n)\n",
+            "package nats\n\nimport (\n\t\"internal/application/configctl\"\n)\n",
         )
         .unwrap();
 
         fs::write(
             dir.path().join("internal/actors/scopes/router.go"),
-            "package scopes\n\nimport (\n\t\"quality-service/internal/adapters/nats\"\n\t\"quality-service/internal/application/configctl\"\n)\n",
+            "package scopes\n\nimport (\n\t\"internal/adapters/nats\"\n\t\"internal/application/configctl\"\n)\n",
         )
         .unwrap();
 
         fs::write(
             dir.path().join("internal/interfaces/http/handler.go"),
-            "package http\n\nimport (\n\t\"quality-service/internal/application/configctl\"\n)\n",
+            "package http\n\nimport (\n\t\"internal/application/configctl\"\n)\n",
         )
         .unwrap();
 
         fs::write(
             dir.path().join("cmd/server/main.go"),
-            "package main\n\nimport (\n\t\"quality-service/internal/shared/bootstrap\"\n)\n",
+            "package main\n\nimport (\n\t\"internal/shared/bootstrap\"\n)\n",
         )
         .unwrap();
 
@@ -914,7 +914,7 @@ mod tests {
 
         fs::write(
             dir.path().join("internal/domain/configctl/model.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/application/ports\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/application/ports\"\n)\n",
         )
         .unwrap();
 
@@ -938,7 +938,7 @@ mod tests {
 
         fs::write(
             dir.path().join("internal/application/configctl/usecase.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/adapters/nats\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/adapters/nats\"\n)\n",
         )
         .unwrap();
 
@@ -960,7 +960,7 @@ mod tests {
 
         fs::write(
             dir.path().join("internal/interfaces/http/handler.go"),
-            "package http\n\nimport (\n\t\"quality-service/internal/adapters/nats\"\n)\n",
+            "package http\n\nimport (\n\t\"internal/adapters/nats\"\n)\n",
         )
         .unwrap();
 
@@ -980,7 +980,7 @@ mod tests {
 
         fs::write(
             dir.path().join("internal/interfaces/http/handler.go"),
-            "package http\n\nimport (\n\t\"quality-service/internal/actors/scopes\"\n)\n",
+            "package http\n\nimport (\n\t\"internal/actors/scopes\"\n)\n",
         )
         .unwrap();
 
@@ -1122,7 +1122,7 @@ mod tests {
             fs::create_dir_all(&layer_dir).unwrap();
             fs::write(
                 layer_dir.join("shared_user.go"),
-                "package pkg\n\nimport (\n\t\"quality-service/internal/shared/settings\"\n)\n",
+                "package pkg\n\nimport (\n\t\"internal/shared/settings\"\n)\n",
             )
             .unwrap();
         }
@@ -1145,7 +1145,7 @@ mod tests {
 
         fs::write(
             dir.path().join("cmd/server/main.go"),
-            "package main\n\nimport (\n\t\"quality-service/internal/domain/configctl\"\n)\n",
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n",
         )
         .unwrap();
 
@@ -1209,7 +1209,7 @@ type G interface{}
 
         fs::write(
             dir.path().join("cmd/server/main.go"),
-            "package main\n\nimport (\n\t\"quality-service/cmd/validator\"\n)\n",
+            "package main\n\nimport (\n\t\"cmd/validator\"\n)\n",
         )
         .unwrap();
 
@@ -1607,7 +1607,7 @@ func newService(conn *nats.Conn) *service {
 
         fs::write(
             dir.path().join("internal/domain/configctl/model.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/application/ports\"\n\t\"github.com/nats-io/nats.go\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/application/ports\"\n\t\"github.com/nats-io/nats.go\"\n)\n",
         )
         .unwrap();
 
@@ -1662,14 +1662,14 @@ func newService(conn *nats.Conn) *service {
         // domain → application (layer violation) + nats import (purity)
         fs::write(
             dir.path().join("internal/domain/configctl/model.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/application/ports\"\n\t\"github.com/nats-io/nats.go\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/application/ports\"\n\t\"github.com/nats-io/nats.go\"\n)\n",
         )
         .unwrap();
 
         // application → adapters (isolation violation)
         fs::write(
             dir.path().join("internal/application/configctl/usecase.go"),
-            "package configctl\n\nimport (\n\t\"quality-service/internal/adapters/nats\"\n)\n",
+            "package configctl\n\nimport (\n\t\"internal/adapters/nats\"\n)\n",
         )
         .unwrap();
 
@@ -1702,15 +1702,15 @@ func newService(conn *nats.Conn) *service {
     #[test]
     fn extracts_layer_from_import() {
         assert_eq!(
-            extract_internal_layer("quality-service/internal/adapters/nats"),
+            extract_internal_layer("internal/adapters/nats"),
             Some("adapters")
         );
         assert_eq!(
-            extract_internal_layer("quality-service/internal/domain/configctl"),
+            extract_internal_layer("internal/domain/configctl"),
             Some("domain")
         );
         assert_eq!(
-            extract_internal_layer("quality-service/internal/shared/settings"),
+            extract_internal_layer("internal/shared/settings"),
             Some("shared")
         );
     }

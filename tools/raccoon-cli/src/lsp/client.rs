@@ -141,7 +141,7 @@ impl GoplsClient {
             },
             "workspaceFolders": [{
                 "uri": root_uri,
-                "name": "quality-service"
+                "name": "market-foundry"
             }]
         });
 
@@ -354,6 +354,7 @@ impl GoplsClient {
     }
 
     /// Get the workspace root path.
+    #[allow(dead_code)]
     pub fn workspace_root(&self) -> &Path {
         &self.workspace_root
     }

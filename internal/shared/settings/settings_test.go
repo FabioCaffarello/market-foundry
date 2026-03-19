@@ -321,6 +321,99 @@ func TestEnabledStrategyFamiliesReturnsCopy(t *testing.T) {
 	}
 }
 
+// ── Duplicate family detection ──────────────────────────────────────
+
+func TestValidatePipelineRejectsDuplicateEvidenceFamily(t *testing.T) {
+	p := PipelineConfig{Families: []string{"candle", "candle"}}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected validation error for duplicate evidence family")
+	}
+	issues := extractIssues(prob)
+	found := false
+	for _, iss := range issues {
+		if iss.Field == "pipeline.families" && iss.Value == "candle" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected duplicate issue for candle, got %v", issues)
+	}
+}
+
+func TestValidatePipelineRejectsDuplicateSignalFamily(t *testing.T) {
+	p := PipelineConfig{SignalFamilies: []string{"rsi", "rsi"}}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected validation error for duplicate signal family")
+	}
+}
+
+func TestValidatePipelineRejectsDuplicateExecutionFamily(t *testing.T) {
+	p := PipelineConfig{
+		Families:          []string{"candle"},
+		SignalFamilies:    []string{"rsi"},
+		DecisionFamilies:  []string{"rsi_oversold"},
+		StrategyFamilies:  []string{"mean_reversion_entry"},
+		RiskFamilies:      []string{"position_exposure"},
+		ExecutionFamilies: []string{"paper_order", "paper_order"},
+	}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected validation error for duplicate execution family")
+	}
+}
+
+// ── Canonical family catalog ────────────────────────────────────────
+
+func TestKnownFamiliesReturnsRegisteredNames(t *testing.T) {
+	evidence := KnownFamilies(DomainEvidence)
+	if len(evidence) != 3 {
+		t.Fatalf("expected 3 evidence families, got %d", len(evidence))
+	}
+
+	signals := KnownFamilies(DomainSignal)
+	if len(signals) != 2 {
+		t.Fatalf("expected 2 signal families, got %d: %v", len(signals), signals)
+	}
+}
+
+func TestIsKnownFamilyReturnsFalseForUnknown(t *testing.T) {
+	if IsKnownFamily(DomainEvidence, "nonsense") {
+		t.Fatal("expected false for unknown evidence family")
+	}
+	if !IsKnownFamily(DomainEvidence, "candle") {
+		t.Fatal("expected true for candle")
+	}
+}
+
+func TestDependencyGraphCoversAllNonEvidenceFamilies(t *testing.T) {
+	graph := DependencyGraph()
+	if len(graph) == 0 {
+		t.Fatal("expected non-empty dependency graph")
+	}
+
+	// Every signal, decision, strategy, risk, and execution family should appear.
+	families := make(map[string]bool)
+	for _, dep := range graph {
+		families[string(dep.Domain)+"/"+dep.Family] = true
+	}
+
+	expected := []string{
+		"signal/rsi",
+		"decision/rsi_oversold",
+		"strategy/mean_reversion_entry",
+		"risk/position_exposure",
+		"execution/paper_order",
+		"execution/venue_market_order",
+	}
+	for _, key := range expected {
+		if !families[key] {
+			t.Errorf("expected %s in dependency graph", key)
+		}
+	}
+}
+
 func TestValidatePipelineEmptyIsValid(t *testing.T) {
 	p := PipelineConfig{}
 	if prob := p.ValidatePipeline(); prob != nil {

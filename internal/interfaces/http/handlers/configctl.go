@@ -8,7 +8,6 @@ import (
 
 	configctlcontracts "internal/application/configctl/contracts"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -150,8 +149,7 @@ func (h *ConfigctlWebHandler) CreateDraft(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, execProb := h.createDraft.Execute(ctx, configctlcontracts.CreateDraftCommand{
+	result, execProb := h.createDraft.Execute(r.Context(), configctlcontracts.CreateDraftCommand{
 		Name:    request.Name,
 		Format:  request.Format,
 		Content: request.Content,
@@ -173,7 +171,7 @@ func (h *ConfigctlWebHandler) GetConfig(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, prob := h.getConfig.Execute(withCorrelationID(r), configctlcontracts.GetConfigQuery{
+	result, prob := h.getConfig.Execute(r.Context(), configctlcontracts.GetConfigQuery{
 		VersionID: versionIDFromRequest(r),
 	})
 	if prob != nil {
@@ -190,7 +188,7 @@ func (h *ConfigctlWebHandler) GetActiveConfig(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	result, prob := h.getActive.Execute(withCorrelationID(r), configctlcontracts.GetActiveConfigQuery{
+	result, prob := h.getActive.Execute(r.Context(), configctlcontracts.GetActiveConfigQuery{
 		ScopeKind: r.URL.Query().Get("scope_kind"),
 		ScopeKey:  r.URL.Query().Get("scope_key"),
 	})
@@ -208,7 +206,7 @@ func (h *ConfigctlWebHandler) ListConfigs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	result, prob := h.listConfigs.Execute(withCorrelationID(r), configctlcontracts.ListConfigsQuery{})
+	result, prob := h.listConfigs.Execute(r.Context(), configctlcontracts.ListConfigsQuery{})
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -229,7 +227,7 @@ func (h *ConfigctlWebHandler) ValidateDraft(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	result, execProb := h.validateDraft.Execute(withCorrelationID(r), configctlcontracts.ValidateDraftCommand{
+	result, execProb := h.validateDraft.Execute(r.Context(), configctlcontracts.ValidateDraftCommand{
 		Format:  request.Format,
 		Content: request.Content,
 	})
@@ -254,7 +252,7 @@ func (h *ConfigctlWebHandler) ValidateConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	result, prob := h.validateConfig.Execute(withCorrelationID(r), configctlcontracts.ValidateConfigCommand{
+	result, prob := h.validateConfig.Execute(r.Context(), configctlcontracts.ValidateConfigCommand{
 		VersionID: versionIDFromRequest(r),
 	})
 	if prob != nil {
@@ -284,7 +282,7 @@ func (h *ConfigctlWebHandler) CompileConfig(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	result, execProb := h.compileConfig.Execute(withCorrelationID(r), configctlcontracts.CompileConfigCommand{
+	result, execProb := h.compileConfig.Execute(r.Context(), configctlcontracts.CompileConfigCommand{
 		VersionID:       versionIDFromRequest(r),
 		ArtifactID:      request.ArtifactID,
 		SchemaVersion:   request.SchemaVersion,
@@ -316,7 +314,7 @@ func (h *ConfigctlWebHandler) ActivateConfig(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	result, execProb := h.activateConfig.Execute(withCorrelationID(r), configctlcontracts.ActivateConfigCommand{
+	result, execProb := h.activateConfig.Execute(r.Context(), configctlcontracts.ActivateConfigCommand{
 		VersionID: versionIDFromRequest(r),
 		ScopeKind: request.ScopeKind,
 		ScopeKey:  request.ScopeKey,
@@ -389,6 +387,3 @@ func versionIDFromRequest(r *http.Request) string {
 	return r.URL.Query().Get("id")
 }
 
-func withCorrelationID(r *http.Request) context.Context {
-	return requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-}

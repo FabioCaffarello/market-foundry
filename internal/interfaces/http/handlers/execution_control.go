@@ -6,7 +6,6 @@ import (
 
 	"internal/application/executionclient"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getExecutionControlUseCase interface {
@@ -34,8 +33,7 @@ func (h *ExecutionControlWebHandler) GetControl(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getControl.Execute(ctx, executionclient.ExecutionControlQuery{})
+	result, prob := h.getControl.Execute(r.Context(), executionclient.ExecutionControlQuery{})
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -57,8 +55,7 @@ func (h *ExecutionControlWebHandler) SetControl(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.setControl.Execute(ctx, cmd)
+	result, prob := h.setControl.Execute(r.Context(), cmd)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return

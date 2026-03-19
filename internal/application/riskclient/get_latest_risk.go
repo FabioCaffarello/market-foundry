@@ -23,7 +23,7 @@ func NewGetLatestRiskUseCase(gateway riskGateway) *GetLatestRiskUseCase {
 
 func (uc *GetLatestRiskUseCase) Execute(ctx context.Context, query RiskLatestQuery) (RiskLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return RiskLatestReply{}, problem.New(problem.Unavailable, "risk service is unavailable")
+		return RiskLatestReply{}, problem.New(problem.Unavailable, "risk gateway is unavailable")
 	}
 
 	if query.Type == "" {

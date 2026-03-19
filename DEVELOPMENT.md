@@ -92,6 +92,7 @@ make recommend                         # Smart recommendations
 | ingest | — | Market data capture: Binance WS → observation events (NATS only) |
 | derive | — | Observation → evidence processing: candle sampling (NATS only) |
 | store | — | Read model materialization: NATS KV projections (NATS only) |
+| execute | — | Execution control service (NATS only) |
 
 ## Module Scoping
 
@@ -106,17 +107,21 @@ SERVICE=gateway make logs              # Logs for single service
 ```
 cmd/configctl/       Config lifecycle service entrypoint
 cmd/derive/          Evidence derivation service entrypoint
+cmd/execute/         Execution control service entrypoint
+cmd/gateway/         HTTP API gateway entrypoint
 cmd/ingest/          Market data capture service entrypoint
-cmd/gateway/          HTTP API gateway entrypoint
+cmd/store/           Read model materialization service entrypoint
 internal/shared/     Cross-cutting concerns (settings, bootstrap, problem, envelope, events)
-internal/domain/     Domain layer (pure business logic: configctl, observation, evidence)
-internal/application/ Application layer (use cases, ports, contracts)
-internal/actors/     Actor-based service orchestration
-internal/adapters/   Infrastructure adapters (NATS, repositories)
-internal/interfaces/ Interface layer (HTTP handlers, routes)
-tools/raccoon-cli/   Rust quality CLI
+internal/domain/     Domain layer (pure business logic: configctl, observation, evidence, signal, decision, strategy, risk, execution)
+internal/application/ Application layer (use cases, ports, contracts, client use cases)
+internal/actors/     Actor-based service orchestration (supervisors, scopes)
+internal/adapters/   Infrastructure adapters (NATS, exchanges, repositories)
+internal/interfaces/ Interface layer (HTTP handlers, routes, webserver)
+tools/raccoon-cli/   Rust architecture guardian CLI
 deploy/              Docker Compose, configs, Dockerfile
-scripts/             Utility scripts
+scripts/             Utility and smoke-test scripts
 tests/http/          HTTP test files
-docs/                Architecture and tooling documentation
+docs/architecture/   Architecture decisions and canonical patterns
+docs/stages/         Stage completion reports
+docs/tooling/        CLI and tooling documentation
 ```

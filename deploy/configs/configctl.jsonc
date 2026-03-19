@@ -4,6 +4,9 @@
     "level": "info",
     "format": "text"
   },
+  "http": {
+    "addr": ":8080"
+  },
   "nats": {
     "enabled": true,
     "url": "nats://nats:4222",

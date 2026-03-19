@@ -23,7 +23,7 @@ func NewGetExecutionStatusUseCase(gateway executionStatusGateway) *GetExecutionS
 
 func (uc *GetExecutionStatusUseCase) Execute(ctx context.Context, query ExecutionStatusQuery) (ExecutionStatusReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return ExecutionStatusReply{}, problem.New(problem.Unavailable, "execution status service is unavailable")
+		return ExecutionStatusReply{}, problem.New(problem.Unavailable, "execution status gateway is unavailable")
 	}
 
 	if query.Source == "" {

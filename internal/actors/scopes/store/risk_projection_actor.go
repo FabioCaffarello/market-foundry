@@ -120,6 +120,9 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 	result, prob := a.store.Put(ctx, assessment)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize risk latest",
 			"error", prob.Message,
 			"type", assessment.Type,
@@ -145,6 +148,7 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + assessment.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {

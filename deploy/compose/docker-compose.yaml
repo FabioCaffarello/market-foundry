@@ -53,7 +53,7 @@ services:
       nats:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "test -r /proc/1/cmdline && grep -qa '/usr/local/bin/service' /proc/1/cmdline"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -61,7 +61,7 @@ services:
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.8.8
-    container_name: market-raccoon-clickhouse
+    container_name: market-foundry-clickhouse
     ports:
       - "127.0.0.1:8123:8123"
       - "127.0.0.1:9000:9000"
@@ -73,11 +73,11 @@ services:
     cap_add:
       - SYS_NICE
     networks:
-      - market-raccoon-network
+      - market-foundry-network
     env_file:
       - ../envs/local.env
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --port 9000 --user ${CLICKHOUSE_USER:-default} --password ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in env file} --query 'SELECT 1' >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "clickhouse-client --port 9000 --user default --password clickhouse --query 'SELECT 1' >/dev/null 2>&1"]
       interval: 10s
       timeout: 3s
       retries: 20
@@ -136,7 +136,7 @@ services:
       configctl:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8082/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -156,7 +156,7 @@ services:
       nats:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8083/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -178,7 +178,7 @@ services:
       derive:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8081/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6
@@ -200,7 +200,7 @@ services:
       derive:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/readyz | grep -q 'ready'"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8084/readyz | grep -q 'ready'"]
       interval: 10s
       timeout: 3s
       retries: 6

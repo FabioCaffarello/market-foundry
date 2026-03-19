@@ -673,6 +673,18 @@ mod tests {
             "STRATEGY_EVENTS".into(),
             vec!["strategy.events.>".into()],
         );
+        streams.insert(
+            "RISK_EVENTS".into(),
+            vec!["risk.events.>".into()],
+        );
+        streams.insert(
+            "EXECUTION_EVENTS".into(),
+            vec!["execution.events.>".into()],
+        );
+        streams.insert(
+            "EXECUTION_FILL_EVENTS".into(),
+            vec!["execution.fill.>".into()],
+        );
 
         let mut durables = HashMap::new();
         durables.insert(
@@ -703,6 +715,22 @@ mod tests {
             "store-strategy-mean-reversion-entry".into(),
             "STRATEGY_EVENTS".into(),
         );
+        durables.insert(
+            "store-risk-position-exposure".into(),
+            "RISK_EVENTS".into(),
+        );
+        durables.insert(
+            "store-execution-paper-order".into(),
+            "EXECUTION_EVENTS".into(),
+        );
+        durables.insert(
+            "execute-venue-market-order-intake".into(),
+            "EXECUTION_EVENTS".into(),
+        );
+        durables.insert(
+            "store-execution-venue-market-order-fill".into(),
+            "EXECUTION_FILL_EVENTS".into(),
+        );
 
         let subjects = vec![
             "configctl.control.config.>".into(),
@@ -724,6 +752,16 @@ mod tests {
             "strategy.events.>".into(),
             "strategy.events.mean_reversion_entry.resolved.>".into(),
             "strategy.query.mean_reversion_entry.latest".into(),
+            "risk.events.>".into(),
+            "risk.events.position_exposure.assessed.>".into(),
+            "risk.query.position_exposure.latest".into(),
+            "execution.events.paper_order.submitted.>".into(),
+            "execution.query.paper_order.latest".into(),
+            "execution.fill.venue_market_order.>".into(),
+            "execution.query.venue_market_order.latest".into(),
+            "execution.query.status.latest".into(),
+            "execution.control.get".into(),
+            "execution.control.set".into(),
         ];
 
         SourceTopology {

@@ -12,7 +12,7 @@ import (
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/interfaces/http/handlers"
-	"internal/interfaces/http/webserver"
+	"internal/shared/webserver"
 	"internal/shared/problem"
 )
 

@@ -55,6 +55,7 @@ func (a *DecisionProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -117,6 +118,9 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 	result, prob := a.store.Put(ctx, dec)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize decision latest",
 			"error", prob.Message,
 			"type", dec.Type,
@@ -142,6 +146,7 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + dec.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {
@@ -155,6 +160,28 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 			"timestamp", dec.Timestamp.Format(time.RFC3339),
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 			"causation_id", msg.Event.Metadata.CausationID,
+		)
+	}
+}
+
+func (a *DecisionProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
 		)
 	}
 }

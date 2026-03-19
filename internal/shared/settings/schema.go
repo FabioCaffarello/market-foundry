@@ -26,7 +26,8 @@ var knownEvidenceFamilies = map[string]bool{
 }
 
 var knownSignalFamilies = map[string]bool{
-	"rsi": true,
+	"rsi":           true,
+	"ema_crossover": true,
 }
 
 var knownDecisionFamilies = map[string]bool{
@@ -62,7 +63,8 @@ var knownExecutionFamilies = map[string]bool{
 // Each strategy family declares which decision families it requires.
 
 var signalDependsOnEvidence = map[string][]string{
-	"rsi": {"candle"},
+	"rsi":           {"candle"},
+	"ema_crossover": {"candle"},
 }
 
 var decisionDependsOnSignal = map[string][]string{
@@ -327,10 +329,18 @@ func (p PipelineConfig) EnabledFamilies() []string {
 	return result
 }
 
-// ValidatePipeline checks that pipeline family names are known and that
+// ValidatePipeline checks that pipeline family names are known, unique, and that
 // cross-layer dependency rules are satisfied. It returns nil when valid.
 func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 	var issues []problem.ValidationIssue
+
+	// 0. Reject duplicate family names in every list.
+	issues = append(issues, rejectDuplicates("pipeline.families", p.Families)...)
+	issues = append(issues, rejectDuplicates("pipeline.signal_families", p.SignalFamilies)...)
+	issues = append(issues, rejectDuplicates("pipeline.decision_families", p.DecisionFamilies)...)
+	issues = append(issues, rejectDuplicates("pipeline.strategy_families", p.StrategyFamilies)...)
+	issues = append(issues, rejectDuplicates("pipeline.risk_families", p.RiskFamilies)...)
+	issues = append(issues, rejectDuplicates("pipeline.execution_families", p.ExecutionFamilies)...)
 
 	// 1. Reject unknown evidence family names (only when explicitly configured).
 	for _, f := range p.Families {
@@ -746,4 +756,116 @@ func durationIssue(field, raw string) []problem.ValidationIssue {
 
 func unexpectedJSONTokenError() error {
 	return fmt.Errorf("config file contains more than one JSON document")
+}
+
+// rejectDuplicates returns a validation issue for each duplicate entry in a list.
+func rejectDuplicates(field string, values []string) []problem.ValidationIssue {
+	if len(values) <= 1 {
+		return nil
+	}
+	seen := make(map[string]bool, len(values))
+	var issues []problem.ValidationIssue
+	for _, v := range values {
+		if seen[v] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   field,
+				Message: fmt.Sprintf("duplicate family %q", v),
+				Value:   v,
+			})
+		}
+		seen[v] = true
+	}
+	return issues
+}
+
+// ── Canonical family catalog (exported for tooling and coherence tests) ──
+
+// PipelineDomain identifies a bounded-context domain in the pipeline.
+type PipelineDomain string
+
+const (
+	DomainEvidence  PipelineDomain = "evidence"
+	DomainSignal    PipelineDomain = "signal"
+	DomainDecision  PipelineDomain = "decision"
+	DomainStrategy  PipelineDomain = "strategy"
+	DomainRisk      PipelineDomain = "risk"
+	DomainExecution PipelineDomain = "execution"
+)
+
+// FamilyDependency describes one family and the upstream families it requires.
+type FamilyDependency struct {
+	Domain       PipelineDomain
+	Family       string
+	DependsOn    []string          // upstream families (in the immediately preceding domain)
+	DependsDomain PipelineDomain   // domain of the dependencies
+}
+
+// KnownFamilies returns the canonical set of recognized family names for the given domain.
+// Returns nil for unknown domains.
+func KnownFamilies(domain PipelineDomain) []string {
+	var registry map[string]bool
+	switch domain {
+	case DomainEvidence:
+		registry = knownEvidenceFamilies
+	case DomainSignal:
+		registry = knownSignalFamilies
+	case DomainDecision:
+		registry = knownDecisionFamilies
+	case DomainStrategy:
+		registry = knownStrategyFamilies
+	case DomainRisk:
+		registry = knownRiskFamilies
+	case DomainExecution:
+		registry = knownExecutionFamilies
+	default:
+		return nil
+	}
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	return names
+}
+
+// IsKnownFamily reports whether the given family is registered in the canonical catalog for the domain.
+func IsKnownFamily(domain PipelineDomain, family string) bool {
+	switch domain {
+	case DomainEvidence:
+		return knownEvidenceFamilies[family]
+	case DomainSignal:
+		return knownSignalFamilies[family]
+	case DomainDecision:
+		return knownDecisionFamilies[family]
+	case DomainStrategy:
+		return knownStrategyFamilies[family]
+	case DomainRisk:
+		return knownRiskFamilies[family]
+	case DomainExecution:
+		return knownExecutionFamilies[family]
+	default:
+		return false
+	}
+}
+
+// DependencyGraph returns the full cross-layer dependency map.
+// Each entry describes one family and the upstream families it requires.
+// Evidence families have no upstream dependencies and are not included.
+func DependencyGraph() []FamilyDependency {
+	var graph []FamilyDependency
+	for family, deps := range signalDependsOnEvidence {
+		graph = append(graph, FamilyDependency{Domain: DomainSignal, Family: family, DependsOn: deps, DependsDomain: DomainEvidence})
+	}
+	for family, deps := range decisionDependsOnSignal {
+		graph = append(graph, FamilyDependency{Domain: DomainDecision, Family: family, DependsOn: deps, DependsDomain: DomainSignal})
+	}
+	for family, deps := range strategyDependsOnDecision {
+		graph = append(graph, FamilyDependency{Domain: DomainStrategy, Family: family, DependsOn: deps, DependsDomain: DomainDecision})
+	}
+	for family, deps := range riskDependsOnStrategy {
+		graph = append(graph, FamilyDependency{Domain: DomainRisk, Family: family, DependsOn: deps, DependsDomain: DomainStrategy})
+	}
+	for family, deps := range executionDependsOnRisk {
+		graph = append(graph, FamilyDependency{Domain: DomainExecution, Family: family, DependsOn: deps, DependsDomain: DomainRisk})
+	}
+	return graph
 }

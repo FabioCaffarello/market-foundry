@@ -16,7 +16,7 @@ func TestNewLoggerUsesConfiguredFormat(t *testing.T) {
 	logger := newLogger(settings.LogConfig{
 		Level:  settings.LogLevelInfo,
 		Format: settings.LogFormatJSON,
-	}, buffer)
+	}, buffer, "")
 
 	logger.Info("hello", slog.String("component", "test"))
 

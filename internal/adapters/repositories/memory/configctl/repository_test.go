@@ -80,7 +80,7 @@ func TestRepositoryConfigSetQueriesAndDefensiveCopies(t *testing.T) {
 	if prob != nil {
 		t.Fatalf("get by id again: %v", prob)
 	}
-	if again.Versions[0].Document.Metadata.Labels["team"] != "quality" {
+	if again.Versions[0].Document.Metadata.Labels["team"] != "foundry" {
 		t.Fatalf("expected read copy to be isolated, got %+v", again.Versions[0].Document.Metadata.Labels)
 	}
 	if events := again.PullEvents(); len(events) != 0 {
@@ -141,7 +141,7 @@ func TestRepositoryActivationIndexesAndOrdering(t *testing.T) {
 	if _, prob := set.ValidateVersion("ver-2", testTime(5)); prob != nil {
 		t.Fatalf("validate second version: %v", prob)
 	}
-	artifact, prob := configdomain.NewCompilationArtifact("artifact-2", "runtime/v1", "checksum-2", "memory://artifacts/core/v2", "validator:v1", "compiler:v1", testTime(6))
+	artifact, prob := configdomain.NewCompilationArtifact("artifact-2", "runtime/v1", "checksum-2", "memory://artifacts/core/v2", "configctl-sync/v1", "compiler:v1", testTime(6))
 	if prob != nil {
 		t.Fatalf("new artifact: %v", prob)
 	}
@@ -231,7 +231,7 @@ func TestRepositorySaveAndListIngestionRuntimes(t *testing.T) {
 		ConfigKey:          "core",
 		VersionID:          "ver-1",
 		Version:            1,
-		Artifact:           configdomain.CompilationArtifact{ID: "artifact-1", SchemaVersion: "runtime/v1", Checksum: "checksum-1", StorageRef: "memory://artifacts/core/v1", RuntimeLoader: "validator:v1", CreatedAt: testTime(5)},
+		Artifact:           configdomain.CompilationArtifact{ID: "artifact-1", SchemaVersion: "runtime/v1", Checksum: "checksum-1", StorageRef: "memory://artifacts/core/v1", RuntimeLoader: "configctl-sync/v1", CreatedAt: testTime(5)},
 		ActivatedAt:        testTime(6),
 		Bindings:           []configdomain.Binding{{Name: "orders", Topic: "orders.v1"}},
 		Fields:             []configdomain.Field{{Name: "order_id", Type: configdomain.FieldTypeString, Required: true}},
@@ -343,7 +343,7 @@ func mustCompiledSet(t *testing.T, setID, key, versionID string) configdomain.Co
 	if _, prob := set.ValidateVersion(versionID, testTime(2)); prob != nil {
 		t.Fatalf("validate version: %v", prob)
 	}
-	artifact, prob := configdomain.NewCompilationArtifact("artifact-"+versionID, "runtime/v1", "checksum-"+versionID, "memory://artifacts/"+versionID, "validator:v1", "compiler:v1", testTime(3))
+	artifact, prob := configdomain.NewCompilationArtifact("artifact-"+versionID, "runtime/v1", "checksum-"+versionID, "memory://artifacts/"+versionID, "configctl-sync/v1", "compiler:v1", testTime(3))
 	if prob != nil {
 		t.Fatalf("new artifact: %v", prob)
 	}
@@ -368,7 +368,7 @@ func validSource() configdomain.ConfigSource {
 	return configdomain.ConfigSource{
 		Format: configdomain.FormatJSON,
 		Content: `{
-			"metadata":{"name":"Core Quality Config","labels":{"team":"quality"}},
+			"metadata":{"name":"Core Market Config","labels":{"team":"foundry"}},
 			"bindings":[{"name":"orders","topic":"orders.v1"}],
 			"fields":[{"name":"order_id","type":"string","required":true}],
 			"rules":[{"name":"order_id_required","field":"order_id","operator":"required","severity":"error"}]

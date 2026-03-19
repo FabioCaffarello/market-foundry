@@ -15,11 +15,11 @@ func TestRecordFromProjectionFamiliesShareTheSameRuntimeLanguage(t *testing.T) {
 		SchemaVersion: "runtime/v1",
 		Checksum:      "artifact-checksum",
 		StorageRef:    "memory://artifacts/core/v1",
-		RuntimeLoader: "validator:v1",
+		RuntimeLoader: "configctl-sync/v1",
 		CreatedAt:     time.Unix(10, 0).UTC(),
 	}
 
-	validatorRecord := RecordFromProjection(configdomain.RuntimeProjection{
+	projectionRecord := RecordFromProjection(configdomain.RuntimeProjection{
 		Scope:              configdomain.ActivationScope{Kind: "tenant", Key: "br"},
 		ConfigSetID:        "set-1",
 		ConfigKey:          "core",
@@ -40,7 +40,7 @@ func TestRecordFromProjectionFamiliesShareTheSameRuntimeLanguage(t *testing.T) {
 		DefinitionChecksum: "definition-1",
 	})
 
-	if validatorRecord != ingestionRecord {
-		t.Fatalf("expected shared runtime language, got validator=%+v ingestion=%+v", validatorRecord, ingestionRecord)
+	if projectionRecord != ingestionRecord {
+		t.Fatalf("expected shared runtime language, got projection=%+v ingestion=%+v", projectionRecord, ingestionRecord)
 	}
 }

@@ -150,3 +150,73 @@ func TestPaperVenueAdapter_UniqueVenueOrderIDs(t *testing.T) {
 func TestPaperVenueAdapter_ImplementsVenuePort(t *testing.T) {
 	var _ ports.VenuePort = (*appexec.PaperVenueAdapter)(nil)
 }
+
+func TestPaperVenueAdapter_SubmitOrder_CancelledContext(t *testing.T) {
+	adapter := appexec.NewPaperVenueAdapter(0)
+
+	intent := domainexec.ExecutionIntent{
+		Type:      "venue_market_order",
+		Source:    "test",
+		Symbol:    "BTCUSDT",
+		Timeframe: 60,
+		Side:      domainexec.SideBuy,
+		Quantity:  "0.01",
+		Status:    domainexec.StatusSubmitted,
+		Risk: domainexec.RiskInput{
+			Type:        "position_exposure",
+			Disposition: "approved",
+			Confidence:  "high",
+			Timeframe:   60,
+		},
+		Timestamp: time.Now().UTC(),
+	}
+
+	// Paper adapter ignores context (instant fill), so cancelled context still succeeds.
+	// This documents the paper adapter's behavior — real adapters must respect context.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	receipt, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: intent})
+	if prob != nil {
+		t.Fatalf("paper adapter should succeed even with cancelled context: %v", prob)
+	}
+	if receipt.Status != domainexec.StatusFilled {
+		t.Fatalf("expected filled, got %s", receipt.Status)
+	}
+}
+
+func TestPaperVenueAdapter_FillDelay_RespectsDelay(t *testing.T) {
+	delay := 50 * time.Millisecond
+	adapter := appexec.NewPaperVenueAdapter(delay)
+
+	intent := domainexec.ExecutionIntent{
+		Type:      "venue_market_order",
+		Source:    "test",
+		Symbol:    "BTCUSDT",
+		Timeframe: 60,
+		Side:      domainexec.SideBuy,
+		Quantity:  "0.01",
+		Status:    domainexec.StatusSubmitted,
+		Risk: domainexec.RiskInput{
+			Type:        "position_exposure",
+			Disposition: "approved",
+			Confidence:  "high",
+			Timeframe:   60,
+		},
+		Timestamp: time.Now().UTC(),
+	}
+
+	start := time.Now()
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
+	elapsed := time.Since(start)
+
+	if prob != nil {
+		t.Fatalf("unexpected problem: %v", prob)
+	}
+	if receipt.Status != domainexec.StatusFilled {
+		t.Fatalf("expected filled, got %s", receipt.Status)
+	}
+	if elapsed < delay {
+		t.Fatalf("expected at least %v delay, got %v", delay, elapsed)
+	}
+}

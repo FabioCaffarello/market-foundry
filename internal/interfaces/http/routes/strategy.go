@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"internal/interfaces/http/handlers"
-	"internal/interfaces/http/webserver"
+	"internal/shared/webserver"
 )
 
 // Strategy registers HTTP routes for strategy query endpoints.

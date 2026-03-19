@@ -8,9 +8,9 @@ import (
 )
 
 func TestNewEnvelopeAppliesDefaults(t *testing.T) {
-	env := New(KindEvent, "quality.created", map[string]string{"id": "1"}).
-		WithSource("validator").
-		WithSubject("quality.created").
+	env := New(KindEvent, "config.created", map[string]string{"id": "1"}).
+		WithSource("configctl").
+		WithSubject("config.created").
 		WithCorrelationID("corr-1").
 		WithHeader("tenant", "acme")
 

@@ -8,8 +8,10 @@ import (
 
 // SignalRegistry defines the NATS subject and stream contracts for the signal domain.
 type SignalRegistry struct {
-	RSIGenerated EventSpec
-	RSILatest    ControlSpec
+	RSIGenerated          EventSpec
+	RSILatest             ControlSpec
+	EMACrossoverGenerated EventSpec
+	EMACrossoverLatest    ControlSpec
 }
 
 func DefaultSignalRegistry() SignalRegistry {
@@ -33,6 +35,17 @@ func DefaultSignalRegistry() SignalRegistry {
 			ReplyType:   "signal.query.v1.rsi_latest_reply",
 			QueueGroup:  "signal.query",
 		},
+		EMACrossoverGenerated: EventSpec{
+			Subject: "signal.events.ema_crossover.generated",
+			Type:    "signal.events.v1.ema_crossover_generated",
+			Stream:  eventStream,
+		},
+		EMACrossoverLatest: ControlSpec{
+			Subject:     "signal.query.ema_crossover.latest",
+			RequestType: "signal.query.v1.ema_crossover_latest_request",
+			ReplyType:   "signal.query.v1.ema_crossover_latest_reply",
+			QueueGroup:  "signal.query",
+		},
 	}
 }
 
@@ -42,6 +55,8 @@ func (r SignalRegistry) LatestSpecByType(signalType string) (ControlSpec, bool) 
 	switch signalType {
 	case "rsi":
 		return r.RSILatest, true
+	case "ema_crossover":
+		return r.EMACrossoverLatest, true
 	default:
 		return ControlSpec{}, false
 	}
@@ -54,6 +69,22 @@ func StoreRSISignalConsumer() ConsumerSpec {
 		Event: EventSpec{
 			Subject: "signal.events.rsi.generated.>",
 			Type:    "signal.events.v1.rsi_generated",
+			Stream: StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// StoreEMACrossoverSignalConsumer defines the durable consumer spec for store consuming EMA crossover signal events.
+func StoreEMACrossoverSignalConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "store-signal-ema-crossover",
+		Event: EventSpec{
+			Subject: "signal.events.ema_crossover.generated.>",
+			Type:    "signal.events.v1.ema_crossover_generated",
 			Stream: StreamSpec{
 				Name: "SIGNAL_EVENTS",
 			},

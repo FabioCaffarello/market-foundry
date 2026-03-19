@@ -15,7 +15,9 @@ import (
 func WaitTillShutdown(e *actor.Engine, pids ...*actor.PID) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-	<-interrupt
+	sig := <-interrupt
+
+	slog.Info("shutdown signal received", "signal", sig.String())
 
 	var wg sync.WaitGroup
 

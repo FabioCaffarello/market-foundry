@@ -17,6 +17,16 @@ type CompilationArtifact struct {
 	CreatedAt       time.Time
 }
 
+// Known artifact schema versions. New versions require explicit registration.
+var knownSchemaVersions = map[string]bool{
+	"runtime/v1": true,
+}
+
+// Known runtime loaders. New loaders require explicit registration.
+var knownRuntimeLoaders = map[string]bool{
+	"configctl-sync/v1": true,
+}
+
 type ActivationScope struct {
 	Kind string
 	Key  string
@@ -117,6 +127,8 @@ func NewCompilationArtifact(id, schemaVersion, checksumValue, storageRef, runtim
 	}
 	if artifact.SchemaVersion == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "artifact.schema_version", Message: "must not be empty"})
+	} else if !knownSchemaVersions[artifact.SchemaVersion] {
+		issues = append(issues, problem.ValidationIssue{Field: "artifact.schema_version", Message: "unknown schema version; known: runtime/v1", Value: artifact.SchemaVersion})
 	}
 	if artifact.Checksum == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "artifact.checksum", Message: "must not be empty"})
@@ -126,6 +138,8 @@ func NewCompilationArtifact(id, schemaVersion, checksumValue, storageRef, runtim
 	}
 	if artifact.RuntimeLoader == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "artifact.runtime_loader", Message: "must not be empty"})
+	} else if !knownRuntimeLoaders[artifact.RuntimeLoader] {
+		issues = append(issues, problem.ValidationIssue{Field: "artifact.runtime_loader", Message: "unknown runtime loader; known: configctl-sync/v1", Value: artifact.RuntimeLoader})
 	}
 	if artifact.CreatedAt.IsZero() {
 		issues = append(issues, problem.ValidationIssue{Field: "artifact.created_at", Message: "must not be zero"})

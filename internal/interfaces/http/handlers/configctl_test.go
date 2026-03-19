@@ -127,7 +127,8 @@ func TestConfigctlCreateDraft(t *testing.T) {
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/configctl/configs", strings.NewReader(`{"name":"core","format":"json","content":"{}"}`))
-	req.Header.Set("X-Correlation-ID", "corr-123")
+	// Simulate correlation ID middleware injecting the header into context.
+	req = req.WithContext(requestctx.WithCorrelationID(req.Context(), "corr-123"))
 	rec := httptest.NewRecorder()
 
 	handler.CreateDraft(rec, req)

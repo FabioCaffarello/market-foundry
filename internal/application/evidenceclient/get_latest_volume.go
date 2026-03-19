@@ -22,7 +22,7 @@ func NewGetLatestVolumeUseCase(gateway volumeGateway) *GetLatestVolumeUseCase {
 
 func (u *GetLatestVolumeUseCase) Execute(ctx context.Context, query VolumeLatestQuery) (VolumeLatestReply, *problem.Problem) {
 	if u == nil || u.gateway == nil {
-		return VolumeLatestReply{}, problem.New(problem.Unavailable, "evidence service is unavailable")
+		return VolumeLatestReply{}, problem.New(problem.Unavailable, "evidence gateway is unavailable")
 	}
 	if query.Source == "" {
 		return VolumeLatestReply{}, problem.New(problem.InvalidArgument, "source is required")

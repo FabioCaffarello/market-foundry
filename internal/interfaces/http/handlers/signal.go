@@ -7,7 +7,6 @@ import (
 	"internal/application/signalclient"
 	"internal/domain/signal"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestSignalUseCase interface {
@@ -47,8 +46,7 @@ func (h *SignalWebHandler) GetLatestSignal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestSignal.Execute(ctx, signalclient.SignalLatestQuery{
+	result, prob := h.getLatestSignal.Execute(r.Context(), signalclient.SignalLatestQuery{
 		Type:      signalType,
 		Source:    key.Source,
 		Symbol:    key.Symbol,

@@ -23,7 +23,7 @@ func NewGetLatestSignalUseCase(gateway signalGateway) *GetLatestSignalUseCase {
 
 func (uc *GetLatestSignalUseCase) Execute(ctx context.Context, query SignalLatestQuery) (SignalLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return SignalLatestReply{}, problem.New(problem.Unavailable, "signal service is unavailable")
+		return SignalLatestReply{}, problem.New(problem.Unavailable, "signal gateway is unavailable")
 	}
 
 	if query.Type == "" {

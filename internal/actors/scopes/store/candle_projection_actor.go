@@ -23,12 +23,13 @@ type CandleProjectionConfig struct {
 // projectionStats tracks projection outcomes for observability.
 // All fields are safe for concurrent access via atomic operations.
 type projectionStats struct {
-	materialized atomic.Int64 // candles written to both latest + history
-	skippedStale atomic.Int64 // latest skipped: existing candle is newer
-	skippedDedup atomic.Int64 // latest skipped: same OpenTime already exists
+	received        atomic.Int64 // total candles received
+	materialized    atomic.Int64 // candles written to both latest + history
+	skippedStale    atomic.Int64 // latest skipped: existing candle is newer
+	skippedDedup    atomic.Int64 // latest skipped: same OpenTime already exists
 	skippedNonFinal atomic.Int64 // non-final candles dropped
-	rejected     atomic.Int64 // candles rejected by validation
-	errors       atomic.Int64 // write errors
+	rejected        atomic.Int64 // candles rejected by validation
+	errors          atomic.Int64 // write errors
 }
 
 // CandleProjectionActor materializes finalized candles into NATS KV.
@@ -63,6 +64,7 @@ func (a *CandleProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -98,6 +100,7 @@ func (a *CandleProjectionActor) start(c *actor.Context) {
 }
 
 func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
+	a.stats.received.Add(1)
 	candle := msg.Event.Candle
 
 	// Gate 1: Only materialize finalized candles.
@@ -125,6 +128,9 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 	result, prob := a.store.Put(ctx, candle)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize candle latest",
 			"error", prob.Message,
 			"source", candle.Source,
@@ -158,6 +164,9 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 	// Write history (idempotent by key design).
 	if prob := a.store.PutHistory(ctx, candle); prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize candle history",
 			"error", prob.Message,
 			"source", candle.Source,
@@ -172,6 +181,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + candle.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {
@@ -185,8 +195,31 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 	}
 }
 
+func (a *CandleProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
+		)
+	}
+}
+
 func (a *CandleProjectionActor) logStats() {
 	a.logger.Info("candle projection stats",
+		"received", a.stats.received.Load(),
 		"materialized", a.stats.materialized.Load(),
 		"skipped_stale", a.stats.skippedStale.Load(),
 		"skipped_dedup", a.stats.skippedDedup.Load(),

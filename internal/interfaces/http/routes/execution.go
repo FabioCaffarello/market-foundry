@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"internal/interfaces/http/handlers"
-	"internal/interfaces/http/webserver"
+	"internal/shared/webserver"
 )
 
 // Execution registers HTTP routes for execution query and control endpoints.

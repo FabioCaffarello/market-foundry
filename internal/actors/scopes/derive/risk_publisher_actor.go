@@ -64,6 +64,9 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishRisk(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish risk failed",
 				"error", prob.Message,
 				"code", prob.Code,
@@ -75,6 +78,7 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.RiskAssessment.Symbol).Add(1)
 		}
 
 	default:

@@ -371,17 +371,40 @@ fn find_subjects_near(lines: &[&str], center: usize, radius: usize) -> Vec<Strin
 }
 
 fn find_stream_name_near(lines: &[&str], center: usize, radius: usize) -> Option<String> {
-    let start = center.saturating_sub(radius);
-    let end = (center + radius).min(lines.len());
+    // Search outward from center so the closest match wins. This prevents
+    // picking up a KV bucket constant that happens to be above the durable
+    // when the actual stream name is below it (closer).
+    for offset in 0..=radius {
+        for &dir in &[0isize, -1, 1] {
+            let idx = if dir == 0 && offset == 0 {
+                center
+            } else if dir < 0 {
+                match center.checked_sub(offset) {
+                    Some(i) => i,
+                    None => continue,
+                }
+            } else if dir > 0 {
+                let i = center + offset;
+                if i >= lines.len() {
+                    continue;
+                }
+                i
+            } else {
+                continue;
+            };
 
-    for i in start..end {
-        let trimmed = lines[i].trim();
-        if trimmed.starts_with("//") {
-            continue;
-        }
-        for val in extract_all_quoted(trimmed) {
-            if is_stream_name(&val) {
-                return Some(val);
+            if idx >= lines.len() {
+                continue;
+            }
+
+            let trimmed = lines[idx].trim();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            for val in extract_all_quoted(trimmed) {
+                if is_stream_name(&val) {
+                    return Some(val);
+                }
             }
         }
     }

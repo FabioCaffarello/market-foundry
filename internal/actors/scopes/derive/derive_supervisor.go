@@ -94,10 +94,8 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	s.execRegistry = adapternats.DefaultExecutionRegistry()
 	consumerSpec := adapternats.DeriveObservationConsumer()
 
-	// All available family processors — one entry per evidence type.
-	// Which processors actually activate is controlled by pipeline.families in config.
-	// If no families are configured, all processors are enabled (backward compatible).
-	allProcessors := []FamilyProcessor{
+	// Evidence family processors — backward-compatible default: enabled when no families configured.
+	s.processors = filterEnabled([]FamilyProcessor{
 		{
 			Family:      "candle",
 			ActorPrefix: "sampler",
@@ -125,26 +123,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	// Filter processors by configured families.
-	for _, p := range allProcessors {
-		if s.cfg.Pipeline.IsFamilyEnabled(p.Family) {
-			s.processors = append(s.processors, p)
-		} else {
-			s.logger.Info("family processor skipped (not in pipeline.families)",
-				"family", p.Family,
-			)
-		}
-	}
+	}, func(p FamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsFamilyEnabled, s.logger, "evidence")
 
 	if len(s.processors) == 0 {
 		return fmt.Errorf("no family processors enabled — check pipeline.families in config")
 	}
 
 	// Signal family processors — opt-in via pipeline.signal_families.
-	// Unlike evidence families, absent = no signal activation.
-	allSignalProcessors := []SignalFamilyProcessor{
+	s.signalProcessors = filterEnabled([]SignalFamilyProcessor{
 		{
 			Family:      "rsi",
 			ActorPrefix: "signal-rsi",
@@ -154,21 +141,20 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	for _, p := range allSignalProcessors {
-		if s.cfg.Pipeline.IsSignalFamilyEnabled(p.Family) {
-			s.signalProcessors = append(s.signalProcessors, p)
-		} else {
-			s.logger.Info("signal family processor skipped (not in pipeline.signal_families)",
-				"family", p.Family,
-			)
-		}
-	}
+		{
+			Family:      "ema_crossover",
+			ActorPrefix: "signal-ema-crossover",
+			NewActor: func(source, symbol string, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
+				return NewEMACrossoverSignalSamplerActor(SignalSamplerConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
+				})
+			},
+		},
+	}, func(p SignalFamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsSignalFamilyEnabled, s.logger, "signal")
 
 	// Decision family processors — opt-in via pipeline.decision_families.
-	// Unlike evidence families, absent = no decision activation.
-	allDecisionProcessors := []DecisionFamilyProcessor{
+	s.decisionProcessors = filterEnabled([]DecisionFamilyProcessor{
 		{
 			Family:      "rsi_oversold",
 			ActorPrefix: "decision-rsi-oversold",
@@ -178,21 +164,11 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	for _, p := range allDecisionProcessors {
-		if s.cfg.Pipeline.IsDecisionFamilyEnabled(p.Family) {
-			s.decisionProcessors = append(s.decisionProcessors, p)
-		} else {
-			s.logger.Info("decision family processor skipped (not in pipeline.decision_families)",
-				"family", p.Family,
-			)
-		}
-	}
+	}, func(p DecisionFamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsDecisionFamilyEnabled, s.logger, "decision")
 
 	// Strategy family processors — opt-in via pipeline.strategy_families.
-	// Unlike evidence families, absent = no strategy activation.
-	allStrategyProcessors := []StrategyFamilyProcessor{
+	s.strategyProcessors = filterEnabled([]StrategyFamilyProcessor{
 		{
 			Family:      "mean_reversion_entry",
 			ActorPrefix: "strategy-mean-reversion-entry",
@@ -202,21 +178,11 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	for _, p := range allStrategyProcessors {
-		if s.cfg.Pipeline.IsStrategyFamilyEnabled(p.Family) {
-			s.strategyProcessors = append(s.strategyProcessors, p)
-		} else {
-			s.logger.Info("strategy family processor skipped (not in pipeline.strategy_families)",
-				"family", p.Family,
-			)
-		}
-	}
+	}, func(p StrategyFamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsStrategyFamilyEnabled, s.logger, "strategy")
 
 	// Risk family processors — opt-in via pipeline.risk_families.
-	// Unlike evidence families, absent = no risk activation.
-	allRiskProcessors := []RiskFamilyProcessor{
+	s.riskProcessors = filterEnabled([]RiskFamilyProcessor{
 		{
 			Family:      "position_exposure",
 			ActorPrefix: "risk-position-exposure",
@@ -226,21 +192,11 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	for _, p := range allRiskProcessors {
-		if s.cfg.Pipeline.IsRiskFamilyEnabled(p.Family) {
-			s.riskProcessors = append(s.riskProcessors, p)
-		} else {
-			s.logger.Info("risk family processor skipped (not in pipeline.risk_families)",
-				"family", p.Family,
-			)
-		}
-	}
+	}, func(p RiskFamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsRiskFamilyEnabled, s.logger, "risk")
 
 	// Execution family processors — opt-in via pipeline.execution_families.
-	// Unlike evidence families, absent = no execution activation.
-	allExecutionProcessors := []ExecutionFamilyProcessor{
+	s.executionProcessors = filterEnabled([]ExecutionFamilyProcessor{
 		{
 			Family:      "paper_order",
 			ActorPrefix: "execution-paper-order",
@@ -250,17 +206,8 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
-	}
-
-	for _, p := range allExecutionProcessors {
-		if s.cfg.Pipeline.IsExecutionFamilyEnabled(p.Family) {
-			s.executionProcessors = append(s.executionProcessors, p)
-		} else {
-			s.logger.Info("execution family processor skipped (not in pipeline.execution_families)",
-				"family", p.Family,
-			)
-		}
-	}
+	}, func(p ExecutionFamilyProcessor) string { return p.Family },
+		s.cfg.Pipeline.IsExecutionFamilyEnabled, s.logger, "execution")
 
 	// Spawn the observation consumer — routes trades back to this supervisor.
 	supervisorPID := ctx.PID()
@@ -284,30 +231,6 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	for i, tf := range s.timeframes {
 		tfSeconds[i] = int(tf.Seconds())
 	}
-	families := make([]string, len(s.processors))
-	for i, p := range s.processors {
-		families[i] = p.Family
-	}
-	signalFamilies := make([]string, len(s.signalProcessors))
-	for i, p := range s.signalProcessors {
-		signalFamilies[i] = p.Family
-	}
-	decisionFamilies := make([]string, len(s.decisionProcessors))
-	for i, p := range s.decisionProcessors {
-		decisionFamilies[i] = p.Family
-	}
-	strategyFamilies := make([]string, len(s.strategyProcessors))
-	for i, p := range s.strategyProcessors {
-		strategyFamilies[i] = p.Family
-	}
-	riskFamilies := make([]string, len(s.riskProcessors))
-	for i, p := range s.riskProcessors {
-		riskFamilies[i] = p.Family
-	}
-	executionFamilies := make([]string, len(s.executionProcessors))
-	for i, p := range s.executionProcessors {
-		executionFamilies[i] = p.Family
-	}
 
 	activationMode := "all (no pipeline.families configured)"
 	if s.cfg.Pipeline.EnabledFamilies() != nil {
@@ -315,12 +238,12 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	}
 	s.logger.Info("derive supervisor started",
 		"activation", activationMode,
-		"families", families,
-		"signal_families", signalFamilies,
-		"decision_families", decisionFamilies,
-		"strategy_families", strategyFamilies,
-		"risk_families", riskFamilies,
-		"execution_families", executionFamilies,
+		"families", familyNames(s.processors, func(p FamilyProcessor) string { return p.Family }),
+		"signal_families", familyNames(s.signalProcessors, func(p SignalFamilyProcessor) string { return p.Family }),
+		"decision_families", familyNames(s.decisionProcessors, func(p DecisionFamilyProcessor) string { return p.Family }),
+		"strategy_families", familyNames(s.strategyProcessors, func(p StrategyFamilyProcessor) string { return p.Family }),
+		"risk_families", familyNames(s.riskProcessors, func(p RiskFamilyProcessor) string { return p.Family }),
+		"execution_families", familyNames(s.executionProcessors, func(p ExecutionFamilyProcessor) string { return p.Family }),
 		"timeframes_s", tfSeconds,
 		"consumer", consumerSpec.Durable,
 		"input_stream", consumerSpec.Event.Stream.Name,

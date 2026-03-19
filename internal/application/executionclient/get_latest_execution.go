@@ -23,7 +23,7 @@ func NewGetLatestExecutionUseCase(gateway executionGateway) *GetLatestExecutionU
 
 func (uc *GetLatestExecutionUseCase) Execute(ctx context.Context, query ExecutionLatestQuery) (ExecutionLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return ExecutionLatestReply{}, problem.New(problem.Unavailable, "execution service is unavailable")
+		return ExecutionLatestReply{}, problem.New(problem.Unavailable, "execution gateway is unavailable")
 	}
 
 	if query.Type == "" {

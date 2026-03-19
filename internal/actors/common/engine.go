@@ -7,7 +7,3 @@ import (
 func NewDefaultEngine() (*actor.Engine, error) {
 	return actor.NewEngine(actor.NewEngineConfig())
 }
-
-func NewDeafultEngine() (*actor.Engine, error) {
-	return NewDefaultEngine()
-}

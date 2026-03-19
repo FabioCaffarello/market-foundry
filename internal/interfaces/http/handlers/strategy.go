@@ -7,7 +7,6 @@ import (
 	"internal/application/strategyclient"
 	"internal/domain/strategy"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestStrategyUseCase interface {
@@ -46,8 +45,7 @@ func (h *StrategyWebHandler) GetLatestStrategy(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestStrategy.Execute(ctx, strategyclient.StrategyLatestQuery{
+	result, prob := h.getLatestStrategy.Execute(r.Context(), strategyclient.StrategyLatestQuery{
 		Type:      strategyType,
 		Source:    key.Source,
 		Symbol:    key.Symbol,

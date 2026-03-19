@@ -6,9 +6,8 @@ mod lsp;
 mod models;
 mod output;
 mod process_utils;
-mod results_inspect;
+#[allow(dead_code)]
 mod smoke;
-mod trace_pack;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use output::OutputFormat;
@@ -165,79 +164,14 @@ enum Commands {
         #[arg(long)]
         no_lsp: bool,
     },
-    /// [DEPRECATED] Run end-to-end smoke test — legacy quality-service command, not functional
+    /// Run end-to-end runtime smoke test (used by quality-gate deep profile)
     #[command(after_help = "Examples:\n  \
         raccoon-cli runtime-smoke\n  \
-        raccoon-cli runtime-smoke --base-url http://localhost:9090")]
+        raccoon-cli runtime-smoke --base-url http://localhost:8080")]
     RuntimeSmoke {
         /// Base URL for the HTTP API
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
-    },
-    /// [DEPRECATED] Run a named validation scenario — legacy quality-service command, not functional
-    #[command(
-        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
-            Each scenario declares preconditions, executes a deterministic sequence of checks,\n\
-            and reports structured pass/fail results.\n\n\
-            Available scenarios:\n  \
-              happy-path        — full E2E: config lifecycle + data plane + validation results\n  \
-              config-lifecycle  — control plane only: draft -> validate -> compile -> activate\n  \
-              invalid-payload   — activate config and verify validator catches bad data\n  \
-              missing-binding   — query non-existent scope and verify empty results\n  \
-              readiness-probe   — quick cluster health check (bootstrap + readiness)",
-        after_help = "Examples:\n  \
-            raccoon-cli scenario-smoke happy-path\n  \
-            raccoon-cli scenario-smoke config-lifecycle\n  \
-            raccoon-cli --json scenario-smoke invalid-payload\n  \
-            raccoon-cli scenario-smoke --list"
-    )]
-    ScenarioSmoke {
-        /// Scenario name to execute (omit with --list to see all scenarios)
-        #[arg(required_unless_present = "list")]
-        scenario: Option<String>,
-        /// Base URL for the HTTP API (deprecated)
-        #[arg(long, default_value = "http://127.0.0.1:8080")]
-        base_url: String,
-        /// List all available scenarios and exit
-        #[arg(long)]
-        list: bool,
-    },
-    /// [DEPRECATED] Inspect validation results — legacy quality-service command, not functional
-    #[command(
-        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
-            Shows summaries of pass/fail counts, binding breakdowns, violation rules,\n\
-            and individual result details. This command is no longer functional.",
-        after_help = "Examples:\n  \
-            raccoon-cli results-inspect\n  \
-            raccoon-cli results-inspect --failed-only\n  \
-            raccoon-cli results-inspect --latest 5 --json\n  \
-            raccoon-cli results-inspect --binding orders --limit 50"
-    )]
-    ResultsInspect {
-        /// Base URL for the HTTP API (deprecated)
-        #[arg(long, default_value = "http://127.0.0.1:8080")]
-        base_url: String,
-        /// Scope kind for the results query
-        #[arg(long, default_value = "global")]
-        scope_kind: String,
-        /// Scope key for the results query
-        #[arg(long, default_value = "default")]
-        scope_key: String,
-        /// Filter by binding name
-        #[arg(long)]
-        binding: Option<String>,
-        /// Filter by topic
-        #[arg(long)]
-        topic: Option<String>,
-        /// Maximum number of results to fetch from the API (1-100)
-        #[arg(long, default_value_t = 100)]
-        limit: u32,
-        /// Show only failed validation results
-        #[arg(long)]
-        failed_only: bool,
-        /// Show only the N most recent results
-        #[arg(long)]
-        latest: Option<u32>,
     },
     /// Map structural impact of changed files, packages, or symbols
     #[command(
@@ -547,34 +481,6 @@ enum Commands {
         #[arg(trailing_var_arg = true)]
         files: Vec<String>,
     },
-    /// [DEPRECATED] Collect diagnostic evidence — legacy quality-service command, not functional
-    #[command(
-        long_about = "[DEPRECATED] This command is a legacy quality-service artifact.\n\n\
-            Produces a timestamped directory (or .tar.gz) with compose status, API responses,\n\
-            deploy configs, and recent service logs — everything needed to diagnose a failure\n\
-            without live cluster access.",
-        after_help = "Examples:\n  \
-            raccoon-cli trace-pack\n  \
-            raccoon-cli trace-pack --compress\n  \
-            raccoon-cli trace-pack --log-lines 500 --output-dir /tmp/traces"
-    )]
-    TracePack {
-        /// Base URL for the HTTP API (deprecated)
-        #[arg(long, default_value = "http://127.0.0.1:8080")]
-        base_url: String,
-        /// Directory where the trace pack will be written
-        #[arg(long, default_value = ".")]
-        output_dir: std::path::PathBuf,
-        /// Number of recent log lines to collect per service
-        #[arg(long, default_value_t = 200)]
-        log_lines: u32,
-        /// Maximum number of validation results to collect
-        #[arg(long, default_value_t = 20)]
-        results_limit: u32,
-        /// Compress output as .tar.gz
-        #[arg(long)]
-        compress: bool,
-    },
 }
 
 fn main() {
@@ -587,52 +493,6 @@ fn main() {
     } else {
         OutputFormat::Human
     };
-
-    // Results-inspect has its own report type
-    if let Commands::ResultsInspect {
-        ref base_url,
-        ref scope_kind,
-        ref scope_key,
-        ref binding,
-        ref topic,
-        limit,
-        failed_only,
-        latest,
-    } = cli.command
-    {
-        let config = results_inspect::InspectConfig {
-            base_url: base_url.clone(),
-            scope_kind: scope_kind.clone(),
-            scope_key: scope_key.clone(),
-            binding_name: binding.clone(),
-            topic: topic.clone(),
-            limit,
-            failed_only,
-            latest,
-        };
-
-        match results_inspect::run(&config) {
-            Ok(report) => {
-                let rendered = if cli.json {
-                    match results_inspect::render_json(&report) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            eprintln!("error: failed to render output: {e}");
-                            process::exit(2);
-                        }
-                    }
-                } else {
-                    results_inspect::render_human(&report, cli.verbose)
-                };
-                print!("{rendered}");
-            }
-            Err(e) => {
-                eprintln!("error: {e}");
-                process::exit(2);
-            }
-        }
-        return;
-    }
 
     // Quality-gate has its own report type and renderer
     if let Commands::QualityGate {
@@ -823,47 +683,6 @@ fn main() {
                 "{}",
                 analyzers::recommend::render_human(&report, cli.verbose)
             );
-        }
-        return;
-    }
-
-    // Trace-pack has its own output (directory/tarball, not a Report)
-    if let Commands::TracePack {
-        ref base_url,
-        ref output_dir,
-        log_lines,
-        results_limit,
-        compress,
-    } = cli.command
-    {
-        let config = trace_pack::TracePackConfig {
-            project_root: cli.project_root.clone(),
-            base_url: base_url.clone(),
-            output_dir: output_dir.clone(),
-            log_lines,
-            results_limit,
-            compress,
-        };
-
-        match trace_pack::run(&config) {
-            Ok(report) => {
-                let rendered = if cli.json {
-                    match trace_pack::render_json(&report) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            eprintln!("error: failed to render output: {e}");
-                            process::exit(2);
-                        }
-                    }
-                } else {
-                    trace_pack::render_human(&report)
-                };
-                print!("{rendered}");
-            }
-            Err(e) => {
-                eprintln!("error: {e}");
-                process::exit(2);
-            }
         }
         return;
     }
@@ -1101,74 +920,6 @@ fn main() {
         return;
     }
 
-    // Scenario-smoke has its own dispatch logic
-    if let Commands::ScenarioSmoke {
-        ref scenario,
-        ref base_url,
-        list,
-    } = cli.command
-    {
-        if list {
-            let scenarios = smoke::scenarios::list_scenarios();
-            if cli.json {
-                let items: Vec<serde_json::Value> = scenarios
-                    .iter()
-                    .map(|(name, desc)| {
-                        serde_json::json!({
-                            "name": name,
-                            "description": desc,
-                            "preconditions": smoke::scenarios::Scenario::parse(name)
-                                .map(|s| s.preconditions())
-                                .unwrap_or(&[]),
-                        })
-                    })
-                    .collect();
-                let json = serde_json::json!({ "scenarios": items });
-                match serde_json::to_string_pretty(&json) {
-                    Ok(s) => print!("{s}"),
-                    Err(e) => {
-                        eprintln!("error: failed to render output: {e}");
-                        process::exit(2);
-                    }
-                }
-            } else {
-                println!("Available scenarios:\n");
-                for (name, desc) in &scenarios {
-                    println!("  {name:<20} {desc}");
-                }
-                println!("\nUsage: raccoon-cli scenario-smoke <SCENARIO>");
-            }
-            return;
-        }
-
-        let scenario_name = scenario.as_deref().unwrap_or("");
-        let scenario = match smoke::scenarios::Scenario::parse(scenario_name) {
-            Some(s) => s,
-            None => {
-                eprintln!(
-                    "error: unknown scenario '{scenario_name}'. Available: {}",
-                    smoke::scenarios::Scenario::all_names().join(", ")
-                );
-                process::exit(2);
-            }
-        };
-
-        let smoke_config = smoke::SmokeConfig::new(&cli.project_root, Some(base_url));
-        let report = smoke::scenarios::run_scenario(scenario, &smoke_config);
-
-        match output::render(&report, format) {
-            Ok(rendered) => print!("{rendered}"),
-            Err(e) => {
-                eprintln!("error: failed to render output: {e}");
-                process::exit(2);
-            }
-        }
-        if !report.passed() {
-            process::exit(1);
-        }
-        return;
-    }
-
     let result = match cli.command {
         Commands::Doctor => analyzers::doctor::analyze(&cli.project_root),
         Commands::TopologyDoctor => analyzers::topology::analyze(&cli.project_root),
@@ -1181,13 +932,10 @@ fn main() {
             let config = smoke::SmokeConfig::new(&cli.project_root, Some(base_url));
             smoke::run(&config)
         }
-        Commands::ResultsInspect { .. } => unreachable!(),
         Commands::QualityGate { .. } => unreachable!(),
         Commands::BaselineDrift { .. } => unreachable!(),
         Commands::Snapshot { .. } => unreachable!(),
         Commands::SnapshotDiff { .. } => unreachable!(),
-        Commands::TracePack { .. } => unreachable!(),
-        Commands::ScenarioSmoke { .. } => unreachable!(),
         Commands::ImpactMap { .. } => unreachable!(),
         Commands::SymbolTrace { .. } => unreachable!(),
         Commands::Tdd { .. } => unreachable!(),
@@ -1692,219 +1440,6 @@ mod tests {
         }
     }
 
-    // ── results-inspect parsing ──────────────────────────────────
-
-    // ── trace-pack parsing ──────────────────────────────────────
-
-    #[test]
-    fn cli_parses_trace_pack_defaults() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "trace-pack"]).unwrap();
-        match cli.command {
-            Commands::TracePack {
-                base_url,
-                output_dir,
-                log_lines,
-                results_limit,
-                compress,
-            } => {
-                assert_eq!(base_url, "http://127.0.0.1:8080");
-                assert_eq!(output_dir, std::path::PathBuf::from("."));
-                assert_eq!(log_lines, 200);
-                assert_eq!(results_limit, 20);
-                assert!(!compress);
-            }
-            _ => panic!("expected TracePack"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_trace_pack_with_all_flags() {
-        let cli = Cli::try_parse_from([
-            "raccoon-cli",
-            "trace-pack",
-            "--base-url",
-            "http://localhost:9090",
-            "--output-dir",
-            "/tmp/traces",
-            "--log-lines",
-            "500",
-            "--results-limit",
-            "50",
-            "--compress",
-        ])
-        .unwrap();
-        match cli.command {
-            Commands::TracePack {
-                base_url,
-                output_dir,
-                log_lines,
-                results_limit,
-                compress,
-            } => {
-                assert_eq!(base_url, "http://localhost:9090");
-                assert_eq!(output_dir, std::path::PathBuf::from("/tmp/traces"));
-                assert_eq!(log_lines, 500);
-                assert_eq!(results_limit, 50);
-                assert!(compress);
-            }
-            _ => panic!("expected TracePack"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_trace_pack_json() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "--json", "trace-pack"]).unwrap();
-        assert!(cli.json);
-        assert!(matches!(cli.command, Commands::TracePack { .. }));
-    }
-
-    // ── results-inspect parsing ──────────────────────────────────
-
-    #[test]
-    fn cli_parses_results_inspect_defaults() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "results-inspect"]).unwrap();
-        match cli.command {
-            Commands::ResultsInspect {
-                base_url,
-                scope_kind,
-                scope_key,
-                binding,
-                topic,
-                limit,
-                failed_only,
-                latest,
-            } => {
-                assert_eq!(base_url, "http://127.0.0.1:8080");
-                assert_eq!(scope_kind, "global");
-                assert_eq!(scope_key, "default");
-                assert!(binding.is_none());
-                assert!(topic.is_none());
-                assert_eq!(limit, 100);
-                assert!(!failed_only);
-                assert!(latest.is_none());
-            }
-            _ => panic!("expected ResultsInspect"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_results_inspect_with_all_flags() {
-        let cli = Cli::try_parse_from([
-            "raccoon-cli",
-            "results-inspect",
-            "--base-url",
-            "http://localhost:9090",
-            "--scope-kind",
-            "tenant",
-            "--scope-key",
-            "br",
-            "--binding",
-            "orders",
-            "--topic",
-            "orders.v1",
-            "--limit",
-            "50",
-            "--failed-only",
-            "--latest",
-            "10",
-        ])
-        .unwrap();
-        match cli.command {
-            Commands::ResultsInspect {
-                base_url,
-                scope_kind,
-                scope_key,
-                binding,
-                topic,
-                limit,
-                failed_only,
-                latest,
-            } => {
-                assert_eq!(base_url, "http://localhost:9090");
-                assert_eq!(scope_kind, "tenant");
-                assert_eq!(scope_key, "br");
-                assert_eq!(binding.as_deref(), Some("orders"));
-                assert_eq!(topic.as_deref(), Some("orders.v1"));
-                assert_eq!(limit, 50);
-                assert!(failed_only);
-                assert_eq!(latest, Some(10));
-            }
-            _ => panic!("expected ResultsInspect"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_results_inspect_json() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "--json", "results-inspect"]).unwrap();
-        assert!(cli.json);
-        assert!(matches!(cli.command, Commands::ResultsInspect { .. }));
-    }
-
-    // ── scenario-smoke parsing ──────────────────────────────────
-
-    #[test]
-    fn cli_parses_scenario_smoke_with_scenario() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "scenario-smoke", "happy-path"]).unwrap();
-        match cli.command {
-            Commands::ScenarioSmoke {
-                scenario,
-                base_url,
-                list,
-            } => {
-                assert_eq!(scenario.as_deref(), Some("happy-path"));
-                assert_eq!(base_url, "http://127.0.0.1:8080");
-                assert!(!list);
-            }
-            _ => panic!("expected ScenarioSmoke"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_scenario_smoke_list() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "scenario-smoke", "--list"]).unwrap();
-        match cli.command {
-            Commands::ScenarioSmoke { scenario, list, .. } => {
-                assert!(list);
-                assert!(scenario.is_none());
-            }
-            _ => panic!("expected ScenarioSmoke"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_scenario_smoke_with_base_url() {
-        let cli = Cli::try_parse_from([
-            "raccoon-cli",
-            "scenario-smoke",
-            "--base-url",
-            "http://localhost:9090",
-            "config-lifecycle",
-        ])
-        .unwrap();
-        match cli.command {
-            Commands::ScenarioSmoke {
-                scenario, base_url, ..
-            } => {
-                assert_eq!(scenario.as_deref(), Some("config-lifecycle"));
-                assert_eq!(base_url, "http://localhost:9090");
-            }
-            _ => panic!("expected ScenarioSmoke"),
-        }
-    }
-
-    #[test]
-    fn cli_parses_scenario_smoke_json() {
-        let cli =
-            Cli::try_parse_from(["raccoon-cli", "--json", "scenario-smoke", "happy-path"]).unwrap();
-        assert!(cli.json);
-        assert!(matches!(cli.command, Commands::ScenarioSmoke { .. }));
-    }
-
-    #[test]
-    fn cli_scenario_smoke_requires_scenario_or_list() {
-        assert!(Cli::try_parse_from(["raccoon-cli", "scenario-smoke"]).is_err());
-    }
-
     // ── rename-safety parsing ──────────────────────────────────
 
     #[test]
@@ -1972,22 +1507,6 @@ mod tests {
     #[test]
     fn cli_rename_safety_requires_symbol() {
         assert!(Cli::try_parse_from(["raccoon-cli", "rename-safety"]).is_err());
-    }
-
-    #[test]
-    fn cli_parses_results_inspect_verbose() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "-v", "results-inspect"]).unwrap();
-        assert!(cli.verbose);
-        assert!(matches!(cli.command, Commands::ResultsInspect { .. }));
-    }
-
-    #[test]
-    fn cli_parses_results_inspect_failed_only() {
-        let cli = Cli::try_parse_from(["raccoon-cli", "results-inspect", "--failed-only"]).unwrap();
-        match cli.command {
-            Commands::ResultsInspect { failed_only, .. } => assert!(failed_only),
-            _ => panic!("expected ResultsInspect"),
-        }
     }
 
     // ── contract-usage-map parsing ──────────────────────────────────

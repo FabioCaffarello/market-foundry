@@ -2,7 +2,7 @@ package actorgateway
 
 import (
 	"context"
-	"internal/interfaces/http/webserver"
+	"internal/shared/webserver"
 	"internal/shared/settings"
 	"log/slog"
 	"time"
@@ -49,7 +49,7 @@ func (g *Gateway) start(ctx *actor.Context) {
 	go func() {
 		err := g.webServer.Start()
 		if err != nil {
-			slog.Error("failed to start gateway", "err", err)
+			slog.Error("failed to start gateway", "error", err)
 			ctx.Engine().Poison(ctx.PID())
 		}
 		slog.Info("gateway stopped")

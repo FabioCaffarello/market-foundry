@@ -19,7 +19,7 @@ endef
 
 .PHONY: help tidy test test-integration build docker-build compose-config up down restart logs ps clean \
        raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep \
-       check check-deep verify smoke smoke-multi seed seed-multi \
+       check check-deep verify smoke smoke-multi seed seed-multi live live-check live-multi live-multi-check \
        coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing
 
 help:
@@ -38,6 +38,10 @@ help:
 	@echo "  make clean                - remove local build artifacts and Go caches"
 	@echo ""
 	@echo "Workflow (recommended):"
+	@echo "  make live                 - full live pipeline activation (build+up+seed+validate)"
+	@echo "  make live-check           - validate running stack (skip build+up)"
+	@echo "  make live-multi           - full multi-symbol pipeline activation (btcusdt + ethusdt)"
+	@echo "  make live-multi-check     - validate multi-symbol running stack"
 	@echo "  make seed                 - seed configctl with single symbol (btcusdt)"
 	@echo "  make seed-multi           - seed configctl with multi-symbol (btcusdt + ethusdt)"
 	@echo "  make smoke                - E2E smoke test (single symbol)"
@@ -200,6 +204,22 @@ smoke:
 smoke-multi:
 	@echo "Running multi-symbol E2E smoke test..."
 	@./scripts/smoke-multi-symbol.sh
+
+live:
+	@echo "Live pipeline activation (build + start + seed + validate)..."
+	@./scripts/live-pipeline-activate.sh
+
+live-check:
+	@echo "Live pipeline check (validate running stack)..."
+	@./scripts/live-pipeline-activate.sh --check-only
+
+live-multi:
+	@echo "Live multi-symbol pipeline activation (build+up+seed+validate)..."
+	@./scripts/live-pipeline-activate.sh --multi-symbol
+
+live-multi-check:
+	@echo "Live multi-symbol pipeline check (validate running stack)..."
+	@./scripts/live-pipeline-activate.sh --multi-symbol --check-only
 
 seed:
 	@echo "Seeding configctl (single symbol)..."

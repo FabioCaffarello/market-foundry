@@ -23,7 +23,7 @@ func NewGetLatestDecisionUseCase(gateway decisionGateway) *GetLatestDecisionUseC
 
 func (uc *GetLatestDecisionUseCase) Execute(ctx context.Context, query DecisionLatestQuery) (DecisionLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return DecisionLatestReply{}, problem.New(problem.Unavailable, "decision service is unavailable")
+		return DecisionLatestReply{}, problem.New(problem.Unavailable, "decision gateway is unavailable")
 	}
 
 	if query.Type == "" {

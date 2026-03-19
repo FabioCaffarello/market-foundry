@@ -118,6 +118,9 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 	result, prob := a.store.Put(ctx, strat)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize strategy latest",
 			"error", prob.Message,
 			"type", strat.Type,
@@ -143,6 +146,7 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + strat.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {

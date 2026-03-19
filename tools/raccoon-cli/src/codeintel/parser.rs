@@ -16,7 +16,7 @@ use super::types::*;
 
 /// Module path prefix for classifying imports as internal.
 /// Empty string means "auto-detect from go.mod or go.work".
-const DEFAULT_MODULE_PREFIX: &str = "quality-service/internal/";
+const DEFAULT_MODULE_PREFIX: &str = "internal/";
 
 /// Parse a single Go source file into a `GoFile`.
 pub fn parse_file(path: &str, source: &str) -> GoFile {
@@ -989,7 +989,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"quality-service/internal/domain/configctl"
+	"internal/domain/configctl"
 )
 "#;
         let file = parse_file("main.go", src);
@@ -1005,7 +1005,7 @@ import (
         let src = r#"package main
 
 import (
-	configdomain "quality-service/internal/domain/configctl"
+	configdomain "internal/domain/configctl"
 )
 "#;
         let file = parse_file("main.go", src);
@@ -1013,7 +1013,7 @@ import (
         assert_eq!(file.imports[0].alias.as_deref(), Some("configdomain"));
         assert_eq!(
             file.imports[0].path,
-            "quality-service/internal/domain/configctl"
+            "internal/domain/configctl"
         );
     }
 
@@ -1456,8 +1456,8 @@ import (
 	"strings"
 	"time"
 
-	"quality-service/internal/shared/events"
-	"quality-service/internal/shared/problem"
+	"internal/shared/events"
+	"internal/shared/problem"
 )
 
 type VersionLifecycle string
@@ -1544,8 +1544,8 @@ func (s ConfigSet) hasOpenCandidate() bool {
 import (
 	"context"
 
-	"quality-service/internal/application/configctl/contracts"
-	"quality-service/internal/shared/problem"
+	"internal/application/configctl/contracts"
+	"internal/shared/problem"
 )
 
 type ConfigctlGateway interface {
@@ -1592,7 +1592,7 @@ type ConfigctlGateway interface {
     #[test]
     fn classify_internal_imports() {
         assert_eq!(
-            classify_import("quality-service/internal/domain/configctl"),
+            classify_import("internal/domain/configctl"),
             ImportKind::Internal
         );
     }

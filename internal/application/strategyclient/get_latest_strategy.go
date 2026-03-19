@@ -23,7 +23,7 @@ func NewGetLatestStrategyUseCase(gateway strategyGateway) *GetLatestStrategyUseC
 
 func (uc *GetLatestStrategyUseCase) Execute(ctx context.Context, query StrategyLatestQuery) (StrategyLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return StrategyLatestReply{}, problem.New(problem.Unavailable, "strategy service is unavailable")
+		return StrategyLatestReply{}, problem.New(problem.Unavailable, "strategy gateway is unavailable")
 	}
 
 	if query.Type == "" {

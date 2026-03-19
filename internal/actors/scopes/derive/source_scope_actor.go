@@ -66,6 +66,30 @@ type ExecutionFamilyProcessor struct {
 	NewActor    func(source, symbol string, timeframe time.Duration, executionPublisherPID *actor.PID) actor.Producer
 }
 
+// filterEnabled filters a processor slice by config enablement, logging skipped families.
+// This is the canonical filter used during supervisor startup for all processor scopes.
+func filterEnabled[T any](all []T, getFamily func(T) string, isEnabled func(string) bool, logger *slog.Logger, scopeLabel string) []T {
+	var enabled []T
+	for _, p := range all {
+		name := getFamily(p)
+		if isEnabled(name) {
+			enabled = append(enabled, p)
+		} else {
+			logger.Info(scopeLabel+" family processor skipped", "family", name)
+		}
+	}
+	return enabled
+}
+
+// familyNames extracts family names from a processor slice for logging.
+func familyNames[T any](processors []T, getFamily func(T) string) []string {
+	names := make([]string, len(processors))
+	for i, p := range processors {
+		names[i] = getFamily(p)
+	}
+	return names
+}
+
 // SourceScopeConfig holds the configuration for a source scope actor.
 type SourceScopeConfig struct {
 	Source              string
@@ -245,37 +269,13 @@ func (a *SourceScopeActor) start(c *actor.Context) {
 	for i, tf := range a.cfg.Timeframes {
 		tfSeconds[i] = int(tf.Seconds())
 	}
-	families := make([]string, len(a.cfg.Processors))
-	for i, p := range a.cfg.Processors {
-		families[i] = p.Family
-	}
-	signalFamilies := make([]string, len(a.cfg.SignalProcessors))
-	for i, p := range a.cfg.SignalProcessors {
-		signalFamilies[i] = p.Family
-	}
-	decisionFamilies := make([]string, len(a.cfg.DecisionProcessors))
-	for i, p := range a.cfg.DecisionProcessors {
-		decisionFamilies[i] = p.Family
-	}
-	strategyFamilies := make([]string, len(a.cfg.StrategyProcessors))
-	for i, p := range a.cfg.StrategyProcessors {
-		strategyFamilies[i] = p.Family
-	}
-	riskFamilies := make([]string, len(a.cfg.RiskProcessors))
-	for i, p := range a.cfg.RiskProcessors {
-		riskFamilies[i] = p.Family
-	}
-	executionFamilies := make([]string, len(a.cfg.ExecutionProcessors))
-	for i, p := range a.cfg.ExecutionProcessors {
-		executionFamilies[i] = p.Family
-	}
 	a.logger.Info("source scope started",
-		"families", families,
-		"signal_families", signalFamilies,
-		"decision_families", decisionFamilies,
-		"strategy_families", strategyFamilies,
-		"risk_families", riskFamilies,
-		"execution_families", executionFamilies,
+		"families", familyNames(a.cfg.Processors, func(p FamilyProcessor) string { return p.Family }),
+		"signal_families", familyNames(a.cfg.SignalProcessors, func(p SignalFamilyProcessor) string { return p.Family }),
+		"decision_families", familyNames(a.cfg.DecisionProcessors, func(p DecisionFamilyProcessor) string { return p.Family }),
+		"strategy_families", familyNames(a.cfg.StrategyProcessors, func(p StrategyFamilyProcessor) string { return p.Family }),
+		"risk_families", familyNames(a.cfg.RiskProcessors, func(p RiskFamilyProcessor) string { return p.Family }),
+		"execution_families", familyNames(a.cfg.ExecutionProcessors, func(p ExecutionFamilyProcessor) string { return p.Family }),
 		"timeframes_s", tfSeconds,
 	)
 }

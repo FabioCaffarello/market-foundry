@@ -14,7 +14,7 @@ import (
 )
 
 func Run(config settings.AppConfig) {
-	logger := bootstrap.BuildLogger(config.Log)
+	logger := bootstrap.BuildLogger(config.Log, "ingest")
 	slog.SetDefault(logger)
 
 	logger.Info("ingest starting")
@@ -46,6 +46,7 @@ func Run(config settings.AppConfig) {
 		config.HTTP.Addr,
 		[]healthz.ReadinessCheck{bootstrap.NATSReadinessCheck(config)},
 		[]*healthz.Tracker{publisherTracker},
+		healthz.WithRuntime("ingest"),
 	)
 	srv.StartInBackground()
 

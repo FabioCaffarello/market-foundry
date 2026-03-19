@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// A named, reproducible validation scenario for the quality-service cluster.
+/// A named, reproducible validation scenario for the market-foundry cluster.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Scenario {

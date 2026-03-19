@@ -922,7 +922,7 @@ fn find_layer_for_path<'a>(
     import_path: &str,
     layers: &'a BTreeMap<String, String>,
 ) -> Option<&'a str> {
-    // Import paths look like "quality-service/internal/adapters/nats"
+    // Import paths look like "internal/adapters/nats"
     // We need to extract the dir-like part
     for (pkg_dir, layer) in layers {
         if import_path.contains(pkg_dir.as_str()) {

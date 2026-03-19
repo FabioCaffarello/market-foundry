@@ -14,7 +14,7 @@ import (
 )
 
 func Run(config settings.AppConfig) {
-	logger := bootstrap.BuildLogger(config.Log)
+	logger := bootstrap.BuildLogger(config.Log, "derive")
 	slog.SetDefault(logger)
 
 	logger.Info("derive starting",
@@ -48,6 +48,7 @@ func Run(config settings.AppConfig) {
 		config.HTTP.Addr,
 		[]healthz.ReadinessCheck{bootstrap.NATSReadinessCheck(config)},
 		[]*healthz.Tracker{publisherTracker},
+		healthz.WithRuntime("derive"),
 	)
 	srv.StartInBackground()
 

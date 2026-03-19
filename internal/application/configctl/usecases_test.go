@@ -145,7 +145,7 @@ func TestLifecycleUseCasesValidateCompileActivateDeactivateAndQuery(t *testing.T
 		SchemaVersion: "runtime/v1",
 		Checksum:      "artifact-checksum",
 		StorageRef:    "memory://artifacts/core/v1",
-		RuntimeLoader: "validator:v1",
+		RuntimeLoader: "configctl-sync/v1",
 	})
 	if prob != nil {
 		t.Fatalf("compile config: %v", prob)
@@ -283,7 +283,7 @@ func TestCompileUseCaseRejectsInvalidTransition(t *testing.T) {
 		SchemaVersion: "runtime/v1",
 		Checksum:      "artifact-checksum",
 		StorageRef:    "memory://artifacts/core/v1",
-		RuntimeLoader: "validator:v1",
+		RuntimeLoader: "configctl-sync/v1",
 	})
 	if prob == nil || prob.Code != problem.Conflict {
 		t.Fatalf("expected conflict compiling draft, got %v", prob)
@@ -344,7 +344,7 @@ func TestCompileUseCaseBuildsDefaultArtifactMetadata(t *testing.T) {
 	if reply.Config.Artifact.ID != "artifact-1" {
 		t.Fatalf("expected generated artifact id, got %q", reply.Config.Artifact.ID)
 	}
-	if reply.Config.Artifact.RuntimeLoader != "validator:v1" {
+	if reply.Config.Artifact.RuntimeLoader != "configctl-sync/v1" {
 		t.Fatalf("expected default runtime loader, got %q", reply.Config.Artifact.RuntimeLoader)
 	}
 	if reply.Config.Artifact.StorageRef == "" || reply.Config.Artifact.Checksum == "" {
@@ -389,7 +389,7 @@ func TestActivateConfigUseCaseRollsBackWhenPublisherFails(t *testing.T) {
 		SchemaVersion: "runtime/v1",
 		Checksum:      "artifact-checksum",
 		StorageRef:    "memory://artifacts/core/v1",
-		RuntimeLoader: "validator:v1",
+		RuntimeLoader: "configctl-sync/v1",
 	}); prob != nil {
 		t.Fatalf("compile config: %v", prob)
 	}
@@ -440,7 +440,7 @@ func sequence(values ...string) func() string {
 
 func validDraftSource() string {
 	return `{
-		"metadata":{"name":"Core Quality Config","description":"baseline quality checks"},
+		"metadata":{"name":"Core Market Config","description":"baseline market checks"},
 		"bindings":[{"name":"orders","topic":"orders.v1"}],
 		"fields":[
 			{"name":"order_id","type":"string","required":true},

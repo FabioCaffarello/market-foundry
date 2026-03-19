@@ -13,6 +13,7 @@ import (
 )
 
 const SignalRSILatestBucket = "SIGNAL_RSI_LATEST"
+const SignalEMACrossoverLatestBucket = "SIGNAL_EMA_CROSSOVER_LATEST"
 
 // SignalKVStore persists the latest finalized signal per source/symbol/timeframe.
 // One instance per signal type; the bucket name is injected at construction.

@@ -44,7 +44,7 @@ func TestConfigctlGatewayCreateDraft(t *testing.T) {
 	}
 
 	client := &requestReplyClientSpy{reply: replyBytes}
-	gateway := NewConfigctlGateway(client, "server.http")
+	gateway := NewConfigctlGateway(client, "gateway.http")
 
 	reply, errProb := gateway.CreateDraft(requestctx.WithCorrelationID(context.Background(), "corr-123"), contracts.CreateDraftCommand{
 		Name:    "core",
@@ -86,7 +86,7 @@ func TestConfigctlGatewayReturnsRemoteProblem(t *testing.T) {
 		t.Fatalf("encode reply: %v", err)
 	}
 
-	_, prob := NewConfigctlGateway(&requestReplyClientSpy{reply: replyBytes}, "server.http").ValidateDraft(context.Background(), contracts.ValidateDraftCommand{
+	_, prob := NewConfigctlGateway(&requestReplyClientSpy{reply: replyBytes}, "gateway.http").ValidateDraft(context.Background(), contracts.ValidateDraftCommand{
 		Format:  "json",
 		Content: "{}",
 	})
@@ -114,7 +114,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	validateClient := &requestReplyClientSpy{reply: replyBytes}
-	validateReply, prob := NewConfigctlGateway(validateClient, "server.http").ValidateConfig(context.Background(), contracts.ValidateConfigCommand{VersionID: "cfg-123"})
+	validateReply, prob := NewConfigctlGateway(validateClient, "gateway.http").ValidateConfig(context.Background(), contracts.ValidateConfigCommand{VersionID: "cfg-123"})
 	if prob != nil {
 		t.Fatalf("validate config: %v", prob)
 	}
@@ -137,7 +137,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	compileClient := &requestReplyClientSpy{reply: replyBytes}
-	compileReply, prob := NewConfigctlGateway(compileClient, "server.http").CompileConfig(context.Background(), contracts.CompileConfigCommand{VersionID: "cfg-123"})
+	compileReply, prob := NewConfigctlGateway(compileClient, "gateway.http").CompileConfig(context.Background(), contracts.CompileConfigCommand{VersionID: "cfg-123"})
 	if prob != nil {
 		t.Fatalf("compile config: %v", prob)
 	}
@@ -160,7 +160,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	activateClient := &requestReplyClientSpy{reply: replyBytes}
-	activateReply, prob := NewConfigctlGateway(activateClient, "server.http").ActivateConfig(context.Background(), contracts.ActivateConfigCommand{VersionID: "cfg-123"})
+	activateReply, prob := NewConfigctlGateway(activateClient, "gateway.http").ActivateConfig(context.Background(), contracts.ActivateConfigCommand{VersionID: "cfg-123"})
 	if prob != nil {
 		t.Fatalf("activate config: %v", prob)
 	}
@@ -198,7 +198,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	ingestionClient := &requestReplyClientSpy{reply: replyBytes}
-	ingestionReply, prob := NewConfigctlGateway(ingestionClient, "server.http").ListActiveIngestionBindings(context.Background(), contracts.ListActiveIngestionBindingsQuery{
+	ingestionReply, prob := NewConfigctlGateway(ingestionClient, "gateway.http").ListActiveIngestionBindings(context.Background(), contracts.ListActiveIngestionBindingsQuery{
 		ScopeKind: "tenant",
 		ScopeKey:  "br",
 	})
@@ -243,7 +243,7 @@ func TestConfigctlGatewayLifecycleMethods(t *testing.T) {
 	}
 
 	runtimeProjectionClient := &requestReplyClientSpy{reply: replyBytes}
-	runtimeProjectionReply, prob := NewConfigctlGateway(runtimeProjectionClient, "server.http").ListActiveRuntimeProjections(context.Background(), contracts.ListActiveRuntimeProjectionsQuery{
+	runtimeProjectionReply, prob := NewConfigctlGateway(runtimeProjectionClient, "gateway.http").ListActiveRuntimeProjections(context.Background(), contracts.ListActiveRuntimeProjectionsQuery{
 		ScopeKind: "tenant",
 		ScopeKey:  "br",
 	})

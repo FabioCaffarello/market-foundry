@@ -23,7 +23,7 @@ func NewGetExecutionControlUseCase(gateway executionControlGateway) *GetExecutio
 
 func (uc *GetExecutionControlUseCase) Execute(ctx context.Context, query ExecutionControlQuery) (ExecutionControlReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return ExecutionControlReply{}, problem.New(problem.Unavailable, "execution control service is unavailable")
+		return ExecutionControlReply{}, problem.New(problem.Unavailable, "execution control gateway is unavailable")
 	}
 	return uc.gateway.GetExecutionControl(ctx, query)
 }
@@ -39,7 +39,7 @@ func NewSetExecutionControlUseCase(gateway executionControlGateway) *SetExecutio
 
 func (uc *SetExecutionControlUseCase) Execute(ctx context.Context, cmd SetExecutionControlCommand) (ExecutionControlReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return ExecutionControlReply{}, problem.New(problem.Unavailable, "execution control service is unavailable")
+		return ExecutionControlReply{}, problem.New(problem.Unavailable, "execution control gateway is unavailable")
 	}
 
 	if cmd.Status != "active" && cmd.Status != "halted" {

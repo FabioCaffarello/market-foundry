@@ -23,7 +23,7 @@ func NewGetLatestCandleUseCase(gateway evidenceGateway) *GetLatestCandleUseCase 
 
 func (uc *GetLatestCandleUseCase) Execute(ctx context.Context, query CandleLatestQuery) (CandleLatestReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return CandleLatestReply{}, problem.New(problem.Unavailable, "evidence service is unavailable")
+		return CandleLatestReply{}, problem.New(problem.Unavailable, "evidence gateway is unavailable")
 	}
 
 	if query.Source == "" {

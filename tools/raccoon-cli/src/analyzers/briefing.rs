@@ -687,7 +687,7 @@ mod tests {
         // Minimal Go file for codeintel to index
         std::fs::write(
             dir.join("go.mod"),
-            "module github.com/example/quality-service\n\ngo 1.23\n",
+            "module github.com/example/market-foundry\n\ngo 1.23\n",
         )
         .unwrap();
         std::fs::write(
@@ -711,7 +711,7 @@ func (c *ConfigSet) Validate() error {
             dir.join("internal/application/ports/configctl.go"),
             r#"package ports
 
-import "github.com/example/quality-service/internal/domain/configctl"
+import "github.com/example/market-foundry/internal/domain/configctl"
 
 // ConfigctlGateway is the port for config management.
 type ConfigctlGateway interface {

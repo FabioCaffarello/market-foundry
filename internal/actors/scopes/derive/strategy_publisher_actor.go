@@ -64,6 +64,9 @@ func (a *StrategyPublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishStrategy(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish strategy failed",
 				"error", prob.Message,
 				"code", prob.Code,
@@ -75,6 +78,7 @@ func (a *StrategyPublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.Strategy.Symbol).Add(1)
 		}
 
 	default:

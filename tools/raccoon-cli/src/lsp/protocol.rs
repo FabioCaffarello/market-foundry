@@ -203,7 +203,11 @@ pub struct HoverResult {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum HoverContents {
-    Markup { kind: String, value: String },
+    Markup {
+        #[allow(dead_code)]
+        kind: String,
+        value: String,
+    },
     Plain(String),
 }
 

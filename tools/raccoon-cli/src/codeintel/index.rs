@@ -179,6 +179,7 @@ impl ProjectIndex {
     }
 
     /// Find all methods on a given type.
+    #[allow(dead_code)]
     pub fn methods_of(&self, type_name: &str) -> Vec<&GoFunc> {
         self.files
             .iter()
@@ -198,6 +199,7 @@ impl ProjectIndex {
     }
 
     /// List all interfaces in the index.
+    #[allow(dead_code)]
     pub fn all_interfaces(&self) -> Vec<&GoType> {
         self.files
             .iter()
@@ -207,6 +209,7 @@ impl ProjectIndex {
     }
 
     /// List all structs in the index.
+    #[allow(dead_code)]
     pub fn all_structs(&self) -> Vec<&GoType> {
         self.files
             .iter()
@@ -224,6 +227,7 @@ impl ProjectIndex {
     }
 
     /// List all import paths used across the project, with counts.
+    #[allow(dead_code)]
     pub fn import_frequency(&self) -> Vec<(String, usize)> {
         let mut freq: BTreeMap<String, usize> = BTreeMap::new();
         for file in &self.files {
@@ -237,6 +241,7 @@ impl ProjectIndex {
     }
 
     /// Find all constants of a given type hint.
+    #[allow(dead_code)]
     pub fn constants_of_type(&self, type_name: &str) -> Vec<&GoConst> {
         self.files
             .iter()

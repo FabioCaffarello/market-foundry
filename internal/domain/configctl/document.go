@@ -204,6 +204,11 @@ func (d ConfigDocument) Validate() []ValidationDiagnostic {
 		}
 		if binding.Topic == "" {
 			diagnostics = append(diagnostics, ValidationDiagnostic{Field: fieldPath + ".topic", Message: "must not be empty"})
+		} else if !isValidBindingTopic(binding.Topic) {
+			diagnostics = append(diagnostics, ValidationDiagnostic{
+				Field:   fieldPath + ".topic",
+				Message: "must follow the format 'source.symbol' (e.g., 'binancef.btcusdt')",
+			})
 		}
 		if binding.Name != "" {
 			if _, exists := bindingNames[binding.Name]; exists {
@@ -340,4 +345,26 @@ func checksum(value string) string {
 
 func itoa(value int) string {
 	return strconv.Itoa(value)
+}
+
+// isValidBindingTopic checks that a topic follows the 'source.symbol' convention.
+// Both source and symbol segments must be non-empty, lowercase alphanumeric (underscores allowed).
+func isValidBindingTopic(topic string) bool {
+	parts := strings.SplitN(topic, ".", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	return isValidSegment(parts[0]) && isValidSegment(parts[1])
+}
+
+func isValidSegment(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_') {
+			return false
+		}
+	}
+	return true
 }

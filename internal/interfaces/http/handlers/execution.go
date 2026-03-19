@@ -7,7 +7,6 @@ import (
 	"internal/application/executionclient"
 	"internal/domain/execution"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestExecutionUseCase interface {
@@ -51,8 +50,7 @@ func (h *ExecutionWebHandler) GetLatestExecution(w http.ResponseWriter, r *http.
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestExecution.Execute(ctx, executionclient.ExecutionLatestQuery{
+	result, prob := h.getLatestExecution.Execute(r.Context(), executionclient.ExecutionLatestQuery{
 		Type:      execType,
 		Source:    key.Source,
 		Symbol:    key.Symbol,
@@ -79,8 +77,7 @@ func (h *ExecutionWebHandler) GetExecutionStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getExecutionStatus.Execute(ctx, executionclient.ExecutionStatusQuery{
+	result, prob := h.getExecutionStatus.Execute(r.Context(), executionclient.ExecutionStatusQuery{
 		Source:    key.Source,
 		Symbol:    key.Symbol,
 		Timeframe: key.Timeframe,

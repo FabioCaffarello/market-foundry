@@ -227,6 +227,7 @@ func testHandler(srv *healthz.HealthServer) http.Handler {
 	mux.HandleFunc("GET /healthz", srv.HandleHealthz)
 	mux.HandleFunc("GET /readyz", srv.HandleReadyz)
 	mux.HandleFunc("GET /statusz", srv.HandleStatusz)
+	mux.HandleFunc("GET /diagz", srv.HandleDiagz)
 	return mux
 }
 

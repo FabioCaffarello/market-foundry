@@ -16,7 +16,7 @@ import (
 )
 
 func Run(config settings.AppConfig) {
-	logger := bootstrap.BuildLogger(config.Log)
+	logger := bootstrap.BuildLogger(config.Log, "execute")
 	slog.SetDefault(logger)
 
 	logger.Info("execute starting")
@@ -57,6 +57,7 @@ func Run(config settings.AppConfig) {
 		config.HTTP.Addr,
 		[]healthz.ReadinessCheck{bootstrap.NATSReadinessCheck(config)},
 		allTrackers,
+		healthz.WithRuntime("execute"),
 	)
 	srv.StartInBackground()
 

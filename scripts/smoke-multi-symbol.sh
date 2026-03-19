@@ -7,6 +7,8 @@
 #                                                                 → gateway HTTP endpoint
 #   Signal:    derive (RSI sampler) → SIGNAL_EVENTS → store (NATS KV)
 #                                                    → gateway HTTP endpoint
+#   Signal:    derive (EMA Crossover sampler) → SIGNAL_EVENTS → store (NATS KV)
+#                                                               → gateway HTTP endpoint
 #   Decision:  derive (RSI Oversold evaluator) → DECISION_EVENTS → store (NATS KV)
 #                                                                 → gateway HTTP endpoint
 #   Strategy:  derive (Mean Reversion Entry resolver) → STRATEGY_EVENTS → store (NATS KV)
@@ -23,7 +25,8 @@
 #
 # Validates: 2 symbols (btcusdt, ethusdt) × 2 timeframes (60s, 300s)
 # Evidence   KV keys: 4 (2 symbols × 2 timeframes)
-# Signal     KV keys: 4 (2 symbols × 2 timeframes)
+# Signal RSI KV keys: 4 (2 symbols × 2 timeframes)
+# Signal EMA KV keys: 4 (2 symbols × 2 timeframes)
 # Decision   KV keys: 4 (2 symbols × 2 timeframes)
 # Strategy   KV keys: 4 (2 symbols × 2 timeframes)
 # Risk       KV keys: 4 (2 symbols × 2 timeframes)
@@ -41,8 +44,8 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="binancef"
-SYMBOLS=("btcusdt" "ethusdt")
-TIMEFRAMES=(60 300)
+SYMBOLS=(${SMOKE_SYMBOLS:-btcusdt ethusdt})
+TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300})
 WAIT_SECONDS="${1:-90}"
 if [[ "${1:-}" == "--wait" ]]; then
     WAIT_SECONDS="${2:-90}"
@@ -271,6 +274,93 @@ else:
         COLLISION) fail "signal rsi tf=${tf}s: SYMBOL COLLISION — both signals have same symbol" ;;
         SUSPECT)  info "signal rsi tf=${tf}s: identical RSI values (possible but uncommon)" ;;
         *)        fail "signal rsi tf=${tf}s: isolation check error" ;;
+    esac
+done
+
+# ---------- Step 6a: Signal EMA Crossover multi-symbol validation ----------
+section "Step 6a: Signal EMA Crossover multi-symbol validation (CC-02)"
+info "Note: EMA Crossover needs 21 candles warm-up (~21min at 60s). Signals may be null if pipeline is young."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking signal ema_crossover ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "signal ema_crossover ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'signal' in data, 'missing signal key'
+sig = data['signal']
+if sig is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'value', 'timestamp', 'final']
+    for field in required:
+        assert field in sig, f'missing field: {field}'
+    assert sig['source'] == '${SOURCE}', f'wrong source: {sig[\"source\"]}'
+    assert sig['symbol'] == '${sym}', f'wrong symbol: {sig[\"symbol\"]}'
+    assert sig['timeframe'] == ${tf}, f'wrong timeframe: {sig[\"timeframe\"]}'
+    assert sig['type'] == 'ema_crossover', f'wrong type: {sig[\"type\"]}'
+    assert sig['value'] in ('bullish', 'bearish', 'neutral'), f'invalid value: {sig[\"value\"]}'
+    meta = sig.get('metadata', {})
+    for mkey in ('fast_period', 'slow_period', 'fast_ema', 'slow_ema', 'spread'):
+        assert mkey in meta, f'missing metadata key: {mkey}'
+    print(f'SIGNAL type={sig[\"type\"]} source={sig[\"source\"]} symbol={sig[\"symbol\"]} tf={sig[\"timeframe\"]} value={sig[\"value\"]} final={sig[\"final\"]}')
+    print(f'  fast_ema={meta[\"fast_ema\"]} slow_ema={meta[\"slow_ema\"]} spread={meta[\"spread\"]}')
+else:
+    print('NULL (EMA Crossover warm-up not complete yet — needs 21 candles)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "SIGNAL"; then
+                pass "signal ema_crossover ${sym}/${tf}s → signal present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "signal ema_crossover ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "signal ema_crossover ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 6b: Cross-symbol EMA Crossover signal isolation ----------
+section "Step 6b: Cross-symbol EMA Crossover signal isolation (CC-02)"
+info "Verifying signal EMA Crossover produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    SIG_A=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    SIG_B=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${SIG_A}''')['signal']
+b = json.loads('''${SIG_B}''')['signal']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "signal ema_crossover tf=${tf}s: symbols produce independent signal data" ;;
+        PARTIAL)  pass "signal ema_crossover tf=${tf}s: one symbol has signal, other pending (expected)" ;;
+        NONE)     info "signal ema_crossover tf=${tf}s: no signals yet (warm-up pending)" ;;
+        COLLISION) fail "signal ema_crossover tf=${tf}s: SYMBOL COLLISION — both signals have same symbol" ;;
+        *)        fail "signal ema_crossover tf=${tf}s: isolation check error" ;;
     esac
 done
 
@@ -1105,6 +1195,10 @@ echo ""
 echo "  derive (RSI sampler) → SIGNAL_EVENTS → store (NATS KV)"
 echo "                       → signal.query.rsi.latest"
 echo "                       → GET /signal/rsi/latest"
+echo ""
+echo "  derive (EMA Crossover sampler) → SIGNAL_EVENTS → store (NATS KV)"
+echo "                                 → signal.query.ema_crossover.latest"
+echo "                                 → GET /signal/ema_crossover/latest"
 echo ""
 echo "  derive (RSI Oversold evaluator) → DECISION_EVENTS → store (NATS KV)"
 echo "                                  → decision.query.rsi_oversold.latest"

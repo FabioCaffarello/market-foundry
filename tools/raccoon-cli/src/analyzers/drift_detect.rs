@@ -31,6 +31,7 @@ const DEFUNCT_NAMES: &[&str] = &["consumer", "emulator", "validator"];
 
 /// Architecture docs that must exist and mention all services.
 const ARCH_DOCS: &[&str] = &[
+    // Pre-consolidation structural docs
     "docs/architecture/runtime-target.md",
     "docs/architecture/stream-taxonomy.md",
     "docs/architecture/actor-ownership.md",
@@ -39,6 +40,27 @@ const ARCH_DOCS: &[&str] = &[
     "docs/architecture/stream-family-catalog.md",
     "docs/architecture/projection-family-matrix.md",
     "docs/architecture/system-principles.md",
+    // Consolidated governance docs (S96–S105) — authoritative for cross-cutting conventions
+    "docs/architecture/boundary-naming-and-interface-hygiene.md",
+    "docs/architecture/dependency-injection-and-composition-roots.md",
+    "docs/architecture/diagnostic-surfaces-and-runtime-signals.md",
+    "docs/architecture/error-handling-and-degradation-policy.md",
+    "docs/architecture/fail-fast-vs-graceful-degradation-rules.md",
+    "docs/architecture/family-runtime-registration-rules.md",
+    "docs/architecture/how-to-introduce-new-runtimes-domains-and-families.md",
+    "docs/architecture/minimal-observability-foundation.md",
+    "docs/architecture/monorepo-structure-and-engineering-conventions.md",
+    "docs/architecture/naming-conventions-for-domains-families-and-runtimes.md",
+    "docs/architecture/operational-contracts-and-cross-runtime-conventions.md",
+    "docs/architecture/registry-driven-runtime-assembly.md",
+    "docs/architecture/runtime-assembly-guidelines.md",
+    "docs/architecture/runtime-invariants-and-shared-behavior-rules.md",
+    "docs/architecture/config-activation-and-dependency-map-model.md",
+    "docs/architecture/config-validation-and-sync-rules.md",
+    // S105 governance refinement docs
+    "docs/architecture/expansion-playbooks-refined.md",
+    "docs/architecture/structural-anti-patterns-and-when-not-to-expand.md",
+    "docs/architecture/technical-governance-refinement.md",
 ];
 
 /// Stream names that must NOT appear in source yet (premature domain entry guard).
@@ -483,23 +505,36 @@ fn gather_evidence(project_root: &Path) -> Result<Evidence> {
 // ── Scanners ────────────────────────────────────────────────────────
 
 fn scan_stale_references(project_root: &Path, refs: &mut Vec<StaleReference>) {
-    // Scan Go source and config files for residual old names
-    let scan_dirs = [
-        project_root.join("internal"),
-        project_root.join("cmd"),
-        project_root.join("deploy"),
-    ];
+    // Scan Go source and config files for residual old names.
+    //
+    // "consumer" is only checked in cmd/ and deploy/ because internal/ legitimately
+    // uses "consumer" for NATS JetStream durable consumers (adapters, actors).
+    // "emulator" and "validator" are checked everywhere — no legitimate usage exists.
 
-    // Patterns: old service names and the "server" -> "gateway" rename
-    let patterns: Vec<(&str, &str)> = vec![
-        ("consumer", "old service name 'consumer'"),
+    let universal_patterns: Vec<(&str, &str)> = vec![
         ("emulator", "old service name 'emulator'"),
         ("validator", "old service name 'validator'"),
     ];
 
-    for dir in &scan_dirs {
+    let consumer_pattern: Vec<(&str, &str)> = vec![
+        ("consumer", "old service name 'consumer'"),
+    ];
+
+    // Scan internal/ for emulator and validator only (consumer is legitimate here)
+    let internal_dir = project_root.join("internal");
+    if internal_dir.is_dir() {
+        scan_dir_for_patterns(&internal_dir, &universal_patterns, refs, project_root);
+    }
+
+    // Scan cmd/ and deploy/ for all patterns including consumer
+    let all_patterns: Vec<(&str, &str)> = consumer_pattern
+        .iter()
+        .chain(universal_patterns.iter())
+        .copied()
+        .collect();
+    for dir in &[project_root.join("cmd"), project_root.join("deploy")] {
         if dir.is_dir() {
-            scan_dir_for_patterns(dir, &patterns, refs, project_root);
+            scan_dir_for_patterns(dir, &all_patterns, refs, project_root);
         }
     }
 }
@@ -2668,6 +2703,10 @@ mod tests {
         streams.insert(
             "EXECUTION_EVENTS".into(),
             vec!["execution.events.>".into()],
+        );
+        streams.insert(
+            "EXECUTION_FILL_EVENTS".into(),
+            vec!["execution.fill.>".into()],
         );
 
         let mut durables = HashMap::new();

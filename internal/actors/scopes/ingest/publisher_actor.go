@@ -64,6 +64,9 @@ func (a *PublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishTrade(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish trade",
 				"error", prob.Message,
 				"trade_id", msg.Event.Trade.TradeID,
@@ -71,6 +74,7 @@ func (a *PublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.Trade.Symbol).Add(1)
 		}
 
 	default:

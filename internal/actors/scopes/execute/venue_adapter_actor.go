@@ -7,9 +7,9 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
+	adapternats "internal/adapters/nats"
 	appexec "internal/application/execution"
 	"internal/application/ports"
-	adapternats "internal/adapters/nats"
 	domainexec "internal/domain/execution"
 	"internal/shared/events"
 	"internal/shared/healthz"
@@ -35,7 +35,7 @@ type VenueAdapterActor struct {
 	logger        *slog.Logger
 	controlStore  *adapternats.ExecutionControlKVStore
 	fillPublisher *adapternats.ExecutionPublisher
-	staleness     *appexec.StalenessGuard
+	safetyGate    *appexec.SafetyGate
 }
 
 func NewVenueAdapterActor(cfg VenueAdapterConfig) actor.Producer {
@@ -74,15 +74,20 @@ func (a *VenueAdapterActor) Receive(c *actor.Context) {
 }
 
 func (a *VenueAdapterActor) start(c *actor.Context) {
-	a.staleness = appexec.NewStalenessGuard(a.cfg.StalenessMaxAge)
+	staleness := appexec.NewStalenessGuard(a.cfg.StalenessMaxAge)
 
 	// Connect to execution control KV for kill switch.
+	var gateChecker appexec.GateChecker
 	controlStore := adapternats.NewExecutionControlKVStore(a.cfg.NATSURL)
 	if err := controlStore.Start(); err != nil {
 		a.logger.Warn("execution control KV store unavailable — gate check disabled", "error", err)
 	} else {
 		a.controlStore = controlStore
+		gateChecker = controlStore
 	}
+
+	// Assemble the safety gate with the available components.
+	a.safetyGate = appexec.NewSafetyGate(gateChecker, 2*time.Second, staleness)
 
 	// Connect fill publisher for publishing fill events.
 	fillPub := adapternats.NewExecutionPublisher(a.cfg.NATSURL, a.cfg.Source, a.cfg.Registry)
@@ -106,13 +111,15 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		tracker.Counter("processed").Add(1)
 	}
 	intent := msg.Event.ExecutionIntent
+	if tracker != nil {
+		tracker.Counter("processed:" + intent.Symbol).Add(1)
+	}
 
-	// Gate 1: Kill switch check.
-	if a.controlStore != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		halted := a.controlStore.IsHalted(ctx)
-		cancel()
-		if halted {
+	// Gates 1+2: Kill switch and staleness guard.
+	verdict := a.safetyGate.Check(intent.Timestamp, time.Now().UTC())
+	if !verdict.Allowed {
+		switch verdict.Reason {
+		case "kill_switch":
 			if tracker != nil {
 				tracker.Counter("skipped_halt").Add(1)
 			}
@@ -122,23 +129,28 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 				"timeframe", intent.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
-			return
+		case "stale":
+			if tracker != nil {
+				tracker.Counter("skipped_stale").Add(1)
+			}
+			a.logger.Warn("intent stale — skipped",
+				"source", intent.Source,
+				"symbol", intent.Symbol,
+				"timeframe", intent.Timeframe,
+				"age", time.Since(intent.Timestamp).String(),
+				"max_age", a.cfg.StalenessMaxAge.String(),
+				"correlation_id", msg.Event.Metadata.CorrelationID,
+			)
+		default:
+			if tracker != nil {
+				tracker.RecordError()
+			}
+			a.logger.Error("safety gate blocked with unknown reason",
+				"reason", verdict.Reason,
+				"source", intent.Source,
+				"symbol", intent.Symbol,
+			)
 		}
-	}
-
-	// Gate 2: Staleness guard.
-	if a.staleness.IsStale(intent.Timestamp, time.Now().UTC()) {
-		if tracker != nil {
-			tracker.Counter("skipped_stale").Add(1)
-		}
-		a.logger.Warn("intent stale — skipped",
-			"source", intent.Source,
-			"symbol", intent.Symbol,
-			"timeframe", intent.Timeframe,
-			"age", time.Since(intent.Timestamp).String(),
-			"max_age", a.cfg.StalenessMaxAge.String(),
-			"correlation_id", msg.Event.Metadata.CorrelationID,
-		)
 		return
 	}
 
@@ -198,6 +210,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	if tracker != nil {
 		tracker.RecordEvent()
 		tracker.Counter("filled").Add(1)
+		tracker.Counter("filled:" + intent.Symbol).Add(1)
 	}
 
 	a.logger.Info("venue order filled",

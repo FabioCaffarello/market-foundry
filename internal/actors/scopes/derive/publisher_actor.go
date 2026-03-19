@@ -64,6 +64,9 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishCandle(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish candle failed",
 				"error", prob.Message,
 				"code", prob.Code,
@@ -74,6 +77,7 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.Candle.Symbol).Add(1)
 		}
 
 	case publishTradeBurstMessage:
@@ -81,6 +85,9 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishTradeBurst(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish trade burst failed",
 				"error", prob.Message,
 				"code", prob.Code,
@@ -91,6 +98,7 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.TradeBurst.Symbol).Add(1)
 		}
 
 	case publishVolumeMessage:
@@ -98,6 +106,9 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 		prob := a.publisher.PublishVolume(ctx, msg.Event)
 		cancel()
 		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
 			a.logger.Error("publish volume failed",
 				"error", prob.Message,
 				"code", prob.Code,
@@ -108,6 +119,7 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:" + msg.Event.Volume.Symbol).Add(1)
 		}
 
 	default:

@@ -8,7 +8,6 @@ import (
 	"internal/application/evidenceclient"
 	"internal/domain/evidence"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestCandleUseCase interface {
@@ -86,8 +85,7 @@ func (h *EvidenceWebHandler) GetLatestCandle(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestCandle.Execute(ctx, evidenceclient.CandleLatestQuery{
+	result, prob := h.getLatestCandle.Execute(r.Context(), evidenceclient.CandleLatestQuery{
 		Source:    key.Source,
 		Symbol:    key.Symbol,
 		Timeframe: key.Timeframe,
@@ -149,8 +147,7 @@ func (h *EvidenceWebHandler) GetCandleHistory(w http.ResponseWriter, r *http.Req
 		until = parsed
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getCandleHistory.Execute(ctx, evidenceclient.CandleHistoryQuery{
+	result, prob := h.getCandleHistory.Execute(r.Context(), evidenceclient.CandleHistoryQuery{
 		Source:    key.Source,
 		Symbol:    key.Symbol,
 		Timeframe: key.Timeframe,
@@ -188,8 +185,7 @@ func (h *EvidenceWebHandler) GetLatestTradeBurst(w http.ResponseWriter, r *http.
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestTradeBurst.Execute(ctx, evidenceclient.TradeBurstLatestQuery{
+	result, prob := h.getLatestTradeBurst.Execute(r.Context(), evidenceclient.TradeBurstLatestQuery{
 		Source:    key.Source,
 		Symbol:    key.Symbol,
 		Timeframe: key.Timeframe,
@@ -219,8 +215,7 @@ func (h *EvidenceWebHandler) GetLatestVolume(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestVolume.Execute(ctx, evidenceclient.VolumeLatestQuery{
+	result, prob := h.getLatestVolume.Execute(r.Context(), evidenceclient.VolumeLatestQuery{
 		Source:    key.Source,
 		Symbol:    key.Symbol,
 		Timeframe: key.Timeframe,

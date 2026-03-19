@@ -59,8 +59,8 @@ pub mod walker;
 
 // Re-export the main entry point and key types for ergonomic use.
 pub use index::build_index;
+#[allow(unused_imports)]
 pub use types::{
-    GoConst, GoFile, GoFunc, GoImport, GoPackage, GoType, GoVar, ImportKind, IndexStats,
-    InterfaceEmbed, InterfaceMethod, Location, Param, ProjectIndex, Receiver, StructField,
-    TypeKind, Visibility,
+    GoFile, GoFunc, GoType, ImportKind, Location, ProjectIndex, Receiver, StructField, TypeKind,
+    Visibility,
 };

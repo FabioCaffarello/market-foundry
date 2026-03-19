@@ -124,24 +124,34 @@ type trackerStatus struct {
 
 // statusResponse is returned by /statusz.
 type statusResponse struct {
-	Status   string          `json:"status"`
-	Trackers []trackerStatus `json:"trackers,omitempty"`
+	Status    string          `json:"status"`
+	Runtime   string          `json:"runtime,omitempty"`
+	Uptime    string          `json:"uptime,omitempty"`
+	StartedAt string          `json:"started_at,omitempty"`
+	Trackers  []trackerStatus `json:"trackers,omitempty"`
 }
 
-// HealthServer provides /healthz, /readyz, and /statusz endpoints.
+// HealthServer provides /healthz, /readyz, /statusz, and /diagz endpoints.
 type HealthServer struct {
 	addr          string
+	runtime       string
 	checks        []ReadinessCheck
 	trackers      []*Tracker
 	idleThreshold time.Duration
 	server        *http.Server
 	logger        *slog.Logger
+	startedAt     time.Time
 	stopHeartbeat context.CancelFunc
 	heartbeatWg   sync.WaitGroup
 }
 
 // Option configures the HealthServer.
 type Option func(*HealthServer)
+
+// WithRuntime sets the runtime name for diagnostic endpoints.
+func WithRuntime(name string) Option {
+	return func(s *HealthServer) { s.runtime = name }
+}
 
 // WithIdleThreshold sets the duration after which idle trackers emit a warning log.
 // Default: 2 minutes.
@@ -157,6 +167,7 @@ func NewHealthServer(addr string, checks []ReadinessCheck, trackers []*Tracker, 
 		trackers:      trackers,
 		idleThreshold: 2 * time.Minute,
 		logger:        slog.Default().With("component", "healthz"),
+		startedAt:     time.Now(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -171,6 +182,7 @@ func (s *HealthServer) Start() error {
 	mux.HandleFunc("GET /healthz", s.HandleHealthz)
 	mux.HandleFunc("GET /readyz", s.HandleReadyz)
 	mux.HandleFunc("GET /statusz", s.HandleStatusz)
+	mux.HandleFunc("GET /diagz", s.HandleDiagz)
 
 	s.server = &http.Server{
 		Addr:         s.addr,
@@ -248,7 +260,12 @@ func (s *HealthServer) HandleReadyz(w http.ResponseWriter, r *http.Request) {
 
 // HandleStatusz serves the /statusz activity status endpoint.
 func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
-	resp := statusResponse{Status: "ok"}
+	resp := statusResponse{
+		Status:    "ok",
+		Runtime:   s.runtime,
+		Uptime:    time.Since(s.startedAt).Truncate(time.Second).String(),
+		StartedAt: s.startedAt.Format(time.RFC3339),
+	}
 	for _, t := range s.trackers {
 		ts := trackerStatus{
 			Name:       t.Name(),
@@ -267,6 +284,54 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 		resp.Trackers = append(resp.Trackers, ts)
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// HandleDiagz serves the /diagz diagnostic summary endpoint.
+// It provides a machine-readable overview of the runtime's diagnostic state
+// without exposing operational data or domain secrets.
+func (s *HealthServer) HandleDiagz(w http.ResponseWriter, _ *http.Request) {
+	diag := map[string]any{
+		"runtime":    s.runtime,
+		"started_at": s.startedAt.Format(time.RFC3339),
+		"uptime":     time.Since(s.startedAt).Truncate(time.Second).String(),
+	}
+
+	// Readiness check summary.
+	checks := make([]map[string]any, 0, len(s.checks))
+	for _, c := range s.checks {
+		entry := map[string]any{"name": c.Name}
+		if err := c.Check(context.Background()); err != nil {
+			entry["status"] = "fail"
+			entry["error"] = err.Error()
+		} else {
+			entry["status"] = "pass"
+		}
+		checks = append(checks, entry)
+	}
+	diag["readiness_checks"] = checks
+
+	// Tracker summary.
+	trackerSummary := make([]map[string]any, 0, len(s.trackers))
+	for _, t := range s.trackers {
+		entry := map[string]any{
+			"name":        t.Name(),
+			"event_count": t.EventCount(),
+			"error_count": t.ErrorCount(),
+		}
+		if last := t.LastEventAt(); !last.IsZero() {
+			entry["last_event_at"] = last.Format(time.RFC3339)
+			entry["idle_seconds"] = int(t.IdleSince().Seconds())
+		} else {
+			entry["status"] = "awaiting_first_event"
+		}
+		if counters := t.Counters(); len(counters) > 0 {
+			entry["counters"] = counters
+		}
+		trackerSummary = append(trackerSummary, entry)
+	}
+	diag["trackers"] = trackerSummary
+
+	writeJSON(w, http.StatusOK, diag)
 }
 
 func (s *HealthServer) heartbeatLoop(ctx context.Context) {

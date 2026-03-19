@@ -19,16 +19,19 @@ pub enum FactSource {
     /// Semantic fact from gopls LSP.
     Lsp,
     /// Enrichment was attempted but unavailable.
+    #[allow(dead_code)]
     Unavailable { reason: String },
 }
 
 impl FactSource {
+    #[allow(dead_code)]
     pub fn unavailable(reason: impl Into<String>) -> Self {
         FactSource::Unavailable {
             reason: reason.into(),
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_available(&self) -> bool {
         !matches!(self, FactSource::Unavailable { .. })
     }

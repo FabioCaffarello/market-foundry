@@ -1,25 +1,15 @@
 package configctlclient
 
 import (
-	"context"
-
 	"internal/application/configctl/contracts"
 	"internal/application/ports"
-	"internal/shared/problem"
+	"internal/shared/usecase"
 )
 
-type ListConfigsUseCase struct {
-	gateway ports.ConfigctlGateway
-}
+type ListConfigsUseCase = usecase.GatewayUseCase[contracts.ListConfigsQuery, contracts.ListConfigsReply]
 
 func NewListConfigsUseCase(gateway ports.ConfigctlGateway) *ListConfigsUseCase {
-	return &ListConfigsUseCase{gateway: gateway}
-}
-
-func (uc *ListConfigsUseCase) Execute(ctx context.Context, query contracts.ListConfigsQuery) (contracts.ListConfigsReply, *problem.Problem) {
-	if uc == nil || uc.gateway == nil {
-		return contracts.ListConfigsReply{}, problem.New(problem.Unavailable, "config service is unavailable")
-	}
-
-	return uc.gateway.ListConfigs(ctx, query)
+	return usecase.NewGateway[contracts.ListConfigsQuery, contracts.ListConfigsReply](
+		gateway.ListConfigs, "configctl",
+	)
 }

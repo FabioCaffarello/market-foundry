@@ -180,8 +180,8 @@ fn check_subject_type_convention(index: &ContractIndex) -> CheckResult {
     for spec in &index.registry.control_specs {
         if spec.subject.contains(".control.") {
             // Heuristic: "x.control.y" → request type should reference the same domain
-            let expected_command = spec.subject.replace(".control.", ".command.");
-            let expected_query = spec.subject.replace(".control.", ".query.");
+            let _expected_command = spec.subject.replace(".control.", ".command.");
+            let _expected_query = spec.subject.replace(".control.", ".query.");
 
             // Accept versioned types (e.g., configctl.control.v1.create_draft_command)
             // Only check that domains match between subject and type

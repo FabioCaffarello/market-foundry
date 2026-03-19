@@ -27,7 +27,7 @@ func NewGetCandleHistoryUseCase(gateway candleHistoryGateway) *GetCandleHistoryU
 
 func (uc *GetCandleHistoryUseCase) Execute(ctx context.Context, query CandleHistoryQuery) (CandleHistoryReply, *problem.Problem) {
 	if uc == nil || uc.gateway == nil {
-		return CandleHistoryReply{}, problem.New(problem.Unavailable, "evidence service is unavailable")
+		return CandleHistoryReply{}, problem.New(problem.Unavailable, "evidence gateway is unavailable")
 	}
 
 	if query.Source == "" {

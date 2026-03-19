@@ -7,7 +7,6 @@ import (
 	"internal/application/riskclient"
 	"internal/domain/risk"
 	"internal/shared/problem"
-	"internal/shared/requestctx"
 )
 
 type getLatestRiskUseCase interface {
@@ -46,8 +45,7 @@ func (h *RiskWebHandler) GetLatestRisk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := requestctx.WithCorrelationID(r.Context(), r.Header.Get("X-Correlation-ID"))
-	result, prob := h.getLatestRisk.Execute(ctx, riskclient.RiskLatestQuery{
+	result, prob := h.getLatestRisk.Execute(r.Context(), riskclient.RiskLatestQuery{
 		Type:      riskType,
 		Source:    key.Source,
 		Symbol:    key.Symbol,

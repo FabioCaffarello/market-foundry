@@ -272,8 +272,8 @@ mod tests {
     image: nats:2.10
     ports:
       - "4222:4222"
-  consumer:
-    image: quality-service/consumer:dev
+  ingest:
+    image: market-foundry/ingest:dev
     depends_on:
       nats:
         condition: service_healthy
@@ -285,16 +285,16 @@ mod tests {
 
         let topo = parse_compose(&path).unwrap();
         assert!(topo.services.contains_key("nats"));
-        assert!(topo.services.contains_key("consumer"));
+        assert!(topo.services.contains_key("ingest"));
 
-        let consumer = &topo.services["consumer"];
-        assert!(consumer.depends_on.contains(&"nats".to_string()));
-        assert!(consumer.depends_on.contains(&"kafka".to_string()));
-        assert!(consumer.profiles.contains(&"dataplane".to_string()));
-        assert!(consumer.profiles.contains(&"all".to_string()));
+        let ingest = &topo.services["ingest"];
+        assert!(ingest.depends_on.contains(&"nats".to_string()));
+        assert!(ingest.depends_on.contains(&"kafka".to_string()));
+        assert!(ingest.profiles.contains(&"dataplane".to_string()));
+        assert!(ingest.profiles.contains(&"all".to_string()));
         assert_eq!(
-            consumer.image.as_deref(),
-            Some("quality-service/consumer:dev")
+            ingest.image.as_deref(),
+            Some("market-foundry/ingest:dev")
         );
     }
 

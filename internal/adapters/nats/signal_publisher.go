@@ -91,6 +91,9 @@ func (p *SignalPublisher) specForType(signalType string) *EventSpec {
 	case "rsi":
 		spec := p.registry.RSIGenerated
 		return &spec
+	case "ema_crossover":
+		spec := p.registry.EMACrossoverGenerated
+		return &spec
 	default:
 		return nil
 	}

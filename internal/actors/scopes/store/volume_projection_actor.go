@@ -20,6 +20,7 @@ type VolumeProjectionConfig struct {
 }
 
 type volumeProjectionStats struct {
+	received        atomic.Int64
 	materialized    atomic.Int64
 	skippedStale    atomic.Int64
 	skippedDedup    atomic.Int64
@@ -53,6 +54,7 @@ func (a *VolumeProjectionActor) Receive(c *actor.Context) {
 		a.start(c)
 
 	case actor.Stopped:
+		a.checkStatsInvariant()
 		a.logStats()
 		if a.closer != nil {
 			if err := a.closer(); err != nil {
@@ -87,6 +89,7 @@ func (a *VolumeProjectionActor) start(c *actor.Context) {
 }
 
 func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
+	a.stats.received.Add(1)
 	vol := msg.Event.Volume
 
 	if !vol.Final {
@@ -111,6 +114,9 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 	result, prob := a.store.Put(ctx, vol)
 	if prob != nil {
 		a.stats.errors.Add(1)
+		if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordError()
+		}
 		a.logger.Error("materialize volume latest",
 			"error", prob.Message,
 			"source", vol.Source,
@@ -135,6 +141,7 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
+		a.cfg.Tracker.Counter("materialized:" + vol.Symbol).Add(1)
 	}
 
 	if result == adapternats.PutWritten {
@@ -149,8 +156,31 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 	}
 }
 
+func (a *VolumeProjectionActor) checkStatsInvariant() {
+	received := a.stats.received.Load()
+	sum := a.stats.materialized.Load() +
+		a.stats.skippedStale.Load() +
+		a.stats.skippedDedup.Load() +
+		a.stats.skippedNonFinal.Load() +
+		a.stats.rejected.Load() +
+		a.stats.errors.Load()
+	if received != sum {
+		a.logger.Error("stats invariant violated: received != sum of outcomes",
+			"received", received,
+			"sum", sum,
+			"materialized", a.stats.materialized.Load(),
+			"skipped_stale", a.stats.skippedStale.Load(),
+			"skipped_dedup", a.stats.skippedDedup.Load(),
+			"skipped_non_final", a.stats.skippedNonFinal.Load(),
+			"rejected", a.stats.rejected.Load(),
+			"errors", a.stats.errors.Load(),
+		)
+	}
+}
+
 func (a *VolumeProjectionActor) logStats() {
 	a.logger.Info("volume projection stats",
+		"received", a.stats.received.Load(),
 		"materialized", a.stats.materialized.Load(),
 		"skipped_stale", a.stats.skippedStale.Load(),
 		"skipped_dedup", a.stats.skippedDedup.Load(),
