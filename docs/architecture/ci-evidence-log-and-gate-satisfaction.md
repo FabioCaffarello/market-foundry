@@ -18,6 +18,8 @@
 | `23361089050` | `ece78165099597933889dbd356cd6c678fbe3726` | push to `main` | codegen **PASS**, unit **PASS**, smoke **FAIL** | Proved route repair alone was insufficient; seed-stage failure still existed on the runner |
 | `23361436729` | `ca6df12b4149f2ca575319c04c61248502ff64f0` | push to `main` | codegen **PASS**, unit **PASS**, smoke **FAIL** | Proved gateway readiness wait did not close the remote seed-stage failure |
 | `23361711481` | `43aa2b01c41d8490477174aaf49ff3276d49247f` | push to `main` | codegen **PASS**, unit **PASS**, smoke **FAIL** | Converted the inherited pending item into a formal remote verdict: CI-on-push exists and runs, but the gate is still red at the analytical smoke step |
+| `23365278860` | `5103f1c` | push to `main` | codegen **PASS**, unit **PASS**, smoke **FAIL** | S227-S231 consolidated push; smoke failed at `make up` due to Go 1.25 `cmd/migrate/migrate` stdlib collision |
+| `23365571775` | `edb30107e2f1af3caf22490d90b9a709e5be6bdf` | push to `main` | codegen **PASS**, unit **PASS**, smoke **PASS** | **FIRST FULL GREEN** — all three CI jobs passed on the remote runner. Gate closure achieved. Tagged `v0.1.0-s231`. |
 
 ---
 
@@ -32,6 +34,8 @@
 | E | `/execution/control` route collision | run `23360780900` compose logs artifact | moved control handling into wildcard route path with explicit validation |
 | F | Seed script expected `config.version_id`, but the returned draft identifier could be `config.id` | repeated `Seed configctl` failures on runs `23361089050` and `23361436729`, then fresh clean-stack reproduction | updated `scripts/seed-configctl.sh` to accept both fields |
 | G | Analytical smoke fails with endpoint `503`; the smoke script reported missing ClickHouse config, but S227 later confirmed that this failure class also covered schema/bootstrap and database-target drift | failed step `Run smoke-analytical E2E` on run `23361711481`, then local S227 reproduction on the closure baseline | no S226 redesign or functional expansion; the residual runtime drift was closed in S227 locally and still needs fresh remote proof |
+| H | Go 1.25 `cmd/migrate/migrate` stdlib path collision — `make up` fails during docker build because `cmd/` prefix is now reserved | run `23365278860` build failure annotation and `make up` exit code 2 | renamed subpackage from `cmd/migrate/migrate` to `cmd/migrate/engine` with package name `engine` |
+| I | All defects closed — first full green | run `23365571775` all jobs green | gate upgraded to PASS, tag `v0.1.0-s231` created |
 
 ---
 
@@ -52,25 +56,23 @@
 
 ---
 
-## 4. S226 Satisfaction Statement
+## 4. Gate Satisfaction Statement
 
-S226 satisfies the evidence-closure objective:
+### S226 (historical)
 
-1. real pushes were executed,
-2. remote runs were captured with run IDs and SHAs,
-3. observed failures were diagnosed from runner evidence rather than inferred locally,
-4. the evidence corpus documents the full narrowing trail,
-5. XC-6 / EC-7 no longer depends on local-only interpretation.
+S226 closed the evidence-closure objective but did not upgrade the gate to PASS.
 
-The current gate adjudication is:
+### S231 (current — gate closed)
 
-1. **XC-6 / EC-7 = FAIL**
-2. adjudicating run: `23361711481`
-3. adjudicating commit: `43aa2b01c41d8490477174aaf49ff3276d49247f`
-4. decisive failed step: `Smoke Analytical E2E -> Run smoke-analytical E2E`
-5. decisive observed condition: analytical endpoint returned `503`; S226 recorded the smoke-script message about missing ClickHouse config, and S227 later refined that interpretation to schema/bootstrap plus database-target drift on the closure baseline
+S231 executed the final remote CI proof:
 
-This means S226 closes the inherited pending state, but it does **not** upgrade the gate to PASS.
+1. **XC-6 / EC-7 = PASS**
+2. adjudicating run: `23365571775`
+3. adjudicating commit: `edb30107e2f1af3caf22490d90b9a709e5be6bdf`
+4. all three required jobs: `Codegen Golden Equivalence` (PASS), `Unit Tests` (PASS), `Smoke Analytical E2E` (PASS)
+5. release tag: `v0.1.0-s231`
+
+The gate is now satisfied. The pending mechanical state has been fully closed.
 
 ---
 
