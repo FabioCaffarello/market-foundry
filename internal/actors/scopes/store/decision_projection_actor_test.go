@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/decision"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockDecisionStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockDecisionStore) Put(_ context.Context, _ decision.Decision) (adapternats.PutResult, *problem.Problem) {
+func (m *mockDecisionStore) Put(_ context.Context, _ decision.Decision) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -48,7 +48,7 @@ func decisionActor(store *mockDecisionStore, tracker *healthz.Tracker) *Decision
 }
 
 func TestDecisionProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	a := decisionActor(store, nil)
 
 	dec := validDecision(time.Now())
@@ -68,7 +68,7 @@ func TestDecisionProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestDecisionProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	a := decisionActor(store, nil)
 
 	dec := decision.Decision{Final: true} // missing required fields
@@ -84,7 +84,7 @@ func TestDecisionProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestDecisionProjection_ValidationGate_RejectsInvalidOutcome(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	a := decisionActor(store, nil)
 
 	dec := validDecision(time.Now())
@@ -101,7 +101,7 @@ func TestDecisionProjection_ValidationGate_RejectsInvalidOutcome(t *testing.T) {
 }
 
 func TestDecisionProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := decisionActor(store, tracker)
 
@@ -119,7 +119,7 @@ func TestDecisionProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestDecisionProjection_PutSkippedStale(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutSkippedStale}
+	store := &mockDecisionStore{putResult: natskit.PutSkippedStale}
 	a := decisionActor(store, nil)
 
 	a.onDecision(decisionReceivedMessage{Event: decision.DecisionEvaluatedEvent{Decision: validDecision(time.Now())}})
@@ -133,7 +133,7 @@ func TestDecisionProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestDecisionProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockDecisionStore{putResult: natskit.PutSkippedDuplicate}
 	a := decisionActor(store, nil)
 
 	a.onDecision(decisionReceivedMessage{Event: decision.DecisionEvaluatedEvent{Decision: validDecision(time.Now())}})
@@ -145,7 +145,7 @@ func TestDecisionProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestDecisionProjection_PutError(t *testing.T) {
 	store := &mockDecisionStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := decisionActor(store, nil)
@@ -158,7 +158,7 @@ func TestDecisionProjection_PutError(t *testing.T) {
 }
 
 func TestDecisionProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	a := decisionActor(store, nil)
 
 	a.onDecision(decisionReceivedMessage{Event: decision.DecisionEvaluatedEvent{Decision: validDecision(time.Now())}})
@@ -176,7 +176,7 @@ func TestDecisionProjection_AllOutcomeValues_PassValidation(t *testing.T) {
 	}
 
 	for _, outcome := range outcomes {
-		store := &mockDecisionStore{putResult: adapternats.PutWritten}
+		store := &mockDecisionStore{putResult: natskit.PutWritten}
 		a := decisionActor(store, nil)
 
 		dec := validDecision(time.Now())
@@ -191,7 +191,7 @@ func TestDecisionProjection_AllOutcomeValues_PassValidation(t *testing.T) {
 }
 
 func TestDecisionProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockDecisionStore{putResult: adapternats.PutWritten}
+	store := &mockDecisionStore{putResult: natskit.PutWritten}
 	a := decisionActor(store, nil)
 
 	now := time.Now()

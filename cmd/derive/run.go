@@ -7,7 +7,8 @@ import (
 
 	actorcommon "internal/actors/common"
 	deriveactor "internal/actors/scopes/derive"
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/bootstrap"
 	"internal/shared/healthz"
 	"internal/shared/settings"
@@ -28,15 +29,15 @@ func Run(config settings.AppConfig) {
 	}
 
 	// Create configctl gateway for querying active bindings.
-	var gateway *adapternats.ConfigctlGateway
+	var gateway *natsconfigctl.Gateway
 	if config.NATS.Enabled {
-		client, err := adapternats.NewNATSRequestClientWithURL(config.NATS.URL, config.NATS.RequestTimeoutDuration())
+		client, err := natskit.NewNATSRequestClientWithURL(config.NATS.URL, config.NATS.RequestTimeoutDuration())
 		if err != nil {
 			logger.Error("create configctl request client", "error", err)
 			os.Exit(1)
 		}
 		defer client.Close()
-		gateway = adapternats.NewConfigctlGateway(client, "derive.config-query")
+		gateway = natsconfigctl.NewGateway(client, "derive.config-query")
 	}
 
 	publisherTracker := healthz.NewTracker("evidence-publisher")

@@ -8,7 +8,13 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
 	"internal/application/executionclient"
@@ -26,12 +32,12 @@ import (
 type QueryResponderConfig struct {
 	NATSURL          string
 	Source           string
-	Registry         adapternats.EvidenceRegistry
-	SignalRegistry   *adapternats.SignalRegistry   // nil when no signal families are enabled
-	DecisionRegistry *adapternats.DecisionRegistry // nil when no decision families are enabled
-	StrategyRegistry *adapternats.StrategyRegistry // nil when no strategy families are enabled
-	RiskRegistry      *adapternats.RiskRegistry      // nil when no risk families are enabled
-	ExecutionRegistry *adapternats.ExecutionRegistry // nil when no execution families are enabled
+	Registry         natsevidence.Registry
+	SignalRegistry   *natssignal.Registry   // nil when no signal families are enabled
+	DecisionRegistry *natsdecision.Registry // nil when no decision families are enabled
+	StrategyRegistry *natsstrategy.Registry // nil when no strategy families are enabled
+	RiskRegistry      *natsrisk.Registry      // nil when no risk families are enabled
+	ExecutionRegistry *natsexecution.Registry // nil when no execution families are enabled
 }
 
 // QueryResponderActor serves evidence and signal queries from the NATS KV stores.
@@ -39,17 +45,17 @@ type QueryResponderConfig struct {
 type QueryResponderActor struct {
 	cfg                      QueryResponderConfig
 	logger                   *slog.Logger
-	store                    *adapternats.CandleKVStore
-	burstStore               *adapternats.TradeBurstKVStore
-	volumeStore              *adapternats.VolumeKVStore
-	signalRSIStore           *adapternats.SignalKVStore
-	decisionRSIOversoldStore             *adapternats.DecisionKVStore
-	strategyMeanReversionEntryStore      *adapternats.StrategyKVStore
-	riskPositionExposureStore             *adapternats.RiskKVStore
-	executionPaperOrderStore             *adapternats.ExecutionKVStore
-	executionVenueMarketOrderStore       *adapternats.ExecutionKVStore
-	executionControlStore                *adapternats.ExecutionControlKVStore
-	responder                            *adapternats.RequestReplyResponder
+	store                    *natsevidence.CandleKVStore
+	burstStore               *natsevidence.TradeBurstKVStore
+	volumeStore              *natsevidence.VolumeKVStore
+	signalRSIStore           *natssignal.KVStore
+	decisionRSIOversoldStore             *natsdecision.KVStore
+	strategyMeanReversionEntryStore      *natsstrategy.KVStore
+	riskPositionExposureStore             *natsrisk.KVStore
+	executionPaperOrderStore             *natsexecution.KVStore
+	executionVenueMarketOrderStore       *natsexecution.KVStore
+	executionControlStore                *natsexecution.ControlKVStore
+	responder                            *natskit.RequestReplyResponder
 }
 
 func NewQueryResponderActor(cfg QueryResponderConfig) actor.Producer {
@@ -134,7 +140,7 @@ func (a *QueryResponderActor) Receive(c *actor.Context) {
 
 func (a *QueryResponderActor) start(c *actor.Context) {
 	// Open a read-only KV store connection for candle queries.
-	store := adapternats.NewCandleKVStore(a.cfg.NATSURL)
+	store := natsevidence.NewCandleKVStore(a.cfg.NATSURL)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start query KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -143,7 +149,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 	a.store = store
 
 	// Open a read-only KV store connection for trade burst queries.
-	burstStore := adapternats.NewTradeBurstKVStore(a.cfg.NATSURL)
+	burstStore := natsevidence.NewTradeBurstKVStore(a.cfg.NATSURL)
 	if err := burstStore.Start(); err != nil {
 		a.logger.Error("start trade burst query KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -152,7 +158,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 	a.burstStore = burstStore
 
 	// Open a read-only KV store connection for volume queries.
-	volumeStore := adapternats.NewVolumeKVStore(a.cfg.NATSURL)
+	volumeStore := natsevidence.NewVolumeKVStore(a.cfg.NATSURL)
 	if err := volumeStore.Start(); err != nil {
 		a.logger.Error("start volume query KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -160,23 +166,23 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 	}
 	a.volumeStore = volumeStore
 
-	routes := []adapternats.ControlRoute{
-		adapternats.NewTypedControlRoute(
+	routes := []natskit.ControlRoute{
+		natskit.NewTypedControlRoute(
 			a.cfg.Registry.CandleLatest,
 			a.cfg.Source,
 			a.handleCandleLatest,
 		),
-		adapternats.NewTypedControlRoute(
+		natskit.NewTypedControlRoute(
 			a.cfg.Registry.CandleHistory,
 			a.cfg.Source,
 			a.handleCandleHistory,
 		),
-		adapternats.NewTypedControlRoute(
+		natskit.NewTypedControlRoute(
 			a.cfg.Registry.TradeBurstLatest,
 			a.cfg.Source,
 			a.handleTradeBurstLatest,
 		),
-		adapternats.NewTypedControlRoute(
+		natskit.NewTypedControlRoute(
 			a.cfg.Registry.VolumeLatest,
 			a.cfg.Source,
 			a.handleVolumeLatest,
@@ -185,7 +191,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 
 	// Wire signal query routes if signal families are enabled.
 	if a.cfg.SignalRegistry != nil {
-		sigStore := adapternats.NewSignalKVStore(a.cfg.NATSURL, adapternats.SignalRSILatestBucket)
+		sigStore := natssignal.NewKVStore(a.cfg.NATSURL, natssignal.RSILatestBucket)
 		if err := sigStore.Start(); err != nil {
 			a.logger.Error("start signal RSI query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -193,7 +199,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.signalRSIStore = sigStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.SignalRegistry.RSILatest,
 			a.cfg.Source,
 			a.handleSignalRSILatest,
@@ -202,7 +208,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 
 	// Wire decision query routes if decision families are enabled.
 	if a.cfg.DecisionRegistry != nil {
-		decStore := adapternats.NewDecisionKVStore(a.cfg.NATSURL, adapternats.DecisionRSIOversoldLatestBucket)
+		decStore := natsdecision.NewKVStore(a.cfg.NATSURL, natsdecision.RSIOversoldLatestBucket)
 		if err := decStore.Start(); err != nil {
 			a.logger.Error("start decision RSI oversold query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -210,7 +216,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.decisionRSIOversoldStore = decStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.DecisionRegistry.RSIOversoldLatest,
 			a.cfg.Source,
 			a.handleDecisionRSIOversoldLatest,
@@ -219,7 +225,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 
 	// Wire strategy query routes if strategy families are enabled.
 	if a.cfg.StrategyRegistry != nil {
-		stratStore := adapternats.NewStrategyKVStore(a.cfg.NATSURL, adapternats.StrategyMeanReversionEntryLatestBucket)
+		stratStore := natsstrategy.NewKVStore(a.cfg.NATSURL, natsstrategy.MeanReversionEntryLatestBucket)
 		if err := stratStore.Start(); err != nil {
 			a.logger.Error("start strategy mean reversion entry query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -227,7 +233,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.strategyMeanReversionEntryStore = stratStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.StrategyRegistry.MeanReversionEntryLatest,
 			a.cfg.Source,
 			a.handleStrategyMeanReversionEntryLatest,
@@ -236,7 +242,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 
 	// Wire risk query routes if risk families are enabled.
 	if a.cfg.RiskRegistry != nil {
-		riskStore := adapternats.NewRiskKVStore(a.cfg.NATSURL, adapternats.RiskPositionExposureLatestBucket)
+		riskStore := natsrisk.NewKVStore(a.cfg.NATSURL, natsrisk.PositionExposureLatestBucket)
 		if err := riskStore.Start(); err != nil {
 			a.logger.Error("start risk position exposure query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -244,7 +250,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.riskPositionExposureStore = riskStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.RiskRegistry.PositionExposureLatest,
 			a.cfg.Source,
 			a.handleRiskPositionExposureLatest,
@@ -253,7 +259,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 
 	// Wire execution query routes if execution families are enabled.
 	if a.cfg.ExecutionRegistry != nil {
-		execStore := adapternats.NewExecutionKVStore(a.cfg.NATSURL, adapternats.ExecutionPaperOrderLatestBucket)
+		execStore := natsexecution.NewKVStore(a.cfg.NATSURL, natsexecution.PaperOrderLatestBucket)
 		if err := execStore.Start(); err != nil {
 			a.logger.Error("start execution paper order query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -261,14 +267,14 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.executionPaperOrderStore = execStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.ExecutionRegistry.PaperOrderLatest,
 			a.cfg.Source,
 			a.handleExecutionPaperOrderLatest,
 		))
 
 		// Open a read-only KV store connection for venue market order fill queries.
-		venueStore := adapternats.NewExecutionKVStore(a.cfg.NATSURL, adapternats.ExecutionVenueMarketOrderLatestBucket)
+		venueStore := natsexecution.NewKVStore(a.cfg.NATSURL, natsexecution.VenueMarketOrderLatestBucket)
 		if err := venueStore.Start(); err != nil {
 			a.logger.Error("start execution venue market order query KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -276,21 +282,21 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		}
 		a.executionVenueMarketOrderStore = venueStore
 
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.ExecutionRegistry.VenueMarketOrderLatest,
 			a.cfg.Source,
 			a.handleExecutionVenueMarketOrderLatest,
 		))
 
 		// Wire composite status query (reads both KV stores + control).
-		routes = append(routes, adapternats.NewTypedControlRoute(
+		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.ExecutionRegistry.StatusLatest,
 			a.cfg.Source,
 			a.handleExecutionStatusLatest,
 		))
 
 		// Wire execution control gate (get + set).
-		controlStore := adapternats.NewExecutionControlKVStore(a.cfg.NATSURL)
+		controlStore := natsexecution.NewControlKVStore(a.cfg.NATSURL)
 		if err := controlStore.Start(); err != nil {
 			a.logger.Error("start execution control KV store", "error", err)
 			c.Engine().Poison(c.PID())
@@ -299,12 +305,12 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		a.executionControlStore = controlStore
 
 		routes = append(routes,
-			adapternats.NewTypedControlRoute(
+			natskit.NewTypedControlRoute(
 				a.cfg.ExecutionRegistry.ControlGet,
 				a.cfg.Source,
 				a.handleExecutionControlGet,
 			),
-			adapternats.NewTypedControlRoute(
+			natskit.NewTypedControlRoute(
 				a.cfg.ExecutionRegistry.ControlSet,
 				a.cfg.Source,
 				a.handleExecutionControlSet,
@@ -312,7 +318,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		)
 	}
 
-	responder := adapternats.NewRequestReplyResponder(a.cfg.NATSURL, routes)
+	responder := natskit.NewRequestReplyResponder(a.cfg.NATSURL, routes)
 	if err := responder.Start(); err != nil {
 		a.logger.Error("start query responder", "error", err)
 		c.Engine().Poison(c.PID())
@@ -326,45 +332,45 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 		"subject_history", a.cfg.Registry.CandleHistory.Subject,
 		"subject_trade_burst_latest", a.cfg.Registry.TradeBurstLatest.Subject,
 		"subject_volume_latest", a.cfg.Registry.VolumeLatest.Subject,
-		"bucket_latest", adapternats.CandleLatestBucket,
-		"bucket_history", adapternats.CandleHistoryBucket,
-		"bucket_trade_burst_latest", adapternats.TradeBurstLatestBucket,
-		"bucket_volume_latest", adapternats.VolumeLatestBucket,
+		"bucket_latest", natsevidence.CandleLatestBucket,
+		"bucket_history", natsevidence.CandleHistoryBucket,
+		"bucket_trade_burst_latest", natsevidence.TradeBurstLatestBucket,
+		"bucket_volume_latest", natsevidence.VolumeLatestBucket,
 	}
 	if a.cfg.SignalRegistry != nil {
 		logFields = append(logFields,
 			"subject_signal_rsi_latest", a.cfg.SignalRegistry.RSILatest.Subject,
-			"bucket_signal_rsi_latest", adapternats.SignalRSILatestBucket,
+			"bucket_signal_rsi_latest", natssignal.RSILatestBucket,
 		)
 	}
 	if a.cfg.DecisionRegistry != nil {
 		logFields = append(logFields,
 			"subject_decision_rsi_oversold_latest", a.cfg.DecisionRegistry.RSIOversoldLatest.Subject,
-			"bucket_decision_rsi_oversold_latest", adapternats.DecisionRSIOversoldLatestBucket,
+			"bucket_decision_rsi_oversold_latest", natsdecision.RSIOversoldLatestBucket,
 		)
 	}
 	if a.cfg.StrategyRegistry != nil {
 		logFields = append(logFields,
 			"subject_strategy_mean_reversion_entry_latest", a.cfg.StrategyRegistry.MeanReversionEntryLatest.Subject,
-			"bucket_strategy_mean_reversion_entry_latest", adapternats.StrategyMeanReversionEntryLatestBucket,
+			"bucket_strategy_mean_reversion_entry_latest", natsstrategy.MeanReversionEntryLatestBucket,
 		)
 	}
 	if a.cfg.RiskRegistry != nil {
 		logFields = append(logFields,
 			"subject_risk_position_exposure_latest", a.cfg.RiskRegistry.PositionExposureLatest.Subject,
-			"bucket_risk_position_exposure_latest", adapternats.RiskPositionExposureLatestBucket,
+			"bucket_risk_position_exposure_latest", natsrisk.PositionExposureLatestBucket,
 		)
 	}
 	if a.cfg.ExecutionRegistry != nil {
 		logFields = append(logFields,
 			"subject_execution_paper_order_latest", a.cfg.ExecutionRegistry.PaperOrderLatest.Subject,
-			"bucket_execution_paper_order_latest", adapternats.ExecutionPaperOrderLatestBucket,
+			"bucket_execution_paper_order_latest", natsexecution.PaperOrderLatestBucket,
 			"subject_execution_venue_market_order_latest", a.cfg.ExecutionRegistry.VenueMarketOrderLatest.Subject,
-			"bucket_execution_venue_market_order_latest", adapternats.ExecutionVenueMarketOrderLatestBucket,
+			"bucket_execution_venue_market_order_latest", natsexecution.VenueMarketOrderLatestBucket,
 			"subject_execution_status_latest", a.cfg.ExecutionRegistry.StatusLatest.Subject,
 			"subject_execution_control_get", a.cfg.ExecutionRegistry.ControlGet.Subject,
 			"subject_execution_control_set", a.cfg.ExecutionRegistry.ControlSet.Subject,
-			"bucket_execution_control", adapternats.ExecutionControlBucket,
+			"bucket_execution_control", natsexecution.ControlBucket,
 		)
 	}
 	a.logger.Info("query responder started", logFields...)

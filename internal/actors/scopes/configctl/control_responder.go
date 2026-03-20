@@ -7,7 +7,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
+	natskit "internal/adapters/nats/natskit"
 	"internal/application/configctl/contracts"
 	"internal/shared/problem"
 	"internal/shared/requestctx"
@@ -19,7 +20,7 @@ type ControlResponderConfig struct {
 	URL            string
 	Source         string
 	ControlRouter  *actor.PID
-	Registry       adapternats.ConfigctlRegistry
+	Registry       natsconfigctl.Registry
 	RequestTimeout time.Duration
 }
 
@@ -27,7 +28,7 @@ type ControlResponderActor struct {
 	cfg       ControlResponderConfig
 	logger    *slog.Logger
 	engine    *actor.Engine
-	responder *adapternats.RequestReplyResponder
+	responder *natskit.RequestReplyResponder
 }
 
 func NewControlResponderActor(cfg ControlResponderConfig) actor.Producer {
@@ -46,19 +47,19 @@ func (a *ControlResponderActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		routes := []adapternats.ControlRoute{
-			adapternats.NewTypedControlRoute(a.cfg.Registry.CreateDraft, a.cfg.Source, a.handleCreateDraft),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.GetConfig, a.cfg.Source, a.handleGetConfig),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.GetActive, a.cfg.Source, a.handleGetActive),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ListActiveRuntimeProjections, a.cfg.Source, a.handleListActiveRuntimeProjections),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ListActiveIngestionBindings, a.cfg.Source, a.handleListActiveIngestionBindings),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ListConfigs, a.cfg.Source, a.handleListConfigs),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ValidateDraft, a.cfg.Source, a.handleValidateDraft),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ValidateConfig, a.cfg.Source, a.handleValidateConfig),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.CompileConfig, a.cfg.Source, a.handleCompileConfig),
-			adapternats.NewTypedControlRoute(a.cfg.Registry.ActivateConfig, a.cfg.Source, a.handleActivateConfig),
+		routes := []natskit.ControlRoute{
+			natskit.NewTypedControlRoute(a.cfg.Registry.CreateDraft, a.cfg.Source, a.handleCreateDraft),
+			natskit.NewTypedControlRoute(a.cfg.Registry.GetConfig, a.cfg.Source, a.handleGetConfig),
+			natskit.NewTypedControlRoute(a.cfg.Registry.GetActive, a.cfg.Source, a.handleGetActive),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ListActiveRuntimeProjections, a.cfg.Source, a.handleListActiveRuntimeProjections),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ListActiveIngestionBindings, a.cfg.Source, a.handleListActiveIngestionBindings),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ListConfigs, a.cfg.Source, a.handleListConfigs),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ValidateDraft, a.cfg.Source, a.handleValidateDraft),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ValidateConfig, a.cfg.Source, a.handleValidateConfig),
+			natskit.NewTypedControlRoute(a.cfg.Registry.CompileConfig, a.cfg.Source, a.handleCompileConfig),
+			natskit.NewTypedControlRoute(a.cfg.Registry.ActivateConfig, a.cfg.Source, a.handleActivateConfig),
 		}
-		responder := adapternats.NewRequestReplyResponder(a.cfg.URL, routes)
+		responder := natskit.NewRequestReplyResponder(a.cfg.URL, routes)
 		if err := responder.Start(); err != nil {
 			a.logger.Error("start control responder", "error", err)
 			c.Engine().Poison(c.PID())

@@ -200,9 +200,7 @@ fn check_configs(configs: &HashMap<String, ServiceConfig>) -> CheckResult {
                         "nats-enabled",
                         format!("'{name}' config does not declare nats.enabled"),
                     )
-                    .with_help(format!(
-                        "add nats.enabled to deploy/configs/{name}.jsonc"
-                    )),
+                    .with_help(format!("add nats.enabled to deploy/configs/{name}.jsonc")),
                 );
             }
         }
@@ -338,11 +336,8 @@ fn check_compose_runtime_contract(ct: &ComposeTopology) -> CheckResult {
         if let Some(svc) = ct.services.get(*service) {
             if svc.image.is_none() {
                 findings.push(
-                    Finding::warning(
-                        "compose-image",
-                        format!("'{service}' has no image defined"),
-                    )
-                    .with_location(format!("docker-compose.yaml:{service}")),
+                    Finding::warning("compose-image", format!("'{service}' has no image defined"))
+                        .with_location(format!("docker-compose.yaml:{service}")),
                 );
             }
         }
@@ -361,7 +356,9 @@ fn check_source_streams(st: &SourceTopology) -> CheckResult {
                     "stream-defined",
                     format!("expected stream '{stream}' not found in source"),
                 )
-                .with_why("JetStream streams are required for durable message delivery in the pipeline")
+                .with_why(
+                    "JetStream streams are required for durable message delivery in the pipeline",
+                )
                 .with_help(
                     "verify the stream constant is defined in the NATS adapter registry code",
                 ),
@@ -578,33 +575,35 @@ fn check_pipeline_continuity(topo: &Topology) -> CheckResult {
                 "pipeline-subscriber",
                 "SIGNAL_EVENTS stream exists but no store-signal-rsi durable consumer found",
             ).with_why("signal events will accumulate with no consumer projecting them")
-             .with_help("add store-signal-rsi consumer spec in internal/adapters/nats/signal_registry.go"));
+             .with_help("add store-signal-rsi consumer spec in internal/adapters/nats/natssignal/registry.go"));
         }
         if !has_signal_stream && has_signal_durable {
             findings.push(Finding::error(
                 "pipeline-stream",
                 "store-signal-rsi durable consumer exists but SIGNAL_EVENTS stream not found",
             ).with_why("consumer will fail to bind at runtime")
-             .with_help("add SIGNAL_EVENTS stream spec in internal/adapters/nats/signal_registry.go"));
+             .with_help("add SIGNAL_EVENTS stream spec in internal/adapters/nats/natssignal/registry.go"));
         }
 
         // Strategy pipeline continuity: STRATEGY_EVENTS ↔ store-strategy-mean-reversion-entry
         let has_strategy_stream = source.streams.contains_key("STRATEGY_EVENTS");
-        let has_strategy_durable = source.durables.contains_key("store-strategy-mean-reversion-entry");
+        let has_strategy_durable = source
+            .durables
+            .contains_key("store-strategy-mean-reversion-entry");
 
         if has_strategy_stream && !has_strategy_durable {
             findings.push(Finding::error(
                 "pipeline-subscriber",
                 "STRATEGY_EVENTS stream exists but no store-strategy-mean-reversion-entry durable consumer found",
             ).with_why("strategy events will accumulate with no consumer projecting them")
-             .with_help("add store-strategy-mean-reversion-entry consumer spec in internal/adapters/nats/strategy_registry.go"));
+             .with_help("add store-strategy-mean-reversion-entry consumer spec in internal/adapters/nats/natsstrategy/registry.go"));
         }
         if !has_strategy_stream && has_strategy_durable {
             findings.push(Finding::error(
                 "pipeline-stream",
                 "store-strategy-mean-reversion-entry durable consumer exists but STRATEGY_EVENTS stream not found",
             ).with_why("consumer will fail to bind at runtime")
-             .with_help("add STRATEGY_EVENTS stream spec in internal/adapters/nats/strategy_registry.go"));
+             .with_help("add STRATEGY_EVENTS stream spec in internal/adapters/nats/natsstrategy/registry.go"));
         }
 
         // Guard: premature projection events entry
@@ -661,52 +660,22 @@ mod tests {
                 "evidence.events.volume.sampled.>".into(),
             ],
         );
-        streams.insert(
-            "SIGNAL_EVENTS".into(),
-            vec!["signal.events.>".into()],
-        );
-        streams.insert(
-            "DECISION_EVENTS".into(),
-            vec!["decision.events.>".into()],
-        );
-        streams.insert(
-            "STRATEGY_EVENTS".into(),
-            vec!["strategy.events.>".into()],
-        );
-        streams.insert(
-            "RISK_EVENTS".into(),
-            vec!["risk.events.>".into()],
-        );
-        streams.insert(
-            "EXECUTION_EVENTS".into(),
-            vec!["execution.events.>".into()],
-        );
+        streams.insert("SIGNAL_EVENTS".into(), vec!["signal.events.>".into()]);
+        streams.insert("DECISION_EVENTS".into(), vec!["decision.events.>".into()]);
+        streams.insert("STRATEGY_EVENTS".into(), vec!["strategy.events.>".into()]);
+        streams.insert("RISK_EVENTS".into(), vec!["risk.events.>".into()]);
+        streams.insert("EXECUTION_EVENTS".into(), vec!["execution.events.>".into()]);
         streams.insert(
             "EXECUTION_FILL_EVENTS".into(),
             vec!["execution.fill.>".into()],
         );
 
         let mut durables = HashMap::new();
-        durables.insert(
-            "derive-observation".into(),
-            "OBSERVATION_EVENTS".into(),
-        );
-        durables.insert(
-            "store-candle".into(),
-            "EVIDENCE_EVENTS".into(),
-        );
-        durables.insert(
-            "store-trade-burst".into(),
-            "EVIDENCE_EVENTS".into(),
-        );
-        durables.insert(
-            "store-volume".into(),
-            "EVIDENCE_EVENTS".into(),
-        );
-        durables.insert(
-            "store-signal-rsi".into(),
-            "SIGNAL_EVENTS".into(),
-        );
+        durables.insert("derive-observation".into(), "OBSERVATION_EVENTS".into());
+        durables.insert("store-candle".into(), "EVIDENCE_EVENTS".into());
+        durables.insert("store-trade-burst".into(), "EVIDENCE_EVENTS".into());
+        durables.insert("store-volume".into(), "EVIDENCE_EVENTS".into());
+        durables.insert("store-signal-rsi".into(), "SIGNAL_EVENTS".into());
         durables.insert(
             "store-decision-rsi-oversold".into(),
             "DECISION_EVENTS".into(),
@@ -715,10 +684,7 @@ mod tests {
             "store-strategy-mean-reversion-entry".into(),
             "STRATEGY_EVENTS".into(),
         );
-        durables.insert(
-            "store-risk-position-exposure".into(),
-            "RISK_EVENTS".into(),
-        );
+        durables.insert("store-risk-position-exposure".into(), "RISK_EVENTS".into());
         durables.insert(
             "store-execution-paper-order".into(),
             "EXECUTION_EVENTS".into(),
@@ -957,8 +923,7 @@ mod tests {
     #[test]
     fn compose_runtime_contract_warns_on_wrong_image() {
         let mut ct = make_compose_topology();
-        ct.services.get_mut("ingest").unwrap().image =
-            Some("wrong-project/ingest:dev".into());
+        ct.services.get_mut("ingest").unwrap().image = Some("wrong-project/ingest:dev".into());
 
         let result = check_compose_runtime_contract(&ct);
         assert!(result
@@ -980,8 +945,7 @@ mod tests {
     fn nats_url_consistency_warns_on_mismatch() {
         let mut topo = Topology::default();
         topo.configs = make_all_configs();
-        topo.configs.get_mut("derive").unwrap().nats_url =
-            Some("nats://other-host:4222".into());
+        topo.configs.get_mut("derive").unwrap().nats_url = Some("nats://other-host:4222".into());
 
         let result = check_nats_url_consistency(&topo);
         assert!(result
@@ -994,8 +958,7 @@ mod tests {
     fn nats_compose_alignment_warns_on_bad_hostname() {
         let mut topo = Topology::default();
         topo.configs = make_all_configs();
-        topo.configs.get_mut("ingest").unwrap().nats_url =
-            Some("nats://wrong-host:4222".into());
+        topo.configs.get_mut("ingest").unwrap().nats_url = Some("nats://wrong-host:4222".into());
         topo.compose = Some(make_compose_topology());
 
         let result = check_nats_compose_alignment(&topo);

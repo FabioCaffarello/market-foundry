@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/strategy"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockStrategyStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockStrategyStore) Put(_ context.Context, _ strategy.Strategy) (adapternats.PutResult, *problem.Problem) {
+func (m *mockStrategyStore) Put(_ context.Context, _ strategy.Strategy) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -49,7 +49,7 @@ func strategyActor(store *mockStrategyStore, tracker *healthz.Tracker) *Strategy
 }
 
 func TestStrategyProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	strat := validStrategy(time.Now())
@@ -69,7 +69,7 @@ func TestStrategyProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestStrategyProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	strat := strategy.Strategy{Final: true} // missing required fields
@@ -85,7 +85,7 @@ func TestStrategyProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestStrategyProjection_ValidationGate_RejectsInvalidDirection(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	strat := validStrategy(time.Now())
@@ -102,7 +102,7 @@ func TestStrategyProjection_ValidationGate_RejectsInvalidDirection(t *testing.T)
 }
 
 func TestStrategyProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := strategyActor(store, tracker)
 
@@ -120,7 +120,7 @@ func TestStrategyProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestStrategyProjection_PutSkippedStale(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutSkippedStale}
+	store := &mockStrategyStore{putResult: natskit.PutSkippedStale}
 	a := strategyActor(store, nil)
 
 	a.onStrategy(strategyReceivedMessage{Event: strategy.StrategyResolvedEvent{Strategy: validStrategy(time.Now())}})
@@ -134,7 +134,7 @@ func TestStrategyProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestStrategyProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockStrategyStore{putResult: natskit.PutSkippedDuplicate}
 	a := strategyActor(store, nil)
 
 	a.onStrategy(strategyReceivedMessage{Event: strategy.StrategyResolvedEvent{Strategy: validStrategy(time.Now())}})
@@ -146,7 +146,7 @@ func TestStrategyProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestStrategyProjection_PutError(t *testing.T) {
 	store := &mockStrategyStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := strategyActor(store, nil)
@@ -159,7 +159,7 @@ func TestStrategyProjection_PutError(t *testing.T) {
 }
 
 func TestStrategyProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	a.onStrategy(strategyReceivedMessage{Event: strategy.StrategyResolvedEvent{Strategy: validStrategy(time.Now())}})
@@ -177,7 +177,7 @@ func TestStrategyProjection_AllDirectionValues_PassValidation(t *testing.T) {
 	}
 
 	for _, dir := range directions {
-		store := &mockStrategyStore{putResult: adapternats.PutWritten}
+		store := &mockStrategyStore{putResult: natskit.PutWritten}
 		a := strategyActor(store, nil)
 
 		strat := validStrategy(time.Now())
@@ -192,7 +192,7 @@ func TestStrategyProjection_AllDirectionValues_PassValidation(t *testing.T) {
 }
 
 func TestStrategyProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	now := time.Now()
@@ -214,7 +214,7 @@ func TestStrategyProjection_MultiSymbol_IndependentMaterialization(t *testing.T)
 	symbols := []string{"btcusdt", "ethusdt"}
 	timeframes := []int{60, 300}
 
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := strategyActor(store, tracker)
 
@@ -294,7 +294,7 @@ func TestStrategyProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 }
 
 func TestStrategyProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
-	store := &mockStrategyStore{putResult: adapternats.PutWritten}
+	store := &mockStrategyStore{putResult: natskit.PutWritten}
 	a := strategyActor(store, nil)
 
 	now := time.Now()

@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -75,7 +76,7 @@ func (a *RiskProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *RiskProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewRiskKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natsrisk.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start risk KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -134,15 +135,15 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -151,7 +152,7 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + assessment.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("risk materialized",
 			"type", assessment.Type,
 			"source", assessment.Source,

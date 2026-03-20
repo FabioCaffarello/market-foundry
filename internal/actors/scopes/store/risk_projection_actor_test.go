@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/risk"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockRiskStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockRiskStore) Put(_ context.Context, _ risk.RiskAssessment) (adapternats.PutResult, *problem.Problem) {
+func (m *mockRiskStore) Put(_ context.Context, _ risk.RiskAssessment) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -51,7 +51,7 @@ func riskActor(store *mockRiskStore, tracker *healthz.Tracker) *RiskProjectionAc
 }
 
 func TestRiskProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	assessment := validRiskAssessment(time.Now())
@@ -71,7 +71,7 @@ func TestRiskProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestRiskProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	assessment := risk.RiskAssessment{Final: true} // missing required fields
@@ -87,7 +87,7 @@ func TestRiskProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestRiskProjection_ValidationGate_RejectsInvalidDisposition(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	assessment := validRiskAssessment(time.Now())
@@ -104,7 +104,7 @@ func TestRiskProjection_ValidationGate_RejectsInvalidDisposition(t *testing.T) {
 }
 
 func TestRiskProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := riskActor(store, tracker)
 
@@ -122,7 +122,7 @@ func TestRiskProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestRiskProjection_PutSkippedStale(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutSkippedStale}
+	store := &mockRiskStore{putResult: natskit.PutSkippedStale}
 	a := riskActor(store, nil)
 
 	a.onRisk(riskReceivedMessage{Event: risk.RiskAssessedEvent{RiskAssessment: validRiskAssessment(time.Now())}})
@@ -136,7 +136,7 @@ func TestRiskProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestRiskProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockRiskStore{putResult: natskit.PutSkippedDuplicate}
 	a := riskActor(store, nil)
 
 	a.onRisk(riskReceivedMessage{Event: risk.RiskAssessedEvent{RiskAssessment: validRiskAssessment(time.Now())}})
@@ -148,7 +148,7 @@ func TestRiskProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestRiskProjection_PutError(t *testing.T) {
 	store := &mockRiskStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := riskActor(store, nil)
@@ -161,7 +161,7 @@ func TestRiskProjection_PutError(t *testing.T) {
 }
 
 func TestRiskProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	a.onRisk(riskReceivedMessage{Event: risk.RiskAssessedEvent{RiskAssessment: validRiskAssessment(time.Now())}})
@@ -179,7 +179,7 @@ func TestRiskProjection_AllDispositionValues_PassValidation(t *testing.T) {
 	}
 
 	for _, disp := range dispositions {
-		store := &mockRiskStore{putResult: adapternats.PutWritten}
+		store := &mockRiskStore{putResult: natskit.PutWritten}
 		a := riskActor(store, nil)
 
 		assessment := validRiskAssessment(time.Now())
@@ -194,7 +194,7 @@ func TestRiskProjection_AllDispositionValues_PassValidation(t *testing.T) {
 }
 
 func TestRiskProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	now := time.Now()
@@ -216,7 +216,7 @@ func TestRiskProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
 	symbols := []string{"btcusdt", "ethusdt"}
 	timeframes := []int{60, 300}
 
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := riskActor(store, tracker)
 
@@ -296,7 +296,7 @@ func TestRiskProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 }
 
 func TestRiskProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
-	store := &mockRiskStore{putResult: adapternats.PutWritten}
+	store := &mockRiskStore{putResult: natskit.PutWritten}
 	a := riskActor(store, nil)
 
 	now := time.Now()

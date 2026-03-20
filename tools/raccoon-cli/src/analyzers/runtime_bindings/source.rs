@@ -65,34 +65,38 @@ pub fn scan_runtime_bindings(internal_dir: &Path) -> Result<RuntimeBindingSource
 
     // Check for key adapter files
     let adapters = internal_dir.join("adapters/nats");
-    src.has_observation_publisher = adapters.join("observation_publisher.go").is_file();
-    src.has_observation_consumer = adapters.join("observation_consumer.go").is_file();
-    src.has_evidence_publisher = adapters.join("evidence_publisher.go").is_file();
-    src.has_evidence_consumer = adapters.join("evidence_consumer.go").is_file();
-    src.has_evidence_gateway = adapters.join("evidence_gateway.go").is_file();
-    src.has_candle_kv_store = adapters.join("candle_kv_store.go").is_file();
-    src.has_binding_watcher = adapters.join("binding_event_consumer.go").is_file();
-    src.has_signal_publisher = adapters.join("signal_publisher.go").is_file();
-    src.has_signal_consumer = adapters.join("signal_consumer.go").is_file();
-    src.has_signal_gateway = adapters.join("signal_gateway.go").is_file();
-    src.has_signal_kv_store = adapters.join("signal_kv_store.go").is_file();
-    src.has_signal_registry = adapters.join("signal_registry.go").is_file();
-    src.has_decision_publisher = adapters.join("decision_publisher.go").is_file();
-    src.has_decision_consumer = adapters.join("decision_consumer.go").is_file();
-    src.has_decision_gateway = adapters.join("decision_gateway.go").is_file();
-    src.has_decision_kv_store = adapters.join("decision_kv_store.go").is_file();
-    src.has_decision_registry = adapters.join("decision_registry.go").is_file();
-    src.has_strategy_publisher = adapters.join("strategy_publisher.go").is_file();
-    src.has_strategy_consumer = adapters.join("strategy_consumer.go").is_file();
-    src.has_strategy_gateway = adapters.join("strategy_gateway.go").is_file();
-    src.has_strategy_kv_store = adapters.join("strategy_kv_store.go").is_file();
-    src.has_strategy_registry = adapters.join("strategy_registry.go").is_file();
+    src.has_observation_publisher = adapters.join("natsobservation/publisher.go").is_file();
+    src.has_observation_consumer = adapters.join("natsobservation/consumer.go").is_file();
+    src.has_evidence_publisher = adapters.join("natsevidence/publisher.go").is_file();
+    src.has_evidence_consumer = adapters.join("natsevidence/candle_consumer.go").is_file()
+        || adapters
+            .join("natsevidence/trade_burst_consumer.go")
+            .is_file()
+        || adapters.join("natsevidence/volume_consumer.go").is_file();
+    src.has_evidence_gateway = adapters.join("natsevidence/gateway.go").is_file();
+    src.has_candle_kv_store = adapters.join("natsevidence/candle_kv_store.go").is_file();
+    src.has_binding_watcher = adapters.join("natsconfigctl/binding_consumer.go").is_file();
+    src.has_signal_publisher = adapters.join("natssignal/publisher.go").is_file();
+    src.has_signal_consumer = adapters.join("natssignal/consumer.go").is_file();
+    src.has_signal_gateway = adapters.join("natssignal/gateway.go").is_file();
+    src.has_signal_kv_store = adapters.join("natssignal/kv_store.go").is_file();
+    src.has_signal_registry = adapters.join("natssignal/registry.go").is_file();
+    src.has_decision_publisher = adapters.join("natsdecision/publisher.go").is_file();
+    src.has_decision_consumer = adapters.join("natsdecision/consumer.go").is_file();
+    src.has_decision_gateway = adapters.join("natsdecision/gateway.go").is_file();
+    src.has_decision_kv_store = adapters.join("natsdecision/kv_store.go").is_file();
+    src.has_decision_registry = adapters.join("natsdecision/registry.go").is_file();
+    src.has_strategy_publisher = adapters.join("natsstrategy/publisher.go").is_file();
+    src.has_strategy_consumer = adapters.join("natsstrategy/consumer.go").is_file();
+    src.has_strategy_gateway = adapters.join("natsstrategy/gateway.go").is_file();
+    src.has_strategy_kv_store = adapters.join("natsstrategy/kv_store.go").is_file();
+    src.has_strategy_registry = adapters.join("natsstrategy/registry.go").is_file();
     // Risk domain adapter files (prepared for S64)
-    src.has_risk_publisher = adapters.join("risk_publisher.go").is_file();
-    src.has_risk_consumer = adapters.join("risk_consumer.go").is_file();
-    src.has_risk_gateway = adapters.join("risk_gateway.go").is_file();
-    src.has_risk_kv_store = adapters.join("risk_kv_store.go").is_file();
-    src.has_risk_registry = adapters.join("risk_registry.go").is_file();
+    src.has_risk_publisher = adapters.join("natsrisk/publisher.go").is_file();
+    src.has_risk_consumer = adapters.join("natsrisk/consumer.go").is_file();
+    src.has_risk_gateway = adapters.join("natsrisk/gateway.go").is_file();
+    src.has_risk_kv_store = adapters.join("natsrisk/kv_store.go").is_file();
+    src.has_risk_registry = adapters.join("natsrisk/registry.go").is_file();
 
     // Derive service adapter presence from actor scopes
     let scopes = internal_dir.join("actors/scopes");
@@ -230,6 +234,8 @@ fn extract_durables(content: &str, src: &mut RuntimeBindingSource) {
             }
         }
     }
+
+    extract_durables_from_factory_calls(content, src);
 }
 
 fn extract_subjects(content: &str, src: &mut RuntimeBindingSource) {
@@ -288,6 +294,24 @@ fn extract_lifecycle_events(content: &str, src: &mut RuntimeBindingSource) {
                     src.lifecycle_events.insert(val);
                 }
             }
+        }
+    }
+}
+
+fn extract_durables_from_factory_calls(content: &str, src: &mut RuntimeBindingSource) {
+    let mut rest = content;
+
+    while let Some(pos) = rest.find("NewConsumerSpec(") {
+        let after = &rest[pos + "NewConsumerSpec(".len()..];
+        if let Some(end) = find_call_end(after) {
+            let args = extract_all_quoted(&after[..end]);
+            if args.len() >= 4 {
+                src.durable_consumers
+                    .insert(args[0].clone(), args[3].clone());
+            }
+            rest = &after[end + 1..];
+        } else {
+            break;
         }
     }
 }
@@ -412,6 +436,40 @@ fn find_stream_name_near(lines: &[&str], center: usize, radius: usize) -> Option
     None
 }
 
+fn find_call_end(source: &str) -> Option<usize> {
+    let mut depth = 1;
+    let bytes = source.as_bytes();
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (i, c) in bytes.iter().copied().enumerate() {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if c == b'\\' && in_string {
+            escape = true;
+            continue;
+        }
+        if c == b'"' {
+            in_string = !in_string;
+            continue;
+        }
+        if !in_string {
+            if c == b'(' {
+                depth += 1;
+            } else if c == b')' {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,6 +508,21 @@ func DefaultObservationRegistry() ObservationRegistry {
         assert_eq!(
             src.durable_consumers.get("derive-observation"),
             Some(&"OBSERVATION_EVENTS".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_durables_from_factory_calls() {
+        let content = r#"
+func StoreRSISignalConsumer() natskit.ConsumerSpec {
+    return natskit.NewConsumerSpec("store-signal-rsi", "signal.events.rsi.generated.>", "signal.events.v1.rsi_generated", "SIGNAL_EVENTS")
+}
+"#;
+        let mut src = RuntimeBindingSource::default();
+        extract_durables(content, &mut src);
+        assert_eq!(
+            src.durable_consumers.get("store-signal-rsi"),
+            Some(&"SIGNAL_EVENTS".to_string())
         );
     }
 
@@ -544,24 +617,34 @@ func DefaultObservationRegistry() ObservationRegistry {
         let dir = tempfile::tempdir().unwrap();
         let internal = dir.path().join("internal");
         let adapters = internal.join("adapters/nats");
-        std::fs::create_dir_all(&adapters).unwrap();
+        std::fs::create_dir_all(adapters.join("natsobservation")).unwrap();
+        std::fs::create_dir_all(adapters.join("natsevidence")).unwrap();
+        std::fs::create_dir_all(adapters.join("natsconfigctl")).unwrap();
 
         std::fs::write(
-            adapters.join("observation_publisher.go"),
+            adapters.join("natsobservation/publisher.go"),
             "package nats\n",
         )
         .unwrap();
         std::fs::write(
-            adapters.join("observation_consumer.go"),
+            adapters.join("natsobservation/consumer.go"),
             "package nats\n",
         )
         .unwrap();
-        std::fs::write(adapters.join("evidence_publisher.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("evidence_consumer.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("evidence_gateway.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("candle_kv_store.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natsevidence/publisher.go"), "package nats\n").unwrap();
         std::fs::write(
-            adapters.join("binding_event_consumer.go"),
+            adapters.join("natsevidence/candle_consumer.go"),
+            "package nats\n",
+        )
+        .unwrap();
+        std::fs::write(adapters.join("natsevidence/gateway.go"), "package nats\n").unwrap();
+        std::fs::write(
+            adapters.join("natsevidence/candle_kv_store.go"),
+            "package nats\n",
+        )
+        .unwrap();
+        std::fs::write(
+            adapters.join("natsconfigctl/binding_consumer.go"),
             "package nats\n",
         )
         .unwrap();
@@ -584,11 +667,7 @@ func DefaultObservationRegistry() ObservationRegistry {
 
         std::fs::write(scope.join("publisher_actor.go"), "package ingest\n").unwrap();
         std::fs::write(scope.join("websocket_actor.go"), "package ingest\n").unwrap();
-        std::fs::write(
-            scope.join("binding_watcher_actor.go"),
-            "package ingest\n",
-        )
-        .unwrap();
+        std::fs::write(scope.join("binding_watcher_actor.go"), "package ingest\n").unwrap();
 
         let mut adapters = HashSet::new();
         scan_scope_for_adapters(&scope, &mut adapters).unwrap();
@@ -624,13 +703,13 @@ func DefaultObservationRegistry() ObservationRegistry {
         let dir = tempfile::tempdir().unwrap();
         let internal = dir.path().join("internal");
         let adapters = internal.join("adapters/nats");
-        std::fs::create_dir_all(&adapters).unwrap();
+        std::fs::create_dir_all(adapters.join("natssignal")).unwrap();
 
-        std::fs::write(adapters.join("signal_publisher.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("signal_consumer.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("signal_gateway.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("signal_kv_store.go"), "package nats\n").unwrap();
-        std::fs::write(adapters.join("signal_registry.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natssignal/publisher.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natssignal/consumer.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natssignal/gateway.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natssignal/kv_store.go"), "package nats\n").unwrap();
+        std::fs::write(adapters.join("natssignal/registry.go"), "package nats\n").unwrap();
 
         let result = scan_runtime_bindings(&internal).unwrap();
         assert!(result.has_signal_publisher);
@@ -645,10 +724,10 @@ func DefaultObservationRegistry() ObservationRegistry {
         let dir = tempfile::tempdir().unwrap();
         let internal = dir.path().join("internal");
         let nats_adapters = internal.join("adapters/nats");
-        std::fs::create_dir_all(&nats_adapters).unwrap();
+        std::fs::create_dir_all(nats_adapters.join("natsobservation")).unwrap();
 
         std::fs::write(
-            nats_adapters.join("observation_registry.go"),
+            nats_adapters.join("natsobservation/registry.go"),
             r#"package nats
 func DefaultObservationRegistry() ObservationRegistry {
     return ObservationRegistry{
@@ -666,7 +745,7 @@ func DefaultObservationRegistry() ObservationRegistry {
         .unwrap();
 
         std::fs::write(
-            nats_adapters.join("observation_publisher.go"),
+            nats_adapters.join("natsobservation/publisher.go"),
             "package nats\n",
         )
         .unwrap();

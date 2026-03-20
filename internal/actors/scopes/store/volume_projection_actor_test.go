@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/evidence"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockVolumeStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockVolumeStore) Put(_ context.Context, _ evidence.EvidenceVolume) (adapternats.PutResult, *problem.Problem) {
+func (m *mockVolumeStore) Put(_ context.Context, _ evidence.EvidenceVolume) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -48,7 +48,7 @@ func volumeActor(store *mockVolumeStore, tracker *healthz.Tracker) *VolumeProjec
 }
 
 func TestVolumeProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutWritten}
+	store := &mockVolumeStore{putResult: natskit.PutWritten}
 	a := volumeActor(store, nil)
 
 	vol := validVolume(time.Now())
@@ -65,7 +65,7 @@ func TestVolumeProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestVolumeProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutWritten}
+	store := &mockVolumeStore{putResult: natskit.PutWritten}
 	a := volumeActor(store, nil)
 
 	vol := evidence.EvidenceVolume{Final: true}
@@ -81,7 +81,7 @@ func TestVolumeProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestVolumeProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutWritten}
+	store := &mockVolumeStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := volumeActor(store, tracker)
 
@@ -96,7 +96,7 @@ func TestVolumeProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestVolumeProjection_PutSkippedStale(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutSkippedStale}
+	store := &mockVolumeStore{putResult: natskit.PutSkippedStale}
 	a := volumeActor(store, nil)
 
 	a.onVolume(volumeReceivedMessage{Event: evidence.VolumeSampledEvent{Volume: validVolume(time.Now())}})
@@ -110,7 +110,7 @@ func TestVolumeProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestVolumeProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockVolumeStore{putResult: natskit.PutSkippedDuplicate}
 	a := volumeActor(store, nil)
 
 	a.onVolume(volumeReceivedMessage{Event: evidence.VolumeSampledEvent{Volume: validVolume(time.Now())}})
@@ -122,7 +122,7 @@ func TestVolumeProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestVolumeProjection_PutError(t *testing.T) {
 	store := &mockVolumeStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := volumeActor(store, nil)
@@ -135,7 +135,7 @@ func TestVolumeProjection_PutError(t *testing.T) {
 }
 
 func TestVolumeProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockVolumeStore{putResult: adapternats.PutWritten}
+	store := &mockVolumeStore{putResult: natskit.PutWritten}
 	a := volumeActor(store, nil)
 
 	a.onVolume(volumeReceivedMessage{Event: evidence.VolumeSampledEvent{Volume: validVolume(time.Now())}})

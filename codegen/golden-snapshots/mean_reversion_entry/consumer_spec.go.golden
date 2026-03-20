@@ -1,11 +1,11 @@
 // WriterMeanReversionEntryStrategyConsumer defines the durable consumer spec for writer consuming mean reversion entry strategy events.
-func WriterMeanReversionEntryStrategyConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterMeanReversionEntryStrategyConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-strategy-mean-reversion-entry",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "strategy.events.mean_reversion_entry.resolved.>",
 			Type:    "strategy.events.v1.mean_reversion_entry_resolved",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "STRATEGY_EVENTS",
 			},
 		},

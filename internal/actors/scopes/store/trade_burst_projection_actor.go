@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -82,7 +83,7 @@ func (a *TradeBurstProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *TradeBurstProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewTradeBurstKVStore(a.cfg.NATSURL)
+	store := natsevidence.NewTradeBurstKVStore(a.cfg.NATSURL)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start trade burst KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -92,7 +93,7 @@ func (a *TradeBurstProjectionActor) start(c *actor.Context) {
 	a.store = store
 	a.closer = store.Close
 	a.logger.Info("trade burst projection started",
-		"bucket_latest", adapternats.TradeBurstLatestBucket,
+		"bucket_latest", natsevidence.TradeBurstLatestBucket,
 	)
 }
 
@@ -138,7 +139,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		a.logger.Debug("latest skipped: existing is newer",
 			"source", burst.Source,
@@ -147,7 +148,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 			"open_time", burst.OpenTime.Format(time.RFC3339),
 		)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		a.logger.Debug("latest skipped: duplicate open_time",
 			"source", burst.Source,
@@ -158,7 +159,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -167,7 +168,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		a.cfg.Tracker.Counter("materialized:" + burst.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("trade burst materialized",
 			"source", burst.Source,
 			"symbol", burst.Symbol,

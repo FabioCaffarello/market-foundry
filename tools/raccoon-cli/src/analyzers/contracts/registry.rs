@@ -51,7 +51,9 @@ pub struct RegistryIndex {
     pub consumers: Vec<ConsumerSpecRecord>,
 }
 
-/// Scan all `*_registry.go` files under `internal/` for registry specifications.
+/// Scan all registry files under `internal/` for registry specifications.
+/// Accepts both the legacy `*_registry.go` layout and the post-S218
+/// sub-packaged `*/registry.go` layout.
 pub fn scan_registries(internal_dir: &Path) -> Result<RegistryIndex> {
     let mut index = RegistryIndex::default();
 
@@ -87,11 +89,11 @@ pub fn scan_registries(internal_dir: &Path) -> Result<RegistryIndex> {
 
 fn find_registry_files(dir: &Path) -> Result<Vec<std::path::PathBuf>> {
     let mut files = Vec::new();
-    collect_files(dir, "_registry.go", &mut files)?;
+    collect_registry_files(dir, &mut files)?;
     Ok(files)
 }
 
-fn collect_files(dir: &Path, suffix: &str, out: &mut Vec<std::path::PathBuf>) -> Result<()> {
+fn collect_registry_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
@@ -99,11 +101,11 @@ fn collect_files(dir: &Path, suffix: &str, out: &mut Vec<std::path::PathBuf>) ->
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            collect_files(&path, suffix, out)?;
+            collect_registry_files(&path, out)?;
         } else if path
             .file_name()
             .and_then(|n| n.to_str())
-            .map_or(false, |n| n.ends_with(suffix))
+            .map_or(false, |n| n == "registry.go" || n.ends_with("_registry.go"))
         {
             out.push(path);
         }
@@ -266,15 +268,55 @@ fn extract_consumer_specs(source: &str, file: &str, out: &mut Vec<ConsumerSpecRe
                 }
 
                 if let Some(d) = durable {
-                    out.push(ConsumerSpecRecord {
-                        durable: d,
-                        stream_name: stream_name.unwrap_or_default(),
-                        filter_subjects,
-                        file: file.to_string(),
-                    });
+                    push_consumer_spec(
+                        out,
+                        ConsumerSpecRecord {
+                            durable: d,
+                            stream_name: stream_name.unwrap_or_default(),
+                            filter_subjects,
+                            file: file.to_string(),
+                        },
+                    );
                 }
 
                 i = block_end + 1;
+            } else {
+                i = abs_pos + 1;
+            }
+        } else {
+            break;
+        }
+    }
+
+    extract_consumer_spec_factory_calls(source, file, out);
+}
+
+fn extract_consumer_spec_factory_calls(
+    source: &str,
+    file: &str,
+    out: &mut Vec<ConsumerSpecRecord>,
+) {
+    let mut i = 0;
+
+    while i < source.len() {
+        if let Some(pos) = source[i..].find("NewConsumerSpec(") {
+            let abs_pos = i + pos;
+            let args_start = abs_pos + "NewConsumerSpec(".len();
+
+            if let Some(args_end) = find_closing_paren(source, args_start) {
+                let args = extract_all_quoted(&source[args_start..args_end]);
+                if args.len() >= 4 {
+                    push_consumer_spec(
+                        out,
+                        ConsumerSpecRecord {
+                            durable: args[0].clone(),
+                            stream_name: args[3].clone(),
+                            filter_subjects: vec![args[1].clone()],
+                            file: file.to_string(),
+                        },
+                    );
+                }
+                i = args_end + 1;
             } else {
                 i = abs_pos + 1;
             }
@@ -426,6 +468,36 @@ fn extract_string_array(block: &str, field: &str) -> Vec<String> {
     results
 }
 
+fn extract_all_quoted(s: &str) -> Vec<String> {
+    let mut results = Vec::new();
+    let mut rest = s;
+
+    while let Some(start) = rest.find('"') {
+        let after_quote = &rest[start + 1..];
+        if let Some(end) = after_quote.find('"') {
+            results.push(after_quote[..end].to_string());
+            rest = &after_quote[end + 1..];
+        } else {
+            break;
+        }
+    }
+
+    results
+}
+
+fn push_consumer_spec(out: &mut Vec<ConsumerSpecRecord>, record: ConsumerSpecRecord) {
+    let duplicate = out.iter().any(|existing| {
+        existing.durable == record.durable
+            && existing.stream_name == record.stream_name
+            && existing.filter_subjects == record.filter_subjects
+            && existing.file == record.file
+    });
+
+    if !duplicate {
+        out.push(record);
+    }
+}
+
 /// Find closing brace, handling nesting.
 fn find_closing_brace(source: &str, start: usize) -> Option<usize> {
     let mut depth = 1;
@@ -455,6 +527,45 @@ fn find_closing_brace(source: &str, start: usize) -> Option<usize> {
             if c == b'{' {
                 depth += 1;
             } else if c == b'}' {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+fn find_closing_paren(source: &str, start: usize) -> Option<usize> {
+    let mut depth = 1;
+    let bytes = source.as_bytes();
+    let mut in_string = false;
+    let mut escape = false;
+
+    let mut i = start;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if escape {
+            escape = false;
+            i += 1;
+            continue;
+        }
+        if c == b'\\' && in_string {
+            escape = true;
+            i += 1;
+            continue;
+        }
+        if c == b'"' {
+            in_string = !in_string;
+            i += 1;
+            continue;
+        }
+        if !in_string {
+            if c == b'(' {
+                depth += 1;
+            } else if c == b')' {
                 depth -= 1;
                 if depth == 0 {
                     return Some(i);
@@ -589,6 +700,24 @@ func DefaultConfigctlRegistry() ConfigctlRegistry {
         assert!(specs[0]
             .filter_subjects
             .contains(&"configctl.events.config.activated".to_string()));
+    }
+
+    #[test]
+    fn extracts_consumer_specs_from_factory_calls() {
+        let source = r#"
+func StoreRSISignalConsumer() natskit.ConsumerSpec {
+    return natskit.NewConsumerSpec("store-signal-rsi", "signal.events.rsi.generated.>", "signal.events.v1.rsi_generated", "SIGNAL_EVENTS")
+}
+"#;
+        let mut specs = Vec::new();
+        extract_consumer_specs(source, "test.go", &mut specs);
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].durable, "store-signal-rsi");
+        assert_eq!(specs[0].stream_name, "SIGNAL_EVENTS");
+        assert_eq!(
+            specs[0].filter_subjects,
+            vec!["signal.events.rsi.generated.>"]
+        );
     }
 
     #[test]

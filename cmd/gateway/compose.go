@@ -4,7 +4,14 @@ import (
 	"log/slog"
 
 	"internal/adapters/clickhouse"
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/application/analyticalclient"
 	configctlclient "internal/application/configctlclient"
 	"internal/application/decisionclient"
@@ -62,8 +69,8 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	}
 
 	// Configctl — required for gateway operation.
-	gw, closeFn, prob := newGatewayConn(config, "configctl", func(rc *adapternats.NATSRequestClient) ports.ConfigctlGateway {
-		return adapternats.NewConfigctlGateway(rc, "gateway.http")
+	gw, closeFn, prob := newGatewayConn(config, "configctl", func(rc *natskit.NATSRequestClient) ports.ConfigctlGateway {
+		return natsconfigctl.NewGateway(rc, "gateway.http")
 	})
 	if prob != nil {
 		return nil, prob
@@ -75,38 +82,38 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	var cl func() error
 	var p *problem.Problem
 
-	conns.evidence, cl, p = newGatewayConn(config, "evidence", func(rc *adapternats.NATSRequestClient) ports.EvidenceGateway {
-		return adapternats.NewEvidenceGateway(rc, "gateway.http")
+	conns.evidence, cl, p = newGatewayConn(config, "evidence", func(rc *natskit.NATSRequestClient) ports.EvidenceGateway {
+		return natsevidence.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("evidence", cl, p)
 
-	conns.signal, cl, p = newGatewayConn(config, "signal", func(rc *adapternats.NATSRequestClient) ports.SignalGateway {
-		return adapternats.NewSignalGateway(rc, "gateway.http")
+	conns.signal, cl, p = newGatewayConn(config, "signal", func(rc *natskit.NATSRequestClient) ports.SignalGateway {
+		return natssignal.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("signal", cl, p)
 
-	conns.decision, cl, p = newGatewayConn(config, "decision", func(rc *adapternats.NATSRequestClient) ports.DecisionGateway {
-		return adapternats.NewDecisionGateway(rc, "gateway.http")
+	conns.decision, cl, p = newGatewayConn(config, "decision", func(rc *natskit.NATSRequestClient) ports.DecisionGateway {
+		return natsdecision.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("decision", cl, p)
 
-	conns.strategy, cl, p = newGatewayConn(config, "strategy", func(rc *adapternats.NATSRequestClient) ports.StrategyGateway {
-		return adapternats.NewStrategyGateway(rc, "gateway.http")
+	conns.strategy, cl, p = newGatewayConn(config, "strategy", func(rc *natskit.NATSRequestClient) ports.StrategyGateway {
+		return natsstrategy.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("strategy", cl, p)
 
-	conns.risk, cl, p = newGatewayConn(config, "risk", func(rc *adapternats.NATSRequestClient) ports.RiskGateway {
-		return adapternats.NewRiskGateway(rc, "gateway.http")
+	conns.risk, cl, p = newGatewayConn(config, "risk", func(rc *natskit.NATSRequestClient) ports.RiskGateway {
+		return natsrisk.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("risk", cl, p)
 
-	conns.execution, cl, p = newGatewayConn(config, "execution", func(rc *adapternats.NATSRequestClient) ports.ExecutionGateway {
-		return adapternats.NewExecutionGateway(rc, "gateway.http")
+	conns.execution, cl, p = newGatewayConn(config, "execution", func(rc *natskit.NATSRequestClient) ports.ExecutionGateway {
+		return natsexecution.NewGateway(rc, "gateway.http")
 	})
 	connectOptional("execution", cl, p)
 
-	conns.executionControl, cl, p = newGatewayConn(config, "execution-control", func(rc *adapternats.NATSRequestClient) ports.ExecutionControlGateway {
-		return adapternats.NewExecutionControlGateway(rc, "gateway.http")
+	conns.executionControl, cl, p = newGatewayConn(config, "execution-control", func(rc *natskit.NATSRequestClient) ports.ExecutionControlGateway {
+		return natsexecution.NewControlGateway(rc, "gateway.http")
 	})
 	connectOptional("execution control", cl, p)
 

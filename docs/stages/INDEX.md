@@ -304,3 +304,27 @@ Chronological audit trail of all market-foundry development stages, grouped by p
 | [S212](stage-s212-repository-architecture-census-and-refactor-map-report.md) | Repository architecture census & refactor map |
 | [S213](stage-s213-strategic-runtime-and-package-refactor-report.md) | Strategic runtime & package refactor |
 | [S214](stage-s214-analytical-generated-path-consolidation-report.md) | Analytical/generated path consolidation |
+| [S215](stage-s215-documentation-consolidation-and-noise-removal-report.md) | Documentation consolidation & noise removal |
+| [S216](stage-s216-post-refactor-and-documentation-exit-gate-report.md) | Post-refactor & documentation exit gate |
+| [S217](stage-s217-exit-gate-closure-and-evidence-reconciliation-report.md) | Exit gate closure & evidence reconciliation |
+
+## Phase 18: Structural Refactoring Completion (S218–S221)
+
+| Stage | Description |
+|-------|-------------|
+| S218 | H-01 NATS adapter sub-packaging (no dedicated report; work documented in S221 reconciliation log) |
+| [S219](stage-s219-h04-actor-migration-completion-report.md) | H-04 actor migration completion |
+| [S220](stage-s220-h06-module-graph-simplification-report.md) | H-06 module graph simplification |
+| [S221](stage-s221-post-restructure-documentation-reconciliation-report.md) | Post-restructure documentation reconciliation |
+
+## Phase 19: Post-Restructure Gate (S222)
+
+| Stage | Description |
+|-------|-------------|
+| [S222](stage-s222-post-restructure-gate-and-next-charter-decision-report.md) | Post-restructure gate and next-charter decision |
+
+## Phase 20: Final Exit Closure Planning (S223)
+
+| Stage | Description |
+|-------|-------------|
+| [S223](stage-s223-final-exit-criteria-closure-plan-report.md) | Final exit criteria closure plan |

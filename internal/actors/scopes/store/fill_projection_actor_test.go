@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
 	"internal/shared/events"
 	"internal/shared/healthz"
@@ -103,15 +103,15 @@ func (h *fillProjectionTestHarness) onFill(msg fillReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		h.actor.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		h.actor.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		h.actor.stats.materialized.Add(1)
 	}
 
@@ -123,7 +123,7 @@ func (h *fillProjectionTestHarness) onFill(msg fillReceivedMessage) {
 // ---------- Gate Tests ----------
 
 func TestFillProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := fillActorDirect(store, nil)
 
 	intent := validFillIntent(time.Now())
@@ -140,7 +140,7 @@ func TestFillProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestFillProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := fillActorDirect(store, nil)
 
 	intent := execution.ExecutionIntent{Final: true} // missing required fields
@@ -158,7 +158,7 @@ func TestFillProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 // ---------- Put Result Tests ----------
 
 func TestFillProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	h := fillActorDirect(store, tracker)
 
@@ -173,7 +173,7 @@ func TestFillProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestFillProjection_PutSkippedStale(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutSkippedStale}
+	store := &mockExecutionStore{putResult: natskit.PutSkippedStale}
 	h := fillActorDirect(store, nil)
 
 	h.onFill(fillReceivedMessage{Event: fillEvent(validFillIntent(time.Now()), "paper-abc123")})
@@ -184,7 +184,7 @@ func TestFillProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestFillProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockExecutionStore{putResult: natskit.PutSkippedDuplicate}
 	h := fillActorDirect(store, nil)
 
 	h.onFill(fillReceivedMessage{Event: fillEvent(validFillIntent(time.Now()), "paper-abc123")})
@@ -196,7 +196,7 @@ func TestFillProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestFillProjection_PutError(t *testing.T) {
 	store := &mockExecutionStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	h := fillActorDirect(store, nil)
@@ -211,7 +211,7 @@ func TestFillProjection_PutError(t *testing.T) {
 // ---------- Stats Invariant ----------
 
 func TestFillProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := fillActorDirect(store, nil)
 
 	now := time.Now()
@@ -249,7 +249,7 @@ func TestFillProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
 	symbols := []string{"btcusdt", "ethusdt"}
 	timeframes := []int{60, 300}
 
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	h := fillActorDirect(store, tracker)
 
@@ -277,7 +277,7 @@ func TestFillProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
 // ---------- Venue Order ID Carried Through ----------
 
 func TestFillProjection_VenueOrderID_DoesNotAffectGating(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := fillActorDirect(store, nil)
 
 	h.onFill(fillReceivedMessage{Event: fillEvent(validFillIntent(time.Now()), "paper-deadbeef1234")})
@@ -294,7 +294,7 @@ func TestFillProjection_VenueOrderID_DoesNotAffectGating(t *testing.T) {
 
 func TestFillProjection_PutError_TrackerRecordsError(t *testing.T) {
 	store := &mockExecutionStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	tracker := healthz.NewTracker("test")
@@ -314,7 +314,7 @@ func TestFillProjection_PutError_TrackerRecordsError(t *testing.T) {
 
 func TestFillProjection_RC1_OrphanFill_NoIntentStore(t *testing.T) {
 	// When intentStore is nil (RC-1 disabled), fills pass through without orphan check.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := fillActorDirect(store, nil)
 
 	h.onFill(fillReceivedMessage{Event: fillEvent(validFillIntent(time.Now()), "paper-orphan")})

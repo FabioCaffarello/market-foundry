@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsevidence "internal/adapters/nats/natsevidence"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -17,7 +17,7 @@ import (
 type EvidencePublisherConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.EvidenceRegistry
+	Registry natsevidence.Registry
 	Tracker  *healthz.Tracker
 }
 
@@ -25,7 +25,7 @@ type EvidencePublisherConfig struct {
 type EvidencePublisherActor struct {
 	cfg       EvidencePublisherConfig
 	logger    *slog.Logger
-	publisher *adapternats.EvidencePublisher
+	publisher *natsevidence.Publisher
 }
 
 func NewEvidencePublisherActor(cfg EvidencePublisherConfig) actor.Producer {
@@ -41,7 +41,7 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		pub := adapternats.NewEvidencePublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		pub := natsevidence.NewPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := pub.Start(); err != nil {
 			a.logger.Error("start evidence publisher", "error", err)
 			c.Engine().Poison(c.PID())

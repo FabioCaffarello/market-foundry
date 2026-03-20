@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -16,10 +16,10 @@ import (
 type writerConsumerConfig struct {
 	family        string
 	natsURL       string
-	consumerSpec  adapternats.ConsumerSpec
+	consumerSpec  natskit.ConsumerSpec
 	inserterPID   *actor.PID
 	tracker       *healthz.Tracker
-	startConsumer func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
+	startConsumer func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
 	supervisorPID *actor.PID
 }
 

@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -27,7 +28,7 @@ type ExecutionProjectionConfig struct {
 type ExecutionProjectionActor struct {
 	cfg    ExecutionProjectionConfig
 	logger *slog.Logger
-	store  *adapternats.ExecutionKVStore
+	store  *natsexecution.KVStore
 	stats  executionProjectionStats
 }
 
@@ -77,7 +78,7 @@ func (a *ExecutionProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *ExecutionProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewExecutionKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natsexecution.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start execution KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -140,15 +141,15 @@ func (a *ExecutionProjectionActor) onExecution(msg executionReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -156,7 +157,7 @@ func (a *ExecutionProjectionActor) onExecution(msg executionReceivedMessage) {
 		a.cfg.Tracker.RecordEvent()
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("execution materialized",
 			"type", intent.Type,
 			"source", intent.Source,

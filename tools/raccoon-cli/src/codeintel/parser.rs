@@ -1011,10 +1011,7 @@ import (
         let file = parse_file("main.go", src);
         assert_eq!(file.imports.len(), 1);
         assert_eq!(file.imports[0].alias.as_deref(), Some("configdomain"));
-        assert_eq!(
-            file.imports[0].path,
-            "internal/domain/configctl"
-        );
+        assert_eq!(file.imports[0].path, "internal/domain/configctl");
     }
 
     #[test]

@@ -8,7 +8,14 @@ use super::topology::{self, ComposeTopology, ServiceConfig, SourceTopology};
 // ── Constants ───────────────────────────────────────────────────────
 
 /// The five application binaries in market-foundry.
-const APP_BINARIES: &[&str] = &["configctl", "gateway", "ingest", "derive", "store", "execute"];
+const APP_BINARIES: &[&str] = &[
+    "configctl",
+    "gateway",
+    "ingest",
+    "derive",
+    "store",
+    "execute",
+];
 
 /// Infrastructure services (no config file expected).
 const INFRA_SERVICES: &[&str] = &["nats"];
@@ -64,12 +71,10 @@ const ARCH_DOCS: &[&str] = &[
 ];
 
 /// Stream names that must NOT appear in source yet (premature domain entry guard).
-const PROHIBITED_STREAMS: &[(&str, &str)] = &[
-    (
-        "PROJECTION_EVENTS",
-        "projection notification family is planned but not yet approved for implementation",
-    ),
-];
+const PROHIBITED_STREAMS: &[(&str, &str)] = &[(
+    "PROJECTION_EVENTS",
+    "projection notification family is planned but not yet approved for implementation",
+)];
 
 /// Architecture docs specific to the signal domain that must exist.
 const SIGNAL_DOCS: &[&str] = &[
@@ -85,37 +90,78 @@ const SIGNAL_DOCS: &[&str] = &[
 
 /// Expected signal NATS subjects that must exist in source.
 const SIGNAL_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
-    ("signal.events.rsi.generated", "RSI signal event subject — derive publishes finalized RSI signals"),
-    ("signal.query.rsi.latest", "RSI latest query subject — gateway queries store for latest RSI"),
+    (
+        "signal.events.rsi.generated",
+        "RSI signal event subject — derive publishes finalized RSI signals",
+    ),
+    (
+        "signal.query.rsi.latest",
+        "RSI latest query subject — gateway queries store for latest RSI",
+    ),
 ];
 
 /// Expected signal durable consumers.
-const SIGNAL_EXPECTED_DURABLES: &[(&str, &str)] = &[
-    ("store-signal-rsi", "store consumes RSI signal events from SIGNAL_EVENTS for projection"),
-];
+const SIGNAL_EXPECTED_DURABLES: &[(&str, &str)] = &[(
+    "store-signal-rsi",
+    "store consumes RSI signal events from SIGNAL_EVENTS for projection",
+)];
 
 /// Expected signal KV bucket names that must appear in source.
-const SIGNAL_EXPECTED_BUCKETS: &[(&str, &str)] = &[
-    ("SIGNAL_RSI_LATEST", "stores latest finalized RSI signal per partition key"),
-];
+const SIGNAL_EXPECTED_BUCKETS: &[(&str, &str)] = &[(
+    "SIGNAL_RSI_LATEST",
+    "stores latest finalized RSI signal per partition key",
+)];
 
 /// Expected signal adapter files in internal/adapters/nats/.
 const SIGNAL_ADAPTER_FILES: &[(&str, &str)] = &[
-    ("signal_registry.go", "defines SIGNAL_EVENTS stream, consumer, and query specs"),
-    ("signal_publisher.go", "publishes signal events to SIGNAL_EVENTS stream"),
-    ("signal_consumer.go", "durable consumer for signal events in store"),
-    ("signal_gateway.go", "gateway adapter for signal NATS request/reply queries"),
-    ("signal_kv_store.go", "KV bucket store for latest signal projections"),
+    (
+        "natssignal/registry.go",
+        "defines SIGNAL_EVENTS stream, consumer, and query specs",
+    ),
+    (
+        "natssignal/publisher.go",
+        "publishes signal events to SIGNAL_EVENTS stream",
+    ),
+    (
+        "natssignal/consumer.go",
+        "durable consumer for signal events in store",
+    ),
+    (
+        "natssignal/gateway.go",
+        "gateway adapter for signal NATS request/reply queries",
+    ),
+    (
+        "natssignal/kv_store.go",
+        "KV bucket store for latest signal projections",
+    ),
 ];
 
 /// Expected signal domain/application files.
 const SIGNAL_DOMAIN_FILES: &[(&str, &str)] = &[
-    ("internal/domain/signal/signal.go", "signal domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
-    ("internal/domain/signal/events.go", "SignalGeneratedEvent definition"),
-    ("internal/application/signal/rsi_sampler.go", "RSI sampler (Wilder's smoothed moving average)"),
-    ("internal/application/signalclient/contracts.go", "signal query/reply contracts"),
-    ("internal/application/signalclient/get_latest_signal.go", "GetLatestSignal use case"),
-    ("internal/application/ports/signal.go", "SignalGateway port interface"),
+    (
+        "internal/domain/signal/signal.go",
+        "signal domain entity with Validate(), PartitionKey(), DeduplicationKey()",
+    ),
+    (
+        "internal/domain/signal/events.go",
+        "SignalGeneratedEvent definition",
+    ),
+    (
+        "internal/application/signal/rsi_sampler.go",
+        "RSI sampler (Wilder's smoothed moving average)",
+    ),
+    (
+        "internal/application/signalclient/contracts.go",
+        "signal query/reply contracts",
+    ),
+    (
+        "internal/application/signalclient/get_latest_signal.go",
+        "GetLatestSignal use case",
+    ),
+    (
+        "internal/application/ports/signal.go",
+        "SignalGateway port interface",
+    ),
 ];
 
 // ── Decision domain governance constants ─────────────────────────────
@@ -124,47 +170,88 @@ const SIGNAL_DOMAIN_FILES: &[(&str, &str)] = &[
 const DECISION_DOCS: &[&str] = &[
     "docs/architecture/decision-domain-design.md",
     "docs/architecture/decision-first-slice.md",
+    "docs/architecture/decision-projection-pattern.md",
     "docs/architecture/decision-stream-families.md",
     "docs/architecture/decision-activation-and-ownership.md",
     "docs/architecture/decision-query-surface-guidelines.md",
     "docs/architecture/decision-family-01-contracts.md",
-    "docs/architecture/decision-readiness-review.md",
-    "docs/architecture/decision-entry-prerequisites.md",
+    "docs/architecture/decision-replay-idempotency-rules.md",
 ];
 
 /// Expected decision NATS subjects that must exist in source.
 const DECISION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
-    ("decision.events.rsi_oversold.evaluated", "decision event subject — derive publishes finalized RSI oversold decisions"),
-    ("decision.query.rsi_oversold.latest", "decision latest query subject — gateway queries store for latest RSI oversold decision"),
+    (
+        "decision.events.rsi_oversold.evaluated",
+        "decision event subject — derive publishes finalized RSI oversold decisions",
+    ),
+    (
+        "decision.query.rsi_oversold.latest",
+        "decision latest query subject — gateway queries store for latest RSI oversold decision",
+    ),
 ];
 
 /// Expected decision durable consumers.
-const DECISION_EXPECTED_DURABLES: &[(&str, &str)] = &[
-    ("store-decision-rsi-oversold", "store consumes RSI oversold decision events from DECISION_EVENTS for projection"),
-];
+const DECISION_EXPECTED_DURABLES: &[(&str, &str)] = &[(
+    "store-decision-rsi-oversold",
+    "store consumes RSI oversold decision events from DECISION_EVENTS for projection",
+)];
 
 /// Expected decision KV bucket names that must appear in source.
-const DECISION_EXPECTED_BUCKETS: &[(&str, &str)] = &[
-    ("DECISION_RSI_OVERSOLD_LATEST", "stores latest finalized RSI oversold decision per partition key"),
-];
+const DECISION_EXPECTED_BUCKETS: &[(&str, &str)] = &[(
+    "DECISION_RSI_OVERSOLD_LATEST",
+    "stores latest finalized RSI oversold decision per partition key",
+)];
 
 /// Expected decision adapter files in internal/adapters/nats/.
 const DECISION_ADAPTER_FILES: &[(&str, &str)] = &[
-    ("decision_registry.go", "defines DECISION_EVENTS stream, consumer, and query specs"),
-    ("decision_publisher.go", "publishes decision events to DECISION_EVENTS stream"),
-    ("decision_consumer.go", "durable consumer for decision events in store"),
-    ("decision_gateway.go", "gateway adapter for decision NATS request/reply queries"),
-    ("decision_kv_store.go", "KV bucket store for latest decision projections"),
+    (
+        "natsdecision/registry.go",
+        "defines DECISION_EVENTS stream, consumer, and query specs",
+    ),
+    (
+        "natsdecision/publisher.go",
+        "publishes decision events to DECISION_EVENTS stream",
+    ),
+    (
+        "natsdecision/consumer.go",
+        "durable consumer for decision events in store",
+    ),
+    (
+        "natsdecision/gateway.go",
+        "gateway adapter for decision NATS request/reply queries",
+    ),
+    (
+        "natsdecision/kv_store.go",
+        "KV bucket store for latest decision projections",
+    ),
 ];
 
 /// Expected decision domain/application files.
 const DECISION_DOMAIN_FILES: &[(&str, &str)] = &[
-    ("internal/domain/decision/decision.go", "decision domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
-    ("internal/domain/decision/events.go", "DecisionEvaluatedEvent definition"),
-    ("internal/application/decision/rsi_oversold_evaluator.go", "RSI oversold evaluator (threshold-based)"),
-    ("internal/application/decisionclient/contracts.go", "decision query/reply contracts"),
-    ("internal/application/decisionclient/get_latest_decision.go", "GetLatestDecision use case"),
-    ("internal/application/ports/decision.go", "DecisionGateway port interface"),
+    (
+        "internal/domain/decision/decision.go",
+        "decision domain entity with Validate(), PartitionKey(), DeduplicationKey()",
+    ),
+    (
+        "internal/domain/decision/events.go",
+        "DecisionEvaluatedEvent definition",
+    ),
+    (
+        "internal/application/decision/rsi_oversold_evaluator.go",
+        "RSI oversold evaluator (threshold-based)",
+    ),
+    (
+        "internal/application/decisionclient/contracts.go",
+        "decision query/reply contracts",
+    ),
+    (
+        "internal/application/decisionclient/get_latest_decision.go",
+        "GetLatestDecision use case",
+    ),
+    (
+        "internal/application/ports/decision.go",
+        "DecisionGateway port interface",
+    ),
 ];
 
 // ── Strategy domain governance constants ─────────────────────────────
@@ -172,48 +259,88 @@ const DECISION_DOMAIN_FILES: &[(&str, &str)] = &[
 /// Architecture docs specific to the strategy domain that must exist.
 const STRATEGY_DOCS: &[&str] = &[
     "docs/architecture/strategy-domain-design.md",
+    "docs/architecture/strategy-first-slice.md",
+    "docs/architecture/strategy-projection-pattern.md",
     "docs/architecture/strategy-stream-families.md",
     "docs/architecture/strategy-activation-and-ownership.md",
     "docs/architecture/strategy-query-surface-guidelines.md",
-    "docs/architecture/strategy-readiness-review.md",
-    "docs/architecture/strategy-entry-prerequisites.md",
-    "docs/architecture/strategy-risks-and-blockers.md",
-    "docs/architecture/strategy-readiness-review-rerun.md",
+    "docs/architecture/strategy-replay-idempotency-rules.md",
 ];
 
 /// Expected strategy NATS subjects that must exist in source.
 const STRATEGY_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
-    ("strategy.events.mean_reversion_entry.resolved", "strategy event subject — derive publishes finalized mean reversion entry strategies"),
-    ("strategy.query.mean_reversion_entry.latest", "strategy latest query subject — gateway queries store for latest mean reversion entry"),
+    (
+        "strategy.events.mean_reversion_entry.resolved",
+        "strategy event subject — derive publishes finalized mean reversion entry strategies",
+    ),
+    (
+        "strategy.query.mean_reversion_entry.latest",
+        "strategy latest query subject — gateway queries store for latest mean reversion entry",
+    ),
 ];
 
 /// Expected strategy durable consumers.
-const STRATEGY_EXPECTED_DURABLES: &[(&str, &str)] = &[
-    ("store-strategy-mean-reversion-entry", "store consumes mean reversion entry strategy events from STRATEGY_EVENTS for projection"),
-];
+const STRATEGY_EXPECTED_DURABLES: &[(&str, &str)] = &[(
+    "store-strategy-mean-reversion-entry",
+    "store consumes mean reversion entry strategy events from STRATEGY_EVENTS for projection",
+)];
 
 /// Expected strategy KV bucket names that must appear in source.
-const STRATEGY_EXPECTED_BUCKETS: &[(&str, &str)] = &[
-    ("STRATEGY_MEAN_REVERSION_ENTRY_LATEST", "stores latest finalized mean reversion entry strategy per partition key"),
-];
+const STRATEGY_EXPECTED_BUCKETS: &[(&str, &str)] = &[(
+    "STRATEGY_MEAN_REVERSION_ENTRY_LATEST",
+    "stores latest finalized mean reversion entry strategy per partition key",
+)];
 
 /// Expected strategy adapter files in internal/adapters/nats/.
 const STRATEGY_ADAPTER_FILES: &[(&str, &str)] = &[
-    ("strategy_registry.go", "defines STRATEGY_EVENTS stream, consumer, and query specs"),
-    ("strategy_publisher.go", "publishes strategy events to STRATEGY_EVENTS stream"),
-    ("strategy_consumer.go", "durable consumer for strategy events in store"),
-    ("strategy_gateway.go", "gateway adapter for strategy NATS request/reply queries"),
-    ("strategy_kv_store.go", "KV bucket store for latest strategy projections"),
+    (
+        "natsstrategy/registry.go",
+        "defines STRATEGY_EVENTS stream, consumer, and query specs",
+    ),
+    (
+        "natsstrategy/publisher.go",
+        "publishes strategy events to STRATEGY_EVENTS stream",
+    ),
+    (
+        "natsstrategy/consumer.go",
+        "durable consumer for strategy events in store",
+    ),
+    (
+        "natsstrategy/gateway.go",
+        "gateway adapter for strategy NATS request/reply queries",
+    ),
+    (
+        "natsstrategy/kv_store.go",
+        "KV bucket store for latest strategy projections",
+    ),
 ];
 
 /// Expected strategy domain/application files.
 const STRATEGY_DOMAIN_FILES: &[(&str, &str)] = &[
-    ("internal/domain/strategy/strategy.go", "strategy domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
-    ("internal/domain/strategy/events.go", "StrategyResolvedEvent definition"),
-    ("internal/application/strategy/mean_reversion_entry_resolver.go", "mean reversion entry resolver (decision-to-strategy)"),
-    ("internal/application/strategyclient/contracts.go", "strategy query/reply contracts"),
-    ("internal/application/strategyclient/get_latest_strategy.go", "GetLatestStrategy use case"),
-    ("internal/application/ports/strategy.go", "StrategyGateway port interface"),
+    (
+        "internal/domain/strategy/strategy.go",
+        "strategy domain entity with Validate(), PartitionKey(), DeduplicationKey()",
+    ),
+    (
+        "internal/domain/strategy/events.go",
+        "StrategyResolvedEvent definition",
+    ),
+    (
+        "internal/application/strategy/mean_reversion_entry_resolver.go",
+        "mean reversion entry resolver (decision-to-strategy)",
+    ),
+    (
+        "internal/application/strategyclient/contracts.go",
+        "strategy query/reply contracts",
+    ),
+    (
+        "internal/application/strategyclient/get_latest_strategy.go",
+        "GetLatestStrategy use case",
+    ),
+    (
+        "internal/application/ports/strategy.go",
+        "StrategyGateway port interface",
+    ),
 ];
 
 // ── Risk domain governance constants ─────────────────────────────────
@@ -224,47 +351,89 @@ const STRATEGY_DOMAIN_FILES: &[(&str, &str)] = &[
 /// Architecture docs specific to the risk domain that must exist (produced by S62).
 const RISK_DOCS: &[&str] = &[
     "docs/architecture/risk-domain-design.md",
+    "docs/architecture/risk-first-slice.md",
+    "docs/architecture/risk-projection-pattern.md",
+    "docs/architecture/risk-family-01-contracts.md",
     "docs/architecture/risk-stream-families.md",
     "docs/architecture/risk-activation-and-ownership.md",
     "docs/architecture/risk-query-surface-guidelines.md",
-    "docs/architecture/risk-readiness-review.md",
-    "docs/architecture/risk-entry-prerequisites.md",
-    "docs/architecture/risk-risks-and-blockers.md",
+    "docs/architecture/risk-replay-idempotency-rules.md",
 ];
 
 /// Expected risk NATS subjects (activate after S64 opens implementation).
 const RISK_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
-    ("risk.events.position_exposure.assessed", "risk event subject — derive publishes finalized position exposure assessments"),
-    ("risk.query.position_exposure.latest", "risk latest query subject — gateway queries store for latest position exposure"),
+    (
+        "risk.events.position_exposure.assessed",
+        "risk event subject — derive publishes finalized position exposure assessments",
+    ),
+    (
+        "risk.query.position_exposure.latest",
+        "risk latest query subject — gateway queries store for latest position exposure",
+    ),
 ];
 
 /// Expected risk durable consumers (activate after S64 opens implementation).
-const RISK_EXPECTED_DURABLES: &[(&str, &str)] = &[
-    ("store-risk-position-exposure", "store consumes position exposure risk events from RISK_EVENTS for projection"),
-];
+const RISK_EXPECTED_DURABLES: &[(&str, &str)] = &[(
+    "store-risk-position-exposure",
+    "store consumes position exposure risk events from RISK_EVENTS for projection",
+)];
 
 /// Expected risk KV bucket names (activate after S64 opens implementation).
-const RISK_EXPECTED_BUCKETS: &[(&str, &str)] = &[
-    ("RISK_POSITION_EXPOSURE_LATEST", "stores latest finalized position exposure risk assessment per partition key"),
-];
+const RISK_EXPECTED_BUCKETS: &[(&str, &str)] = &[(
+    "RISK_POSITION_EXPOSURE_LATEST",
+    "stores latest finalized position exposure risk assessment per partition key",
+)];
 
 /// Expected risk adapter files in internal/adapters/nats/ (activate after S64).
 const RISK_ADAPTER_FILES: &[(&str, &str)] = &[
-    ("risk_registry.go", "defines RISK_EVENTS stream, consumer, and query specs"),
-    ("risk_publisher.go", "publishes risk events to RISK_EVENTS stream"),
-    ("risk_consumer.go", "durable consumer for risk events in store"),
-    ("risk_gateway.go", "gateway adapter for risk NATS request/reply queries"),
-    ("risk_kv_store.go", "KV bucket store for latest risk projections"),
+    (
+        "natsrisk/registry.go",
+        "defines RISK_EVENTS stream, consumer, and query specs",
+    ),
+    (
+        "natsrisk/publisher.go",
+        "publishes risk events to RISK_EVENTS stream",
+    ),
+    (
+        "natsrisk/consumer.go",
+        "durable consumer for risk events in store",
+    ),
+    (
+        "natsrisk/gateway.go",
+        "gateway adapter for risk NATS request/reply queries",
+    ),
+    (
+        "natsrisk/kv_store.go",
+        "KV bucket store for latest risk projections",
+    ),
 ];
 
 /// Expected risk domain/application files (activate after S64 opens implementation).
 const RISK_DOMAIN_FILES: &[(&str, &str)] = &[
-    ("internal/domain/risk/risk.go", "risk domain entity with Validate(), PartitionKey(), DeduplicationKey()"),
-    ("internal/domain/risk/events.go", "RiskAssessedEvent definition"),
-    ("internal/application/risk/position_exposure_evaluator.go", "position exposure evaluator (strategy-to-risk)"),
-    ("internal/application/riskclient/contracts.go", "risk query/reply contracts"),
-    ("internal/application/riskclient/get_latest_risk.go", "GetLatestRisk use case"),
-    ("internal/application/ports/risk.go", "RiskGateway port interface"),
+    (
+        "internal/domain/risk/risk.go",
+        "risk domain entity with Validate(), PartitionKey(), DeduplicationKey()",
+    ),
+    (
+        "internal/domain/risk/events.go",
+        "RiskAssessedEvent definition",
+    ),
+    (
+        "internal/application/risk/position_exposure_evaluator.go",
+        "position exposure evaluator (strategy-to-risk)",
+    ),
+    (
+        "internal/application/riskclient/contracts.go",
+        "risk query/reply contracts",
+    ),
+    (
+        "internal/application/riskclient/get_latest_risk.go",
+        "GetLatestRisk use case",
+    ),
+    (
+        "internal/application/ports/risk.go",
+        "RiskGateway port interface",
+    ),
 ];
 
 // ── Execution domain governance constants (S70→S83) ──────────────────
@@ -274,33 +443,63 @@ const RISK_DOMAIN_FILES: &[(&str, &str)] = &[
 /// Architecture docs specific to the execution domain that must exist.
 const EXECUTION_DOCS: &[&str] = &[
     "docs/architecture/execution-domain-design.md",
+    "docs/architecture/execution-first-slice.md",
+    "docs/architecture/execution-projection-pattern.md",
+    "docs/architecture/execution-family-01-contracts.md",
     "docs/architecture/execution-stream-families.md",
     "docs/architecture/execution-activation-and-ownership.md",
     "docs/architecture/execution-query-surface-guidelines.md",
-    "docs/architecture/execution-readiness-review.md",
-    "docs/architecture/execution-entry-prerequisites.md",
-    "docs/architecture/execution-risks-and-blockers.md",
+    "docs/architecture/execution-replay-idempotency-rules.md",
+    "docs/architecture/execution-lifecycle-model.md",
+    "docs/architecture/execution-fill-model.md",
+    "docs/architecture/execution-fill-projection-pattern.md",
+    "docs/architecture/execution-failure-recovery-model.md",
+    "docs/architecture/execution-control-and-kill-switch.md",
+    "docs/architecture/execution-status-propagation-model.md",
+    "docs/architecture/execution-projection-failure-semantics.md",
+    "docs/architecture/execution-trace-persistence.md",
     "docs/architecture/execute-runtime-and-activation-model.md",
     "docs/architecture/execute-governance-and-activation-model.md",
     "docs/architecture/execution-family-separation-after-paper-step.md",
     "docs/architecture/venue-routing-and-ownership-split.md",
-    "docs/architecture/post-paper-action-boundary-readiness-review.md",
-    "docs/architecture/post-paper-risks-and-blockers.md",
-    "docs/architecture/next-frontier-entry-prerequisites.md",
     "docs/architecture/pre-venue-fill-reconciliation-model.md",
     "docs/architecture/async-fill-and-venue-intake-design.md",
     "docs/architecture/venue-credentials-and-activation-prerequisites.md",
-    "docs/architecture/post-paper-ci-and-validation-baseline.md",
+    "docs/architecture/execution-query-surface-after-execute.md",
+    "docs/architecture/execution-read-side-authority-after-execute.md",
+    "docs/architecture/execution-operational-validation-matrix.md",
+    "docs/architecture/execution-integrated-operational-validation-matrix.md",
+    "docs/architecture/execute-actor-critical-test-coverage.md",
+    "docs/architecture/execute-actor-safety-model.md",
+    "docs/architecture/execute-operational-platform-integration.md",
 ];
 
 /// Expected execution NATS subjects — all active post-S80.
 const EXECUTION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
-    ("execution.events.paper_order.submitted", "execution event subject — derive publishes finalized paper order intents"),
-    ("execution.query.paper_order.latest", "execution latest query subject — gateway queries store for latest paper order intent"),
-    ("execution.fill.venue_market_order", "fill event subject — execute publishes venue order fill confirmations"),
-    ("execution.query.status.latest", "execution status composite query — gateway queries for combined status"),
-    ("execution.control.get", "execution control gate read — gateway/execute reads kill switch state"),
-    ("execution.control.set", "execution control gate write — gateway sets kill switch state"),
+    (
+        "execution.events.paper_order.submitted",
+        "execution event subject — derive publishes finalized paper order intents",
+    ),
+    (
+        "execution.query.paper_order.latest",
+        "execution latest query subject — gateway queries store for latest paper order intent",
+    ),
+    (
+        "execution.fill.venue_market_order",
+        "fill event subject — execute publishes venue order fill confirmations",
+    ),
+    (
+        "execution.query.status.latest",
+        "execution status composite query — gateway queries for combined status",
+    ),
+    (
+        "execution.control.get",
+        "execution control gate read — gateway/execute reads kill switch state",
+    ),
+    (
+        "execution.control.set",
+        "execution control gate write — gateway sets kill switch state",
+    ),
 ];
 
 /// Expected execution durable consumers — all active post-S80.
@@ -312,20 +511,50 @@ const EXECUTION_EXPECTED_DURABLES: &[(&str, &str)] = &[
 
 /// Expected execution KV bucket names — all active post-S80.
 const EXECUTION_EXPECTED_BUCKETS: &[(&str, &str)] = &[
-    ("EXECUTION_PAPER_ORDER_LATEST", "stores latest finalized paper order execution intent per partition key"),
-    ("EXECUTION_VENUE_MARKET_ORDER_LATEST", "stores latest venue market order fill per partition key"),
-    ("EXECUTION_CONTROL", "stores global execution control gate (kill switch)"),
+    (
+        "EXECUTION_PAPER_ORDER_LATEST",
+        "stores latest finalized paper order execution intent per partition key",
+    ),
+    (
+        "EXECUTION_VENUE_MARKET_ORDER_LATEST",
+        "stores latest venue market order fill per partition key",
+    ),
+    (
+        "EXECUTION_CONTROL",
+        "stores global execution control gate (kill switch)",
+    ),
 ];
 
 /// Expected execution adapter files in internal/adapters/nats/ — all active post-S80.
 const EXECUTION_ADAPTER_FILES: &[(&str, &str)] = &[
-    ("execution_registry.go", "defines EXECUTION_EVENTS and EXECUTION_FILL_EVENTS streams, consumers, and query specs"),
-    ("execution_publisher.go", "publishes execution events and fill events to JetStream"),
-    ("execution_consumer.go", "durable consumer for execution events in store/execute"),
-    ("execution_gateway.go", "gateway adapter for execution NATS request/reply queries"),
-    ("execution_kv_store.go", "KV bucket store for latest execution projections"),
-    ("execution_control_gateway.go", "gateway adapter for execution control gate NATS request/reply"),
-    ("execution_control_kv_store.go", "KV bucket store for execution control gate (kill switch)"),
+    (
+        "natsexecution/registry.go",
+        "defines EXECUTION_EVENTS and EXECUTION_FILL_EVENTS streams, consumers, and query specs",
+    ),
+    (
+        "natsexecution/publisher.go",
+        "publishes execution events and fill events to JetStream",
+    ),
+    (
+        "natsexecution/consumer.go",
+        "durable consumer for execution events in store/execute",
+    ),
+    (
+        "natsexecution/gateway.go",
+        "gateway adapter for execution NATS request/reply queries",
+    ),
+    (
+        "natsexecution/kv_store.go",
+        "KV bucket store for latest execution projections",
+    ),
+    (
+        "natsexecution/control_gateway.go",
+        "gateway adapter for execution control gate NATS request/reply",
+    ),
+    (
+        "natsexecution/control_kv_store.go",
+        "KV bucket store for execution control gate (kill switch)",
+    ),
 ];
 
 /// Expected execution domain/application files — all active post-S80.
@@ -516,9 +745,7 @@ fn scan_stale_references(project_root: &Path, refs: &mut Vec<StaleReference>) {
         ("validator", "old service name 'validator'"),
     ];
 
-    let consumer_pattern: Vec<(&str, &str)> = vec![
-        ("consumer", "old service name 'consumer'"),
-    ];
+    let consumer_pattern: Vec<(&str, &str)> = vec![("consumer", "old service name 'consumer'")];
 
     // Scan internal/ for emulator and validator only (consumer is legitimate here)
     let internal_dir = project_root.join("internal");
@@ -595,8 +822,7 @@ fn scan_file_for_patterns(
             let pat_lower = pattern.to_lowercase();
             let mut search = lower.as_str();
             while let Some(pos) = search.find(&pat_lower) {
-                let before_ok = pos == 0
-                    || !search.as_bytes()[pos - 1].is_ascii_alphanumeric();
+                let before_ok = pos == 0 || !search.as_bytes()[pos - 1].is_ascii_alphanumeric();
                 let after_pos = pos + pat_lower.len();
                 let after_ok = after_pos >= search.len()
                     || !search.as_bytes()[after_pos].is_ascii_alphanumeric();
@@ -707,10 +933,7 @@ fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
     let compose = match &evidence.compose {
         Some(c) => c,
         None => {
-            return CheckResult::skip(
-                "config-compose-drift",
-                "docker-compose.yaml not available",
-            )
+            return CheckResult::skip("config-compose-drift", "docker-compose.yaml not available")
         }
     };
 
@@ -757,11 +980,7 @@ fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
     let nats_urls: Vec<(&str, &str)> = evidence
         .configs
         .iter()
-        .filter_map(|(name, cfg)| {
-            cfg.nats_url
-                .as_deref()
-                .map(|url| (name.as_str(), url))
-        })
+        .filter_map(|(name, cfg)| cfg.nats_url.as_deref().map(|url| (name.as_str(), url)))
         .collect();
 
     if nats_urls.len() > 1 {
@@ -776,7 +995,9 @@ fn check_config_compose_drift(evidence: &Evidence) -> CheckResult {
                             nats_urls[0].0
                         ),
                     )
-                    .with_why("inconsistent NATS URLs cause services to connect to different clusters")
+                    .with_why(
+                        "inconsistent NATS URLs cause services to connect to different clusters",
+                    )
                     .with_help("ensure all configs use the same nats.url value"),
                 );
             }
@@ -820,7 +1041,9 @@ fn check_binary_compose_drift(evidence: &Evidence) -> CheckResult {
                     "missing-binary-dir",
                     format!("expected binary directory cmd/{binary}/ does not exist"),
                 )
-                .with_why(format!("'{binary}' is an expected service but has no entry point"))
+                .with_why(format!(
+                    "'{binary}' is an expected service but has no entry point"
+                ))
                 .with_help(format!("create cmd/{binary}/main.go")),
             );
         }
@@ -841,8 +1064,12 @@ fn check_binary_compose_drift(evidence: &Evidence) -> CheckResult {
                         "binary-without-compose",
                         format!("binary '{binary}' exists but no matching compose service"),
                     )
-                    .with_why("binary cannot be deployed via docker-compose without a service definition")
-                    .with_help(format!("add '{binary}' service to deploy/compose/docker-compose.yaml")),
+                    .with_why(
+                        "binary cannot be deployed via docker-compose without a service definition",
+                    )
+                    .with_help(format!(
+                        "add '{binary}' service to deploy/compose/docker-compose.yaml"
+                    )),
                 );
             }
         }
@@ -861,12 +1088,10 @@ fn check_binary_compose_drift(evidence: &Evidence) -> CheckResult {
             continue;
         }
         if !all_known.contains(svc_name) {
-            findings.push(
-                Finding::info(
-                    "unknown-compose-service",
-                    format!("compose service '{svc_name}' is not a recognized market-foundry binary"),
-                ),
-            );
+            findings.push(Finding::info(
+                "unknown-compose-service",
+                format!("compose service '{svc_name}' is not a recognized market-foundry binary"),
+            ));
         }
     }
 
@@ -989,14 +1214,13 @@ fn check_docs_reality_drift(evidence: &Evidence) -> CheckResult {
     // Key workflow targets that should be documented
     let workflow_targets = ["check", "verify", "smoke", "up-all", "down", "logs"];
     for target in &workflow_targets {
-        if evidence.makefile_targets.contains(*target) && !evidence.dev_doc_targets.contains(*target)
+        if evidence.makefile_targets.contains(*target)
+            && !evidence.dev_doc_targets.contains(*target)
         {
-            findings.push(
-                Finding::info(
-                    "undocumented-target",
-                    format!("Makefile has workflow target '{target}' not referenced in DEVELOPMENT.md"),
-                ),
-            );
+            findings.push(Finding::info(
+                "undocumented-target",
+                format!("Makefile has workflow target '{target}' not referenced in DEVELOPMENT.md"),
+            ));
         }
     }
 
@@ -1035,12 +1259,10 @@ fn check_actor_scope_drift(evidence: &Evidence) -> CheckResult {
     for scope in &evidence.existing_actor_scopes {
         // Allow scopes that match binaries or are known shared scopes
         if !binary_set.contains(scope.as_str()) && scope != "server" {
-            findings.push(
-                Finding::info(
-                    "orphan-actor-scope",
-                    format!("actor scope '{scope}' does not correspond to any expected binary"),
-                ),
-            );
+            findings.push(Finding::info(
+                "orphan-actor-scope",
+                format!("actor scope '{scope}' does not correspond to any expected binary"),
+            ));
         }
     }
 
@@ -1148,9 +1370,7 @@ fn check_premature_domain_entry(evidence: &Evidence) -> CheckResult {
         }
 
         // Also check subjects that would belong to this stream
-        let prefix = stream
-            .trim_end_matches("_EVENTS")
-            .to_lowercase();
+        let prefix = stream.trim_end_matches("_EVENTS").to_lowercase();
         for subject in &source.subjects {
             if subject.starts_with(&format!("{prefix}.events."))
                 || subject.starts_with(&format!("{prefix}.query."))
@@ -1215,7 +1435,9 @@ fn check_signal_adapter_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal adapter file missing: internal/adapters/nats/{file}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create internal/adapters/nats/{file} following the evidence adapter pattern")),
+                .with_help(format!(
+                    "restore internal/adapters/nats/{file} to match the post-S218 adapter layout"
+                )),
             );
         }
     }
@@ -1241,17 +1463,27 @@ fn check_signal_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal domain file missing: {file_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {file_path} following the evidence domain pattern")),
+                .with_help(format!(
+                    "create {file_path} following the evidence domain pattern"
+                )),
             );
         }
     }
 
     // Verify signal actors exist in derive and store scopes
     let signal_actors: &[(&str, &str)] = &[
-        ("internal/actors/scopes/derive/signal_sampler_actor.go", "derive computes signal values from evidence"),
-        ("internal/actors/scopes/derive/signal_publisher_actor.go", "derive publishes signals to SIGNAL_EVENTS"),
-        ("internal/actors/scopes/store/signal_consumer_actor.go", "store consumes signal events for projection"),
-        ("internal/actors/scopes/store/signal_projection_actor.go", "store projects signals to KV buckets"),
+        (
+            "internal/actors/scopes/derive/signal_sampler_actor.go",
+            "derive computes signal values from evidence",
+        ),
+        (
+            "internal/actors/scopes/derive/signal_publisher_actor.go",
+            "derive publishes signals to SIGNAL_EVENTS",
+        ),
+        (
+            "internal/actors/scopes/store/signal_projection_actor.go",
+            "store projects signals to KV buckets",
+        ),
     ];
 
     for (actor_path, purpose) in signal_actors {
@@ -1268,15 +1500,34 @@ fn check_signal_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal actor file missing: {actor_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {actor_path} following the evidence actor pattern")),
+                .with_help(format!(
+                    "create {actor_path} following the evidence actor pattern"
+                )),
             );
         }
     }
 
+    push_store_consumer_wiring_finding(
+        &mut findings,
+        evidence,
+        "signal",
+        &[
+            "natssignal.StoreRSISignalConsumer()",
+            "natssignal.StoreEMACrossoverSignalConsumer()",
+        ],
+        "store consumes signal events for projection via GenericConsumerActor wiring",
+    );
+
     // Verify signal HTTP interface exists
     let signal_http: &[(&str, &str)] = &[
-        ("internal/interfaces/http/handlers/signal.go", "HTTP handler for signal queries"),
-        ("internal/interfaces/http/routes/signal.go", "HTTP route registration for signal endpoints"),
+        (
+            "internal/interfaces/http/handlers/signal.go",
+            "HTTP handler for signal queries",
+        ),
+        (
+            "internal/interfaces/http/routes/signal.go",
+            "HTTP route registration for signal endpoints",
+        ),
     ];
 
     for (http_path, purpose) in signal_http {
@@ -1293,7 +1544,9 @@ fn check_signal_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal HTTP file missing: {http_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {http_path} following the evidence HTTP pattern")),
+                .with_help(format!(
+                    "create {http_path} following the evidence HTTP pattern"
+                )),
             );
         }
     }
@@ -1394,7 +1647,9 @@ fn check_signal_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal subject not found in source: {subject}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/signal_registry.go for subject definitions"),
+                .with_help(
+                    "check internal/adapters/nats/natssignal/registry.go for subject definitions",
+                ),
             );
         }
     }
@@ -1413,7 +1668,7 @@ fn check_signal_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal durable consumer not found: {durable}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/signal_registry.go for consumer spec"),
+                .with_help("check internal/adapters/nats/natssignal/registry.go for consumer spec"),
             );
         }
     }
@@ -1434,7 +1689,9 @@ fn check_signal_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("signal KV bucket name not found in source: {bucket}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/signal_kv_store.go for bucket definition"),
+                .with_help(
+                    "check internal/adapters/nats/natssignal/kv_store.go for bucket definition",
+                ),
             );
         }
     }
@@ -1488,7 +1745,9 @@ fn check_decision_adapter_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision adapter file missing: internal/adapters/nats/{file}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create internal/adapters/nats/{file} following the signal adapter pattern")),
+                .with_help(format!(
+                    "restore internal/adapters/nats/{file} to match the post-S218 adapter layout"
+                )),
             );
         }
     }
@@ -1514,17 +1773,27 @@ fn check_decision_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision domain file missing: {file_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {file_path} following the signal domain pattern")),
+                .with_help(format!(
+                    "create {file_path} following the signal domain pattern"
+                )),
             );
         }
     }
 
     // Verify decision actors exist in derive and store scopes
     let decision_actors: &[(&str, &str)] = &[
-        ("internal/actors/scopes/derive/decision_evaluator_actor.go", "derive evaluates signal data to produce decisions"),
-        ("internal/actors/scopes/derive/decision_publisher_actor.go", "derive publishes decisions to DECISION_EVENTS"),
-        ("internal/actors/scopes/store/decision_consumer_actor.go", "store consumes decision events for projection"),
-        ("internal/actors/scopes/store/decision_projection_actor.go", "store projects decisions to KV buckets"),
+        (
+            "internal/actors/scopes/derive/decision_evaluator_actor.go",
+            "derive evaluates signal data to produce decisions",
+        ),
+        (
+            "internal/actors/scopes/derive/decision_publisher_actor.go",
+            "derive publishes decisions to DECISION_EVENTS",
+        ),
+        (
+            "internal/actors/scopes/store/decision_projection_actor.go",
+            "store projects decisions to KV buckets",
+        ),
     ];
 
     for (actor_path, purpose) in decision_actors {
@@ -1541,15 +1810,31 @@ fn check_decision_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision actor file missing: {actor_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {actor_path} following the signal actor pattern")),
+                .with_help(format!(
+                    "create {actor_path} following the signal actor pattern"
+                )),
             );
         }
     }
 
+    push_store_consumer_wiring_finding(
+        &mut findings,
+        evidence,
+        "decision",
+        &["natsdecision.StoreRSIOversoldDecisionConsumer()"],
+        "store consumes decision events for projection via GenericConsumerActor wiring",
+    );
+
     // Verify decision HTTP interface exists
     let decision_http: &[(&str, &str)] = &[
-        ("internal/interfaces/http/handlers/decision.go", "HTTP handler for decision queries"),
-        ("internal/interfaces/http/routes/decision.go", "HTTP route registration for decision endpoints"),
+        (
+            "internal/interfaces/http/handlers/decision.go",
+            "HTTP handler for decision queries",
+        ),
+        (
+            "internal/interfaces/http/routes/decision.go",
+            "HTTP route registration for decision endpoints",
+        ),
     ];
 
     for (http_path, purpose) in decision_http {
@@ -1566,7 +1851,9 @@ fn check_decision_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision HTTP file missing: {http_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {http_path} following the signal HTTP pattern")),
+                .with_help(format!(
+                    "create {http_path} following the signal HTTP pattern"
+                )),
             );
         }
     }
@@ -1667,7 +1954,9 @@ fn check_decision_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision subject not found in source: {subject}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/decision_registry.go for subject definitions"),
+                .with_help(
+                    "check internal/adapters/nats/natsdecision/registry.go for subject definitions",
+                ),
             );
         }
     }
@@ -1686,7 +1975,9 @@ fn check_decision_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision durable consumer not found: {durable}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/decision_registry.go for consumer spec"),
+                .with_help(
+                    "check internal/adapters/nats/natsdecision/registry.go for consumer spec",
+                ),
             );
         }
     }
@@ -1707,7 +1998,9 @@ fn check_decision_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("decision KV bucket name not found in source: {bucket}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/decision_kv_store.go for bucket definition"),
+                .with_help(
+                    "check internal/adapters/nats/natsdecision/kv_store.go for bucket definition",
+                ),
             );
         }
     }
@@ -1761,7 +2054,9 @@ fn check_strategy_adapter_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy adapter file missing: internal/adapters/nats/{file}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create internal/adapters/nats/{file} following the decision adapter pattern")),
+                .with_help(format!(
+                    "restore internal/adapters/nats/{file} to match the post-S218 adapter layout"
+                )),
             );
         }
     }
@@ -1787,17 +2082,27 @@ fn check_strategy_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy domain file missing: {file_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {file_path} following the decision domain pattern")),
+                .with_help(format!(
+                    "create {file_path} following the decision domain pattern"
+                )),
             );
         }
     }
 
     // Verify strategy actors exist in derive and store scopes
     let strategy_actors: &[(&str, &str)] = &[
-        ("internal/actors/scopes/derive/strategy_resolver_actor.go", "derive resolves decision data into strategy output"),
-        ("internal/actors/scopes/derive/strategy_publisher_actor.go", "derive publishes strategies to STRATEGY_EVENTS"),
-        ("internal/actors/scopes/store/strategy_consumer_actor.go", "store consumes strategy events for projection"),
-        ("internal/actors/scopes/store/strategy_projection_actor.go", "store projects strategies to KV buckets"),
+        (
+            "internal/actors/scopes/derive/strategy_resolver_actor.go",
+            "derive resolves decision data into strategy output",
+        ),
+        (
+            "internal/actors/scopes/derive/strategy_publisher_actor.go",
+            "derive publishes strategies to STRATEGY_EVENTS",
+        ),
+        (
+            "internal/actors/scopes/store/strategy_projection_actor.go",
+            "store projects strategies to KV buckets",
+        ),
     ];
 
     for (actor_path, purpose) in strategy_actors {
@@ -1814,15 +2119,31 @@ fn check_strategy_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy actor file missing: {actor_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {actor_path} following the decision actor pattern")),
+                .with_help(format!(
+                    "create {actor_path} following the decision actor pattern"
+                )),
             );
         }
     }
 
+    push_store_consumer_wiring_finding(
+        &mut findings,
+        evidence,
+        "strategy",
+        &["natsstrategy.StoreMeanReversionEntryStrategyConsumer()"],
+        "store consumes strategy events for projection via GenericConsumerActor wiring",
+    );
+
     // Verify strategy HTTP interface exists
     let strategy_http: &[(&str, &str)] = &[
-        ("internal/interfaces/http/handlers/strategy.go", "HTTP handler for strategy queries"),
-        ("internal/interfaces/http/routes/strategy.go", "HTTP route registration for strategy endpoints"),
+        (
+            "internal/interfaces/http/handlers/strategy.go",
+            "HTTP handler for strategy queries",
+        ),
+        (
+            "internal/interfaces/http/routes/strategy.go",
+            "HTTP route registration for strategy endpoints",
+        ),
     ];
 
     for (http_path, purpose) in strategy_http {
@@ -1839,7 +2160,9 @@ fn check_strategy_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy HTTP file missing: {http_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {http_path} following the decision HTTP pattern")),
+                .with_help(format!(
+                    "create {http_path} following the decision HTTP pattern"
+                )),
             );
         }
     }
@@ -1940,7 +2263,9 @@ fn check_strategy_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy subject not found in source: {subject}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/strategy_registry.go for subject definitions"),
+                .with_help(
+                    "check internal/adapters/nats/natsstrategy/registry.go for subject definitions",
+                ),
             );
         }
     }
@@ -1959,7 +2284,9 @@ fn check_strategy_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy durable consumer not found: {durable}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/strategy_registry.go for consumer spec"),
+                .with_help(
+                    "check internal/adapters/nats/natsstrategy/registry.go for consumer spec",
+                ),
             );
         }
     }
@@ -1980,7 +2307,9 @@ fn check_strategy_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("strategy KV bucket name not found in source: {bucket}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/strategy_kv_store.go for bucket definition"),
+                .with_help(
+                    "check internal/adapters/nats/natsstrategy/kv_store.go for bucket definition",
+                ),
             );
         }
     }
@@ -2009,6 +2338,49 @@ fn scan_dir_for_string(dir: &Path, pattern: &str) -> bool {
         }
     }
     false
+}
+
+fn push_store_consumer_wiring_finding(
+    findings: &mut Vec<Finding>,
+    evidence: &Evidence,
+    domain: &str,
+    markers: &[&str],
+    purpose: &str,
+) {
+    let generic_consumer = evidence
+        .project_root
+        .join("internal/actors/scopes/store/generic_consumer_actor.go");
+    let supervisor = evidence
+        .project_root
+        .join("internal/actors/scopes/store/store_supervisor.go");
+
+    let generic_exists = generic_consumer.is_file();
+    let supervisor_content = std::fs::read_to_string(&supervisor).ok();
+    let markers_present = supervisor_content.as_ref().map_or(false, |content| {
+        markers.iter().all(|marker| content.contains(marker))
+    });
+
+    if generic_exists && supervisor.is_file() && markers_present {
+        findings.push(Finding::info(
+            "store-consumer-wiring-present",
+            format!(
+                "{domain} store consumer wiring present via generic_consumer_actor.go + store_supervisor.go"
+            ),
+        ));
+    } else {
+        findings.push(
+            Finding::error(
+                "store-consumer-wiring-missing",
+                format!(
+                    "{domain} store consumer wiring missing from internal/actors/scopes/store/generic_consumer_actor.go or store_supervisor.go"
+                ),
+            )
+            .with_why(purpose)
+            .with_help(format!(
+                "restore {domain} pipeline wiring in internal/actors/scopes/store/store_supervisor.go using the GenericConsumerActor pattern"
+            )),
+        );
+    }
 }
 
 // ── Risk domain governance checks (S63) ──────────────────────────────
@@ -2090,7 +2462,9 @@ fn check_risk_adapter_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk adapter file missing: internal/adapters/nats/{file}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create internal/adapters/nats/{file} following the strategy adapter pattern")),
+                .with_help(format!(
+                    "restore internal/adapters/nats/{file} to match the post-S218 adapter layout"
+                )),
             );
         }
     }
@@ -2117,17 +2491,27 @@ fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk domain file missing: {file_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {file_path} following the strategy domain pattern")),
+                .with_help(format!(
+                    "create {file_path} following the strategy domain pattern"
+                )),
             );
         }
     }
 
     // Verify risk actors exist in derive and store scopes
     let risk_actors: &[(&str, &str)] = &[
-        ("internal/actors/scopes/derive/risk_evaluator_actor.go", "derive evaluates strategy data to produce risk assessments"),
-        ("internal/actors/scopes/derive/risk_publisher_actor.go", "derive publishes risk assessments to RISK_EVENTS"),
-        ("internal/actors/scopes/store/risk_consumer_actor.go", "store consumes risk events for projection"),
-        ("internal/actors/scopes/store/risk_projection_actor.go", "store projects risk assessments to KV buckets"),
+        (
+            "internal/actors/scopes/derive/risk_evaluator_actor.go",
+            "derive evaluates strategy data to produce risk assessments",
+        ),
+        (
+            "internal/actors/scopes/derive/risk_publisher_actor.go",
+            "derive publishes risk assessments to RISK_EVENTS",
+        ),
+        (
+            "internal/actors/scopes/store/risk_projection_actor.go",
+            "store projects risk assessments to KV buckets",
+        ),
     ];
 
     for (actor_path, purpose) in risk_actors {
@@ -2144,15 +2528,31 @@ fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk actor file missing: {actor_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {actor_path} following the strategy actor pattern")),
+                .with_help(format!(
+                    "create {actor_path} following the strategy actor pattern"
+                )),
             );
         }
     }
 
+    push_store_consumer_wiring_finding(
+        &mut findings,
+        evidence,
+        "risk",
+        &["natsrisk.StorePositionExposureRiskConsumer()"],
+        "store consumes risk events for projection via GenericConsumerActor wiring",
+    );
+
     // Verify risk HTTP interface exists
     let risk_http: &[(&str, &str)] = &[
-        ("internal/interfaces/http/handlers/risk.go", "HTTP handler for risk queries"),
-        ("internal/interfaces/http/routes/risk.go", "HTTP route registration for risk endpoints"),
+        (
+            "internal/interfaces/http/handlers/risk.go",
+            "HTTP handler for risk queries",
+        ),
+        (
+            "internal/interfaces/http/routes/risk.go",
+            "HTTP route registration for risk endpoints",
+        ),
     ];
 
     for (http_path, purpose) in risk_http {
@@ -2169,7 +2569,9 @@ fn check_risk_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk HTTP file missing: {http_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {http_path} following the strategy HTTP pattern")),
+                .with_help(format!(
+                    "create {http_path} following the strategy HTTP pattern"
+                )),
             );
         }
     }
@@ -2272,7 +2674,9 @@ fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk subject not found in source: {subject}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/risk_registry.go for subject definitions"),
+                .with_help(
+                    "check internal/adapters/nats/natsrisk/registry.go for subject definitions",
+                ),
             );
         }
     }
@@ -2291,7 +2695,7 @@ fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk durable consumer not found: {durable}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/risk_registry.go for consumer spec"),
+                .with_help("check internal/adapters/nats/natsrisk/registry.go for consumer spec"),
             );
         }
     }
@@ -2312,7 +2716,9 @@ fn check_risk_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("risk KV bucket name not found in source: {bucket}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/risk_kv_store.go for bucket definition"),
+                .with_help(
+                    "check internal/adapters/nats/natsrisk/kv_store.go for bucket definition",
+                ),
             );
         }
     }
@@ -2343,7 +2749,9 @@ fn check_execution_adapter_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution adapter file missing: internal/adapters/nats/{file}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create internal/adapters/nats/{file} following the risk adapter pattern")),
+                .with_help(format!(
+                    "restore internal/adapters/nats/{file} to match the post-S218 adapter layout"
+                )),
             );
         }
     }
@@ -2370,19 +2778,35 @@ fn check_execution_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution domain file missing: {file_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {file_path} following the risk domain pattern")),
+                .with_help(format!(
+                    "create {file_path} following the risk domain pattern"
+                )),
             );
         }
     }
 
     // Verify execution actors exist in derive, store, and execute scopes
     let execution_actors: &[(&str, &str)] = &[
-        ("internal/actors/scopes/derive/execution_evaluator_actor.go", "derive evaluates risk data to produce execution intents"),
-        ("internal/actors/scopes/derive/execution_publisher_actor.go", "derive publishes execution intents to EXECUTION_EVENTS"),
-        ("internal/actors/scopes/store/execution_consumer_actor.go", "store consumes execution events for projection"),
-        ("internal/actors/scopes/store/execution_projection_actor.go", "store projects execution intents to KV buckets"),
-        ("internal/actors/scopes/execute/execute_supervisor.go", "execute binary root actor — venue adapter lifecycle and consumer wiring"),
-        ("internal/actors/scopes/execute/venue_adapter_actor.go", "execute processes intents through kill switch, staleness guard, and venue port"),
+        (
+            "internal/actors/scopes/derive/execution_evaluator_actor.go",
+            "derive evaluates risk data to produce execution intents",
+        ),
+        (
+            "internal/actors/scopes/derive/execution_publisher_actor.go",
+            "derive publishes execution intents to EXECUTION_EVENTS",
+        ),
+        (
+            "internal/actors/scopes/store/execution_projection_actor.go",
+            "store projects execution intents to KV buckets",
+        ),
+        (
+            "internal/actors/scopes/execute/execute_supervisor.go",
+            "execute binary root actor — venue adapter lifecycle and consumer wiring",
+        ),
+        (
+            "internal/actors/scopes/execute/venue_adapter_actor.go",
+            "execute processes intents through kill switch, staleness guard, and venue port",
+        ),
     ];
 
     for (actor_path, purpose) in execution_actors {
@@ -2399,15 +2823,34 @@ fn check_execution_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution actor file missing: {actor_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {actor_path} following the risk actor pattern")),
+                .with_help(format!(
+                    "create {actor_path} following the risk actor pattern"
+                )),
             );
         }
     }
 
+    push_store_consumer_wiring_finding(
+        &mut findings,
+        evidence,
+        "execution",
+        &[
+            "natsexecution.StorePaperOrderExecutionConsumer()",
+            "natsexecution.StoreVenueMarketOrderFillConsumer()",
+        ],
+        "store consumes execution and fill events for projection via GenericConsumerActor wiring",
+    );
+
     // Verify execution HTTP interface exists
     let execution_http: &[(&str, &str)] = &[
-        ("internal/interfaces/http/handlers/execution.go", "HTTP handler for execution queries"),
-        ("internal/interfaces/http/routes/execution.go", "HTTP route registration for execution endpoints"),
+        (
+            "internal/interfaces/http/handlers/execution.go",
+            "HTTP handler for execution queries",
+        ),
+        (
+            "internal/interfaces/http/routes/execution.go",
+            "HTTP route registration for execution endpoints",
+        ),
     ];
 
     for (http_path, purpose) in execution_http {
@@ -2424,7 +2867,9 @@ fn check_execution_domain_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution HTTP file missing: {http_path}"),
                 )
                 .with_why(*purpose)
-                .with_help(format!("create {http_path} following the risk HTTP pattern")),
+                .with_help(format!(
+                    "create {http_path} following the risk HTTP pattern"
+                )),
             );
         }
     }
@@ -2479,7 +2924,9 @@ fn check_execution_config_drift(evidence: &Evidence) -> CheckResult {
                     "execution-config-asymmetry",
                     "store.jsonc has execution_families but derive.jsonc does not",
                 )
-                .with_why("store consumer will idle because derive isn't producing execution events")
+                .with_why(
+                    "store consumer will idle because derive isn't producing execution events",
+                )
                 .with_help("add pipeline.execution_families to deploy/configs/derive.jsonc"),
             );
         }
@@ -2574,7 +3021,7 @@ fn check_execution_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution subject not found in source: {subject}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/execution_registry.go for subject definitions"),
+                .with_help("check internal/adapters/nats/natsexecution/registry.go for subject definitions"),
             );
         }
     }
@@ -2593,7 +3040,9 @@ fn check_execution_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution durable consumer not found: {durable}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/execution_registry.go for consumer spec"),
+                .with_help(
+                    "check internal/adapters/nats/natsexecution/registry.go for consumer spec",
+                ),
             );
         }
     }
@@ -2614,7 +3063,9 @@ fn check_execution_contracts_drift(evidence: &Evidence) -> CheckResult {
                     format!("execution KV bucket name not found in source: {bucket}"),
                 )
                 .with_why(*purpose)
-                .with_help("check internal/adapters/nats/execution_kv_store.go for bucket definition"),
+                .with_help(
+                    "check internal/adapters/nats/natsexecution/kv_store.go for bucket definition",
+                ),
             );
         }
     }
@@ -2672,56 +3123,26 @@ mod tests {
 
     fn make_source_topology() -> SourceTopology {
         let mut streams = HashMap::new();
-        streams.insert(
-            "CONFIGCTL_EVENTS".into(),
-            vec!["configctl.events.>".into()],
-        );
+        streams.insert("CONFIGCTL_EVENTS".into(), vec!["configctl.events.>".into()]);
         streams.insert(
             "OBSERVATION_EVENTS".into(),
             vec!["observation.events.>".into()],
         );
-        streams.insert(
-            "EVIDENCE_EVENTS".into(),
-            vec!["evidence.events.>".into()],
-        );
-        streams.insert(
-            "SIGNAL_EVENTS".into(),
-            vec!["signal.events.>".into()],
-        );
-        streams.insert(
-            "DECISION_EVENTS".into(),
-            vec!["decision.events.>".into()],
-        );
-        streams.insert(
-            "STRATEGY_EVENTS".into(),
-            vec!["strategy.events.>".into()],
-        );
-        streams.insert(
-            "RISK_EVENTS".into(),
-            vec!["risk.events.>".into()],
-        );
-        streams.insert(
-            "EXECUTION_EVENTS".into(),
-            vec!["execution.events.>".into()],
-        );
+        streams.insert("EVIDENCE_EVENTS".into(), vec!["evidence.events.>".into()]);
+        streams.insert("SIGNAL_EVENTS".into(), vec!["signal.events.>".into()]);
+        streams.insert("DECISION_EVENTS".into(), vec!["decision.events.>".into()]);
+        streams.insert("STRATEGY_EVENTS".into(), vec!["strategy.events.>".into()]);
+        streams.insert("RISK_EVENTS".into(), vec!["risk.events.>".into()]);
+        streams.insert("EXECUTION_EVENTS".into(), vec!["execution.events.>".into()]);
         streams.insert(
             "EXECUTION_FILL_EVENTS".into(),
             vec!["execution.fill.>".into()],
         );
 
         let mut durables = HashMap::new();
-        durables.insert(
-            "derive-observation-v1".into(),
-            "OBSERVATION_EVENTS".into(),
-        );
-        durables.insert(
-            "store-evidence-v1".into(),
-            "EVIDENCE_EVENTS".into(),
-        );
-        durables.insert(
-            "store-signal-rsi".into(),
-            "SIGNAL_EVENTS".into(),
-        );
+        durables.insert("derive-observation-v1".into(), "OBSERVATION_EVENTS".into());
+        durables.insert("store-evidence-v1".into(), "EVIDENCE_EVENTS".into());
+        durables.insert("store-signal-rsi".into(), "SIGNAL_EVENTS".into());
         durables.insert(
             "store-decision-rsi-oversold".into(),
             "DECISION_EVENTS".into(),
@@ -2730,10 +3151,7 @@ mod tests {
             "store-strategy-mean-reversion-entry".into(),
             "STRATEGY_EVENTS".into(),
         );
-        durables.insert(
-            "store-risk-position-exposure".into(),
-            "RISK_EVENTS".into(),
-        );
+        durables.insert("store-risk-position-exposure".into(), "RISK_EVENTS".into());
         durables.insert(
             "store-execution-paper-order".into(),
             "EXECUTION_EVENTS".into(),
@@ -2776,12 +3194,17 @@ mod tests {
             configs.insert(svc.to_string(), make_service_config(svc));
         }
 
-        let existing_cmd_dirs: HashSet<String> = APP_BINARIES.iter().map(|s| s.to_string()).collect();
-        let existing_actor_scopes: HashSet<String> =
-            ["ingest", "derive", "store"].iter().map(|s| s.to_string()).collect();
+        let existing_cmd_dirs: HashSet<String> =
+            APP_BINARIES.iter().map(|s| s.to_string()).collect();
+        let existing_actor_scopes: HashSet<String> = ["ingest", "derive", "store"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
         let mut makefile_targets = HashSet::new();
-        for t in &["help", "tidy", "test", "build", "up-all", "down", "logs", "check", "verify", "smoke"] {
+        for t in &[
+            "help", "tidy", "test", "build", "up-all", "down", "logs", "check", "verify", "smoke",
+        ] {
             makefile_targets.insert(t.to_string());
         }
 
@@ -2860,11 +3283,8 @@ mod tests {
     #[test]
     fn config_compose_drift_detects_nats_url_inconsistency() {
         let mut evidence = make_evidence();
-        evidence
-            .configs
-            .get_mut("derive")
-            .unwrap()
-            .nats_url = Some("nats://other-nats:4222".into());
+        evidence.configs.get_mut("derive").unwrap().nats_url =
+            Some("nats://other-nats:4222".into());
 
         let result = check_config_compose_drift(&evidence);
         assert!(result
@@ -3048,16 +3468,12 @@ mod tests {
     fn stream_registry_drift_warns_non_canonical_stream() {
         let mut evidence = make_evidence();
         let source = evidence.source.as_mut().unwrap();
-        source
-            .streams
-            .insert("DATA_PLANE_INGESTION".into(), vec![]);
+        source.streams.insert("DATA_PLANE_INGESTION".into(), vec![]);
 
         let result = check_stream_registry_drift(&evidence);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.check == "non-canonical-stream"
-                && f.message.contains("DATA_PLANE_INGESTION")));
+        assert!(result.findings.iter().any(
+            |f| f.check == "non-canonical-stream" && f.message.contains("DATA_PLANE_INGESTION")
+        ));
     }
 
     #[test]
@@ -3087,8 +3503,7 @@ mod tests {
         assert!(result
             .findings
             .iter()
-            .any(|f| f.check == "stream-subject-drift"
-                && f.message.contains("unmatched.pattern")));
+            .any(|f| f.check == "stream-subject-drift" && f.message.contains("unmatched.pattern")));
     }
 
     // ── Integration ─────────────────────────────────────────────────

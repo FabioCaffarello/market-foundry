@@ -50,11 +50,12 @@ type DerivedFields struct {
 	InserterName     string // e.g. writer-signal-rsi-inserter
 	IsEnabledMethod  string // e.g. IsSignalFamilyEnabled
 	RegistryField    string // e.g. signal
-	NewConsumerFunc  string // e.g. NewSignalConsumer
+	NewConsumerFunc  string // e.g. NewConsumer (or NewCandleConsumer for evidence)
 	PascalFamily     string // e.g. RSI
 	PascalLayer      string // e.g. Signal
 	InsertSQL        string // e.g. INSERT INTO signals
 	HyphenFamily     string // e.g. rsi (or paper-order)
+	PackageAlias     string // e.g. natssignal, natsevidence
 }
 
 // knownAbbreviations maps lowercase tokens to their Go-idiomatic uppercase forms.
@@ -226,17 +227,27 @@ func (s *FamilySpec) Derived() DerivedFields {
 		isEnabledMethod = "Is" + pascalLayer + "FamilyEnabled"
 	}
 
+	// NewConsumerFunc: evidence layer uses New{PascalFamily}Consumer (e.g. NewCandleConsumer),
+	// all other layers use NewConsumer (since the package already encodes the layer).
+	var newConsumerFunc string
+	if s.Family.Layer == "evidence" {
+		newConsumerFunc = "New" + pascalFamily + "Consumer"
+	} else {
+		newConsumerFunc = "NewConsumer"
+	}
+
 	return DerivedFields{
 		ConsumerSpecFunc: consumerSpecFunc,
 		ConsumerName:     consumerName,
 		InserterName:     inserterName,
 		IsEnabledMethod:  isEnabledMethod,
 		RegistryField:    s.Family.Layer,
-		NewConsumerFunc:  "New" + pascalLayer + "Consumer",
+		NewConsumerFunc:  newConsumerFunc,
 		PascalFamily:     pascalFamily,
 		PascalLayer:      pascalLayer,
 		InsertSQL:        "INSERT INTO " + s.Writer.Table,
 		HyphenFamily:     hyphenFamily,
+		PackageAlias:     "nats" + s.Family.Layer,
 	}
 }
 

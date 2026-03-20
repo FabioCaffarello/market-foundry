@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 
-	"internal/migrate"
+	"cmd/migrate/migrate"
 )
 
 func main() {

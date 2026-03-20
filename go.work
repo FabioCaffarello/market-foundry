@@ -14,10 +14,8 @@ use (
 	./internal/adapters/clickhouse
 	./internal/adapters/exchanges
 	./internal/adapters/nats
-	./internal/adapters/repositories
 	./internal/application
 	./internal/domain
 	./internal/interfaces/http
-	./internal/migrate
 	./internal/shared
 )

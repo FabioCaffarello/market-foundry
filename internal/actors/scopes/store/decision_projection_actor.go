@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -75,7 +76,7 @@ func (a *DecisionProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *DecisionProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewDecisionKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natsdecision.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start decision KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -132,15 +133,15 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -149,7 +150,7 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + dec.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("decision materialized",
 			"type", dec.Type,
 			"source", dec.Source,

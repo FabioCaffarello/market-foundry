@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -18,7 +18,7 @@ import (
 // declaration time in store_supervisor.go declarePipelines().
 type ConsumerStartFn func(
 	url string,
-	spec adapternats.ConsumerSpec,
+	spec natskit.ConsumerSpec,
 	projPID *actor.PID,
 	tracker *healthz.Tracker,
 	actorCtx *actor.Context,
@@ -28,7 +28,7 @@ type ConsumerStartFn func(
 // GenericConsumerConfig holds the configuration for a generic consumer actor.
 type GenericConsumerConfig struct {
 	URL           string
-	ConsumerSpec  adapternats.ConsumerSpec
+	ConsumerSpec  natskit.ConsumerSpec
 	ProjectionPID *actor.PID
 	Tracker       *healthz.Tracker
 	Family        string

@@ -128,9 +128,13 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     if !internal_dir.is_dir() {
         report.add(CheckResult::from_findings(
             "internal-dir",
-            vec![Finding::error("internal-dir", "internal/ directory not found")
-                .with_why("runtime-bindings scans Go source for NATS stream and subject definitions")
-                .with_help("run `raccoon-cli doctor` to verify project structure first")],
+            vec![
+                Finding::error("internal-dir", "internal/ directory not found")
+                    .with_why(
+                        "runtime-bindings scans Go source for NATS stream and subject definitions",
+                    )
+                    .with_help("run `raccoon-cli doctor` to verify project structure first"),
+            ],
         ));
         return Ok(report);
     }
@@ -279,9 +283,10 @@ fn check_query_routing(src: &RuntimeBindingSource) -> CheckResult {
             ));
         } else {
             // Check with prefix matching
-            let found = src.query_subjects.iter().any(|q| {
-                q.starts_with(&subject[..subject.rfind('.').unwrap_or(subject.len())])
-            });
+            let found = src
+                .query_subjects
+                .iter()
+                .any(|q| q.starts_with(&subject[..subject.rfind('.').unwrap_or(subject.len())]));
             if found {
                 findings.push(Finding::info(
                     "query-pattern",
@@ -294,7 +299,9 @@ fn check_query_routing(src: &RuntimeBindingSource) -> CheckResult {
                         format!("query subject {subject} not found in source"),
                     )
                     .with_why(*purpose)
-                    .with_help("check internal/adapters/nats/ for responder/gateway implementations"),
+                    .with_help(
+                        "check internal/adapters/nats/ for responder/gateway implementations",
+                    ),
                 );
             }
         }
@@ -526,10 +533,7 @@ fn check_adapter_files(src: &RuntimeBindingSource) -> CheckResult {
 
     for (present, name, purpose) in &checks {
         if *present {
-            findings.push(Finding::info(
-                "adapter-file",
-                format!("{name}.go present"),
-            ));
+            findings.push(Finding::info("adapter-file", format!("{name}.go present")));
         } else {
             findings.push(
                 Finding::warning(
@@ -587,7 +591,9 @@ fn check_lifecycle_events(src: &RuntimeBindingSource) -> CheckResult {
 /// A family enabled in derive but missing in store (or vice-versa) means
 /// events are produced but never projected, or projections wait for
 /// events that never arrive.
-fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConfig]) -> CheckResult {
+fn check_cross_config_family_consistency(
+    service_configs: &[configs::ServiceConfig],
+) -> CheckResult {
     let mut findings = Vec::new();
 
     let derive_cfg = service_configs.iter().find(|c| c.service == "derive");
@@ -617,7 +623,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                     format!("evidence family '{f}' enabled in derive but not in store"),
                 )
                 .with_why("derive will publish events that store never projects")
-                .with_help(format!("add '{f}' to pipeline.families in deploy/configs/store.jsonc")),
+                .with_help(format!(
+                    "add '{f}' to pipeline.families in deploy/configs/store.jsonc"
+                )),
             );
         }
         for f in store_set.difference(&derive_set) {
@@ -627,7 +635,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                     format!("evidence family '{f}' enabled in store but not in derive"),
                 )
                 .with_why("store expects events that derive never produces")
-                .with_help(format!("add '{f}' to pipeline.families in deploy/configs/derive.jsonc")),
+                .with_help(format!(
+                    "add '{f}' to pipeline.families in deploy/configs/derive.jsonc"
+                )),
             );
         }
         if derive_set == store_set {
@@ -654,7 +664,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("signal family '{f}' enabled in derive but not in store"),
             )
             .with_why("derive will publish signal events that store never projects")
-            .with_help(format!("add '{f}' to pipeline.signal_families in deploy/configs/store.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.signal_families in deploy/configs/store.jsonc"
+            )),
         );
     }
     for f in store_sig.difference(&derive_sig) {
@@ -664,7 +676,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("signal family '{f}' enabled in store but not in derive"),
             )
             .with_why("store expects signal events that derive never produces")
-            .with_help(format!("add '{f}' to pipeline.signal_families in deploy/configs/derive.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.signal_families in deploy/configs/derive.jsonc"
+            )),
         );
     }
     if derive_sig == store_sig && !derive_sig.is_empty() {
@@ -675,7 +689,11 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
     }
 
     // Decision families — both are opt-in; empty = none.
-    let derive_dec: HashSet<&str> = derive.decision_families.iter().map(|s| s.as_str()).collect();
+    let derive_dec: HashSet<&str> = derive
+        .decision_families
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
     let store_dec: HashSet<&str> = store.decision_families.iter().map(|s| s.as_str()).collect();
 
     for f in derive_dec.difference(&store_dec) {
@@ -685,7 +703,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("decision family '{f}' enabled in derive but not in store"),
             )
             .with_why("derive will publish decision events that store never projects")
-            .with_help(format!("add '{f}' to pipeline.decision_families in deploy/configs/store.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.decision_families in deploy/configs/store.jsonc"
+            )),
         );
     }
     for f in store_dec.difference(&derive_dec) {
@@ -695,7 +715,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("decision family '{f}' enabled in store but not in derive"),
             )
             .with_why("store expects decision events that derive never produces")
-            .with_help(format!("add '{f}' to pipeline.decision_families in deploy/configs/derive.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.decision_families in deploy/configs/derive.jsonc"
+            )),
         );
     }
     if derive_dec == store_dec && !derive_dec.is_empty() {
@@ -706,7 +728,11 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
     }
 
     // Strategy families — both are opt-in; empty = none.
-    let derive_strat: HashSet<&str> = derive.strategy_families.iter().map(|s| s.as_str()).collect();
+    let derive_strat: HashSet<&str> = derive
+        .strategy_families
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
     let store_strat: HashSet<&str> = store.strategy_families.iter().map(|s| s.as_str()).collect();
 
     for f in derive_strat.difference(&store_strat) {
@@ -716,7 +742,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("strategy family '{f}' enabled in derive but not in store"),
             )
             .with_why("derive will publish strategy events that store never projects")
-            .with_help(format!("add '{f}' to pipeline.strategy_families in deploy/configs/store.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.strategy_families in deploy/configs/store.jsonc"
+            )),
         );
     }
     for f in store_strat.difference(&derive_strat) {
@@ -726,7 +754,9 @@ fn check_cross_config_family_consistency(service_configs: &[configs::ServiceConf
                 format!("strategy family '{f}' enabled in store but not in derive"),
             )
             .with_why("store expects strategy events that derive never produces")
-            .with_help(format!("add '{f}' to pipeline.strategy_families in deploy/configs/derive.jsonc")),
+            .with_help(format!(
+                "add '{f}' to pipeline.strategy_families in deploy/configs/derive.jsonc"
+            )),
         );
     }
     if derive_strat == store_strat && !derive_strat.is_empty() {
@@ -746,42 +776,30 @@ mod tests {
 
     fn make_source() -> RuntimeBindingSource {
         let mut stream_subjects = HashMap::new();
-        stream_subjects.insert(
-            "CONFIGCTL_EVENTS".into(),
-            vec!["configctl.events.>".into()],
-        );
+        stream_subjects.insert("CONFIGCTL_EVENTS".into(), vec!["configctl.events.>".into()]);
         stream_subjects.insert(
             "OBSERVATION_EVENTS".into(),
             vec!["observation.events.>".into()],
         );
-        stream_subjects.insert(
-            "EVIDENCE_EVENTS".into(),
-            vec!["evidence.events.>".into()],
-        );
-        stream_subjects.insert(
-            "SIGNAL_EVENTS".into(),
-            vec!["signal.events.>".into()],
-        );
-        stream_subjects.insert(
-            "DECISION_EVENTS".into(),
-            vec!["decision.events.>".into()],
-        );
-        stream_subjects.insert(
-            "STRATEGY_EVENTS".into(),
-            vec!["strategy.events.>".into()],
-        );
+        stream_subjects.insert("EVIDENCE_EVENTS".into(), vec!["evidence.events.>".into()]);
+        stream_subjects.insert("SIGNAL_EVENTS".into(), vec!["signal.events.>".into()]);
+        stream_subjects.insert("DECISION_EVENTS".into(), vec!["decision.events.>".into()]);
+        stream_subjects.insert("STRATEGY_EVENTS".into(), vec!["strategy.events.>".into()]);
 
         let mut durable_consumers = HashMap::new();
-        durable_consumers.insert(
-            "derive-observation".into(),
-            "OBSERVATION_EVENTS".into(),
-        );
+        durable_consumers.insert("derive-observation".into(), "OBSERVATION_EVENTS".into());
         durable_consumers.insert("store-candle".into(), "EVIDENCE_EVENTS".into());
         durable_consumers.insert("store-trade-burst".into(), "EVIDENCE_EVENTS".into());
         durable_consumers.insert("store-volume".into(), "EVIDENCE_EVENTS".into());
         durable_consumers.insert("store-signal-rsi".into(), "SIGNAL_EVENTS".into());
-        durable_consumers.insert("store-decision-rsi-oversold".into(), "DECISION_EVENTS".into());
-        durable_consumers.insert("store-strategy-mean-reversion-entry".into(), "STRATEGY_EVENTS".into());
+        durable_consumers.insert(
+            "store-decision-rsi-oversold".into(),
+            "DECISION_EVENTS".into(),
+        );
+        durable_consumers.insert(
+            "store-strategy-mean-reversion-entry".into(),
+            "STRATEGY_EVENTS".into(),
+        );
 
         let mut query_subjects = HashSet::new();
         query_subjects.insert("evidence.query.candle.latest".into());
@@ -1093,10 +1111,13 @@ mod tests {
 
         let result = check_cross_config_family_consistency(&[derive, store]);
         assert_eq!(result.status, crate::models::CheckStatus::Fail);
-        assert!(result
-            .findings
-            .iter()
-            .any(|f| f.message.contains("volume") && f.message.contains("derive but not in store")));
+        assert!(
+            result
+                .findings
+                .iter()
+                .any(|f| f.message.contains("volume")
+                    && f.message.contains("derive but not in store"))
+        );
     }
 
     #[test]

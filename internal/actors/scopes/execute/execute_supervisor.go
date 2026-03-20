@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsexecution "internal/adapters/nats/natsexecution"
 	domainexec "internal/domain/execution"
 	"internal/application/ports"
 	"internal/shared/healthz"
@@ -58,7 +58,7 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 		return fmt.Errorf("nats must be enabled for execute")
 	}
 
-	execRegistry := adapternats.DefaultExecutionRegistry()
+	execRegistry := natsexecution.DefaultRegistry()
 	adapterTracker := s.trackers["venue-adapter"]
 
 	// Staleness and submit timeout are config-driven (PRE-A5, PRE-A6).
@@ -81,9 +81,9 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 	// subjects because derive only produces PaperOrderSubmittedEvent. When venue-specific
 	// intent subjects are introduced, this consumer's spec will migrate accordingly.
 	consumerTracker := s.trackers["venue-consumer"]
-	consumerSpec := adapternats.ExecuteVenueMarketOrderIntakeConsumer()
+	consumerSpec := natsexecution.ExecuteVenueMarketOrderIntakeConsumer()
 
-	consumer := adapternats.NewExecutionConsumer(
+	consumer := natsexecution.NewConsumer(
 		s.cfg.NATS.URL,
 		consumerSpec,
 		execRegistry,

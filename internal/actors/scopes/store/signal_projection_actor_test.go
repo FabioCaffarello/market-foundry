@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/signal"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockSignalStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockSignalStore) Put(_ context.Context, _ signal.Signal) (adapternats.PutResult, *problem.Problem) {
+func (m *mockSignalStore) Put(_ context.Context, _ signal.Signal) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -44,7 +44,7 @@ func signalActor(store *mockSignalStore, tracker *healthz.Tracker) *SignalProjec
 }
 
 func TestSignalProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutWritten}
+	store := &mockSignalStore{putResult: natskit.PutWritten}
 	a := signalActor(store, nil)
 
 	sig := validSignal(time.Now())
@@ -61,7 +61,7 @@ func TestSignalProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestSignalProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutWritten}
+	store := &mockSignalStore{putResult: natskit.PutWritten}
 	a := signalActor(store, nil)
 
 	sig := signal.Signal{Final: true} // missing required fields
@@ -77,7 +77,7 @@ func TestSignalProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestSignalProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutWritten}
+	store := &mockSignalStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := signalActor(store, tracker)
 
@@ -92,7 +92,7 @@ func TestSignalProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestSignalProjection_PutSkippedStale(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutSkippedStale}
+	store := &mockSignalStore{putResult: natskit.PutSkippedStale}
 	a := signalActor(store, nil)
 
 	a.onSignal(signalReceivedMessage{Event: signal.SignalGeneratedEvent{Signal: validSignal(time.Now())}})
@@ -106,7 +106,7 @@ func TestSignalProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestSignalProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockSignalStore{putResult: natskit.PutSkippedDuplicate}
 	a := signalActor(store, nil)
 
 	a.onSignal(signalReceivedMessage{Event: signal.SignalGeneratedEvent{Signal: validSignal(time.Now())}})
@@ -118,7 +118,7 @@ func TestSignalProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestSignalProjection_PutError(t *testing.T) {
 	store := &mockSignalStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := signalActor(store, nil)
@@ -131,7 +131,7 @@ func TestSignalProjection_PutError(t *testing.T) {
 }
 
 func TestSignalProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutWritten}
+	store := &mockSignalStore{putResult: natskit.PutWritten}
 	a := signalActor(store, nil)
 
 	a.onSignal(signalReceivedMessage{Event: signal.SignalGeneratedEvent{Signal: validSignal(time.Now())}})
@@ -142,7 +142,7 @@ func TestSignalProjection_NoTracker_DoesNotPanic(t *testing.T) {
 }
 
 func TestSignalProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockSignalStore{putResult: adapternats.PutWritten}
+	store := &mockSignalStore{putResult: natskit.PutWritten}
 	a := signalActor(store, nil)
 
 	now := time.Now()

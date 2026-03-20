@@ -5,7 +5,8 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
+	natsobservation "internal/adapters/nats/natsobservation"
 	"internal/domain/observation"
 
 	"github.com/anthdm/hollywood/actor"
@@ -14,8 +15,8 @@ import (
 // ConsumerConfig holds the configuration for the observation consumer actor.
 type ConsumerConfig struct {
 	URL          string
-	ConsumerSpec adapternats.ConsumerSpec
-	ObsRegistry  adapternats.ObservationRegistry
+	ConsumerSpec natskit.ConsumerSpec
+	ObsRegistry  natsobservation.Registry
 	SamplerPID   *actor.PID
 }
 
@@ -24,7 +25,7 @@ type ConsumerConfig struct {
 type ConsumerActor struct {
 	cfg      ConsumerConfig
 	logger   *slog.Logger
-	consumer *adapternats.ObservationConsumer
+	consumer *natsobservation.Consumer
 }
 
 func NewConsumerActor(cfg ConsumerConfig) actor.Producer {
@@ -60,7 +61,7 @@ func (a *ConsumerActor) Receive(c *actor.Context) {
 func (a *ConsumerActor) start(c *actor.Context) {
 	samplerPID := a.cfg.SamplerPID
 
-	consumer := adapternats.NewObservationConsumer(
+	consumer := natsobservation.NewConsumer(
 		a.cfg.URL,
 		a.cfg.ConsumerSpec,
 		a.cfg.ObsRegistry,

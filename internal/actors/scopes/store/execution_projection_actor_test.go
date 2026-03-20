@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natsexecution"
+	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
 	"internal/shared/events"
 	"internal/shared/healthz"
@@ -14,12 +15,12 @@ import (
 )
 
 type mockExecutionStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockExecutionStore) Put(_ context.Context, _ execution.ExecutionIntent) (adapternats.PutResult, *problem.Problem) {
+func (m *mockExecutionStore) Put(_ context.Context, _ execution.ExecutionIntent) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -62,12 +63,12 @@ func execActor(store *mockExecutionStore, tracker *healthz.Tracker) *ExecutionPr
 	return &ExecutionProjectionActor{
 		cfg:    ExecutionProjectionConfig{Bucket: "EXECUTION_PAPER_ORDER_LATEST", Tracker: tracker},
 		logger: slog.Default(),
-		store:  &adapternats.ExecutionKVStore{}, // will be overridden
+		store:  &natsexecution.KVStore{}, // will be overridden
 	}
 }
 
 // execActorWithMock builds an ExecutionProjectionActor that delegates to the mock store.
-// Since the actor's store field is a concrete *adapternats.ExecutionKVStore, we need
+// Since the actor's store field is a concrete *natsexecution.KVStore, we need
 // to test through the onExecution method which uses the store directly. We replace the
 // store call path by directly invoking the handler logic with appropriate state.
 func execActorDirect(store *mockExecutionStore, tracker *healthz.Tracker) *executionProjectionTestHarness {
@@ -108,15 +109,15 @@ func (h *executionProjectionTestHarness) onExecution(msg executionReceivedMessag
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		h.actor.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		h.actor.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		h.actor.stats.materialized.Add(1)
 	}
 
@@ -128,7 +129,7 @@ func (h *executionProjectionTestHarness) onExecution(msg executionReceivedMessag
 // ---------- Gate Tests ----------
 
 func TestExecutionProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := validExecutionIntent(time.Now())
@@ -148,7 +149,7 @@ func TestExecutionProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestExecutionProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := execution.ExecutionIntent{Final: true} // missing required fields
@@ -164,7 +165,7 @@ func TestExecutionProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestExecutionProjection_ValidationGate_RejectsInvalidSide(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := validExecutionIntent(time.Now())
@@ -183,7 +184,7 @@ func TestExecutionProjection_ValidationGate_RejectsInvalidSide(t *testing.T) {
 // ---------- Put Result Tests ----------
 
 func TestExecutionProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	h := execActorDirect(store, tracker)
 
@@ -201,7 +202,7 @@ func TestExecutionProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestExecutionProjection_PutSkippedStale(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutSkippedStale}
+	store := &mockExecutionStore{putResult: natskit.PutSkippedStale}
 	h := execActorDirect(store, nil)
 
 	h.onExecution(executionReceivedMessage{Event: executionEvent(validExecutionIntent(time.Now()))})
@@ -215,7 +216,7 @@ func TestExecutionProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestExecutionProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockExecutionStore{putResult: natskit.PutSkippedDuplicate}
 	h := execActorDirect(store, nil)
 
 	h.onExecution(executionReceivedMessage{Event: executionEvent(validExecutionIntent(time.Now()))})
@@ -227,7 +228,7 @@ func TestExecutionProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestExecutionProjection_PutError(t *testing.T) {
 	store := &mockExecutionStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	h := execActorDirect(store, nil)
@@ -240,7 +241,7 @@ func TestExecutionProjection_PutError(t *testing.T) {
 }
 
 func TestExecutionProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	h.onExecution(executionReceivedMessage{Event: executionEvent(validExecutionIntent(time.Now()))})
@@ -256,7 +257,7 @@ func TestExecutionProjection_AllSideValues_PassValidation(t *testing.T) {
 	sides := []execution.Side{execution.SideBuy, execution.SideSell, execution.SideNone}
 
 	for _, side := range sides {
-		store := &mockExecutionStore{putResult: adapternats.PutWritten}
+		store := &mockExecutionStore{putResult: natskit.PutWritten}
 		h := execActorDirect(store, nil)
 
 		intent := validExecutionIntent(time.Now())
@@ -273,7 +274,7 @@ func TestExecutionProjection_AllSideValues_PassValidation(t *testing.T) {
 // ---------- Stats Accumulation ----------
 
 func TestExecutionProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	now := time.Now()
@@ -297,7 +298,7 @@ func TestExecutionProjection_MultiSymbol_IndependentMaterialization(t *testing.T
 	symbols := []string{"btcusdt", "ethusdt"}
 	timeframes := []int{60, 300}
 
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	h := execActorDirect(store, tracker)
 
@@ -376,7 +377,7 @@ func TestExecutionProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 // ---------- Stats Invariant ----------
 
 func TestExecutionProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	now := time.Now()
@@ -411,7 +412,7 @@ func TestExecutionProjection_StatsInvariant_ReceivedEqualsSum(t *testing.T) {
 func TestExecutionProjection_MultiSymbol_MixedOutcomes(t *testing.T) {
 	// Validates that events for different symbols with different outcomes
 	// accumulate stats correctly without cross-symbol interference.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	now := time.Now()
@@ -459,7 +460,7 @@ func TestExecutionProjection_MultiSymbol_MixedOutcomes(t *testing.T) {
 
 func TestExecutionProjection_TracePersistence_FieldsSurviveMaterialization(t *testing.T) {
 	// Validates EBI-trace-1: every materialized intent carries correlation_id and causation_id.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := validExecutionIntent(time.Now())
@@ -485,7 +486,7 @@ func TestExecutionProjection_TracePersistence_FieldsSurviveMaterialization(t *te
 func TestExecutionProjection_TracePersistence_EmptyTraceStillMaterializes(t *testing.T) {
 	// An intent without trace fields is still valid and should materialize.
 	// This validates that trace is optional, not a gate condition.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := validExecutionIntent(time.Now())
@@ -504,7 +505,7 @@ func TestExecutionProjection_TracePersistence_EmptyTraceStillMaterializes(t *tes
 
 func TestExecutionProjection_TracePersistence_MultiSymbol_IndependentTraces(t *testing.T) {
 	// Validates that trace fields are per-symbol and don't bleed across intents.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	now := time.Now()
@@ -540,7 +541,7 @@ func TestExecutionProjection_TracePersistence_MultiSymbol_IndependentTraces(t *t
 
 func TestExecutionProjection_LifecycleFields_FilledIntentMaterializes(t *testing.T) {
 	// Validates that a filled intent with fill records passes all gates.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	ts := time.Now()
@@ -560,7 +561,7 @@ func TestExecutionProjection_LifecycleFields_FilledIntentMaterializes(t *testing
 
 func TestExecutionProjection_LifecycleFields_SubmittedNoActionMaterializes(t *testing.T) {
 	// A submitted no-action intent (side=none) is valid and should materialize.
-	store := &mockExecutionStore{putResult: adapternats.PutWritten}
+	store := &mockExecutionStore{putResult: natskit.PutWritten}
 	h := execActorDirect(store, nil)
 
 	intent := validExecutionIntent(time.Now())
@@ -581,7 +582,7 @@ func TestExecutionProjection_LifecycleFields_SubmittedNoActionMaterializes(t *te
 
 func TestExecutionProjection_PutError_TrackerRecordsError(t *testing.T) {
 	store := &mockExecutionStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	tracker := healthz.NewTracker("test")

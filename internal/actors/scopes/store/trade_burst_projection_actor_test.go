@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/evidence"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
 type mockTradeBurstStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	putCalls   int
 }
 
-func (m *mockTradeBurstStore) Put(_ context.Context, _ evidence.EvidenceTradeBurst) (adapternats.PutResult, *problem.Problem) {
+func (m *mockTradeBurstStore) Put(_ context.Context, _ evidence.EvidenceTradeBurst) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	return m.putResult, m.putProblem
 }
@@ -47,7 +47,7 @@ func tradeBurstActor(store *mockTradeBurstStore, tracker *healthz.Tracker) *Trad
 }
 
 func TestTradeBurstProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutWritten}
+	store := &mockTradeBurstStore{putResult: natskit.PutWritten}
 	a := tradeBurstActor(store, nil)
 
 	burst := validTradeBurst(time.Now())
@@ -64,7 +64,7 @@ func TestTradeBurstProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestTradeBurstProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutWritten}
+	store := &mockTradeBurstStore{putResult: natskit.PutWritten}
 	a := tradeBurstActor(store, nil)
 
 	burst := evidence.EvidenceTradeBurst{Final: true}
@@ -80,7 +80,7 @@ func TestTradeBurstProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestTradeBurstProjection_PutWritten_Materializes(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutWritten}
+	store := &mockTradeBurstStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := tradeBurstActor(store, tracker)
 
@@ -95,7 +95,7 @@ func TestTradeBurstProjection_PutWritten_Materializes(t *testing.T) {
 }
 
 func TestTradeBurstProjection_PutSkippedStale(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutSkippedStale}
+	store := &mockTradeBurstStore{putResult: natskit.PutSkippedStale}
 	a := tradeBurstActor(store, nil)
 
 	a.onTradeBurst(tradeBurstReceivedMessage{Event: evidence.TradeBurstSampledEvent{TradeBurst: validTradeBurst(time.Now())}})
@@ -109,7 +109,7 @@ func TestTradeBurstProjection_PutSkippedStale(t *testing.T) {
 }
 
 func TestTradeBurstProjection_PutSkippedDuplicate(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockTradeBurstStore{putResult: natskit.PutSkippedDuplicate}
 	a := tradeBurstActor(store, nil)
 
 	a.onTradeBurst(tradeBurstReceivedMessage{Event: evidence.TradeBurstSampledEvent{TradeBurst: validTradeBurst(time.Now())}})
@@ -124,7 +124,7 @@ func TestTradeBurstProjection_PutSkippedDuplicate(t *testing.T) {
 
 func TestTradeBurstProjection_PutError(t *testing.T) {
 	store := &mockTradeBurstStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := tradeBurstActor(store, nil)
@@ -137,7 +137,7 @@ func TestTradeBurstProjection_PutError(t *testing.T) {
 }
 
 func TestTradeBurstProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockTradeBurstStore{putResult: adapternats.PutWritten}
+	store := &mockTradeBurstStore{putResult: natskit.PutWritten}
 	a := tradeBurstActor(store, nil)
 
 	a.onTradeBurst(tradeBurstReceivedMessage{Event: evidence.TradeBurstSampledEvent{TradeBurst: validTradeBurst(time.Now())}})

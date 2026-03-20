@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
+	natssignal "internal/adapters/nats/natssignal"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -75,7 +76,7 @@ func (a *SignalProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *SignalProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewSignalKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natssignal.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start signal KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -132,15 +133,15 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -149,7 +150,7 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + sig.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("signal materialized",
 			"type", sig.Type,
 			"source", sig.Source,

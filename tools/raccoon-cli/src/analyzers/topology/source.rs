@@ -143,6 +143,8 @@ fn extract_durables(content: &str, topo: &mut SourceTopology) {
             }
         }
     }
+
+    extract_durables_from_factory_calls(content, topo);
 }
 
 fn extract_subjects(content: &str, subjects: &mut std::collections::HashSet<String>) {
@@ -156,6 +158,23 @@ fn extract_subjects(content: &str, subjects: &mut std::collections::HashSet<Stri
             if is_nats_subject(&val) {
                 subjects.insert(val);
             }
+        }
+    }
+}
+
+fn extract_durables_from_factory_calls(content: &str, topo: &mut SourceTopology) {
+    let mut rest = content;
+
+    while let Some(pos) = rest.find("NewConsumerSpec(") {
+        let after = &rest[pos + "NewConsumerSpec(".len()..];
+        if let Some(end) = find_call_end(after) {
+            let args = extract_all_quoted(&after[..end]);
+            if args.len() >= 4 {
+                topo.durables.insert(args[0].clone(), args[3].clone());
+            }
+            rest = &after[end + 1..];
+        } else {
+            break;
         }
     }
 }
@@ -287,6 +306,40 @@ fn find_stream_name_near(lines: &[&str], center: usize, radius: usize) -> Option
     None
 }
 
+fn find_call_end(source: &str) -> Option<usize> {
+    let mut depth = 1;
+    let bytes = source.as_bytes();
+    let mut in_string = false;
+    let mut escape = false;
+
+    for (i, c) in bytes.iter().copied().enumerate() {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if c == b'\\' && in_string {
+            escape = true;
+            continue;
+        }
+        if c == b'"' {
+            in_string = !in_string;
+            continue;
+        }
+        if !in_string {
+            if c == b'(' {
+                depth += 1;
+            } else if c == b')' {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,6 +411,21 @@ func DefaultDataPlaneRegistry() DataPlaneRegistry {
         assert_eq!(
             topo.durables.get("validator-dataplane-v1"),
             Some(&"DATA_PLANE_INGESTION".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_durables_from_factory_calls() {
+        let source = r#"
+func StorePaperOrderExecutionConsumer() natskit.ConsumerSpec {
+    return natskit.NewConsumerSpec("store-execution-paper-order", "execution.events.paper_order.submitted.>", "execution.events.v1.paper_order_submitted", "EXECUTION_EVENTS")
+}
+"#;
+        let mut topo = SourceTopology::default();
+        extract_durables(source, &mut topo);
+        assert_eq!(
+            topo.durables.get("store-execution-paper-order"),
+            Some(&"EXECUTION_EVENTS".to_string())
         );
     }
 

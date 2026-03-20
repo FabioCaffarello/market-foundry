@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -15,13 +15,13 @@ import (
 type EventRouterConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.ConfigctlRegistry
+	Registry natsconfigctl.Registry
 }
 
 type EventRouterActor struct {
 	cfg       EventRouterConfig
 	logger    *slog.Logger
-	publisher *adapternats.DomainEventPublisher
+	publisher *natsconfigctl.EventPublisher
 }
 
 func NewEventRouterActor(cfg EventRouterConfig) actor.Producer {
@@ -37,7 +37,7 @@ func (a *EventRouterActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		publisher := adapternats.NewDomainEventPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		publisher := natsconfigctl.NewEventPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := publisher.Start(); err != nil {
 			a.logger.Error("start domain event publisher", "error", err)
 			c.Engine().Poison(c.PID())

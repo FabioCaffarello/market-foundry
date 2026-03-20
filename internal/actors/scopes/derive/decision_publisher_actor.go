@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -17,7 +17,7 @@ import (
 type DecisionPublisherConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.DecisionRegistry
+	Registry natsdecision.Registry
 	Tracker  *healthz.Tracker
 }
 
@@ -25,7 +25,7 @@ type DecisionPublisherConfig struct {
 type DecisionPublisherActor struct {
 	cfg       DecisionPublisherConfig
 	logger    *slog.Logger
-	publisher *adapternats.DecisionPublisher
+	publisher *natsdecision.Publisher
 }
 
 func NewDecisionPublisherActor(cfg DecisionPublisherConfig) actor.Producer {
@@ -41,7 +41,7 @@ func (a *DecisionPublisherActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		pub := adapternats.NewDecisionPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		pub := natsdecision.NewPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := pub.Start(); err != nil {
 			a.logger.Error("start decision publisher", "error", err)
 			c.Engine().Poison(c.PID())

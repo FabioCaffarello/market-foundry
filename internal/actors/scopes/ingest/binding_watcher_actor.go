@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
 	appingest "internal/application/ingest"
 	configdomain "internal/domain/configctl"
 	"internal/application/configctl/contracts"
@@ -30,7 +30,7 @@ type BindingWatcherConfig struct {
 type BindingWatcherActor struct {
 	cfg      BindingWatcherConfig
 	logger   *slog.Logger
-	consumer *adapternats.BindingEventConsumer
+	consumer *natsconfigctl.BindingConsumer
 }
 
 func NewBindingWatcherActor(cfg BindingWatcherConfig) actor.Producer {
@@ -114,10 +114,10 @@ func (a *BindingWatcherActor) queryActiveBindings(c *actor.Context) {
 }
 
 func (a *BindingWatcherActor) subscribeToChanges(c *actor.Context) {
-	registry := adapternats.DefaultConfigctlRegistry()
-	spec := adapternats.IngestBindingConsumer()
+	registry := natsconfigctl.DefaultRegistry()
+	spec := natsconfigctl.IngestBindingConsumer()
 
-	consumer := adapternats.NewBindingEventConsumer(
+	consumer := natsconfigctl.NewBindingConsumer(
 		a.cfg.NATSURL,
 		spec,
 		registry,

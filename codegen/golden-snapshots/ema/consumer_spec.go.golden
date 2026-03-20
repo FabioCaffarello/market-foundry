@@ -1,12 +1,12 @@
 // WriterEMASignalConsumer defines the durable consumer spec for writer consuming
 // ema signal events.
-func WriterEMASignalConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterEMASignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-signal-ema",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "signal.events.ema.generated.>",
 			Type:    "signal.events.v1.ema_generated",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "SIGNAL_EVENTS",
 			},
 		},

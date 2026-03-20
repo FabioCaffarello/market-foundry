@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	adapternats "internal/adapters/nats"
+	natsconfigctl "internal/adapters/nats/natsconfigctl"
 	"internal/shared/settings"
 
 	"github.com/anthdm/hollywood/actor"
@@ -43,7 +43,7 @@ func (s *ConfigSupervisor) start(ctx *actor.Context) error {
 		return fmt.Errorf("nats must be enabled for configctl")
 	}
 
-	registry := adapternats.DefaultConfigctlRegistry()
+	registry := natsconfigctl.DefaultRegistry()
 	eventPID := ctx.SpawnChild(NewEventRouterActor(EventRouterConfig{
 		URL:      s.cfg.NATS.URL,
 		Source:   "configctl.event-router",

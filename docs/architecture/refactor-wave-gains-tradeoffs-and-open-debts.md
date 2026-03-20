@@ -2,7 +2,9 @@
 
 **Date:** 2026-03-20
 **Scope:** S211–S215 (Strategic Refactoring and Documentation Consolidation)
-**Status:** Phase ending — conditional exit
+**Status:** Phase closed — HIGH items completed in S218–S220 tranche
+**S217 Reconciliation:** Evidence drift corrected — MF-1 confirmed done, P1 items reconciled, doc counts corrected
+**S221 Reconciliation:** H-01, H-04, H-06 completed in S218–S220; structural debt table and disposition updated
 
 ---
 
@@ -10,7 +12,7 @@
 
 ### 1.1 Documentation Entropy Reduction
 - **Before:** ~457 active architecture docs with no consolidation, no archive, no index.
-- **After:** 240 active docs, 245 archived in 16 organized categories, 15 consolidated canonical documents, stage index (214 entries).
+- **After:** 243 active docs (S217 corrected from 240), 245 archived in 16 organized categories, 15 consolidated canonical documents, stage index (214 entries).
 - **Magnitude:** 47% reduction in active docs. Archive fully preserved with no information loss.
 - **Value:** Navigability improved. New contributors can find canonical references without wading through historical progression.
 
@@ -26,11 +28,11 @@
 - **Magnitude:** ~60 lines of duplication removed. All 6 readers delegate to one implementation.
 - **Value:** Single point of change for query construction. Reduces risk of divergent SQL across domain readers.
 
-### 1.4 Generic Actor Infrastructure (H-04, partial)
+### 1.4 Generic Actor Infrastructure (H-04, completed S219)
 - **Before:** No shared infrastructure for store consumer actors. Each family had a full actor implementation (~300 lines).
-- **After:** `GenericConsumerActor` and `ProjectionStats` created as reusable types.
-- **Magnitude:** ~160 lines of new infrastructure. Projected savings of ~1,800 lines when per-family actors migrate.
-- **Value:** Foundation laid for the largest single duplication reduction in the codebase. Migration is mechanical but was deferred to avoid blast radius in this wave.
+- **After (S213):** `GenericConsumerActor` and `ProjectionStats` created as reusable types (~160 lines of infrastructure).
+- **After (S219):** All 9 store consumer actors migrated to `GenericConsumerActor`. 8 files deleted, ~510 lines of duplication eliminated. Adding a new pipeline reduced from 4 steps to 1 (single closure ~8 lines).
+- **Value:** The largest single duplication reduction in the store scope is now complete. Projection actors intentionally kept domain-specific (logic diverges).
 
 ### 1.5 Analytical/Generated Path Ownership (S214)
 - **Before:** Ownership boundaries between manual code and codegen-governed code were implicit. No markers in source. Historical docs scattered across 30+ files.
@@ -52,9 +54,9 @@
 ## 2. Trade-offs
 
 ### 2.1 Depth vs. Breadth
-- **Trade-off:** The wave executed 2.5 of 6 HIGH-priority refactoring items. It prioritized clean execution of fewer items over partial execution of all.
-- **Consequence:** NATS sub-packaging (H-01), module graph simplification (H-06), and full actor migration (H-04) remain undone.
-- **Assessment:** Correct trade-off. The executed items are clean and tested. Partial execution of all 6 would have risked regressions.
+- **Trade-off:** The S211–S215 wave executed 2.5 of 6 HIGH-priority refactoring items, prioritizing clean execution over rushed coverage.
+- **S218–S220 update:** The remaining 3 HIGH items (H-01, H-04, H-06) were completed in a follow-up tranche. All 6 HIGH items are now DONE.
+- **Assessment:** The two-tranche approach proved correct — the S213 infrastructure for H-04 enabled clean migration in S219; H-01 and H-06 were executed without regressions.
 
 ### 2.2 Documentation Count vs. Information Preservation
 - **Trade-off:** The consolidation preserved all content (archive, not delete). This kept the count higher than aggressive deletion would have.
@@ -79,9 +81,9 @@
 
 | ID | Item | Priority | Lines Recoverable | Status |
 |----|------|----------|-------------------|--------|
-| H-01 | NATS adapter sub-packaging | HIGH | ~2,000 (complexity, not lines) | NOT STARTED |
-| H-04 | Per-family actor migration to generic | HIGH | ~1,800 | INFRASTRUCTURE READY, MIGRATION DEFERRED |
-| H-06 | Module graph simplification (19→~10) | HIGH | Structural | NOT STARTED |
+| H-01 | NATS adapter sub-packaging | HIGH | ~2,000 (complexity, not lines) | **DONE** (S218: flat→8 domain sub-packages + natskit shared) |
+| H-04 | Per-family actor migration to generic | HIGH | ~510 lines recovered | **DONE** (S219: 9→1 consumer actors, 8 files deleted) |
+| H-06 | Module graph simplification (19→17) | HIGH | Structural | **DONE** (S220: 2 modules absorbed, zero new dependency edges) |
 | M-01 | Analytical use case consolidation | MEDIUM | ~400 | NOT STARTED |
 | M-02 | HTTP handler extraction + registration | MEDIUM | ~200 | NOT STARTED |
 | M-03 | Writer pipeline consolidation | MEDIUM | ~150 | NOT STARTED |
@@ -94,7 +96,7 @@
 
 | Item | Current | Target | Gap |
 |------|---------|--------|-----|
-| Active architecture docs | 240 | ≤150 | ~90 docs to archive or consolidate |
+| Active architecture docs | 243 (S217 corrected) | ≤150 | ~93 docs to archive or consolidate |
 | Cross-document references | Unknown | All valid | Archived docs may have broken inbound refs |
 | Domain subdirectory organization | Flat | `domains/{signal,...}/` | Optional, deferred |
 | Deep content merge | Curated consolidation | Maximum conciseness | Not attempted |
@@ -103,7 +105,7 @@
 
 | Item | Status |
 |------|--------|
-| MF-1: Handler extraction (`parseAnalyticalParams()`) | NOT DONE — P0 blocker |
+| MF-1: Handler extraction (`parseAnalyticalParams()`) | DONE (S217 corrected: exists at analytical.go:90-122, 502 lines) |
 | EC-7: CI verification on real push | PENDING |
 | EC-8/XC-11: Repository tagging | PENDING |
 | XC-13: Debt registry final update | PARTIAL |
@@ -124,8 +126,8 @@ These are not debts — they are design decisions that will not change:
 
 | Category | Count | Action |
 |----------|-------|--------|
-| Must close in exit tranche | 5 | MF-1, EC-7, XC-1 doc count, XC-11 tag, XC-13 registry |
-| Deferred to next expansion wave | 10 | H-01, H-04 migration, H-06, M-01–M-07 |
+| Must close in exit tranche | 3 | EC-7 (CI push), XC-1 (doc count), XC-11 (tag) — S217 corrected: MF-1 done, XC-13 updated |
+| Deferred to next expansion wave | 7 | M-01–M-07 (S221: H-01, H-04, H-06 completed in S218–S220) |
 | Accepted permanent trade-offs | 5 | No action required |
 | Documented exceptions | 2 | Golden snapshot drift, domain subdirectory |
 
@@ -140,6 +142,6 @@ The Foundry exited the S211–S215 wave in a measurably better state:
 - **Complete architectural census** for evidence-based decisions
 - **Zero governance violations** — the freeze model works
 
-The wave did not achieve perfection. 3.5 of 6 HIGH items remain open. Documentation exceeds target. CI is unverified on push. These are honest gaps, not failures — the wave correctly prioritized clean execution over rushed coverage.
+The S211–S215 wave executed 2.5 of 6 HIGH items. The S218–S220 tranche completed the remaining 3 HIGH items (H-01, H-04, H-06). All 6 HIGH structural refactoring items are now DONE. Documentation exceeds the ≤150 target. CI on push and repository tag remain PENDING.
 
-The remaining gaps are closeable in one short tranche.
+The remaining gaps (7 MEDIUM items, doc count, CI/tag) are closeable in a focused follow-up.

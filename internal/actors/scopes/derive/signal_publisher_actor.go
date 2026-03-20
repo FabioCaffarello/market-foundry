@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natssignal "internal/adapters/nats/natssignal"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -17,7 +17,7 @@ import (
 type SignalPublisherConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.SignalRegistry
+	Registry natssignal.Registry
 	Tracker  *healthz.Tracker
 }
 
@@ -25,7 +25,7 @@ type SignalPublisherConfig struct {
 type SignalPublisherActor struct {
 	cfg       SignalPublisherConfig
 	logger    *slog.Logger
-	publisher *adapternats.SignalPublisher
+	publisher *natssignal.Publisher
 }
 
 func NewSignalPublisherActor(cfg SignalPublisherConfig) actor.Producer {
@@ -41,7 +41,7 @@ func (a *SignalPublisherActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		pub := adapternats.NewSignalPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		pub := natssignal.NewPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := pub.Start(); err != nil {
 			a.logger.Error("start signal publisher", "error", err)
 			c.Engine().Poison(c.PID())

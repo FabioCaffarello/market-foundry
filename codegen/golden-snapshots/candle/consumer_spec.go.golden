@@ -1,11 +1,11 @@
 // WriterCandleConsumer defines the durable consumer spec for writer consuming candle events.
-func WriterCandleConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterCandleConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-candle",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "evidence.events.candle.sampled.>",
 			Type:    "evidence.events.v1.candle_sampled",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "EVIDENCE_EVENTS",
 			},
 		},

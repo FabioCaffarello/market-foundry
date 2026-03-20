@@ -1,12 +1,12 @@
 // {{.Derived.ConsumerSpecFunc}} defines the durable consumer spec for writer consuming
 // {{.Spec.Family.Name}} {{.Spec.Family.Layer}} events.
-func {{.Derived.ConsumerSpecFunc}}() ConsumerSpec {
-	return ConsumerSpec{
+func {{.Derived.ConsumerSpecFunc}}() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "{{.Spec.NATS.Durable}}",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "{{.Spec.NATS.Subject}}",
 			Type:    "{{.Spec.NATS.EventType}}",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "{{.Spec.NATS.Stream}}",
 			},
 		},

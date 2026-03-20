@@ -1,12 +1,12 @@
 // WriterPaperOrderExecutionConsumer defines the durable consumer spec for writer consuming
 // paper order execution events from EXECUTION_EVENTS.
-func WriterPaperOrderExecutionConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterPaperOrderExecutionConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-execution-paper-order",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "execution.events.paper_order.submitted.>",
 			Type:    "execution.events.v1.paper_order_submitted",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "EXECUTION_EVENTS",
 			},
 		},

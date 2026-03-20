@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -74,7 +75,7 @@ func (a *VolumeProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *VolumeProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewVolumeKVStore(a.cfg.NATSURL)
+	store := natsevidence.NewVolumeKVStore(a.cfg.NATSURL)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start volume KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -84,7 +85,7 @@ func (a *VolumeProjectionActor) start(c *actor.Context) {
 	a.store = store
 	a.closer = store.Close
 	a.logger.Info("volume projection started",
-		"bucket_latest", adapternats.VolumeLatestBucket,
+		"bucket_latest", natsevidence.VolumeLatestBucket,
 	)
 }
 
@@ -127,15 +128,15 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -144,7 +145,7 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + vol.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("volume materialized",
 			"source", vol.Source,
 			"symbol", vol.Symbol,

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsexecution "internal/adapters/nats/natsexecution"
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
@@ -21,7 +21,7 @@ import (
 type VenueAdapterConfig struct {
 	NATSURL          string
 	Source           string
-	Registry         adapternats.ExecutionRegistry
+	Registry         natsexecution.Registry
 	Venue            ports.VenuePort
 	StalenessMaxAge  time.Duration
 	SubmitTimeout    time.Duration
@@ -33,8 +33,8 @@ type VenueAdapterConfig struct {
 type VenueAdapterActor struct {
 	cfg           VenueAdapterConfig
 	logger        *slog.Logger
-	controlStore  *adapternats.ExecutionControlKVStore
-	fillPublisher *adapternats.ExecutionPublisher
+	controlStore  *natsexecution.ControlKVStore
+	fillPublisher *natsexecution.Publisher
 	safetyGate    *appexec.SafetyGate
 }
 
@@ -78,7 +78,7 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 
 	// Connect to execution control KV for kill switch.
 	var gateChecker appexec.GateChecker
-	controlStore := adapternats.NewExecutionControlKVStore(a.cfg.NATSURL)
+	controlStore := natsexecution.NewControlKVStore(a.cfg.NATSURL)
 	if err := controlStore.Start(); err != nil {
 		a.logger.Warn("execution control KV store unavailable — gate check disabled", "error", err)
 	} else {
@@ -90,7 +90,7 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 	a.safetyGate = appexec.NewSafetyGate(gateChecker, 2*time.Second, staleness)
 
 	// Connect fill publisher for publishing fill events.
-	fillPub := adapternats.NewExecutionPublisher(a.cfg.NATSURL, a.cfg.Source, a.cfg.Registry)
+	fillPub := natsexecution.NewPublisher(a.cfg.NATSURL, a.cfg.Source, a.cfg.Registry)
 	if err := fillPub.Start(); err != nil {
 		a.logger.Error("start fill publisher", "error", err)
 		c.Engine().Poison(c.PID())

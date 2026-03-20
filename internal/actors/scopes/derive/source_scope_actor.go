@@ -6,7 +6,12 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -94,12 +99,12 @@ func familyNames[T any](processors []T, getFamily func(T) string) []string {
 type SourceScopeConfig struct {
 	Source              string
 	NATSURL             string
-	Registry            adapternats.EvidenceRegistry
-	SignalRegistry      adapternats.SignalRegistry
-	DecisionRegistry    adapternats.DecisionRegistry
-	StrategyRegistry    adapternats.StrategyRegistry
-	RiskRegistry        adapternats.RiskRegistry
-	ExecutionRegistry   adapternats.ExecutionRegistry
+	Registry            natsevidence.Registry
+	SignalRegistry      natssignal.Registry
+	DecisionRegistry    natsdecision.Registry
+	StrategyRegistry    natsstrategy.Registry
+	RiskRegistry        natsrisk.Registry
+	ExecutionRegistry   natsexecution.Registry
 	Timeframes          []time.Duration
 	Processors          []FamilyProcessor
 	SignalProcessors    []SignalFamilyProcessor

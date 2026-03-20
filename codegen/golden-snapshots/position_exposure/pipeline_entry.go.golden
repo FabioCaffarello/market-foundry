@@ -5,10 +5,10 @@
 	inserterName: "writer-risk-position-exposure-inserter",
 	table:        "risk_assessments",
 	insertSQL:    "INSERT INTO risk_assessments",
-	consumerSpec: adapternats.WriterPositionExposureRiskConsumer(),
+	consumerSpec: natsrisk.WriterPositionExposureRiskConsumer(),
 	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
-	startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := adapternats.NewRiskConsumer(natsURL, spec, reg.risk,
+	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+		consumer := natsrisk.NewConsumer(natsURL, spec, reg.risk,
 			func(event risk.RiskAssessedEvent) {
 				if tracker != nil {
 					tracker.RecordEvent()

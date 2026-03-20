@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	adapternats "internal/adapters/nats"
+	"internal/adapters/nats/natskit"
 	"internal/domain/evidence"
 	"internal/shared/healthz"
 	"internal/shared/problem"
@@ -15,7 +15,7 @@ import (
 // --- mock store ---
 
 type mockCandleStore struct {
-	putResult  adapternats.PutResult
+	putResult  natskit.PutResult
 	putProblem *problem.Problem
 	histProblem *problem.Problem
 
@@ -24,7 +24,7 @@ type mockCandleStore struct {
 	lastCandle   evidence.EvidenceCandle
 }
 
-func (m *mockCandleStore) Put(_ context.Context, candle evidence.EvidenceCandle) (adapternats.PutResult, *problem.Problem) {
+func (m *mockCandleStore) Put(_ context.Context, candle evidence.EvidenceCandle) (natskit.PutResult, *problem.Problem) {
 	m.putCalls++
 	m.lastCandle = candle
 	return m.putResult, m.putProblem
@@ -66,7 +66,7 @@ func candleActor(store *mockCandleStore, tracker *healthz.Tracker) *CandleProjec
 // --- tests ---
 
 func TestCandleProjection_FinalGate_SkipsNonFinal(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutWritten}
+	store := &mockCandleStore{putResult: natskit.PutWritten}
 	a := candleActor(store, nil)
 
 	candle := validCandle(time.Now())
@@ -83,7 +83,7 @@ func TestCandleProjection_FinalGate_SkipsNonFinal(t *testing.T) {
 }
 
 func TestCandleProjection_ValidationGate_RejectsMalformed(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutWritten}
+	store := &mockCandleStore{putResult: natskit.PutWritten}
 	a := candleActor(store, nil)
 
 	candle := evidence.EvidenceCandle{Final: true} // missing all required fields
@@ -99,7 +99,7 @@ func TestCandleProjection_ValidationGate_RejectsMalformed(t *testing.T) {
 }
 
 func TestCandleProjection_PutWritten_MaterializesLatestAndHistory(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutWritten}
+	store := &mockCandleStore{putResult: natskit.PutWritten}
 	tracker := healthz.NewTracker("test")
 	a := candleActor(store, tracker)
 
@@ -120,7 +120,7 @@ func TestCandleProjection_PutWritten_MaterializesLatestAndHistory(t *testing.T) 
 }
 
 func TestCandleProjection_PutSkippedStale_NoHistoryWrite(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutSkippedStale}
+	store := &mockCandleStore{putResult: natskit.PutSkippedStale}
 	a := candleActor(store, nil)
 
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: validCandle(time.Now())}})
@@ -137,7 +137,7 @@ func TestCandleProjection_PutSkippedStale_NoHistoryWrite(t *testing.T) {
 }
 
 func TestCandleProjection_PutSkippedDuplicate_StillWritesHistory(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutSkippedDuplicate}
+	store := &mockCandleStore{putResult: natskit.PutSkippedDuplicate}
 	a := candleActor(store, nil)
 
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: validCandle(time.Now())}})
@@ -155,7 +155,7 @@ func TestCandleProjection_PutSkippedDuplicate_StillWritesHistory(t *testing.T) {
 
 func TestCandleProjection_PutError_IncrementsErrorStat(t *testing.T) {
 	store := &mockCandleStore{
-		putResult:  adapternats.PutWritten,
+		putResult:  natskit.PutWritten,
 		putProblem: problem.New(problem.Unavailable, "NATS down"),
 	}
 	a := candleActor(store, nil)
@@ -172,7 +172,7 @@ func TestCandleProjection_PutError_IncrementsErrorStat(t *testing.T) {
 
 func TestCandleProjection_HistoryError_StillCountsMaterialized(t *testing.T) {
 	store := &mockCandleStore{
-		putResult:   adapternats.PutWritten,
+		putResult:   natskit.PutWritten,
 		histProblem: problem.New(problem.Unavailable, "history write fail"),
 	}
 	tracker := healthz.NewTracker("test")
@@ -192,7 +192,7 @@ func TestCandleProjection_HistoryError_StillCountsMaterialized(t *testing.T) {
 }
 
 func TestCandleProjection_NoTracker_DoesNotPanic(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutWritten}
+	store := &mockCandleStore{putResult: natskit.PutWritten}
 	a := candleActor(store, nil)
 
 	// Should not panic with nil tracker.
@@ -204,7 +204,7 @@ func TestCandleProjection_NoTracker_DoesNotPanic(t *testing.T) {
 }
 
 func TestCandleProjection_MultipleEvents_StatsAccumulate(t *testing.T) {
-	store := &mockCandleStore{putResult: adapternats.PutWritten}
+	store := &mockCandleStore{putResult: natskit.PutWritten}
 	a := candleActor(store, nil)
 
 	now := time.Now()
@@ -232,7 +232,7 @@ func TestCandleProjection_MixedOutcomes(t *testing.T) {
 	now := time.Now()
 
 	// 1. valid + written
-	store.putResult = adapternats.PutWritten
+	store.putResult = natskit.PutWritten
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: validCandle(now)}})
 
 	// 2. non-final
@@ -241,11 +241,11 @@ func TestCandleProjection_MixedOutcomes(t *testing.T) {
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: nonFinal}})
 
 	// 3. stale
-	store.putResult = adapternats.PutSkippedStale
+	store.putResult = natskit.PutSkippedStale
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: validCandle(now.Add(2 * time.Minute))}})
 
 	// 4. duplicate
-	store.putResult = adapternats.PutSkippedDuplicate
+	store.putResult = natskit.PutSkippedDuplicate
 	a.onCandle(candleReceivedMessage{Event: evidence.CandleSampledEvent{Candle: validCandle(now.Add(3 * time.Minute))}})
 
 	if got := a.stats.materialized.Load(); got != 1 {

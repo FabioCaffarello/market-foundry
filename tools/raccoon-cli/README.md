@@ -76,6 +76,15 @@ The CLI enforces these architectural invariants:
 4. **Contract alignment** — NATS registry specs match domain event definitions
 5. **Docs-reality alignment** — architecture docs match actual binary/service structure
 
+## Current Structural Assumptions
+
+The current checks are aligned to the post-S218/S219/S220 repository shape:
+
+- NATS adapters are organized by sub-package under `internal/adapters/nats/` (`natsevidence/`, `natssignal/`, `natsdecision/`, `natsstrategy/`, `natsrisk/`, `natsexecution/`, `natsobservation/`, `natsconfigctl/`, plus `natskit/`)
+- Registry discovery accepts both legacy `*_registry.go` files and the current `*/registry.go` layout
+- Durable consumer discovery recognizes both explicit `ConsumerSpec{...}` blocks and `natskit.NewConsumerSpec(...)` factory calls
+- Store-side consumer wiring is validated through `internal/actors/scopes/store/generic_consumer_actor.go` and `internal/actors/scopes/store/store_supervisor.go`, not deleted per-domain consumer actor wrappers
+
 ## Output Formats
 
 All commands support `--json` for machine-readable output and `-v` for verbose mode.

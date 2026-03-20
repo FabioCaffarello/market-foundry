@@ -1,0 +1,127 @@
+package natssignal
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"internal/adapters/nats/natskit"
+	"internal/domain/signal"
+	"internal/shared/problem"
+
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+)
+
+const RSILatestBucket = "SIGNAL_RSI_LATEST"
+const EMACrossoverLatestBucket = "SIGNAL_EMA_CROSSOVER_LATEST"
+
+// KVStore persists the latest finalized signal per source/symbol/timeframe.
+// One instance per signal type; the bucket name is injected at construction.
+type KVStore struct {
+	url    string
+	bucket string
+	nc     *nats.Conn
+	latest jetstream.KeyValue
+}
+
+func NewKVStore(url, bucket string) *KVStore {
+	return &KVStore{url: url, bucket: bucket}
+}
+
+func (s *KVStore) Start() error {
+	nc, err := natskit.Connect(s.url)
+	if err != nil {
+		return err
+	}
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		nc.Close()
+		return fmt.Errorf("create jetstream context: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), natskit.DefaultSetupTimeout)
+	defer cancel()
+
+	latest, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:   s.bucket,
+		Storage:  jetstream.FileStorage,
+		MaxBytes: 64 * 1024 * 1024, // 64 MB
+	})
+	if err != nil {
+		nc.Close()
+		return fmt.Errorf("ensure %s bucket: %w", s.bucket, err)
+	}
+
+	s.nc = nc
+	s.latest = latest
+	return nil
+}
+
+// Put stores a signal in the latest bucket with a monotonicity guard on Timestamp.
+// If the existing signal has a newer or equal Timestamp, the write is skipped.
+// This makes the latest projection safe under replay and reprocessing.
+// Key format: {source}.{symbol}.{timeframe}
+func (s *KVStore) Put(ctx context.Context, sig signal.Signal) (natskit.PutResult, *problem.Problem) {
+	if s == nil || s.latest == nil {
+		return natskit.PutWritten, problem.New(problem.Unavailable, "signal KV store is unavailable")
+	}
+
+	key := sig.PartitionKey()
+
+	// Monotonicity guard: read existing, compare Timestamp.
+	existing, err := s.latest.Get(ctx, key)
+	if err == nil {
+		var prev signal.Signal
+		if jsonErr := json.Unmarshal(existing.Value(), &prev); jsonErr == nil {
+			if prev.Timestamp.After(sig.Timestamp) {
+				return natskit.PutSkippedStale, nil
+			}
+			if prev.Timestamp.Equal(sig.Timestamp) {
+				return natskit.PutSkippedDuplicate, nil
+			}
+		}
+	}
+	// ErrKeyNotFound is fine — first write for this key.
+
+	data, err := json.Marshal(sig)
+	if err != nil {
+		return natskit.PutWritten, problem.Wrap(err, problem.Internal, "marshal signal for KV")
+	}
+
+	if _, err := s.latest.Put(ctx, key, data); err != nil {
+		return natskit.PutWritten, problem.Wrap(err, problem.Unavailable, "put signal to KV")
+	}
+
+	return natskit.PutWritten, nil
+}
+
+// Get retrieves the latest signal for a given source/symbol/timeframe.
+func (s *KVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*signal.Signal, *problem.Problem) {
+	if s == nil || s.latest == nil {
+		return nil, problem.New(problem.Unavailable, "signal KV store is unavailable")
+	}
+
+	key := fmt.Sprintf("%s.%s.%d", source, symbol, timeframe)
+	entry, err := s.latest.Get(ctx, key)
+	if err != nil {
+		if err == jetstream.ErrKeyNotFound {
+			return nil, nil // no signal yet, not an error
+		}
+		return nil, problem.Wrap(err, problem.Unavailable, "get signal from KV")
+	}
+
+	var sig signal.Signal
+	if err := json.Unmarshal(entry.Value(), &sig); err != nil {
+		return nil, problem.Wrap(err, problem.Internal, "unmarshal signal from KV")
+	}
+	return &sig, nil
+}
+
+func (s *KVStore) Close() error {
+	if s != nil && s.nc != nil {
+		s.nc.Close()
+	}
+	return nil
+}

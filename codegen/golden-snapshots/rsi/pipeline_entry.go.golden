@@ -5,10 +5,10 @@
 	inserterName: "writer-signal-rsi-inserter",
 	table:        "signals",
 	insertSQL:    "INSERT INTO signals",
-	consumerSpec: adapternats.WriterRSISignalConsumer(),
+	consumerSpec: natssignal.WriterRSISignalConsumer(),
 	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
-	startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := adapternats.NewSignalConsumer(natsURL, spec, reg.signal,
+	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+		consumer := natssignal.NewConsumer(natsURL, spec, reg.signal,
 			func(event signal.SignalGeneratedEvent) {
 				if tracker != nil {
 					tracker.RecordEvent()

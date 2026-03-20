@@ -2,10 +2,23 @@ package store
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
+	"internal/domain/decision"
+	"internal/domain/evidence"
+	domainexec "internal/domain/execution"
+	"internal/domain/risk"
+	"internal/domain/signal"
+	"internal/domain/strategy"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -44,14 +57,14 @@ type Pipeline struct {
 	// Buckets lists the KV bucket names owned by this pipeline's projection actor.
 	Buckets []string
 	// ConsumerSpec returns the durable consumer spec for this pipeline.
-	ConsumerSpec adapternats.ConsumerSpec
+	ConsumerSpec natskit.ConsumerSpec
 	// IsEnabled reports whether this pipeline should be spawned given current config.
 	IsEnabled func(settings.PipelineConfig) bool
 	// NewProjection creates the projection actor for this pipeline.
 	NewProjection func(natsURL string, tracker *healthz.Tracker) actor.Producer
 	// NewConsumer creates the consumer actor for this pipeline.
 	// The registry is already bound via closure at declaration time.
-	NewConsumer func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
+	NewConsumer func(natsURL string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer
 }
 
 // TrackerDef describes the health tracker pair for one projection pipeline.
@@ -82,12 +95,12 @@ func PipelineTrackerDefs() []TrackerDef {
 // pipelineRegistries holds all domain registries created during pipeline declaration.
 // Passed to the query responder for conditional registry injection.
 type pipelineRegistries struct {
-	evidence  adapternats.EvidenceRegistry
-	signal    adapternats.SignalRegistry
-	decision  adapternats.DecisionRegistry
-	strategy  adapternats.StrategyRegistry
-	risk      adapternats.RiskRegistry
-	execution adapternats.ExecutionRegistry
+	evidence  natsevidence.Registry
+	signal    natssignal.Registry
+	decision  natsdecision.Registry
+	strategy  natsstrategy.Registry
+	risk      natsrisk.Registry
+	execution natsexecution.Registry
 }
 
 // queryResponderConfig builds the QueryResponderConfig with registries for enabled scopes.
@@ -119,12 +132,28 @@ func (r pipelineRegistries) queryResponderConfig(natsURL string, activeScopes ma
 // Which pipelines actually spawn is controlled by each pipeline's IsEnabled predicate.
 func declarePipelines() ([]Pipeline, pipelineRegistries) {
 	reg := pipelineRegistries{
-		evidence:  adapternats.DefaultEvidenceRegistry(),
-		signal:    adapternats.DefaultSignalRegistry(),
-		decision:  adapternats.DefaultDecisionRegistry(),
-		strategy:  adapternats.DefaultStrategyRegistry(),
-		risk:      adapternats.DefaultRiskRegistry(),
-		execution: adapternats.DefaultExecutionRegistry(),
+		evidence:  natsevidence.DefaultRegistry(),
+		signal:    natssignal.DefaultRegistry(),
+		decision:  natsdecision.DefaultRegistry(),
+		strategy:  natsstrategy.DefaultRegistry(),
+		risk:      natsrisk.DefaultRegistry(),
+		execution: natsexecution.DefaultRegistry(),
+	}
+
+	// startConsumer wires a ConsumerStartFn closure into NewGenericConsumerActor,
+	// eliminating the need for per-domain consumer actor types. The registry and
+	// message routing are captured via closure at declaration time.
+	startConsumer := func(family string, fn ConsumerStartFn) func(string, natskit.ConsumerSpec, *actor.PID, *healthz.Tracker) actor.Producer {
+		return func(natsURL string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
+			return NewGenericConsumerActor(GenericConsumerConfig{
+				URL:           natsURL,
+				ConsumerSpec:  spec,
+				ProjectionPID: projPID,
+				Tracker:       tracker,
+				Family:        family,
+				StartFn:       fn,
+			})
+		}
 	}
 
 	return []Pipeline{
@@ -134,51 +163,63 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "candle",
 			ProjectionName: "candle-projection",
 			ConsumerName:   "candle-consumer",
-			Buckets:        []string{adapternats.CandleLatestBucket, adapternats.CandleHistoryBucket},
-			ConsumerSpec:   adapternats.StoreCandleConsumer(),
+			Buckets:        []string{natsevidence.CandleLatestBucket, natsevidence.CandleHistoryBucket},
+			ConsumerSpec:   natsevidence.StoreCandleConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewCandleProjectionActor(CandleProjectionConfig{NATSURL: natsURL, Tracker: tracker})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewEvidenceConsumerActor(EvidenceConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.evidence, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("candle", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsevidence.NewCandleConsumer(url, spec, reg.evidence, func(event evidence.CandleSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, candleReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 		{
 			Scope:          DomainEvidence,
 			Family:         "tradeburst",
 			ProjectionName: "trade-burst-projection",
 			ConsumerName:   "trade-burst-consumer",
-			Buckets:        []string{adapternats.TradeBurstLatestBucket},
-			ConsumerSpec:   adapternats.StoreTradeBurstConsumer(),
+			Buckets:        []string{natsevidence.TradeBurstLatestBucket},
+			ConsumerSpec:   natsevidence.StoreTradeBurstConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("tradeburst") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewTradeBurstProjectionActor(TradeBurstProjectionConfig{NATSURL: natsURL, Tracker: tracker})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewTradeBurstConsumerActor(TradeBurstConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.evidence, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("tradeburst", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsevidence.NewTradeBurstConsumer(url, spec, reg.evidence, func(event evidence.TradeBurstSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, tradeBurstReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 		{
 			Scope:          DomainEvidence,
 			Family:         "volume",
 			ProjectionName: "volume-projection",
 			ConsumerName:   "volume-consumer",
-			Buckets:        []string{adapternats.VolumeLatestBucket},
-			ConsumerSpec:   adapternats.StoreVolumeConsumer(),
+			Buckets:        []string{natsevidence.VolumeLatestBucket},
+			ConsumerSpec:   natsevidence.StoreVolumeConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("volume") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewVolumeProjectionActor(VolumeProjectionConfig{NATSURL: natsURL, Tracker: tracker})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewVolumeConsumerActor(VolumeConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.evidence, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("volume", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsevidence.NewVolumeConsumer(url, spec, reg.evidence, func(event evidence.VolumeSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, volumeReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		// --- Signal pipelines (opt-in via pipeline.signal_families) ---
@@ -187,21 +228,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "rsi",
 			ProjectionName: "signal-rsi-projection",
 			ConsumerName:   "signal-rsi-consumer",
-			Buckets:        []string{adapternats.SignalRSILatestBucket},
-			ConsumerSpec:   adapternats.StoreRSISignalConsumer(),
+			Buckets:        []string{natssignal.RSILatestBucket},
+			ConsumerSpec:   natssignal.StoreRSISignalConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewSignalProjectionActor(SignalProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.SignalRSILatestBucket,
+					Bucket:  natssignal.RSILatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewSignalConsumerActor(SignalConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.signal, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("rsi", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natssignal.NewConsumer(url, spec, reg.signal, func(event signal.SignalGeneratedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, signalReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		{
@@ -209,21 +254,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "ema_crossover",
 			ProjectionName: "signal-ema-crossover-projection",
 			ConsumerName:   "signal-ema-crossover-consumer",
-			Buckets:        []string{adapternats.SignalEMACrossoverLatestBucket},
-			ConsumerSpec:   adapternats.StoreEMACrossoverSignalConsumer(),
+			Buckets:        []string{natssignal.EMACrossoverLatestBucket},
+			ConsumerSpec:   natssignal.StoreEMACrossoverSignalConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema_crossover") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewSignalProjectionActor(SignalProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.SignalEMACrossoverLatestBucket,
+					Bucket:  natssignal.EMACrossoverLatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewSignalConsumerActor(SignalConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.signal, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("ema_crossover", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natssignal.NewConsumer(url, spec, reg.signal, func(event signal.SignalGeneratedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, signalReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		// --- Decision pipelines (opt-in via pipeline.decision_families) ---
@@ -232,21 +281,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "rsi_oversold",
 			ProjectionName: "decision-rsi-oversold-projection",
 			ConsumerName:   "decision-rsi-oversold-consumer",
-			Buckets:        []string{adapternats.DecisionRSIOversoldLatestBucket},
-			ConsumerSpec:   adapternats.StoreRSIOversoldDecisionConsumer(),
+			Buckets:        []string{natsdecision.RSIOversoldLatestBucket},
+			ConsumerSpec:   natsdecision.StoreRSIOversoldDecisionConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewDecisionProjectionActor(DecisionProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.DecisionRSIOversoldLatestBucket,
+					Bucket:  natsdecision.RSIOversoldLatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewDecisionConsumerActor(DecisionConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.decision, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("rsi_oversold", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsdecision.NewConsumer(url, spec, reg.decision, func(event decision.DecisionEvaluatedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, decisionReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		// --- Strategy pipelines (opt-in via pipeline.strategy_families) ---
@@ -255,21 +308,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "mean_reversion_entry",
 			ProjectionName: "strategy-mean-reversion-entry-projection",
 			ConsumerName:   "strategy-mean-reversion-entry-consumer",
-			Buckets:        []string{adapternats.StrategyMeanReversionEntryLatestBucket},
-			ConsumerSpec:   adapternats.StoreMeanReversionEntryStrategyConsumer(),
+			Buckets:        []string{natsstrategy.MeanReversionEntryLatestBucket},
+			ConsumerSpec:   natsstrategy.StoreMeanReversionEntryStrategyConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewStrategyProjectionActor(StrategyProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.StrategyMeanReversionEntryLatestBucket,
+					Bucket:  natsstrategy.MeanReversionEntryLatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewStrategyConsumerActor(StrategyConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.strategy, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("mean_reversion_entry", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsstrategy.NewConsumer(url, spec, reg.strategy, func(event strategy.StrategyResolvedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, strategyReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		// --- Risk pipelines (opt-in via pipeline.risk_families) ---
@@ -278,21 +335,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "position_exposure",
 			ProjectionName: "risk-position-exposure-projection",
 			ConsumerName:   "risk-position-exposure-consumer",
-			Buckets:        []string{adapternats.RiskPositionExposureLatestBucket},
-			ConsumerSpec:   adapternats.StorePositionExposureRiskConsumer(),
+			Buckets:        []string{natsrisk.PositionExposureLatestBucket},
+			ConsumerSpec:   natsrisk.StorePositionExposureRiskConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewRiskProjectionActor(RiskProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.RiskPositionExposureLatestBucket,
+					Bucket:  natsrisk.PositionExposureLatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewRiskConsumerActor(RiskConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.risk, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("position_exposure", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsrisk.NewConsumer(url, spec, reg.risk, func(event risk.RiskAssessedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, riskReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 
 		// --- Execution pipelines (opt-in via pipeline.execution_families) ---
@@ -302,21 +363,25 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "paper_order",
 			ProjectionName: "execution-paper-order-projection",
 			ConsumerName:   "execution-paper-order-consumer",
-			Buckets:        []string{adapternats.ExecutionPaperOrderLatestBucket},
-			ConsumerSpec:   adapternats.StorePaperOrderExecutionConsumer(),
+			Buckets:        []string{natsexecution.PaperOrderLatestBucket},
+			ConsumerSpec:   natsexecution.StorePaperOrderExecutionConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewExecutionProjectionActor(ExecutionProjectionConfig{
 					NATSURL: natsURL,
-					Bucket:  adapternats.ExecutionPaperOrderLatestBucket,
+					Bucket:  natsexecution.PaperOrderLatestBucket,
 					Tracker: tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewExecutionConsumerActor(ExecutionConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.execution, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("paper_order", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsexecution.NewConsumer(url, spec, reg.execution, func(event domainexec.PaperOrderSubmittedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, executionReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 		// Venue Family: materializes venue_market_order fills from execute.
 		{
@@ -324,22 +389,26 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			Family:         "venue_market_order",
 			ProjectionName: "execution-venue-market-order-projection",
 			ConsumerName:   "execution-venue-market-order-consumer",
-			Buckets:        []string{adapternats.ExecutionVenueMarketOrderLatestBucket},
-			ConsumerSpec:   adapternats.StoreVenueMarketOrderFillConsumer(),
+			Buckets:        []string{natsexecution.VenueMarketOrderLatestBucket},
+			ConsumerSpec:   natsexecution.StoreVenueMarketOrderFillConsumer(),
 			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
 			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
 				return NewFillProjectionActor(FillProjectionConfig{
 					NATSURL:      natsURL,
-					Bucket:       adapternats.ExecutionVenueMarketOrderLatestBucket,
-					IntentBucket: adapternats.ExecutionPaperOrderLatestBucket,
+					Bucket:       natsexecution.VenueMarketOrderLatestBucket,
+					IntentBucket: natsexecution.PaperOrderLatestBucket,
 					Tracker:      tracker,
 				})
 			},
-			NewConsumer: func(natsURL string, spec adapternats.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker) actor.Producer {
-				return NewFillConsumerActor(FillConsumerConfig{
-					URL: natsURL, ConsumerSpec: spec, Registry: reg.execution, ProjectionPID: projPID, Tracker: tracker,
-				})
-			},
+			NewConsumer: startConsumer("venue_market_order", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsexecution.NewFillConsumer(url, spec, reg.execution, func(event domainexec.VenueOrderFilledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, fillReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
 		},
 	}, reg
 }

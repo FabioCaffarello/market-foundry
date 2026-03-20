@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -84,7 +85,7 @@ func (a *CandleProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *CandleProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewCandleKVStore(a.cfg.NATSURL)
+	store := natsevidence.NewCandleKVStore(a.cfg.NATSURL)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start candle KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -94,8 +95,8 @@ func (a *CandleProjectionActor) start(c *actor.Context) {
 	a.store = store
 	a.closer = store.Close
 	a.logger.Info("candle projection started",
-		"bucket_latest", adapternats.CandleLatestBucket,
-		"bucket_history", adapternats.CandleHistoryBucket,
+		"bucket_latest", natsevidence.CandleLatestBucket,
+		"bucket_history", natsevidence.CandleHistoryBucket,
 	)
 }
 
@@ -141,7 +142,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		a.logger.Debug("latest skipped: existing is newer",
 			"source", candle.Source,
@@ -150,7 +151,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 			"open_time", candle.OpenTime.Format(time.RFC3339),
 		)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		a.logger.Debug("latest skipped: duplicate open_time",
 			"source", candle.Source,
@@ -175,7 +176,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -184,7 +185,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + candle.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("candle materialized",
 			"source", candle.Source,
 			"symbol", candle.Symbol,

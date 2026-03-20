@@ -47,11 +47,12 @@ func TestDerivedFields_RSI(t *testing.T) {
 	assertField(t, "InserterName", d.InserterName, "writer-signal-rsi-inserter")
 	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsSignalFamilyEnabled")
 	assertField(t, "RegistryField", d.RegistryField, "signal")
-	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewSignalConsumer")
+	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewConsumer")
 	assertField(t, "PascalFamily", d.PascalFamily, "RSI")
 	assertField(t, "PascalLayer", d.PascalLayer, "Signal")
 	assertField(t, "InsertSQL", d.InsertSQL, "INSERT INTO signals")
 	assertField(t, "HyphenFamily", d.HyphenFamily, "rsi")
+	assertField(t, "PackageAlias", d.PackageAlias, "natssignal")
 }
 
 func TestDerivedFields_PaperOrder(t *testing.T) {
@@ -67,10 +68,11 @@ func TestDerivedFields_PaperOrder(t *testing.T) {
 	assertField(t, "ConsumerName", d.ConsumerName, "writer-execution-paper-order-consumer")
 	assertField(t, "InserterName", d.InserterName, "writer-execution-paper-order-inserter")
 	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsExecutionFamilyEnabled")
-	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewExecutionConsumer")
+	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewConsumer")
 	assertField(t, "PascalFamily", d.PascalFamily, "PaperOrder")
 	assertField(t, "PascalLayer", d.PascalLayer, "Execution")
 	assertField(t, "HyphenFamily", d.HyphenFamily, "paper-order")
+	assertField(t, "PackageAlias", d.PackageAlias, "natsexecution")
 }
 
 func TestDerivedFields_Evidence(t *testing.T) {
@@ -84,6 +86,8 @@ func TestDerivedFields_Evidence(t *testing.T) {
 	assertField(t, "ConsumerName", d.ConsumerName, "writer-candle-consumer")
 	assertField(t, "InserterName", d.InserterName, "writer-candle-inserter")
 	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsFamilyEnabled")
+	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewCandleConsumer")
+	assertField(t, "PackageAlias", d.PackageAlias, "natsevidence")
 }
 
 func TestLoadSpec(t *testing.T) {

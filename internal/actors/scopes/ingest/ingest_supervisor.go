@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsobservation "internal/adapters/nats/natsobservation"
 	"internal/application/ports"
 	"internal/shared/healthz"
 	"internal/shared/settings"
@@ -20,7 +20,7 @@ type IngestSupervisor struct {
 	cfg              settings.AppConfig
 	gateway          ports.ConfigctlGateway
 	logger           *slog.Logger
-	registry         adapternats.ObservationRegistry
+	registry         natsobservation.Registry
 	exchanges        map[string]*actor.PID // key: source → ExchangeScopeActor PID
 	publisherTracker *healthz.Tracker
 }
@@ -67,7 +67,7 @@ func (s *IngestSupervisor) start(ctx *actor.Context) error {
 		return fmt.Errorf("nats must be enabled for ingest")
 	}
 
-	s.registry = adapternats.DefaultObservationRegistry()
+	s.registry = natsobservation.DefaultRegistry()
 
 	// Spawn the binding watcher to discover and react to active bindings.
 	ctx.SpawnChild(NewBindingWatcherActor(BindingWatcherConfig{

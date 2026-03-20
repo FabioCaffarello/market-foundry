@@ -416,8 +416,7 @@ fn check_tooling_boundary(project_root: &Path) -> CheckResult {
                 {
                     continue;
                 }
-                let is_use_stmt =
-                    trimmed.starts_with("use ") && trimmed.contains("market_foundry");
+                let is_use_stmt = trimmed.starts_with("use ") && trimmed.contains("market_foundry");
                 let is_mod_stmt = trimmed.starts_with("mod ") && trimmed.contains("internal");
                 if is_use_stmt || is_mod_stmt {
                     findings.push(

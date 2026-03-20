@@ -8,7 +8,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natskit "internal/adapters/nats/natskit"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -75,7 +76,7 @@ func (a *StrategyProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *StrategyProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewStrategyKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natsstrategy.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start strategy KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -132,15 +133,15 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -149,7 +150,7 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 		a.cfg.Tracker.Counter("materialized:" + strat.Symbol).Add(1)
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("strategy materialized",
 			"type", strat.Type,
 			"source", strat.Source,

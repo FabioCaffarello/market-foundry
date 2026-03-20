@@ -292,10 +292,7 @@ mod tests {
         assert!(ingest.depends_on.contains(&"kafka".to_string()));
         assert!(ingest.profiles.contains(&"dataplane".to_string()));
         assert!(ingest.profiles.contains(&"all".to_string()));
-        assert_eq!(
-            ingest.image.as_deref(),
-            Some("market-foundry/ingest:dev")
-        );
+        assert_eq!(ingest.image.as_deref(), Some("market-foundry/ingest:dev"));
     }
 
     #[test]

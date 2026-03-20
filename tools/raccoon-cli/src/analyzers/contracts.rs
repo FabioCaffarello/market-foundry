@@ -945,7 +945,10 @@ mod tests {
         index.registry.control_specs[0].request_type = "wrong.type.here".into();
         let result = check_subject_type_convention(&index);
         assert!(
-            result.findings.iter().any(|f| f.check == "subject-request-type"),
+            result
+                .findings
+                .iter()
+                .any(|f| f.check == "subject-request-type"),
             "should warn about domain mismatch"
         );
     }
@@ -956,7 +959,10 @@ mod tests {
         index.registry.control_specs[0].reply_type = "wrong.type.here".into();
         let result = check_subject_type_convention(&index);
         assert!(
-            result.findings.iter().any(|f| f.check == "subject-reply-type"),
+            result
+                .findings
+                .iter()
+                .any(|f| f.check == "subject-reply-type"),
             "should warn about domain mismatch"
         );
     }

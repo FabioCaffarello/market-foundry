@@ -8,7 +8,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsexecution "internal/adapters/nats/natsexecution"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 
@@ -19,7 +19,7 @@ import (
 type ExecutionPublisherConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.ExecutionRegistry
+	Registry natsexecution.Registry
 	Tracker  *healthz.Tracker
 }
 
@@ -28,8 +28,8 @@ type ExecutionPublisherConfig struct {
 type ExecutionPublisherActor struct {
 	cfg          ExecutionPublisherConfig
 	logger       *slog.Logger
-	publisher    *adapternats.ExecutionPublisher
-	controlStore *adapternats.ExecutionControlKVStore
+	publisher    *natsexecution.Publisher
+	controlStore *natsexecution.ControlKVStore
 	published    atomic.Int64
 	errors       atomic.Int64
 	halted       atomic.Int64
@@ -48,7 +48,7 @@ func (a *ExecutionPublisherActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		pub := adapternats.NewExecutionPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		pub := natsexecution.NewPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := pub.Start(); err != nil {
 			a.logger.Error("start execution publisher", "error", err)
 			c.Engine().Poison(c.PID())
@@ -56,7 +56,7 @@ func (a *ExecutionPublisherActor) Receive(c *actor.Context) {
 		}
 		a.publisher = pub
 
-		controlStore := adapternats.NewExecutionControlKVStore(a.cfg.URL)
+		controlStore := natsexecution.NewControlKVStore(a.cfg.URL)
 		if err := controlStore.Start(); err != nil {
 			a.logger.Warn("execution control KV store unavailable — gate check disabled", "error", err)
 		} else {

@@ -8,11 +8,15 @@
 
 | Metric | Count |
 |--------|-------|
-| Active architecture docs (`docs/architecture/`) | 240 |
+| Active architecture docs (`docs/architecture/`) | 249 (S221 corrected from 243; +4 from S219/S220 + 2 from S221) |
 | Archived docs (`docs/archive/`, 16 subdirectories) | 245 |
-| Stage reports (`docs/stages/`) | 212 (including INDEX.md) |
+| Stage reports (`docs/stages/`) | 219 (S221 corrected from 214; +3 reports S219/S220/S221 + INDEX.md) |
 
-The consolidation waves (S205-S215) reduced documentation entropy by archiving superseded, redundant, and phase-specific artifacts into semantically grouped subdirectories under `docs/archive/`. The 238 surviving architecture documents represent the canonical, authoritative set.
+The consolidation waves (S205-S215) reduced documentation entropy by archiving superseded, redundant, and phase-specific artifacts into semantically grouped subdirectories under `docs/archive/`. The surviving architecture documents represent the canonical, authoritative set.
+
+> **S217 note:** Counts corrected after mechanical verification. Original S215 count of 240 undercounted by 3 (S216 gate + gains/tradeoffs + next-wave docs added during S216). Stage report count of 212 undercounted by 2 (S215 + S216 reports).
+>
+> **S221 note:** Architecture doc count increased to 249 (+4 from S219–S220: `actor-infrastructure-adoption-before-and-after.md`, `h04-actor-migration-completion.md`, `h06-module-graph-simplification.md`, `module-graph-before-and-after.md`; +2 from S221: `post-restructure-documentation-reconciliation.md`, `restructure-doc-impact-and-reconciliation-log.md`). Stage reports +3 (S219, S220, S221). No docs deleted; S218 NATS restructuring was part of the tranche but did not produce a dedicated stage report (work documented in S221 reconciliation log).
 
 ---
 
@@ -402,7 +406,7 @@ The `docs/archive/` directory contains 245 files across 16 semantically grouped 
 
 ## Stage Reports
 
-The file `docs/stages/INDEX.md` provides a chronological index of 212 stage reports across 17 phases (pre-numbered foundation through S210+). Each report is an immutable audit trail artifact documenting inputs, outputs, decisions, and findings for its stage.
+The file `docs/stages/INDEX.md` provides a chronological index of 214 stage reports across 17 phases (pre-numbered foundation through S210+). Each report is an immutable audit trail artifact documenting inputs, outputs, decisions, and findings for its stage.
 
 ---
 

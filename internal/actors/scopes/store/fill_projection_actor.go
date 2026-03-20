@@ -9,7 +9,8 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -34,8 +35,8 @@ type FillProjectionConfig struct {
 type FillProjectionActor struct {
 	cfg         FillProjectionConfig
 	logger      *slog.Logger
-	store       *adapternats.ExecutionKVStore
-	intentStore *adapternats.ExecutionKVStore // Read-only access to intent bucket for RC-1.
+	store       *natsexecution.KVStore
+	intentStore *natsexecution.KVStore // Read-only access to intent bucket for RC-1.
 	stats       fillProjectionStats
 }
 
@@ -92,7 +93,7 @@ func (a *FillProjectionActor) Receive(c *actor.Context) {
 }
 
 func (a *FillProjectionActor) start(c *actor.Context) {
-	store := adapternats.NewExecutionKVStore(a.cfg.NATSURL, a.cfg.Bucket)
+	store := natsexecution.NewKVStore(a.cfg.NATSURL, a.cfg.Bucket)
 	if err := store.Start(); err != nil {
 		a.logger.Error("start fill KV store", "error", err)
 		c.Engine().Poison(c.PID())
@@ -102,7 +103,7 @@ func (a *FillProjectionActor) start(c *actor.Context) {
 
 	// RC-1: Open intent bucket for fill-to-intent correlation checks.
 	if a.cfg.IntentBucket != "" {
-		intentStore := adapternats.NewExecutionKVStore(a.cfg.NATSURL, a.cfg.IntentBucket)
+		intentStore := natsexecution.NewKVStore(a.cfg.NATSURL, a.cfg.IntentBucket)
 		if err := intentStore.Start(); err != nil {
 			a.logger.Warn("intent KV store unavailable — RC-1 correlation check disabled", "error", err)
 		} else {
@@ -205,15 +206,15 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 	}
 
 	switch result {
-	case adapternats.PutSkippedStale:
+	case natskit.PutSkippedStale:
 		a.stats.skippedStale.Add(1)
 		return
-	case adapternats.PutSkippedDuplicate:
+	case natskit.PutSkippedDuplicate:
 		a.stats.skippedDedup.Add(1)
 		return
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.stats.materialized.Add(1)
 	}
 
@@ -221,7 +222,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 		a.cfg.Tracker.RecordEvent()
 	}
 
-	if result == adapternats.PutWritten {
+	if result == natskit.PutWritten {
 		a.logger.Info("fill materialized",
 			"type", intent.Type,
 			"source", intent.Source,

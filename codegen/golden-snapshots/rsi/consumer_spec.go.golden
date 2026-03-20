@@ -1,11 +1,11 @@
 // WriterRSISignalConsumer defines the durable consumer spec for writer consuming RSI signal events.
-func WriterRSISignalConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterRSISignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-signal-rsi",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "signal.events.rsi.generated.>",
 			Type:    "signal.events.v1.rsi_generated",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "SIGNAL_EVENTS",
 			},
 		},

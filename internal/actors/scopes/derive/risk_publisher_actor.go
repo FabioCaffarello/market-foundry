@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsrisk "internal/adapters/nats/natsrisk"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -17,7 +17,7 @@ import (
 type RiskPublisherConfig struct {
 	URL      string
 	Source   string
-	Registry adapternats.RiskRegistry
+	Registry natsrisk.Registry
 	Tracker  *healthz.Tracker
 }
 
@@ -25,7 +25,7 @@ type RiskPublisherConfig struct {
 type RiskPublisherActor struct {
 	cfg       RiskPublisherConfig
 	logger    *slog.Logger
-	publisher *adapternats.RiskPublisher
+	publisher *natsrisk.Publisher
 }
 
 func NewRiskPublisherActor(cfg RiskPublisherConfig) actor.Producer {
@@ -41,7 +41,7 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		pub := adapternats.NewRiskPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
+		pub := natsrisk.NewPublisher(a.cfg.URL, a.cfg.Source, a.cfg.Registry)
 		if err := pub.Start(); err != nil {
 			a.logger.Error("start risk publisher", "error", err)
 			c.Engine().Poison(c.PID())

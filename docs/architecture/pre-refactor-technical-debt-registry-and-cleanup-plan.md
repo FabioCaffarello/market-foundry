@@ -29,8 +29,8 @@ This document is the authoritative technical debt registry for market-foundry as
 
 | ID | Item | Current State | Priority | Blast Radius | Notes |
 |----|------|---------------|----------|--------------|-------|
-| **TD-01** | `parseAnalyticalParams()` extraction (H-5) | Handler at 615/620 line limit; function not extracted | P0 | Gateway handlers | Scoped since S189. Physical line limit means any handler modification risks build failure. Must extract before touching analytical handlers. |
-| **TD-02** | Reader 10-parameter positional signature (TRIG-3) | 6 readers with 10-param constructors | P1 | `internal/adapters/clickhouse/` | Escalation threshold reached. New families would push past limit. Refactoring phase should introduce options pattern or builder. |
+| **TD-01** | `parseAnalyticalParams()` extraction (H-5) | **RESOLVED** (S217 verified: function exists at analytical.go:90-122, file is 502 lines) | P0 (done) | Gateway handlers | Scoped since S189. S217 code inspection confirmed extraction already completed. |
+| **TD-02** | Reader 10-parameter positional signature (TRIG-3) | 6 readers with 10-param constructors | P1 (formally deferred S217) | `internal/adapters/clickhouse/` | Escalation threshold reached but no new families added in this wave. Formally deferred to next expansion wave — trigger: Family 07 addition. |
 | **TD-03** | Test assertion hardcoded family count (D-6) | Tests break on new family addition | P2 | `cmd/writer/`, `cmd/gateway/` | Count literals (e.g., `assert.Len(families, 7)`) scattered across test files. Replace with registry-driven counts. |
 | **TD-04** | `CODEGEN_ROOT` manual env var requirement (D-7) | Codegen scripts require explicit `CODEGEN_ROOT` | P3 | Developer experience | Auto-detection via `go list -m` or relative path resolution. Low priority. |
 | **TD-05** | Writer binary previously committed to git | Binary removed (S206), gitignore added | P0 (done) | Hygiene | Verified resolved in S206. Confirm removal persists. |
@@ -51,12 +51,12 @@ This document is the authoritative technical debt registry for market-foundry as
 
 | ID | Item | Current State | Priority | Notes |
 |----|------|---------------|----------|-------|
-| **AD-01** | 13 independent Go modules in monorepo | Each with own go.mod/go.sum | P1 | Module graph is correct but creates dependency management overhead. Evaluate consolidation during refactoring (e.g., merge internal/* modules where coupling is already tight). |
-| **AD-02** | Deferred items scattered across 15+ "next-wave" docs | No single deferred-work index | P0 | This registry partially addresses this. The refactoring phase must maintain a single source of truth for deferred work. |
-| **AD-03** | Superseded documents not marked | v1 → v2 transitions implicit | P1 | See documentation entropy map (companion document). |
-| **AD-04** | Per-family doc boilerplate (~8-12 docs per family) | 60+ family-lifecycle docs with identical structure | P1 | Consolidation target. See documentation entropy map. |
-| **AD-05** | 440 architecture docs with high entropy | Temporal narrative without cross-linking | P0 | Primary documentation debt. Detailed in companion map. |
-| **AD-06** | Stage reports (205 files) accumulate without summary index | Sequential numbering, no thematic grouping | P1 | Stage reports are valuable as audit trail but need an index by theme/phase. |
+| **AD-01** | Go module count in monorepo | **PARTIALLY RESOLVED** (S220: 19→17 modules; `internal/migrate` absorbed into `cmd/migrate/migrate`, `internal/adapters/repositories` absorbed into `internal/application/configctl/memoryrepo`) | P1 (partial) | H-06 completed in S220. 2 modules absorbed (zero new dependency edges). Remaining 17 modules justified by external dependency isolation or size. Further simplification not recommended without evidence of friction. |
+| **AD-02** | Deferred items scattered across 15+ "next-wave" docs | **RESOLVED** (S215 consolidated into `deferred-work-registry.md` + `gains-tradeoffs-and-open-debts-timeline.md`) | P0 (done) | Addressed by S215 consolidation wave. |
+| **AD-03** | Superseded documents not marked | **RESOLVED** (S215: 245 docs archived into 16 categories, superseded docs moved to `docs/archive/`) | P1 (done) | Addressed by S215 consolidation wave. |
+| **AD-04** | Per-family doc boilerplate (~8-12 docs per family) | **RESOLVED** (S215: family lifecycle docs consolidated into 4 records + archive) | P1 (done) | Addressed by S215 consolidation wave. |
+| **AD-05** | 440 architecture docs with high entropy | **PARTIALLY RESOLVED** (S215: 457→243 active docs, 47% reduction; target ≤150 not met) | P0 (partial) | S215 consolidation reduced entropy significantly. Remaining 93-doc gap is the sole FAIL exit criterion (XC-1). |
+| **AD-06** | Stage reports (205 files) accumulate without summary index | **RESOLVED** (S215: INDEX.md created with 214 entries across 17 phases) | P1 (done) | Addressed by S215 consolidation wave. |
 | **AD-07** | TC-01 deferred items (D-01 through D-06) | All deferred with TC-02 gate | P2 | State persistence (D-06) is TC-02 hard gate. Not in refactoring scope. |
 | **AD-08** | Cold-start bootstrap / state persistence WAL | Deferred past Wave A | P2 | Architectural decision needed before implementation. Not blocking refactoring. |
 | **AD-09** | 4 deferred writer families | tradeburst, volume, ema_crossover, venue_market_order | P3 | Acknowledged but explicitly not in current scope. |

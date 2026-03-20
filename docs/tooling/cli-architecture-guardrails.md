@@ -38,7 +38,7 @@ These checks produce definitive pass/fail results based on structural analysis.
 
 | Check | What It Validates |
 |-------|------------------|
-| config-presence | All 5 service configs exist (configctl, gateway, ingest, derive, store) |
+| config-presence | Core service configs exist and remain NATS-addressable (`configctl`, `gateway`, `ingest`, `derive`, `store`; `execute` when the execute surface is active) |
 | config-nats | Each config has valid NATS configuration |
 | compose-services | Docker Compose defines all expected services |
 | compose-dependencies | Service dependency graph is correct |
@@ -63,6 +63,10 @@ These checks use pattern matching and may produce false positives in edge cases.
 | actor-scope drift | Binaries without corresponding actor scope directories | Deterministic |
 | stream-registry drift | JetStream stream names in source not matching canonical streams | Heuristic |
 
+Post-S219 nuance:
+- Store consumer governance no longer expects per-domain `*_consumer_actor.go` wrappers.
+- Drift checks validate the generic store consumer infrastructure plus family wiring in `store_supervisor.go`.
+
 ### Contract Audit (`contract-audit`)
 
 | Check | What It Validates | Type |
@@ -71,6 +75,10 @@ These checks use pattern matching and may produce false positives in edge cases.
 | Subject naming convention | Subjects follow `{domain}.{plane}.{aggregate}.{verb}` pattern | Heuristic |
 | Envelope structure | Message envelopes have required metadata fields | Deterministic |
 | Codec consistency | Encoding/decoding uses consistent codec (CBOR) | Heuristic |
+
+Post-S218 nuance:
+- Registry discovery scans both legacy `*_registry.go` files and the current `internal/adapters/nats/<domain>/registry.go` files.
+- Consumer discovery accepts `ConsumerSpec{...}` blocks and `natskit.NewConsumerSpec(...)` factory calls.
 
 ### Coverage Map (`coverage-map`)
 

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsobservation "internal/adapters/nats/natsobservation"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -15,7 +15,7 @@ import (
 type ExchangeScopeConfig struct {
 	Source           string
 	NATSURL          string
-	Registry         adapternats.ObservationRegistry
+	Registry         natsobservation.Registry
 	PublisherTracker *healthz.Tracker
 }
 

@@ -5,7 +5,13 @@ import (
 	"log/slog"
 
 	adapterch "internal/adapters/clickhouse"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
@@ -25,11 +31,11 @@ type writerPipeline struct {
 	inserterName string
 	table        string
 	insertSQL    string
-	consumerSpec adapternats.ConsumerSpec
+	consumerSpec natskit.ConsumerSpec
 	isEnabled    func(settings.PipelineConfig) bool
 	// startConsumer creates the NATS consumer, wiring it to send rows to the inserter.
 	// The actor.Context is the consumer actor's context for sending messages.
-	startConsumer func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
+	startConsumer func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
 }
 
 // writerTrackerDef describes the tracker pair for one writer pipeline.
@@ -57,19 +63,19 @@ func writerTrackerDefs() []writerTrackerDef {
 // The chClient can be nil (used only for tracker def extraction).
 func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 	reg := struct {
-		evidence  adapternats.EvidenceRegistry
-		signal    adapternats.SignalRegistry
-		decision  adapternats.DecisionRegistry
-		strategy  adapternats.StrategyRegistry
-		risk      adapternats.RiskRegistry
-		execution adapternats.ExecutionRegistry
+		evidence  natsevidence.Registry
+		signal    natssignal.Registry
+		decision  natsdecision.Registry
+		strategy  natsstrategy.Registry
+		risk      natsrisk.Registry
+		execution natsexecution.Registry
 	}{
-		evidence:  adapternats.DefaultEvidenceRegistry(),
-		signal:    adapternats.DefaultSignalRegistry(),
-		decision:  adapternats.DefaultDecisionRegistry(),
-		strategy:  adapternats.DefaultStrategyRegistry(),
-		risk:      adapternats.DefaultRiskRegistry(),
-		execution: adapternats.DefaultExecutionRegistry(),
+		evidence:  natsevidence.DefaultRegistry(),
+		signal:    natssignal.DefaultRegistry(),
+		decision:  natsdecision.DefaultRegistry(),
+		strategy:  natsstrategy.DefaultRegistry(),
+		risk:      natsrisk.DefaultRegistry(),
+		execution: natsexecution.DefaultRegistry(),
 	}
 
 	return []writerPipeline{
@@ -85,10 +91,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-candle-inserter",
 			table:        "evidence_candles",
 			insertSQL:    "INSERT INTO evidence_candles",
-			consumerSpec: adapternats.WriterCandleConsumer(),
+			consumerSpec: natsevidence.WriterCandleConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewEvidenceConsumer(natsURL, spec, reg.evidence,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natsevidence.NewCandleConsumer(natsURL, spec, reg.evidence,
 					func(event evidence.CandleSampledEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -110,10 +116,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-signal-rsi-inserter",
 			table:        "signals",
 			insertSQL:    "INSERT INTO signals",
-			consumerSpec: adapternats.WriterRSISignalConsumer(),
+			consumerSpec: natssignal.WriterRSISignalConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewSignalConsumer(natsURL, spec, reg.signal,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natssignal.NewConsumer(natsURL, spec, reg.signal,
 					func(event signal.SignalGeneratedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -136,10 +142,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-signal-ema-inserter",
 			table:        "signals",
 			insertSQL:    "INSERT INTO signals",
-			consumerSpec: adapternats.WriterEMASignalConsumer(),
+			consumerSpec: natssignal.WriterEMASignalConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewSignalConsumer(natsURL, spec, reg.signal,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natssignal.NewConsumer(natsURL, spec, reg.signal,
 					func(event signal.SignalGeneratedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -167,10 +173,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-decision-rsi-oversold-inserter",
 			table:        "decisions",
 			insertSQL:    "INSERT INTO decisions",
-			consumerSpec: adapternats.WriterRSIOversoldDecisionConsumer(),
+			consumerSpec: natsdecision.WriterRSIOversoldDecisionConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewDecisionConsumer(natsURL, spec, reg.decision,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natsdecision.NewConsumer(natsURL, spec, reg.decision,
 					func(event decision.DecisionEvaluatedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -191,10 +197,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-strategy-mean-reversion-entry-inserter",
 			table:        "strategies",
 			insertSQL:    "INSERT INTO strategies",
-			consumerSpec: adapternats.WriterMeanReversionEntryStrategyConsumer(),
+			consumerSpec: natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewStrategyConsumer(natsURL, spec, reg.strategy,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natsstrategy.NewConsumer(natsURL, spec, reg.strategy,
 					func(event strategy.StrategyResolvedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -215,10 +221,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-risk-position-exposure-inserter",
 			table:        "risk_assessments",
 			insertSQL:    "INSERT INTO risk_assessments",
-			consumerSpec: adapternats.WriterPositionExposureRiskConsumer(),
+			consumerSpec: natsrisk.WriterPositionExposureRiskConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewRiskConsumer(natsURL, spec, reg.risk,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natsrisk.NewConsumer(natsURL, spec, reg.risk,
 					func(event risk.RiskAssessedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()
@@ -239,10 +245,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			inserterName: "writer-execution-paper-order-inserter",
 			table:        "executions",
 			insertSQL:    "INSERT INTO executions",
-			consumerSpec: adapternats.WriterPaperOrderExecutionConsumer(),
+			consumerSpec: natsexecution.WriterPaperOrderExecutionConsumer(),
 			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
-			startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := adapternats.NewExecutionConsumer(natsURL, spec, reg.execution,
+			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+				consumer := natsexecution.NewConsumer(natsURL, spec, reg.execution,
 					func(event execution.PaperOrderSubmittedEvent) {
 						if tracker != nil {
 							tracker.RecordEvent()

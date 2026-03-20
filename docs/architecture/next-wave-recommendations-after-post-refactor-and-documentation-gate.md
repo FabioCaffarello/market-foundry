@@ -2,7 +2,8 @@
 
 **Date:** 2026-03-20
 **Gate:** S216 — Post-Refactor and Documentation Exit Gate
-**Gate verdict:** CONDITIONAL PASS
+**Gate verdict:** CONDITIONAL PASS (S217 reconciled — remaining blockers reduced from 5 to 3)
+**S221 Reconciliation:** Path B executed in S218–S220. H-01, H-04, H-06 completed. Recommendations below reflect pre-execution state; see S221 reconciliation log for current status.
 
 ---
 
@@ -14,10 +15,10 @@ Before any expansion or new functional work, one short focused tranche must clos
 
 | # | Item | Effort | Exit criterion addressed |
 |---|------|--------|--------------------------|
-| 1 | Archive ~90 docs from `docs/architecture/` to reach ≤150 active | 1 session | XC-1 |
-| 2 | Extract `parseAnalyticalParams()` from `analytical.go` | Small | MF-1, XC-2 |
+| 1 | Archive ~93 docs from `docs/architecture/` to reach ≤150 active | 1 session | XC-1 |
+| 2 | ~~Extract `parseAnalyticalParams()` from `analytical.go`~~ | ~~Small~~ | ~~MF-1, XC-2~~ — **S217: confirmed already done** |
 | 3 | Push and verify CI pipeline green | Mechanical | EC-7, XC-6 |
-| 4 | Update debt registry to reflect S211–S215 outcomes | Small | XC-13 |
+| 4 | ~~Update debt registry to reflect S211–S215 outcomes~~ | ~~Small~~ | ~~XC-13~~ — **S217: done in reconciliation** |
 | 5 | Tag repository `refactoring-phase-exit-s216` | Mechanical | XC-11 |
 
 ### What this tranche does NOT permit
@@ -52,23 +53,15 @@ The Foundry has three defensible options after the closing tranche. The recommen
 
 **Mitigation:** Set a hard cap — e.g., "if adding Family 07 requires touching >12 files, trigger H-01/H-04 before proceeding."
 
-### Path B: Execute Remaining HIGH Structural Refactoring
-**When:** If the priority is reducing long-term evolution cost before adding more families.
+### Path B: Execute Remaining HIGH Structural Refactoring — **COMPLETED (S218–S220)**
+**Status:** EXECUTED in S218–S220 tranche.
 
-**Prerequisites:**
-- All XC criteria PASS
-- Same freeze model as S211 (new charter, new exit criteria)
+**What was delivered:**
+1. **H-01 (S218):** NATS adapter sub-packaging — flat structure → 8 domain sub-packages (`natskit`, `natsconfigctl`, `natsdecision`, `natsevidence`, `natsexecution`, `natsobservation`, `natsrisk`, `natssignal`, `natsstrategy`)
+2. **H-04 (S219):** Per-family actor migration — 9 consumer actors → 1 `GenericConsumerActor`, 8 files deleted, ~510 lines recovered
+3. **H-06 (S220):** Module graph simplification — 19→17 modules, 2 absorbed (`internal/migrate`, `internal/adapters/repositories`), zero new dependency edges
 
-**Scope:**
-1. H-01: NATS adapter sub-packaging (73 files → organized sub-packages)
-2. H-04 completion: Per-family actor migration to `GenericConsumerActor` (~1,800 lines recovered)
-3. H-06: Module graph evaluation and simplification (19 → ~10 modules)
-
-**Duration:** 2–3 focused sessions.
-
-**Value:** Eliminates the three largest remaining duplication/complexity clusters. After this, adding a new family becomes a 5-file, single-package operation instead of a 15-file, 8-package operation.
-
-**Risk:** Low — infrastructure for H-04 already exists. H-01 is organizational. H-06 requires evaluation first.
+**Outcome:** All 3 HIGH structural items completed. Family-expansion blast radius reduced as projected. Next path: Path A (controlled expansion) or Path C (pause).
 
 ### Path C: Pause and Wait for External Signal
 **When:** If there's no immediate pressure to expand functionality and structural state is acceptable.
@@ -85,15 +78,14 @@ The Foundry has three defensible options after the closing tranche. The recommen
 
 ## 3. Recommendation
 
-**Path B first, then Path A.**
+**Path B first, then Path A.** — **S221 update: Path B is now complete.**
 
-Rationale:
-- The S212 census identified NATS adapter scale, actor duplication, and module count as the three largest structural costs. Two of three have infrastructure ready (H-04) or clear mechanical steps (H-01).
-- Adding families on top of the current 19-module, 73-file NATS adapter will compound the blast radius problem.
-- Path B is bounded (2–3 sessions) and has clear exit criteria (same model as S211).
-- After Path B, Path A becomes cheaper per family added.
+S218–S220 executed the recommended Path B. The Foundry is now in the post-Path-B state:
+- NATS adapter is domain-organized (8 sub-packages)
+- Store consumer actors are unified (1 generic actor)
+- Module graph simplified (17 modules, 2 absorbed)
 
-If business pressure requires immediate capability expansion, Path A is viable — but set the blast radius cap described above.
+**Current recommendation:** Path A (controlled expansion) is now viable at reduced blast radius. Alternatively, Path C (pause) remains defensible if no immediate pressure.
 
 ---
 

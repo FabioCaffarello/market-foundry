@@ -7,7 +7,7 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	memoryrepo "internal/adapters/repositories/memory/configctl"
+	memoryrepo "internal/application/configctl/memoryrepo"
 	configapp "internal/application/configctl"
 	"internal/shared/events"
 	"internal/shared/problem"

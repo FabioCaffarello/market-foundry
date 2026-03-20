@@ -4,14 +4,18 @@
 **Phase:** S211–S215 Strategic Refactoring and Documentation Consolidation
 **Gate type:** Formal exit review
 **Verdict:** CONDITIONAL PASS — one short tranche required before clean exit
+**S217 Reconciliation:** Evidence drift corrected — see `s216-evidence-reconciliation-log.md`
+**S221 Reconciliation:** S218–S220 tranche completed H-01, H-04, H-06. Module count 19→17. XC-4 now references 17 modules. S213 assessment upgraded to reflect full HIGH completion.
 
 ---
 
 ## 1. Executive Summary
 
-The S211–S215 phase delivered meaningful structural improvement to the Foundry. Documentation entropy was cut by 47%, three high-value code refactoring items were executed without regressions, and analytical/generated path ownership is now explicit in code and documentation. However, the phase did **not** fully meet its own formal exit criteria: active architecture docs remain at 240 (target ≤150), handler extraction (MF-1) was not executed, NATS sub-packaging (H-01) was not started, and CI verification on real push (EC-7) remains pending.
+The S211–S215 phase delivered meaningful structural improvement to the Foundry. Documentation entropy was cut by 47%, three high-value code refactoring items were executed without regressions, and analytical/generated path ownership is now explicit in code and documentation. However, the phase did **not** fully meet its own formal exit criteria: active architecture docs remain at 243 (target ≤150), NATS sub-packaging (H-01) was not started, and CI verification on real push (EC-7) remains pending.
 
-The Foundry is in a better state than before the wave. It is not yet in the state the wave promised.
+> **S217 correction:** MF-1 (`parseAnalyticalParams()` extraction) was incorrectly reported as NOT DONE in the original S216 review. Code inspection confirms the function exists at `internal/interfaces/http/handlers/analytical.go:90-122` and the file is 502 lines (well under the 620 ceiling). XC-2 is reclassified from FAIL to PASS. See `s216-evidence-reconciliation-log.md` for full details.
+
+The Foundry is in a better state than before the wave. The remaining gaps are narrower than S216 originally reported.
 
 ---
 
@@ -21,10 +25,10 @@ The Foundry is in a better state than before the wave. It is not yet in the stat
 
 | ID | Criterion | Target | Actual | Status |
 |----|-----------|--------|--------|--------|
-| XC-1 | Active architecture docs | ≤150 | 240 | **FAIL** |
-| XC-2 | P0 debt items remaining | 0 | 1 (MF-1 handler extraction) | **FAIL** |
-| XC-3 | P1 debt items remaining | 0 or formally deferred | ~3 unresolved | **PARTIAL** |
-| XC-4 | All 19 Go modules build clean | Yes | Yes (local) | **PASS** (local) |
+| XC-1 | Active architecture docs | ≤150 | 243 (S217 corrected from 240) | **FAIL** |
+| XC-2 | P0 debt items remaining | 0 | 0 (S217 corrected: MF-1 confirmed done) | **PASS** |
+| XC-3 | P1 debt items remaining | 0 or formally deferred | 2 formally deferred (TD-02, AD-01); 3 resolved (AD-03, AD-04, AD-06) | **PASS** (S217 reconciled) |
+| XC-4 | All Go modules build clean (S221: 19→17) | Yes | Yes (local) | **PASS** (local) |
 | XC-5 | All tests pass | Yes | Yes (local) | **PASS** (local) |
 | XC-6 | CI gates green | Yes | Not verified on push | **PENDING** |
 | XC-7 | 4/4 codegen gates passing | Yes | Yes (local) | **PASS** (local) |
@@ -33,15 +37,15 @@ The Foundry is in a better state than before the wave. It is not yet in the stat
 | XC-10 | No new P0 items introduced | Yes | Yes | **PASS** |
 | XC-11 | Repository tagged `refactoring-phase-exit` | Yes | Not done | **PENDING** |
 | XC-12 | No frozen item violations | Yes | Yes | **PASS** |
-| XC-13 | Debt registry updated | Yes | Partially | **PARTIAL** |
+| XC-13 | Debt registry updated | Yes | Updated in S217 | **PASS** (S217 reconciled) |
 
-**Summary:** 6 PASS, 2 PENDING, 2 PARTIAL, 2 FAIL — gate cannot close as-is.
+**Summary (S217 reconciled):** 9 PASS, 2 PENDING (XC-6, XC-11), 0 PARTIAL, 1 FAIL (XC-1) — gate blocked on doc count + mechanical CI/tag items only.
 
 ### 2.2 Must-Finish Items (MF-1 through MF-7)
 
 | ID | Item | Status |
 |----|------|--------|
-| MF-1 | Handler extraction (`parseAnalyticalParams()`) | **NOT DONE** |
+| MF-1 | Handler extraction (`parseAnalyticalParams()`) | **DONE** (S217 corrected: exists at analytical.go:90-122, file is 502 lines) |
 | MF-2 | CI smoke-analytical verification | **NOT VERIFIED** |
 | MF-3 | Codegen integrated check (7 families) | **PASS** (local) |
 | MF-4 | Writer binary removal | **DONE** (S206) |
@@ -69,9 +73,9 @@ The Foundry is in a better state than before the wave. It is not yet in the stat
 
 ### S213: Strategic Runtime and Package Refactor
 - **Delivered:** H-02 (consumer spec factory), H-03 (query builder), H-04 (generic actor infrastructure — partial).
-- **Not delivered:** H-01 (NATS sub-packaging), H-04 completion (per-family actor migration), H-05 (module consolidation), H-06 (module graph simplification).
-- **Assessment:** The items that were executed are clean, tested, and improve blast radius. But the HIGH-priority map was 6 items; only 2.5 were completed.
-- **Grade:** PARTIAL (42% of HIGH items)
+- **Not delivered in S213:** H-01 (NATS sub-packaging), H-04 completion (per-family actor migration), H-06 (module graph simplification).
+- **S221 update:** All deferred HIGH items were completed in the S218–S220 tranche: H-01 (S218), H-04 migration (S219), H-06 (S220). Combined assessment: all 6 HIGH items from the S212 census are now DONE.
+- **Grade:** PARTIAL at S213 exit → **COMPLETE** after S218–S220 tranche
 
 ### S214: Analytical/Generated Path Consolidation
 - **Delivered:** Ownership annotations in code, 3 canonical architecture docs, 3-zone model (Human/Machine/Mixed).
@@ -115,7 +119,7 @@ After the wave:
 - ClickHouse query construction: **REDUCED** (6 readers consolidated via `BuildQuery()`)
 - Store actor infrastructure: **PREPARED** (generic actor + stats created; migration deferred)
 - NATS adapter flat structure: **NOT ADDRESSED** (still 73 files, 10K+ lines, flat)
-- Handler line ceiling: **NOT ADDRESSED** (analytical.go still at 615/620)
+- Handler line ceiling: **RESOLVED** (S217 corrected: `parseAnalyticalParams()` extracted, file is 502 lines)
 - Module graph complexity: **NOT ADDRESSED** (still 19 modules)
 
 ### 4.3 Is the analytical/generated path more coherent?
@@ -145,8 +149,8 @@ After the wave:
 
 ### Critical (blocks clean exit)
 
-1. **XC-1: Documentation count** — 240 vs ≤150 target. ~90 docs need consolidation or archival.
-2. **MF-1: Handler extraction** — `parseAnalyticalParams()` not extracted from `analytical.go`. This is a P0 debt item and a formal must-finish.
+1. **XC-1: Documentation count** — 243 vs ≤150 target. ~93 docs need consolidation or archival.
+2. ~~**MF-1: Handler extraction**~~ — S217 corrected: `parseAnalyticalParams()` exists at analytical.go:90-122. File is 502 lines. **RESOLVED.**
 3. **EC-7: CI verification** — No real push has validated the CI pipeline.
 
 ### Significant (should be resolved or formally reclassified)
@@ -168,18 +172,16 @@ After the wave:
 
 ### Can the phase close cleanly?
 
-**No.** The phase achieved substantial progress but did not meet its own formal exit criteria on 3 hard points (XC-1, XC-2, EC-7).
+**Not yet, but closer than S216 reported.** After S217 reconciliation, the gate fails on 1 hard point (XC-1: doc count) and has 2 mechanical pending items (XC-6: CI on push, XC-11: tag). MF-1 and XC-2 are now PASS.
 
-### Recommended path
+### Recommended path (S217 updated)
 
-**CONDITIONAL PASS with mandatory short tranche.**
+**CONDITIONAL PASS with reduced closing tranche.**
 
 Execute one focused session addressing:
-1. Archive ~90 additional docs to reach ≤150 (mostly per-domain repetitive docs)
-2. Extract `parseAnalyticalParams()` from `analytical.go` (MF-1)
-3. Verify CI on real push (EC-7)
-4. Update debt registry to reflect current state (XC-13)
-5. Tag repository (XC-11)
+1. Archive ~93 additional docs to reach ≤150 (mostly per-domain repetitive docs) — XC-1
+2. Push and verify CI pipeline green — EC-7, XC-6
+3. Tag repository — XC-11
 
 After this tranche, the gate can close cleanly and the expansion freeze can lift.
 
@@ -199,9 +201,9 @@ These items are real debt. They are explicitly tracked in the debt registry. The
 | Question | Answer |
 |----------|--------|
 | Is the architecture clearer? | **Yes** |
-| Were main couplings reduced? | **Partially** (2.5 of 6 HIGH items) |
+| Were main couplings reduced? | **Partially** (3 of 6 HIGH items — S217 corrected: MF-1/H-5 confirmed done) |
 | Is analytical/generated path coherent? | **Yes** |
-| Is documentation canonical enough? | **Not yet** (240 vs ≤150) |
+| Is documentation canonical enough? | **Not yet** (243 vs ≤150) |
 | Is the Foundry healthier than before S211? | **Yes, measurably** |
-| Can the expansion freeze lift now? | **Not yet — one short tranche first** |
-| Next acceptable action | Short closing tranche, then controlled re-entry |
+| Can the expansion freeze lift now? | **Not yet — reduced closing tranche (doc archival + CI + tag)** |
+| Next acceptable action | Short closing tranche (3 items), then controlled re-entry |

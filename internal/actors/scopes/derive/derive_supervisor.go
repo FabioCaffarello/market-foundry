@@ -6,7 +6,13 @@ import (
 	"time"
 
 	actorcommon "internal/actors/common"
-	adapternats "internal/adapters/nats"
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natsobservation "internal/adapters/nats/natsobservation"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/application/ports"
 	"internal/shared/healthz"
 	"internal/shared/settings"
@@ -23,12 +29,12 @@ type DeriveSupervisor struct {
 	cfg                settings.AppConfig
 	gateway            ports.ConfigctlGateway
 	logger             *slog.Logger
-	evRegistry         adapternats.EvidenceRegistry
-	sigRegistry        adapternats.SignalRegistry
-	decRegistry        adapternats.DecisionRegistry
-	stratRegistry      adapternats.StrategyRegistry
-	riskRegistry       adapternats.RiskRegistry
-	execRegistry       adapternats.ExecutionRegistry
+	evRegistry         natsevidence.Registry
+	sigRegistry        natssignal.Registry
+	decRegistry        natsdecision.Registry
+	stratRegistry      natsstrategy.Registry
+	riskRegistry       natsrisk.Registry
+	execRegistry       natsexecution.Registry
 	processors         []FamilyProcessor
 	signalProcessors   []SignalFamilyProcessor
 	decisionProcessors []DecisionFamilyProcessor
@@ -85,14 +91,14 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		return fmt.Errorf("nats must be enabled for derive")
 	}
 
-	obsRegistry := adapternats.DefaultObservationRegistry()
-	s.evRegistry = adapternats.DefaultEvidenceRegistry()
-	s.sigRegistry = adapternats.DefaultSignalRegistry()
-	s.decRegistry = adapternats.DefaultDecisionRegistry()
-	s.stratRegistry = adapternats.DefaultStrategyRegistry()
-	s.riskRegistry = adapternats.DefaultRiskRegistry()
-	s.execRegistry = adapternats.DefaultExecutionRegistry()
-	consumerSpec := adapternats.DeriveObservationConsumer()
+	obsRegistry := natsobservation.DefaultRegistry()
+	s.evRegistry = natsevidence.DefaultRegistry()
+	s.sigRegistry = natssignal.DefaultRegistry()
+	s.decRegistry = natsdecision.DefaultRegistry()
+	s.stratRegistry = natsstrategy.DefaultRegistry()
+	s.riskRegistry = natsrisk.DefaultRegistry()
+	s.execRegistry = natsexecution.DefaultRegistry()
+	consumerSpec := natsobservation.DeriveObservationConsumer()
 
 	// Evidence family processors — backward-compatible default: enabled when no families configured.
 	s.processors = filterEnabled([]FamilyProcessor{

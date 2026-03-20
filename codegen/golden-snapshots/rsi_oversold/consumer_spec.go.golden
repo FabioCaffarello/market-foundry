@@ -1,11 +1,11 @@
 // WriterRSIOversoldDecisionConsumer defines the durable consumer spec for writer consuming RSI oversold decision events.
-func WriterRSIOversoldDecisionConsumer() ConsumerSpec {
-	return ConsumerSpec{
+func WriterRSIOversoldDecisionConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
 		Durable: "writer-decision-rsi-oversold",
-		Event: EventSpec{
+		Event: natskit.EventSpec{
 			Subject: "decision.events.rsi_oversold.evaluated.>",
 			Type:    "decision.events.v1.rsi_oversold_evaluated",
-			Stream: StreamSpec{
+			Stream: natskit.StreamSpec{
 				Name: "DECISION_EVENTS",
 			},
 		},
