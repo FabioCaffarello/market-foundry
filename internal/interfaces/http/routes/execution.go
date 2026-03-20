@@ -25,7 +25,7 @@ func Execution(deps ExecutionFamilyDeps) []webserver.Route {
 	if deps.GetExecutionControl != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodGet,
-			Path:    "/execution/control",
+			Path:    "/execution/:type",
 			Handler: controlHandler.GetControl,
 		})
 	}
@@ -33,7 +33,7 @@ func Execution(deps ExecutionFamilyDeps) []webserver.Route {
 	if deps.SetExecutionControl != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodPut,
-			Path:    "/execution/control",
+			Path:    "/execution/:type",
 			Handler: controlHandler.SetControl,
 		})
 	}

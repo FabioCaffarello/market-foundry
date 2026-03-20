@@ -28,6 +28,11 @@ func NewExecutionControlWebHandler(getControl getExecutionControlUseCase, setCon
 
 // GetControl handles GET /execution/control
 func (h *ExecutionControlWebHandler) GetControl(w http.ResponseWriter, r *http.Request) {
+	if pathParam(r, "type") != "control" {
+		writeProblemResponse(w, problem.New(problem.InvalidArgument, "execution control path parameter must be control"))
+		return
+	}
+
 	if h == nil || h.getControl == nil {
 		writeProblemResponse(w, problem.New(problem.Unavailable, "execution control query is unavailable"))
 		return
@@ -44,6 +49,11 @@ func (h *ExecutionControlWebHandler) GetControl(w http.ResponseWriter, r *http.R
 
 // SetControl handles PUT /execution/control
 func (h *ExecutionControlWebHandler) SetControl(w http.ResponseWriter, r *http.Request) {
+	if pathParam(r, "type") != "control" {
+		writeProblemResponse(w, problem.New(problem.InvalidArgument, "execution control path parameter must be control"))
+		return
+	}
+
 	if h == nil || h.setControl == nil {
 		writeProblemResponse(w, problem.New(problem.Unavailable, "execution control command is unavailable"))
 		return
