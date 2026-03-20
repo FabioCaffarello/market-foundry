@@ -86,7 +86,7 @@ if [[ "$HTTP_CODE" != "201" && "$HTTP_CODE" != "200" ]]; then
     fail "Create draft failed with HTTP ${HTTP_CODE}"
 fi
 
-VERSION_ID=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['config']['version_id'])" 2>/dev/null)
+VERSION_ID=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); cfg=d['config']; print(cfg.get('version_id') or cfg.get('id') or '')" 2>/dev/null)
 if [[ -z "$VERSION_ID" ]]; then
     echo "$BODY"
     fail "Could not extract version_id from response"
