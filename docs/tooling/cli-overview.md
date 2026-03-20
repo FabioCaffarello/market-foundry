@@ -84,10 +84,10 @@ make recommend        # Smart recommendations
 
 The CLI enforces these invariants from the canonical architecture documents:
 
-1. **Five-binary ceiling** — only configctl, gateway, ingest, derive, store exist as service binaries
+1. **Declared binary set** — `configctl`, `gateway`, `ingest`, `derive`, `store`, `execute`, and `writer` are the maintained long-running binaries; `cmd/migrate` is the standalone migration tool
 2. **Layer sovereignty** — domain imports nothing from infrastructure; dependencies flow inward only
 3. **Gateway is stateless** — no domain logic, no repositories, no event publishing in gateway
 4. **Single stream ownership** — each JetStream stream has exactly one producer binary
 5. **Naming identity** — no "server" where "gateway" is canonical; no old service names in active code
-6. **Docs-code alignment** — architecture docs, compose, configs, and source code agree
-7. **Signal domain governance** — signal subjects, durables, KV buckets, adapters, actors, docs, and config symmetry are audited (see [cli-signal-guardrails.md](cli-signal-guardrails.md))
+6. **Docs-code alignment** — architecture docs, compose, configs, and source code agree on current topology, paths, and binary roles
+7. **Domain governance symmetry** — active streams, durables, KV buckets, adapters, actors, docs, and config surfaces remain aligned

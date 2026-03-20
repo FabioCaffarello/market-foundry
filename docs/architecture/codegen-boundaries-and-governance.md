@@ -138,11 +138,9 @@ If any condition is not met, the artifact is human-owned.
 ### Marker Format
 
 ```go
-// --- BEGIN CODEGEN MANAGED SECTION ---
-// Do not manually edit between these markers.
-// Managed by mf-codegen. Changes here will be overwritten on regeneration.
+// codegen:begin <artifact_type> family=<family_name> source=<spec_path>
 // ... generated entries ...
-// --- END CODEGEN MANAGED SECTION ---
+// codegen:end <artifact_type> family=<family_name>
 ```
 
 ### Rules
@@ -150,7 +148,7 @@ If any condition is not met, the artifact is human-owned.
 1. Markers are placed once, manually. Codegen never creates markers.
 2. Content between markers is fully codegen-owned. Regeneration replaces all content.
 3. Content outside markers is fully human-owned. Codegen never touches it.
-4. One marker pair per integration point per file.
+4. One marker pair per family × artifact in mixed files. No nesting.
 5. Each regeneration produces the complete set of entries, sorted deterministically.
 
 ### Integration Points
@@ -158,11 +156,9 @@ If any condition is not met, the artifact is human-owned.
 | File | Section Purpose |
 |------|----------------|
 | `cmd/writer/pipeline.go` | Pipeline entry declarations |
-| `cmd/writer/mappers.go` | Generated mapper functions |
-| `cmd/writer/mappers_test.go` | Generated mapper test functions |
-| `deploy/configs/writer.jsonc` | Family array entries |
-| `scripts/smoke-analytical-e2e.sh` | Smoke test phases |
-| `internal/adapters/nats/{domain}_registry.go` | Consumer spec functions |
+| `internal/adapters/nats/natssignal/registry.go` | Generated consumer spec functions for currently governed signal families |
+
+Current active codegen scope remains limited to A1+A2 (consumer specs and writer pipeline entries). Generated mappers, config entries, and smoke phases remain deferred and must not be treated as live governance behavior.
 
 ---
 

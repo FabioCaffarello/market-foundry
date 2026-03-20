@@ -18,13 +18,13 @@ Content authored and maintained exclusively by humans. Codegen never reads, writ
 |----------|----------|
 | Domain event types | `internal/domain/{layer}/*.go` |
 | ClickHouse migrations | `deploy/migrations/*.sql` |
-| NATS stream/registry definitions | `internal/adapters/nats/*_registry.go` (struct + DefaultRegistry) |
+| NATS stream/registry definitions | `internal/adapters/nats/<domain>/registry.go` (struct + DefaultRegistry) |
 | Writer core logic | `cmd/writer/consumer.go`, `inserter.go`, `supervisor.go`, `mappers.go` |
 | Reader adapters | `internal/adapters/clickhouse/*_reader.go` |
 | Use cases | `internal/application/analyticalclient/get_*_history.go` |
 | HTTP handlers + routes | `internal/interfaces/http/handlers/*.go`, `routes/*.go` |
 | Gateway composition | `cmd/gateway/compose.go`, `run.go`, `analytical_reader.go` |
-| Migrate service | `cmd/migrate/main.go`, `internal/migrate/*.go` |
+| Migrate service | `cmd/migrate/main.go`, `cmd/migrate/migrate/*.go` |
 | Codegen templates | `codegen/templates/*.go.tmpl` (frozen — changes require authorization) |
 | Codegen specs | `codegen/families/*.yaml` (human-authored source of truth) |
 | Config files | `deploy/configs/*.jsonc` |
@@ -52,7 +52,7 @@ Files containing both human-owned regions and machine-owned fragments.
 
 | File | Human Regions | Machine Fragments |
 |------|---------------|-------------------|
-| `internal/adapters/nats/signal_registry.go` | Registry struct, DefaultSignalRegistry(), LatestSpecByType(), Store* functions | WriterRSISignalConsumer(), WriterEMASignalConsumer() (between codegen markers) |
+| `internal/adapters/nats/natssignal/registry.go` | Registry struct, DefaultSignalRegistry(), LatestSpecByType(), Store* functions | WriterRSISignalConsumer(), WriterEMASignalConsumer() (between codegen markers) |
 | `cmd/writer/pipeline.go` | writerPipeline type, writerTrackerDef, declareWriterPipelines scaffold, evidence/decision/strategy/risk/execution entries | RSI and EMA pipeline entries (between codegen markers) |
 
 **Rule:** Humans may freely edit content outside markers. Content inside markers is overwritten during regeneration.
@@ -75,7 +75,7 @@ If any condition fails, the artifact stays manual. This is a hard gate.
 
 | Artifact ID | Description | Template | Target |
 |-------------|-------------|----------|--------|
-| A1 | Consumer spec function | `consumer_spec.go.tmpl` | `internal/adapters/nats/{layer}_registry.go` |
+| A1 | Consumer spec function | `consumer_spec.go.tmpl` | `internal/adapters/nats/<domain>/registry.go` |
 | A2 | Pipeline entry struct | `pipeline_entry.go.tmpl` | `cmd/writer/pipeline.go` |
 
 **Not in scope (explicitly deferred):**
@@ -170,7 +170,7 @@ Entirely manual. The store actor pattern (projection + consumer pairs with KV bu
 
 The analytical path and generated path interact at exactly two files:
 
-1. **`internal/adapters/nats/{layer}_registry.go`** — Writer consumer spec functions
+1. **`internal/adapters/nats/<domain>/registry.go`** — Writer consumer spec functions
    - Generated: RSI, EMA (signal layer only)
    - Manual: all other layers + all store consumer specs
 

@@ -37,15 +37,14 @@ All configuration via environment variables:
 
 ```
 cmd/migrate/
-└── main.go              # CLI entry point, ClickHouse connection, subcommand dispatch
-
-internal/migrate/
-├── migration.go         # Types: Migration, AppliedMigration, MigrationStatus
-├── catalog.go           # ReadCatalog: discover, validate, sort migration files
-├── checksum.go          # FileChecksum: SHA-256 hex digest
-├── runner.go            # Runner: Up, Status, Validate orchestration
-├── catalog_test.go      # Unit tests for catalog parsing and sorting
-└── checksum_test.go     # Unit tests for checksum computation
+├── main.go              # CLI entry point, ClickHouse connection, subcommand dispatch
+└── migrate/             # Binary-local migration library (absorbed in S220)
+    ├── migration.go     # Types: Migration, AppliedMigration, MigrationStatus
+    ├── catalog.go       # ReadCatalog: discover, validate, sort migration files
+    ├── checksum.go      # FileChecksum: SHA-256 hex digest
+    ├── runner.go        # Runner: Up, Status, Validate orchestration
+    ├── catalog_test.go  # Unit tests for catalog parsing and sorting
+    └── checksum_test.go # Unit tests for checksum computation
 
 deploy/migrations/
 ├── 000_create_migrations_metadata.sql
@@ -106,10 +105,10 @@ Drift indicates that a migration file was modified after being applied — a vio
 | Package                     | May Import `clickhouse-go`? |
 |-----------------------------|---------------------------|
 | `cmd/migrate`               | **Yes** (driver import)   |
-| `internal/migrate`          | **No** (uses `database/sql` interface) |
+| `cmd/migrate/migrate`       | **No** (uses `database/sql` interface) |
 | `cmd/gateway`, `cmd/store`, etc. | **No** (operational services) |
 
-`internal/migrate` has zero external dependencies — it operates purely through the `database/sql` interface. Only `cmd/migrate` imports the ClickHouse driver.
+`cmd/migrate/migrate` has zero external dependencies — it operates purely through the `database/sql` interface. Only `cmd/migrate` imports the ClickHouse driver.
 
 ## Makefile Integration
 
@@ -117,6 +116,7 @@ Drift indicates that a migration file was modified after being applied — a vio
 make migrate-up         # Apply pending migrations (sources deploy/envs/local.env)
 make migrate-status     # Show migration status
 make migrate-validate   # Verify checksums
+go run ./cmd/migrate up --dry-run   # Dry-run is available directly via the CLI
 ```
 
 ## Relationship to Other Components
@@ -125,7 +125,7 @@ make migrate-validate   # Verify checksums
 |-------------|--------------------------------------------------|
 | `cmd/writer` | Writer assumes tables exist; migrations run first |
 | `cmd/store`  | No relationship — store uses NATS KV only        |
-| `cmd/gateway`| No relationship — gateway reads NATS KV only     |
+| `cmd/gateway`| Indirect relationship — analytical history endpoints depend on schema existing, but gateway does not run migrations |
 | ClickHouse   | Only external dependency                          |
 | Docker Compose | ClickHouse service must be healthy before running |
 
@@ -135,7 +135,7 @@ make migrate-validate   # Verify checksums
 
 **No external CLI framework.** Standard `flag` package suffices for three subcommands. Avoids dependency bloat.
 
-**`database/sql` interface in `internal/migrate`.** Keeps the core logic driver-agnostic and testable. The ClickHouse driver is imported only in `cmd/migrate`.
+**`database/sql` interface in `cmd/migrate/migrate`.** Keeps the core logic driver-agnostic and testable. The ClickHouse driver is imported only in `cmd/migrate`.
 
 **Database bootstrap in `cmd/migrate`.** The CLI creates the target database if it doesn't exist, keeping the migration catalog focused on schema (tables, views).
 

@@ -90,7 +90,7 @@ Beyond evidence, the stage must satisfy these architectural criteria:
 
 ### Mesh Coherence
 - [ ] Stream ownership matrix remains accurate after the stage.
-- [ ] Data flow remains unidirectional (configctl → ingest → derive → store → gateway).
+- [ ] Data flow remains acyclic across the governed paths (`configctl → ingest → derive`, `derive → store → gateway`, `derive → execute`, `derive/execute → writer → ClickHouse → gateway`).
 - [ ] No new streams created without architectural justification and catalog entry.
 - [ ] Consumer durables follow naming convention (`{service}-{family}` or `{service}-binding-watcher`).
 
@@ -110,7 +110,7 @@ A stage must be **rejected or recalibrated** if any of the following are true:
 - Introduces a second structural capability beyond the declared objective.
 - Breaks layer sovereignty (detected by `raccoon-cli arch-guard`).
 - Violates single-writer invariant on any stream or KV bucket.
-- Introduces a binary beyond the five-binary ceiling without prior architectural justification.
+- Introduces a new binary beyond the current governed set (`configctl`, `gateway`, `ingest`, `derive`, `store`, `execute`, `writer`, `migrate`) without prior architectural justification.
 - Reintroduces quality-service patterns, naming, or identity.
 - Leaves governance debt without explicit documentation and resolution plan.
 

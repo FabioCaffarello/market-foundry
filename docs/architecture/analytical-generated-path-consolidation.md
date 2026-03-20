@@ -9,7 +9,7 @@
 
 ## 1. Problem Statement
 
-The analytical path (writer → ClickHouse → reader → gateway) and the generated path (codegen spec → template → golden → governed fragment) coexist in the same codebase. Both touch overlapping files — particularly `cmd/writer/pipeline.go` and `internal/adapters/nats/*_registry.go`. Prior to this consolidation:
+The analytical path (writer → ClickHouse → reader → gateway) and the generated path (codegen spec → template → golden → governed fragment) coexist in the same codebase. Both touch overlapping files — particularly `cmd/writer/pipeline.go` and `internal/adapters/nats/<domain>/registry.go`. Prior to this consolidation:
 
 - It was not visually obvious which pipeline entries were codegen-governed and which were manually maintained.
 - Registry files lacked explicit ownership markers for their writer consumer spec sections.
@@ -27,12 +27,12 @@ Added explicit `manual:owned` annotations to all human-maintained writer consume
 
 **Files annotated:**
 - `cmd/writer/pipeline.go` — evidence section and decision/strategy/risk/execution section
-- `internal/adapters/nats/evidence_registry.go` — writer consumer specs
-- `internal/adapters/nats/decision_registry.go` — writer consumer specs
-- `internal/adapters/nats/strategy_registry.go` — writer consumer specs
-- `internal/adapters/nats/risk_registry.go` — writer consumer specs
-- `internal/adapters/nats/execution_registry.go` — writer consumer specs
-- `internal/adapters/nats/signal_registry.go` — clarified that store specs remain manual:owned
+- `internal/adapters/nats/natsevidence/registry.go` — writer consumer specs
+- `internal/adapters/nats/natsdecision/registry.go` — writer consumer specs
+- `internal/adapters/nats/natsstrategy/registry.go` — writer consumer specs
+- `internal/adapters/nats/natsrisk/registry.go` — writer consumer specs
+- `internal/adapters/nats/natsexecution/registry.go` — writer consumer specs
+- `internal/adapters/nats/natssignal/registry.go` — clarified that store specs remain manual:owned
 
 ### 2.2 Canonical Marker Standard
 
@@ -62,9 +62,9 @@ The artifact classification model is documented in [manual-generated-derived-ope
 
 | Family | Artifact | Target File | Stage |
 |--------|----------|-------------|-------|
-| rsi | consumer_spec | `internal/adapters/nats/signal_registry.go` | S200 |
+| rsi | consumer_spec | `internal/adapters/nats/natssignal/registry.go` | S200 |
 | rsi | pipeline_entry | `cmd/writer/pipeline.go` | S200 |
-| ema | consumer_spec | `internal/adapters/nats/signal_registry.go` | S203 |
+| ema | consumer_spec | `internal/adapters/nats/natssignal/registry.go` | S203 |
 | ema | pipeline_entry | `cmd/writer/pipeline.go` | S203 |
 
 ### 3.2 Families with Specs + Goldens but No Governance (5 total)

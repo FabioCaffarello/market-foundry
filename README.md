@@ -12,8 +12,11 @@ Foundation repository for the market-foundry system.
 - **Config lifecycle management** (configctl) — create, validate, compile, activate configuration versions
 - **HTTP API gateway** (gateway) — stateless HTTP→NATS translation layer
 - **Market data capture** (ingest) — WebSocket → observation events
-- **Evidence derivation** (derive) — observation → candle sampling → evidence events
-- **Read model materialization** (store) — evidence events → NATS KV projections + query serving
+- **Evidence and decision derivation** (derive) — observation → evidence/signal/decision/strategy/risk/execution events
+- **Read model materialization** (store) — domain events → NATS KV projections + query serving
+- **Execution control** (execute) — controlled execution intake and fill-state handling
+- **Analytical write path** (writer + ClickHouse) — domain events → analytical storage
+- **Schema migration utility** (`cmd/migrate`) — forward-only ClickHouse schema management
 - **Actor-based orchestration** using the Hollywood framework
 - **NATS messaging** for inter-service communication
 - **Rust CLI** (raccoon-cli) for static analysis, architecture enforcement, and quality gates
@@ -24,37 +27,43 @@ Foundation repository for the market-foundry system.
 ```
 cmd/
   configctl/          Config lifecycle service
+  execute/            Execution control service
   gateway/            HTTP API gateway (stateless HTTP→NATS translator)
   ingest/             Market data capture (WebSocket → observation events)
-  derive/             Evidence derivation (observation → candle sampling)
-  store/              Read model materialization (evidence → KV projections)
+  derive/             Derivation pipeline (observation → downstream domain events)
+  migrate/            Forward-only ClickHouse migration tool
+  store/              Read model materialization (domain events → KV projections)
+  writer/             Analytical writer (domain events → ClickHouse rows)
 
 internal/
-  domain/             Domain layer (pure business logic: configctl, observation, evidence)
+  domain/             Domain layer (configctl, observation, evidence, signal, decision, strategy, risk, execution)
   application/        Use cases and ports
   actors/             Actor-based service orchestration
+  adapters/clickhouse/ Analytical read adapters
   adapters/nats/      NATS messaging adapters
   adapters/exchanges/ Exchange protocol adapters (Binance Futures, etc.)
-  adapters/repos/     In-memory repositories
+  application/configctl/memoryrepo/ In-memory configctl repository
   interfaces/http/    HTTP handlers and routing
   shared/             Cross-cutting: settings, bootstrap, problem, envelope, events
 
 tools/raccoon-cli/    Rust CLI for quality enforcement
 
 deploy/
-  compose/            Docker Compose (nats + configctl + gateway + ingest + derive + store)
+  compose/            Docker Compose (nats + clickhouse + configctl + gateway + ingest + derive + store + execute + writer)
   configs/            Service configuration (JSONC)
   docker/             Dockerfile
+  migrations/         ClickHouse migration catalog
   nats/               NATS server config
 ```
 
 ## Quick Start
 
 ```bash
-# Build and start the stack
-make up
+# Build, start, seed, and validate the current live stack
+make live
 
-# Seed configctl with single symbol
+# Or start the stack manually
+make up
 make seed
 
 # Verify health
@@ -63,18 +72,21 @@ curl http://127.0.0.1:8080/healthz
 # Run E2E smoke test
 make smoke
 
+# Prove the analytical path
+make smoke-analytical
+
 # Run quality checks
 make check
 
-# Run tests
-make test
+# Run post-change validation
+make verify
 ```
 
 ## Development Workflow
 
 ```bash
 make check       # Pre-code guard rail
-make test        # Run Go tests
+make tdd         # Impact-driven validation guide
 make verify      # Tests + quality gate
 make arch-guard  # Architecture boundary check
 ```
@@ -96,4 +108,4 @@ See `docs/architecture/` for detailed audit and decision records.
 
 ## Next Phase
 
-The repository is prepared for further evolution. See `docs/architecture/next-phase-readiness.md`.
+The repository is prepared for the next governed slice only after active docs, tooling, and closure evidence stay aligned. See `docs/architecture/market-foundry-evolution-playbook.md`.

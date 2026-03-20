@@ -79,7 +79,7 @@ Stream mesh debt occurs when the logical message topology diverges from the docu
 - [ ] Are there any streams in the codebase not listed in the catalog?
 - [ ] Are there any streams in the catalog marked "Planned" that actually have working code?
 - [ ] Do all consumer filter subjects match the documented subject patterns?
-- [ ] Is the data flow still unidirectional? (configctl → ingest → derive → store → gateway)
+- [ ] Is the data flow still acyclic across the governed branches? (`configctl → ingest → derive`, `derive → store → gateway`, `derive → execute`, `derive/execute → writer → ClickHouse → gateway`)
 - [ ] Are all deduplication mechanisms documented (message ID format, idempotency keys)?
 
 **Debt signals:**
@@ -132,8 +132,8 @@ Premature abstraction debt occurs when code is generalized beyond current needs.
 
 Query and read model debt occurs when the read path diverges from projection authority patterns.
 
-- [ ] Is store the sole server for all evidence query subjects?
-- [ ] Does gateway access all evidence data exclusively through NATS request/reply to store?
+- [ ] Is store the sole server for all latest-value evidence query subjects?
+- [ ] Does gateway access latest operational read data through NATS request/reply to store and analytical history through ClickHouse reader adapters only?
 - [ ] Does every projection have monotonicity guard on latest?
 - [ ] Does every projection validate domain objects before KV write?
 - [ ] Does every projection only materialize `Final=true` events?
@@ -143,6 +143,7 @@ Query and read model debt occurs when the read path diverges from projection aut
 
 **Debt signals:**
 - Gateway reading directly from NATS KV.
+- Gateway owning analytical SQL or storage translation outside the analytical reader adapters/use cases.
 - Projection accepting non-final events.
 - Missing monotonicity guard (latest projection can regress).
 - QueryResponderActor missing routes for an implemented evidence type.

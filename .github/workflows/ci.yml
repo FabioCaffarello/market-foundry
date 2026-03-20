@@ -59,6 +59,9 @@ jobs:
       - name: Build service binaries
         run: make build
 
+      - name: Materialize compose env file for CI runner
+        run: cp deploy/envs/local.env.example deploy/envs/local.env
+
       - name: Start stack (compose up)
         run: make up
         env:

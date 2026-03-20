@@ -6,6 +6,7 @@
 **Verdict:** CONDITIONAL PASS — one short tranche required before clean exit
 **S217 Reconciliation:** Evidence drift corrected — see `s216-evidence-reconciliation-log.md`
 **S221 Reconciliation:** S218–S220 tranche completed H-01, H-04, H-06. Module count 19→17. XC-4 now references 17 modules. S213 assessment upgraded to reflect full HIGH completion.
+**S225 Reconciliation:** This document remains an S216 gate snapshot for traceability. Any statements below that describe H-01, H-04, H-06, or the flat NATS/module-count baseline as "not addressed" are preserved as historical assessment text, not current-state guidance. Current-state references: `post-restructure-documentation-reconciliation.md`, `post-restructure-gate-and-next-charter-decision.md`, `active-documentation-drift-closure.md`.
 
 ---
 

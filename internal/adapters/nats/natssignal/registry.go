@@ -71,7 +71,18 @@ func (r Registry) LatestSpecByType(signalType string) (natskit.ControlSpec, bool
 // codegen:begin consumer_spec family=rsi source=codegen/families/rsi.yaml
 // WriterRSISignalConsumer defines the durable consumer spec for writer consuming RSI signal events.
 func WriterRSISignalConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-signal-rsi", "signal.events.rsi.generated.>", "signal.events.v1.rsi_generated", "SIGNAL_EVENTS")
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-rsi",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.rsi.generated.>",
+			Type:    "signal.events.v1.rsi_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
 }
 
 // codegen:end consumer_spec family=rsi
@@ -79,7 +90,18 @@ func WriterRSISignalConsumer() natskit.ConsumerSpec {
 // codegen:begin consumer_spec family=ema source=codegen/families/ema.yaml
 // WriterEMASignalConsumer defines the durable consumer spec for writer consuming ema signal events.
 func WriterEMASignalConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-signal-ema", "signal.events.ema.generated.>", "signal.events.v1.ema_generated", "SIGNAL_EVENTS")
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-ema",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.ema.generated.>",
+			Type:    "signal.events.v1.ema_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
 }
 
 // codegen:end consumer_spec family=ema

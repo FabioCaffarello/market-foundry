@@ -37,7 +37,7 @@ These principles are ordered by precedence. When two principles conflict, the hi
 
 The stream mesh is not an implementation detail — it is the architecture. Every data flow in Market Foundry is a named, typed, ownership-bound message flow organized by:
 
-- **Family**: configctl, observation, evidence, signal (planned)
+- **Family**: configctl, observation, evidence, signal, decision, strategy, risk, execution
 - **Surface**: events, control, query, projection
 - **Dimensions**: source, symbol, timeframe, aggregate, verb
 
@@ -55,36 +55,50 @@ The stream mesh is not an implementation detail — it is the architecture. Ever
 |---|---|---|
 | CONFIGCTL_EVENTS | configctl | ingest, derive |
 | OBSERVATION_EVENTS | ingest | derive |
-| EVIDENCE_EVENTS | derive | store |
+| EVIDENCE_EVENTS | derive | store, writer |
+| SIGNAL_EVENTS | derive | store, writer |
+| DECISION_EVENTS | derive | store, writer |
+| STRATEGY_EVENTS | derive | store, writer |
+| RISK_EVENTS | derive | store, writer |
+| EXECUTION_EVENTS | derive | store, writer, execute |
+| EXECUTION_FILL_EVENTS | execute | store |
 
 ### Data Flow Direction
 
 ```
-configctl → ingest → derive → store → gateway
+configctl → ingest → derive
+derive → store → gateway
+derive → execute
+derive / execute → writer → clickhouse → gateway
 ```
 
-Unidirectional. No feedback loops. No binary-to-binary RPC chains.
+Acyclic and message-driven. No feedback loops. No binary-to-binary RPC chains.
 
 ---
 
 ## Binary Roles and Boundaries
 
-Five binaries. This is a ceiling, not a target.
+Seven long-running binaries plus one standalone deployment tool are currently part of the governed baseline.
 
 | Binary | Purpose (single sentence) | Owns | Never Does |
 |---|---|---|---|
 | **gateway** | Translates HTTP requests into NATS operations and returns results | HTTP listener, NATS request client | Domain logic, KV access, event publishing |
 | **configctl** | Owns the full lifecycle of configuration documents | CONFIGCTL_EVENTS, config repository | Market data processing |
 | **ingest** | Receives raw market data and publishes normalized observation events | OBSERVATION_EVENTS, exchange connections | Evidence derivation, query serving |
-| **derive** | Consumes observation streams and produces evidence events | EVIDENCE_EVENTS, sampler state | Persistent storage, query serving |
-| **store** | Consumes domain events and builds read-optimized projections | KV buckets, evidence queries | Domain event production, domain logic |
+| **derive** | Consumes observation streams and produces downstream domain events | EVIDENCE_EVENTS, SIGNAL_EVENTS, DECISION_EVENTS, STRATEGY_EVENTS, RISK_EVENTS, EXECUTION_EVENTS | Persistent storage, query serving |
+| **store** | Consumes domain events and builds read-optimized projections | KV buckets, latest-value and control-query replies | Domain event production, domain logic |
+| **execute** | Consumes execution intents and materializes controlled execution state | EXECUTION_FILL_EVENTS, execution control/read-side surfaces | HTTP serving, schema migration |
+| **writer** | Persists selected domain events into ClickHouse for analytical reads | ClickHouse inserts, analytical write-path consumers | Operational KV authority, control-plane ownership |
+| **migrate** | Applies forward-only ClickHouse schema changes | Migration catalog execution, `_migrations` metadata | Long-running runtime behavior, NATS integration |
 
 ### Binary Invariants
 
-- Gateway is the only HTTP surface.
+- Gateway is the only public/domain HTTP surface.
 - Configctl is the only config authority.
+- Migrate is the only schema authority for ClickHouse.
+- Writer is the only event-to-ClickHouse bridge.
 - Every binary has a supervisor root actor.
-- New binaries require explicit architectural justification — existing binaries must be proven insufficient first.
+- New long-running binaries require explicit architectural justification — existing binaries must be proven insufficient first.
 
 ---
 
@@ -128,7 +142,8 @@ StoreSupervisor.start() — declares pipelines
 Grouped use cases per evidence family. Stateless translation only.
 
 **Rules:**
-- Gateway never touches KV directly — all reads via NATS request/reply to store.
+- Gateway never touches KV directly.
+- Latest-value operational reads go through NATS request/reply to store; analytical history reads use ClickHouse reader adapters at the composition boundary.
 - Evidence routes are optional (graceful degradation if store unavailable).
 - One handler per query operation (parse → call use case → format).
 - Configctl readiness is required; evidence readiness is not.

@@ -8,17 +8,23 @@
 | `make test` | Run `go test ./...` across all workspace modules |
 | `make build` | Build service binaries into `bin/` |
 | `make docker-build` | Build Docker images for services |
-| `make up` | Start the stack (nats + configctl + gateway + ingest + derive + store) |
+| `make up` | Start the stack (nats + clickhouse + configctl + gateway + ingest + derive + store + execute + writer) |
 | `make down` | Stop the stack |
 | `make logs` | Stream logs (optionally `SERVICE=gateway`) |
 | `make ps` | Show service status |
+| `make live` | Build, start, seed, and validate the single-symbol live stack |
 | `make seed` | Seed configctl with single symbol (btcusdt) |
 | `make seed-multi` | Seed configctl with multi-symbol (btcusdt + ethusdt) |
 | `make smoke` | First-slice E2E smoke test (requires `make up` + `make seed`) |
 | `make smoke-multi` | Multi-symbol E2E smoke test (requires `make up` + `make seed-multi`) |
+| `make smoke-analytical` | Analytical path proof (NATS → writer → ClickHouse → reader → gateway) |
 | `make check` | Pre-code guard rail (quality-gate fast) |
+| `make tdd` | Impact-driven testing guide for the current change set |
 | `make verify` | Post-change validation (tests + quality-gate) |
 | `make check-deep` | Full quality-gate validation |
+| `make migrate-up` | Apply pending ClickHouse migrations |
+| `make migrate-status` | Show migration status |
+| `make migrate-validate` | Verify migration checksums |
 
 ## Development Flow
 
@@ -87,12 +93,14 @@ make recommend                         # Smart recommendations
 | Service | Port | Description |
 |---------|------|-------------|
 | nats | 4222 (client), 8222 (monitor) | Message bus |
+| clickhouse | 8123 (HTTP), 9000 (native) | Analytical storage |
 | configctl | — | Config lifecycle management (NATS only) |
 | gateway | 8080 | HTTP API gateway |
 | ingest | — | Market data capture: Binance WS → observation events (NATS only) |
-| derive | — | Observation → evidence processing: candle sampling (NATS only) |
+| derive | — | Observation → downstream domain events (NATS only) |
 | store | — | Read model materialization: NATS KV projections (NATS only) |
 | execute | — | Execution control service (NATS only) |
+| writer | — | Analytical writer: NATS events → ClickHouse rows (NATS + ClickHouse) |
 
 ## Module Scoping
 
@@ -110,12 +118,15 @@ cmd/derive/          Evidence derivation service entrypoint
 cmd/execute/         Execution control service entrypoint
 cmd/gateway/         HTTP API gateway entrypoint
 cmd/ingest/          Market data capture service entrypoint
+cmd/migrate/         ClickHouse migration CLI entrypoint
 cmd/store/           Read model materialization service entrypoint
+cmd/writer/          Analytical writer service entrypoint
+cmd/migrate/migrate/ Binary-local migration library (absorbed in S220)
 internal/shared/     Cross-cutting concerns (settings, bootstrap, problem, envelope, events)
 internal/domain/     Domain layer (pure business logic: configctl, observation, evidence, signal, decision, strategy, risk, execution)
-internal/application/ Application layer (use cases, ports, contracts, client use cases)
+internal/application/ Application layer (use cases, ports, contracts, client use cases, configctl memory repo)
 internal/actors/     Actor-based service orchestration (supervisors, scopes)
-internal/adapters/   Infrastructure adapters (NATS, exchanges, repositories)
+internal/adapters/   Infrastructure adapters (NATS, exchanges, ClickHouse)
 internal/interfaces/ Interface layer (HTTP handlers, routes, webserver)
 tools/raccoon-cli/   Rust architecture guardian CLI
 deploy/              Docker Compose, configs, Dockerfile
@@ -125,3 +136,5 @@ docs/architecture/   Architecture decisions and canonical patterns
 docs/stages/         Stage completion reports
 docs/tooling/        CLI and tooling documentation
 ```
+
+Current workspace baseline: `go.work` contains 17 modules after the S220 simplification.

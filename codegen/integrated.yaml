@@ -13,7 +13,7 @@ slices:
     artifact: consumer_spec
     spec: codegen/families/rsi.yaml
     golden: codegen/golden-snapshots/rsi/consumer_spec.go.golden
-    target: internal/adapters/nats/signal_registry.go
+    target: internal/adapters/nats/natssignal/registry.go
     marker: "codegen:begin consumer_spec family=rsi"
     integrated_at: "2026-03-20"
     stage: S200
@@ -31,7 +31,7 @@ slices:
     artifact: consumer_spec
     spec: codegen/families/ema.yaml
     golden: codegen/golden-snapshots/ema/consumer_spec.go.golden
-    target: internal/adapters/nats/signal_registry.go
+    target: internal/adapters/nats/natssignal/registry.go
     marker: "codegen:begin consumer_spec family=ema"
     integrated_at: "2026-03-20"
     stage: S203

@@ -99,43 +99,38 @@ These removals are **permanent and non-negotiable**. See [prohibited-carryovers.
 
 ## Evolutionary Direction
 
-Market Foundry will evolve through **domain module absorption**, not monolithic growth.
+Market Foundry now evolves from a **post-first-slice, post-restructure baseline**, not from a blank sanitized shell.
 
 ### Phase model
 
 ```
-Phase 0 — Sanitization        ✅ Complete
-Phase 1 — Canonical Vision    ← Current (this document)
-Phase 2 — MarketMonkey Absorption
-Phase 3 — Domain Module Implementation
-Phase 4 — Operational Maturity
+Phase 0 — Sanitization                          ✅ Complete
+Phase 1 — First vertical slice                  ✅ Complete
+Phase 2 — Structural recentralization           ✅ Complete
+Phase 3 — Closure and active-doc reconciliation ✅ In progress at S223–S225
+Phase 4 — Next governed expansion               Locked behind S226 evidence
 ```
 
-### Phase 2: MarketMonkey Absorption
+### Current Implemented Baseline
 
-MarketMonkey patterns will be absorbed as **new domain modules** within Market Foundry's existing layered architecture:
+The active repository baseline already contains:
 
-- Each market domain gets its own `internal/domain/{name}/` and `internal/application/{name}/`
-- Actor scopes are introduced per domain under `internal/actors/scopes/{name}/`
-- NATS adapters are added per domain under `internal/adapters/nats/`
-- New services are registered as `cmd/{name}/` with their own `go.mod`
-- HTTP routes extend the gateway under `internal/interfaces/http/routes/{name}.go`
+- Configuration lifecycle via `cmd/configctl/`
+- Operational runtimes via `cmd/ingest/`, `cmd/derive/`, `cmd/store/`, and `cmd/execute/`
+- Unified read surface via `cmd/gateway/`
+- Analytical path via `cmd/writer/`, `cmd/migrate/`, and `internal/adapters/clickhouse/`
+- Domain packages for observation, evidence, signal, decision, strategy, risk, and execution
+- Domain-organized NATS adapters under `internal/adapters/nats/<domain>/`
 
-### Phase 3: Domain Modules (anticipated, not committed)
+### Next Governed Expansion
 
-The following domains are candidates for implementation. Their inclusion is conditional on architectural readiness, not on schedule:
+The next stage of evolution is not broad domain discovery. It is controlled expansion from the current baseline, subject to fresh evidence and current governance:
 
-1. **Observation** — Raw market data capture and normalization
-2. **Evidence** — Structured observations with provenance metadata
-3. **Signal** — Derived indicators from evidence streams
-4. **Strategy** — Trading strategy definition and lifecycle
-5. **Risk** — Risk assessment, limits, and exposure tracking
-6. **Execution** — Order routing and trade lifecycle management
-7. **Portfolio** — Position state, P&L, and performance attribution
+1. The active documentation corpus must remain aligned with real code and tooling.
+2. The closure tranche must finish with green guard rails and formal evidence.
+3. New families or routes must justify themselves against the already-implemented operational and analytical topology.
 
-Each domain must pass raccoon-cli quality gates before integration.
-
-### Phase 4: Operational Maturity
+### Operational Maturity (still ahead)
 
 - Observability (metrics, tracing, structured logging) integrated per domain
 - Multi-environment deployment (dev, staging, production)
@@ -150,17 +145,21 @@ Each domain must pass raccoon-cli quality gates before integration.
 ┌─────────────────────────────────────────────────────┐
 │                  Market Foundry                      │
 │                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │
-│  │   configctl   │  │   server     │  │  domain   │  │
-│  │  (lifecycle)  │  │  (gateway)   │  │  modules  │  │
-│  └──────┬───────┘  └──────┬───────┘  └─────┬─────┘  │
-│         │                 │                │         │
-│         └────────┬────────┘────────────────┘         │
-│                  │                                    │
-│         ┌────────▼────────┐                          │
-│         │  NATS + JetStream│                          │
-│         │  (message bus)   │                          │
-│         └─────────────────┘                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
+│  │   configctl   │  │   gateway    │  │ analytical │  │
+│  │  (lifecycle)  │  │  (HTTP/API)  │  │ writer+CH  │  │
+│  └──────┬───────┘  └──────┬───────┘  └─────┬──────┘  │
+│         │                 │                │          │
+│         └──────┬──────────┴───────┬────────┘          │
+│                │                  │                   │
+│         ┌──────▼──────┐    ┌──────▼──────┐            │
+│         │ operational │    │ NATS + JS   │            │
+│         │ runtimes    │◄──►│ message bus │            │
+│         │ ingest/     │    └─────────────┘            │
+│         │ derive/     │                                │
+│         │ store/      │                                │
+│         │ execute     │                                │
+│         └─────────────┘                                │
 │                                                      │
 │  ┌─────────────────────────────────────────────────┐ │
 │  │  raccoon-cli (external quality enforcement)     │ │

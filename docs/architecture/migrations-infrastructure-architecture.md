@@ -12,6 +12,8 @@ This document defines the architecture of `cmd/migrate` — the single migration
 
 This document builds on the conventions defined in `future-migration-catalog-organization-guidelines.md` (S141) and elevates them from guidelines to architectural decisions.
 
+**S225 reconciliation note:** the original S143 design described a separate `internal/migrate/` module. After S220, that library was absorbed into `cmd/migrate/migrate/`. The architectural intent is unchanged; the paths below reflect the current code layout.
+
 ---
 
 ## 2. Architectural Position
@@ -20,7 +22,7 @@ This document builds on the conventions defined in `future-migration-catalog-org
 ┌──────────────────────────────────────────────────────────┐
 │                    Developer / CI                          │
 │                                                           │
-│    make migrate-up    make migrate-status    make migrate-dry-run │
+│    make migrate-up    make migrate-status    go run ./cmd/migrate up --dry-run │
 │         │                    │                     │       │
 │         ▼                    ▼                     ▼       │
 │    ┌──────────────────────────────────────────────────┐   │
@@ -69,26 +71,25 @@ If a migration must be reversed, the operator writes a new migration (e.g., `012
 
 ```
 cmd/migrate/
-├── main.go           # CLI entry point (flag parsing, command dispatch)
-└── run.go            # Config loading, ClickHouse connection
-
-internal/migrate/
-├── runner.go         # Core migration runner (apply, status, validate)
-├── catalog.go        # Reads and sorts deploy/migrations/*.sql
-├── checksum.go       # SHA-256 computation for migration files
-├── metadata.go       # _migrations table CRUD (read applied, record new)
-└── reporter.go       # Console output formatting
+├── main.go                # CLI entry point, connection bootstrap, command dispatch
+└── migrate/
+    ├── runner.go         # Core migration runner (apply, status, validate)
+    ├── catalog.go        # Reads and sorts deploy/migrations/*.sql
+    ├── checksum.go       # SHA-256 computation for migration files
+    ├── migration.go      # Types: Migration, AppliedMigration, MigrationStatus
+    ├── catalog_test.go   # Unit tests for catalog parsing and sorting
+    └── checksum_test.go  # Unit tests for checksum computation
 ```
 
 ### 3.4 Configuration
 
-`cmd/migrate` reads ClickHouse connection parameters from environment variables or a minimal config file:
+`cmd/migrate` reads ClickHouse connection parameters from environment variables and exposes `--migrations-dir` as a CLI flag:
 
 | Parameter | Env Var | Default | Description |
 |-----------|---------|---------|-------------|
 | Host | `CLICKHOUSE_HOST` | `localhost` | ClickHouse server address |
 | Port | `CLICKHOUSE_PORT` | `9000` | Native protocol port |
-| Database | `CLICKHOUSE_DATABASE` | `default` | Target database |
+| Database | `CLICKHOUSE_DATABASE` | `market_foundry` | Target database |
 | User | `CLICKHOUSE_USER` | `default` | ClickHouse username |
 | Password | `CLICKHOUSE_PASSWORD` | (none) | ClickHouse password |
 | Migrations Dir | `MIGRATIONS_DIR` | `deploy/migrations` | Path to migration catalog |
@@ -142,14 +143,11 @@ deploy/
 └── migrations/
     ├── 000_create_migrations_metadata.sql    # Bootstrap: _migrations table itself
     ├── 001_create_evidence_candles.sql
-    ├── 002_create_evidence_tradebursts.sql
-    ├── 003_create_evidence_volumes.sql
-    ├── 004_create_signals.sql
-    ├── 005_create_decisions.sql
-    ├── 006_create_strategies.sql
-    ├── 007_create_risk_assessments.sql
-    ├── 008_create_executions.sql
-    ├── 009_create_fills.sql
+    ├── 002_create_signals.sql
+    ├── 003_create_decisions.sql
+    ├── 004_create_strategies.sql
+    ├── 005_create_risk_assessments.sql
+    ├── 006_create_executions.sql
     └── ...
 ```
 
@@ -230,9 +228,6 @@ Every migration file MUST include:
 migrate-up:
 	go run ./cmd/migrate up
 
-migrate-dry-run:
-	go run ./cmd/migrate up --dry-run
-
 migrate-status:
 	go run ./cmd/migrate status
 
@@ -302,7 +297,7 @@ When CI exists, `migrate validate` should run on every PR that touches `deploy/m
 | Editing an applied migration file | Breaks checksum integrity | `migrate validate` in CI catches this |
 | Migration with side effects (data insertion) | Migrations are schema-only; data comes from writer | Code review: no INSERT of domain data in migrations |
 | Conditional logic in SQL migrations | ClickHouse SQL has limited procedural support; complexity leads to failures | Keep migrations simple: one DDL statement per file when possible |
-| Coupling migration tool to NATS or domain logic | Violates standalone principle; complicates testing | `cmd/migrate` imports only `internal/migrate/` and ClickHouse driver |
+| Coupling migration tool to NATS or domain logic | Violates standalone principle; complicates testing | `cmd/migrate` imports only `cmd/migrate/migrate` and ClickHouse driver |
 | Using `migrate up` as part of service startup | Creates ordering dependency; complicates compose | Migrations run explicitly before starting services |
 
 ---
