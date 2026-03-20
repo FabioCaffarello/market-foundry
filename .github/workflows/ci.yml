@@ -69,7 +69,7 @@ jobs:
 
       - name: Wait for infrastructure readiness
         run: |
-          echo "Waiting for services to become healthy..."
+          echo "Waiting for ClickHouse to become ready..."
           timeout 120 bash -c '
             until docker compose -f deploy/compose/docker-compose.yaml exec -T clickhouse \
               clickhouse-client --port 9000 --user default --password clickhouse \
@@ -78,6 +78,14 @@ jobs:
             done
           '
           echo "ClickHouse is ready."
+
+          echo "Waiting for gateway readiness..."
+          timeout 120 bash -c '
+            until curl -fsS http://127.0.0.1:8080/readyz >/dev/null; do
+              sleep 2
+            done
+          '
+          echo "Gateway is ready."
 
       - name: Seed configctl
         run: make seed
