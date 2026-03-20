@@ -1,0 +1,16 @@
+// WriterEMASignalConsumer defines the durable consumer spec for writer consuming
+// ema signal events.
+func WriterEMASignalConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "writer-signal-ema",
+		Event: EventSpec{
+			Subject: "signal.events.ema.generated.>",
+			Type:    "signal.events.v1.ema_generated",
+			Stream: StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

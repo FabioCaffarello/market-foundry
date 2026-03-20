@@ -1,0 +1,15 @@
+// WriterRSISignalConsumer defines the durable consumer spec for writer consuming RSI signal events.
+func WriterRSISignalConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "writer-signal-rsi",
+		Event: EventSpec{
+			Subject: "signal.events.rsi.generated.>",
+			Type:    "signal.events.v1.rsi_generated",
+			Stream: StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

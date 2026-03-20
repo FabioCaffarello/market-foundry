@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.23"
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run unit tests (all modules)
+        run: make test
+
+  codegen-golden:
+    name: Codegen Golden Equivalence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Validate all specs (per-spec + cross-spec uniqueness)
+        run: make codegen-validate-all
+
+      - name: Run codegen golden comparison (all families)
+        run: make codegen-check
+
+      - name: Run codegen unit tests
+        run: make codegen-test
+
+      - name: Verify integrated slices match golden snapshots
+        run: make codegen-integrated
+
+  smoke-analytical:
+    name: Smoke Analytical E2E
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build service binaries
+        run: make build
+
+      - name: Start stack (compose up)
+        run: make up
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Wait for infrastructure readiness
+        run: |
+          echo "Waiting for services to become healthy..."
+          timeout 120 bash -c '
+            until docker compose -f deploy/compose/docker-compose.yaml exec -T clickhouse \
+              clickhouse-client --port 9000 --user default --password clickhouse \
+              --query "SELECT 1" 2>/dev/null | grep -q 1; do
+              sleep 5
+            done
+          '
+          echo "ClickHouse is ready."
+
+      - name: Seed configctl
+        run: make seed
+
+      - name: Wait for writer flush
+        run: sleep ${WRITER_FLUSH_WAIT:-120}
+        env:
+          WRITER_FLUSH_WAIT: "120"
+
+      - name: Run smoke-analytical E2E
+        run: make smoke-analytical
+
+      - name: Scan for error-level logs
+        if: always()
+        run: |
+          echo "--- Error log scan ---"
+          ERROR_COUNT=$(docker compose -f deploy/compose/docker-compose.yaml logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || echo "0")
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "WARNING: Found $ERROR_COUNT error-level log entries"
+            docker compose -f deploy/compose/docker-compose.yaml logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -10
+          else
+            echo "No error-level log entries found"
+          fi
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=200 > /tmp/compose-logs.txt 2>&1
+          echo "--- Writer logs ---"
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=100 writer 2>&1 || true
+          echo "--- Gateway logs ---"
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=100 gateway 2>&1 || true
+
+      - name: Upload logs artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs
+          path: /tmp/compose-logs.txt
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: make down

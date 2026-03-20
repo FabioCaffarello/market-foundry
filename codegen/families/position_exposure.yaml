@@ -1,0 +1,20 @@
+family:
+  name: position_exposure
+  layer: risk
+  tier: 1
+
+nats:
+  subject: "risk.events.position_exposure.assessed.>"
+  event_type: "risk.events.v1.position_exposure_assessed"
+  stream: RISK_EVENTS
+  durable: writer-risk-position-exposure
+
+writer:
+  table: risk_assessments
+  mapper: mapRiskRow
+  pipeline_family_key: position_exposure
+  config_array: risk_families
+
+domain:
+  event_package: risk
+  event_type: RiskAssessedEvent

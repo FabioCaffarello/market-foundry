@@ -1,0 +1,16 @@
+// {{.Derived.ConsumerSpecFunc}} defines the durable consumer spec for writer consuming
+// {{.Spec.Family.Name}} {{.Spec.Family.Layer}} events.
+func {{.Derived.ConsumerSpecFunc}}() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "{{.Spec.NATS.Durable}}",
+		Event: EventSpec{
+			Subject: "{{.Spec.NATS.Subject}}",
+			Type:    "{{.Spec.NATS.EventType}}",
+			Stream: StreamSpec{
+				Name: "{{.Spec.NATS.Stream}}",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

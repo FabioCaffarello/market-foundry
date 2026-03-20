@@ -373,8 +373,8 @@ func TestKnownFamiliesReturnsRegisteredNames(t *testing.T) {
 	}
 
 	signals := KnownFamilies(DomainSignal)
-	if len(signals) != 2 {
-		t.Fatalf("expected 2 signal families, got %d: %v", len(signals), signals)
+	if len(signals) != 3 {
+		t.Fatalf("expected 3 signal families, got %d: %v", len(signals), signals)
 	}
 }
 
@@ -414,10 +414,174 @@ func TestDependencyGraphCoversAllNonEvidenceFamilies(t *testing.T) {
 	}
 }
 
+func TestValidateTimeframesAcceptsValidRange(t *testing.T) {
+	p := PipelineConfig{Timeframes: []int{60, 300, 900, 3600}}
+	if prob := p.ValidatePipeline(); prob != nil {
+		t.Fatalf("expected valid timeframes to pass, got %v", prob)
+	}
+}
+
+func TestValidateTimeframesRejectsBelowMinimum(t *testing.T) {
+	p := PipelineConfig{Timeframes: []int{5}}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected timeframe below 10s to fail")
+	}
+}
+
+func TestValidateTimeframesRejectsAboveMaximum(t *testing.T) {
+	p := PipelineConfig{Timeframes: []int{100000}}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected timeframe above 86400s to fail")
+	}
+}
+
+func TestValidateTimeframesRejectsDuplicates(t *testing.T) {
+	p := PipelineConfig{Timeframes: []int{60, 300, 60}}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected duplicate timeframe to fail")
+	}
+}
+
+func TestValidateTimeframesEmptyIsValid(t *testing.T) {
+	p := PipelineConfig{}
+	issues := p.ValidateTimeframes()
+	if len(issues) != 0 {
+		t.Fatalf("expected empty timeframes to pass, got %d issues", len(issues))
+	}
+}
+
 func TestValidatePipelineEmptyIsValid(t *testing.T) {
 	p := PipelineConfig{}
 	if prob := p.ValidatePipeline(); prob != nil {
 		t.Fatalf("expected empty pipeline to be valid, got %v", prob)
+	}
+}
+
+// ── ClickHouse ValidateForWriter ─────────────────────────────────────
+
+func TestClickHouseValidateForWriterRejectsEmptyAddr(t *testing.T) {
+	cfg := ClickHouseConfig{}
+	prob := cfg.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for empty addr")
+	}
+	issues := extractIssues(prob)
+	found := false
+	for _, iss := range issues {
+		if iss.Field == "clickhouse.addr" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected issue for clickhouse.addr, got %v", issues)
+	}
+}
+
+func TestClickHouseValidateForWriterRejectsEmptyDatabase(t *testing.T) {
+	cfg := ClickHouseConfig{Addr: "localhost:9000", Username: "default"}
+	prob := cfg.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for empty database")
+	}
+	issues := extractIssues(prob)
+	found := false
+	for _, iss := range issues {
+		if iss.Field == "clickhouse.database" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected issue for clickhouse.database, got %v", issues)
+	}
+}
+
+func TestClickHouseValidateForWriterRejectsEmptyUsername(t *testing.T) {
+	cfg := ClickHouseConfig{Addr: "localhost:9000", Database: "default"}
+	prob := cfg.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for empty username")
+	}
+	issues := extractIssues(prob)
+	found := false
+	for _, iss := range issues {
+		if iss.Field == "clickhouse.username" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected issue for clickhouse.username, got %v", issues)
+	}
+}
+
+func TestClickHouseValidateForWriterAcceptsValidConfig(t *testing.T) {
+	cfg := ClickHouseConfig{
+		Addr:     "localhost:9000",
+		Database: "default",
+		Username: "default",
+		Password: "clickhouse",
+	}
+	if prob := cfg.ValidateForWriter(); prob != nil {
+		t.Fatalf("expected valid config, got %v", prob)
+	}
+}
+
+func TestClickHouseValidateForWriterRejectsNegativeBatchSize(t *testing.T) {
+	cfg := ClickHouseConfig{
+		Addr:      "localhost:9000",
+		Database:  "default",
+		Username:  "default",
+		BatchSize: -1,
+	}
+	prob := cfg.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for negative batch_size")
+	}
+}
+
+func TestClickHouseValidateForWriterAggregatesMultipleIssues(t *testing.T) {
+	cfg := ClickHouseConfig{} // empty: addr, database, username all missing
+	prob := cfg.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error")
+	}
+	issues := extractIssues(prob)
+	if len(issues) < 3 {
+		t.Fatalf("expected at least 3 issues (addr, database, username), got %d: %v", len(issues), issues)
+	}
+}
+
+// ── Pipeline ValidateForWriter ──────────────────────────────────────
+
+func TestPipelineValidateForWriterRejectsEmptyConfig(t *testing.T) {
+	p := PipelineConfig{}
+	prob := p.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for empty pipeline in writer context")
+	}
+}
+
+func TestPipelineValidateForWriterAcceptsWithEvidenceFamily(t *testing.T) {
+	p := PipelineConfig{Families: []string{"candle"}}
+	if prob := p.ValidateForWriter(); prob != nil {
+		t.Fatalf("expected valid pipeline, got %v", prob)
+	}
+}
+
+func TestPipelineValidateForWriterAcceptsWithSignalFamily(t *testing.T) {
+	p := PipelineConfig{SignalFamilies: []string{"rsi"}}
+	if prob := p.ValidateForWriter(); prob != nil {
+		t.Fatalf("expected valid pipeline, got %v", prob)
+	}
+}
+
+func TestPipelineValidateForWriterPropagatesStandardValidationErrors(t *testing.T) {
+	p := PipelineConfig{Families: []string{"bogus"}}
+	prob := p.ValidateForWriter()
+	if prob == nil {
+		t.Fatal("expected validation error for unknown family")
 	}
 }
 

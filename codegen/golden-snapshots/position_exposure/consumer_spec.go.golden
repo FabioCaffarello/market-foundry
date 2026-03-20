@@ -1,0 +1,15 @@
+// WriterPositionExposureRiskConsumer defines the durable consumer spec for writer consuming position exposure risk events.
+func WriterPositionExposureRiskConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "writer-risk-position-exposure",
+		Event: EventSpec{
+			Subject: "risk.events.position_exposure.assessed.>",
+			Type:    "risk.events.v1.position_exposure_assessed",
+			Stream: StreamSpec{
+				Name: "RISK_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

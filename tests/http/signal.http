@@ -28,6 +28,20 @@ Accept: application/json
 
 ###
 
+### 2b. Latest RSI signal — btcusdt 900s (TC-01)
+### Expected: 200 with signal data (after 15x900s = 225min warm-up) or null
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 2c. Latest RSI signal — btcusdt 3600s (TC-01)
+### Expected: 200 with signal data (after 15x3600s = 15h warm-up) or null
+GET {{baseUrl}}/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
+###
+
 ### 3. Unknown signal type — should return 400
 GET {{baseUrl}}/signal/unknown/latest?source=binancef&symbol=btcusdt&timeframe=60
 Accept: application/json

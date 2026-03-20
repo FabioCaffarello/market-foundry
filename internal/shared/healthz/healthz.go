@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -124,11 +125,13 @@ type trackerStatus struct {
 
 // statusResponse is returned by /statusz.
 type statusResponse struct {
-	Status    string          `json:"status"`
-	Runtime   string          `json:"runtime,omitempty"`
-	Uptime    string          `json:"uptime,omitempty"`
-	StartedAt string          `json:"started_at,omitempty"`
-	Trackers  []trackerStatus `json:"trackers,omitempty"`
+	Status          string          `json:"status"`
+	Phase           string          `json:"phase"`
+	Runtime         string          `json:"runtime,omitempty"`
+	Uptime          string          `json:"uptime,omitempty"`
+	StartedAt       string          `json:"started_at,omitempty"`
+	DegradedTrackers []string       `json:"degraded_trackers,omitempty"`
+	Trackers        []trackerStatus `json:"trackers,omitempty"`
 }
 
 // HealthServer provides /healthz, /readyz, /statusz, and /diagz endpoints.
@@ -282,8 +285,77 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 		}
 		ts.Counters = t.Counters()
 		resp.Trackers = append(resp.Trackers, ts)
+		if counters := t.Counters(); len(counters) > 0 {
+			if counters["pipeline_degraded"] > 0 {
+				resp.DegradedTrackers = append(resp.DegradedTrackers, t.Name())
+			}
+		}
 	}
+	resp.Phase = s.computePhase()
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// computePhase derives the aggregate operational phase from tracker state.
+//
+//   - "starting"  — uptime < 30s and no tracker has recorded an event
+//   - "warming"   — at least one tracker awaiting its first event
+//   - "active"    — all trackers receiving events, none idle
+//   - "idle"      — at least one tracker exceeds idle threshold
+//   - "stalled"   — all active trackers exceed idle threshold
+//   - "degraded"  — at least one tracker has pipeline_degraded > 0
+//
+// When no trackers are registered the phase follows uptime alone:
+// "starting" for the first 30s, then "active".
+func (s *HealthServer) computePhase() string {
+	uptime := time.Since(s.startedAt)
+
+	if len(s.trackers) == 0 {
+		if uptime < 30*time.Second {
+			return "starting"
+		}
+		return "active"
+	}
+
+	awaiting := 0
+	idleCount := 0
+	active := 0
+	degraded := 0
+
+	for _, t := range s.trackers {
+		if counters := t.Counters(); len(counters) > 0 {
+			if counters["pipeline_degraded"] > 0 {
+				degraded++
+			}
+		}
+		if t.EventCount() == 0 && t.ErrorCount() == 0 {
+			awaiting++
+			continue
+		}
+		if t.IdleSince() > s.idleThreshold {
+			idleCount++
+		} else {
+			active++
+		}
+	}
+
+	total := len(s.trackers)
+
+	if degraded > 0 {
+		return "degraded"
+	}
+	if awaiting == total && uptime < 30*time.Second {
+		return "starting"
+	}
+	if awaiting > 0 {
+		return "warming"
+	}
+	if idleCount == total {
+		return "stalled"
+	}
+	if idleCount > 0 {
+		return "idle"
+	}
+	return "active"
 }
 
 // HandleDiagz serves the /diagz diagnostic summary endpoint.
@@ -291,9 +363,12 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 // without exposing operational data or domain secrets.
 func (s *HealthServer) HandleDiagz(w http.ResponseWriter, _ *http.Request) {
 	diag := map[string]any{
-		"runtime":    s.runtime,
-		"started_at": s.startedAt.Format(time.RFC3339),
-		"uptime":     time.Since(s.startedAt).Truncate(time.Second).String(),
+		"runtime":        s.runtime,
+		"phase":          s.computePhase(),
+		"started_at":     s.startedAt.Format(time.RFC3339),
+		"uptime":         time.Since(s.startedAt).Truncate(time.Second).String(),
+		"go_version":     runtime.Version(),
+		"num_goroutines": runtime.NumGoroutine(),
 	}
 
 	// Readiness check summary.
@@ -352,13 +427,19 @@ func (s *HealthServer) heartbeatLoop(ctx context.Context) {
 				}
 				idle := t.IdleSince()
 				if idle > s.idleThreshold {
-					s.logger.Warn("component idle",
+					attrs := []any{
 						"tracker", t.Name(),
 						"idle_seconds", int(idle.Seconds()),
 						"last_event", t.LastEventAt().Format(time.RFC3339),
 						"event_count", count,
 						"error_count", errCount,
-					)
+					}
+					if counters := t.Counters(); len(counters) > 0 {
+						for k, v := range counters {
+							attrs = append(attrs, k, v)
+						}
+					}
+					s.logger.Warn("component idle", attrs...)
 				}
 			}
 		}

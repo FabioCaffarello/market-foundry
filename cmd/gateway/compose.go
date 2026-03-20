@@ -3,7 +3,9 @@ package main
 import (
 	"log/slog"
 
+	"internal/adapters/clickhouse"
 	adapternats "internal/adapters/nats"
+	"internal/application/analyticalclient"
 	configctlclient "internal/application/configctlclient"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
@@ -111,9 +113,46 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	return conns, nil
 }
 
+// buildAnalyticalClient creates an optional ClickHouse client for analytical queries.
+// Returns nil if ClickHouse is not configured. The gateway does NOT add ClickHouse
+// to its readiness check — analytical endpoints simply return 503 when unavailable.
+//
+// When ClickHouse IS configured, the config is validated before attempting a connection.
+// Invalid config (e.g. empty database) disables analytical endpoints with a warning
+// rather than attempting a connection that would fail with an opaque error.
+func buildAnalyticalClient(config settings.AppConfig, logger *slog.Logger) *clickhouse.Client {
+	if config.ClickHouse.Addr == "" {
+		logger.Info("clickhouse not configured, analytical endpoints disabled")
+		return nil
+	}
+
+	// Validate config before opening connection — fail-fast with actionable message.
+	if prob := config.ClickHouse.Validate(); prob != nil {
+		logger.Warn("clickhouse config invalid, analytical endpoints disabled", "error", prob)
+		return nil
+	}
+
+	client, err := clickhouse.Open(clickhouse.Config{
+		Addr:     config.ClickHouse.Addr,
+		Database: config.ClickHouse.Database,
+		Username: config.ClickHouse.Username,
+		Password: config.ClickHouse.Password,
+	})
+	if err != nil {
+		logger.Warn("clickhouse connection failed, analytical endpoints disabled", "addr", config.ClickHouse.Addr, "error", err)
+		return nil
+	}
+
+	logger.Info("clickhouse connected, analytical endpoints enabled",
+		"addr", config.ClickHouse.Addr,
+		"database", config.ClickHouse.Database,
+	)
+	return client
+}
+
 // buildRouteDependencies wires use cases from gateway connections and assembles
 // the complete route dependency set for the gateway HTTP server.
-func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns) routes.Dependencies {
+func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chClient *clickhouse.Client, logger *slog.Logger) routes.Dependencies {
 	deps := routes.Dependencies{
 		Readiness: newGatewayReadinessChecker(config, conns.configctl, conns.evidence),
 	}
@@ -181,6 +220,27 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns) rout
 		}
 		deps.Execution = execDeps
 	}
+
+	// Analytical use cases — conditional on ClickHouse availability.
+	// These are additive endpoints (R-08) that do not modify existing behavior.
+	if chClient != nil {
+		candleReader := newAnalyticalCandleReader(chClient, logger)
+		signalReader := newAnalyticalSignalReader(chClient, logger)
+		decisionReader := newAnalyticalDecisionReader(chClient, logger)
+		strategyReader := newAnalyticalStrategyReader(chClient, logger)
+		riskReader := newAnalyticalRiskReader(chClient, logger)
+		executionReader := newAnalyticalExecutionReader(chClient, logger)
+		deps.Analytical = routes.AnalyticalFamilyDeps{
+			GetCandleHistory:    analyticalclient.NewGetCandleHistoryUseCase(candleReader, logger),
+			GetSignalHistory:    analyticalclient.NewGetSignalHistoryUseCase(signalReader, logger),
+			GetDecisionHistory:  analyticalclient.NewGetDecisionHistoryUseCase(decisionReader, logger),
+			GetStrategyHistory:  analyticalclient.NewGetStrategyHistoryUseCase(strategyReader, logger),
+			GetRiskHistory:      analyticalclient.NewGetRiskHistoryUseCase(riskReader, logger),
+			GetExecutionHistory: analyticalclient.NewGetExecutionHistoryUseCase(executionReader, logger),
+		}
+	}
+
+	deps.Logger = logger
 
 	return deps
 }

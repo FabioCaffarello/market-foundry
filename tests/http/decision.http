@@ -29,6 +29,18 @@ Accept: application/json
 
 ###
 
+### 2b. Latest RSI Oversold decision — btcusdt 900s (TC-01)
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 2c. Latest RSI Oversold decision — btcusdt 3600s (TC-01)
+GET {{baseUrl}}/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
+###
+
 ### 3. Unknown decision type — should return 400
 GET {{baseUrl}}/decision/unknown/latest?source=binancef&symbol=btcusdt&timeframe=60
 Accept: application/json

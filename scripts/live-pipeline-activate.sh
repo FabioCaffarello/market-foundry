@@ -76,7 +76,7 @@ fi
 # ---------- Phase 2: Wait for Health ----------
 phase "Phase 2: Waiting for Service Health"
 
-SERVICES=("nats" "configctl" "gateway" "ingest" "derive" "store" "execute")
+SERVICES=("nats" "configctl" "gateway" "ingest" "derive" "store" "execute" "writer")
 MAX_WAIT=120
 POLL_INTERVAL=5
 
@@ -126,7 +126,7 @@ check_readiness "gateway"   "${BASE_URL}/readyz"
 check_readiness "configctl" "http://127.0.0.1:8080/readyz"  # behind gateway port
 
 # Internal readiness via compose exec (services not exposed on host except gateway and nats).
-for svc_port in "configctl:8080" "ingest:8082" "derive:8083" "store:8081" "execute:8084"; do
+for svc_port in "configctl:8080" "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
     result=$($COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/readyz" 2>/dev/null || echo '{"status":"error"}')
@@ -164,8 +164,9 @@ check_diagnostics() {
     if [[ -n "$statusz" ]]; then
         runtime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('runtime',''))" 2>/dev/null || echo "")
         uptime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('uptime',''))" 2>/dev/null || echo "")
+        phase=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('phase','unknown'))" 2>/dev/null || echo "unknown")
         trackers=$(echo "$statusz" | python3 -c "import sys,json; ts=json.load(sys.stdin).get('trackers',[]); print(len(ts))" 2>/dev/null || echo "0")
-        pass "${svc} /statusz → runtime=${runtime} uptime=${uptime} trackers=${trackers}"
+        pass "${svc} /statusz → runtime=${runtime} phase=${phase} uptime=${uptime} trackers=${trackers}"
     else
         record_fail "${svc} /statusz unreachable"
     fi
@@ -192,6 +193,7 @@ check_diagnostics "ingest"    "8082"
 check_diagnostics "derive"    "8083"
 check_diagnostics "store"     "8081"
 check_diagnostics "execute"   "8084"
+check_diagnostics "writer"    "8085"
 
 # ---------- Phase 6: Gateway Query Surface ----------
 phase "Phase 6: Gateway Query Surface Validation"
@@ -216,15 +218,31 @@ check_endpoint "GET /readyz"   "${BASE_URL}/readyz"
 # Configctl
 check_endpoint "GET /configctl/configs/active" "${BASE_URL}/configctl/configs/active?scope_kind=global&scope_key=default"
 
-# Domain query surfaces — validate for each symbol
+# Domain query surfaces — validate for each symbol × timeframe
+# TC-01/S133: validate all 4 timeframes for evidence AND downstream domain reachability.
+# Evidence checks data availability; downstream checks endpoint wiring (200 even if null data).
 for sym in "${SYMBOLS[@]}"; do
-    check_endpoint "GET /evidence/candles/latest [${sym}]" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=${sym}&timeframe=60"
-    check_endpoint "GET /signal/rsi/latest [${sym}]" "${BASE_URL}/signal/rsi/latest?source=binancef&symbol=${sym}&timeframe=60"
+    for tf in 60 300 900 3600; do
+        check_endpoint "GET /evidence/candles/latest [${sym} tf=${tf}]" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+    done
+    for tf in 60 300 900 3600; do
+        check_endpoint "GET /signal/rsi/latest [${sym} tf=${tf}]" "${BASE_URL}/signal/rsi/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /decision/rsi_oversold/latest [${sym} tf=${tf}]" "${BASE_URL}/decision/rsi_oversold/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /strategy/mean_reversion_entry/latest [${sym} tf=${tf}]" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /risk/position_exposure/latest [${sym} tf=${tf}]" "${BASE_URL}/risk/position_exposure/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /execution/paper_order/latest [${sym} tf=${tf}]" "${BASE_URL}/execution/paper_order/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+    done
     check_endpoint "GET /signal/ema_crossover/latest [${sym}]" "${BASE_URL}/signal/ema_crossover/latest?source=binancef&symbol=${sym}&timeframe=60"
-    check_endpoint "GET /decision/rsi_oversold/latest [${sym}]" "${BASE_URL}/decision/rsi_oversold/latest?source=binancef&symbol=${sym}&timeframe=60"
-    check_endpoint "GET /strategy/mean_reversion_entry/latest [${sym}]" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=${sym}&timeframe=60"
-    check_endpoint "GET /risk/position_exposure/latest [${sym}]" "${BASE_URL}/risk/position_exposure/latest?source=binancef&symbol=${sym}&timeframe=60"
-    check_endpoint "GET /execution/paper_order/latest [${sym}]" "${BASE_URL}/execution/paper_order/latest?source=binancef&symbol=${sym}&timeframe=60"
+done
+
+# Analytical query surface — validate endpoints are reachable (may return 503 if ClickHouse unavailable).
+for sym in "${SYMBOLS[@]}"; do
+    check_endpoint "GET /analytical/evidence/candles [${sym}]" "${BASE_URL}/analytical/evidence/candles?source=binancef&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/signal/history [${sym}]" "${BASE_URL}/analytical/signal/history?type=rsi&source=binancef&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/decision/history [${sym}]" "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/strategy/history [${sym}]" "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/risk/history [${sym}]" "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/execution/history [${sym}]" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&symbol=${sym}&timeframe=60&limit=5"
 done
 
 # Execution control (symbol-independent)
@@ -297,14 +315,16 @@ $COMPOSE ps -q 2>/dev/null | while read -r cid; do
     docker stats --no-stream --format '  {{.Name}}\t{{.MemUsage}}' "$cid" 2>/dev/null
 done || info "docker stats unavailable"
 
-for svc_port in "ingest:8082" "derive:8083" "store:8081" "execute:8084"; do
+for svc_port in "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
     $COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 name=d.get('runtime','${svc}')
+phase=d.get('phase','unknown')
 trackers=d.get('trackers',[])
+print(f'  ${svc}: phase={phase}')
 if not trackers:
     print(f'  ${svc}: no trackers registered')
 else:
@@ -313,8 +333,16 @@ else:
         idle = f' idle={t[\"idle_seconds\"]}s' if t.get('idle_seconds') else ''
         counters = ''
         if t.get('counters'):
-            counters = ' ' + ' '.join(f'{k}={v}' for k,v in t['counters'].items())
+            counters = ' ' + ' '.join(f'{k}={v}' for k,v in sorted(t['counters'].items()))
         print(f'  ${svc}/{t[\"name\"]}: {status} events={t[\"event_count\"]} errors={t.get(\"error_count\",0)}{idle}{counters}')
+    # S133: Per-timeframe counter summary for TC-01 validation.
+    tf_counters = {}
+    for t in trackers:
+        for k, v in (t.get('counters') or {}).items():
+            tf_counters[k] = tf_counters.get(k, 0) + v
+    if tf_counters:
+        tf_keys = sorted(tf_counters.keys())
+        print(f'  ${svc} timeframe totals: ' + ' '.join(f'{k}={tf_counters[k]}' for k in tf_keys))
 " 2>/dev/null || info "${svc}: /statusz unavailable"
 done
 

@@ -1,0 +1,16 @@
+// WriterPaperOrderExecutionConsumer defines the durable consumer spec for writer consuming
+// paper order execution events from EXECUTION_EVENTS.
+func WriterPaperOrderExecutionConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "writer-execution-paper-order",
+		Event: EventSpec{
+			Subject: "execution.events.paper_order.submitted.>",
+			Type:    "execution.events.v1.paper_order_submitted",
+			Stream: StreamSpec{
+				Name: "EXECUTION_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

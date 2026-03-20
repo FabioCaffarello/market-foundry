@@ -1,0 +1,15 @@
+// WriterCandleConsumer defines the durable consumer spec for writer consuming candle events.
+func WriterCandleConsumer() ConsumerSpec {
+	return ConsumerSpec{
+		Durable: "writer-candle",
+		Event: EventSpec{
+			Subject: "evidence.events.candle.sampled.>",
+			Type:    "evidence.events.v1.candle_sampled",
+			Stream: StreamSpec{
+				Name: "EVIDENCE_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

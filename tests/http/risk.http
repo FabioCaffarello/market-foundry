@@ -9,3 +9,11 @@ Accept: application/json
 ### Latest risk assessment — position exposure (5-minute)
 GET http://localhost:8080/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=300
 Accept: application/json
+
+### Latest risk assessment — position exposure (15-minute, TC-01)
+GET http://localhost:8080/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+### Latest risk assessment — position exposure (1-hour, TC-01)
+GET http://localhost:8080/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json

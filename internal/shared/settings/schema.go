@@ -8,11 +8,144 @@ import (
 )
 
 type AppConfig struct {
-	Log      LogConfig      `json:"log"`
-	HTTP     HTTPConfig     `json:"http"`
-	NATS     NATSConfig     `json:"nats"`
-	Venue    VenueConfig    `json:"venue"`
-	Pipeline PipelineConfig `json:"pipeline"`
+	Log        LogConfig        `json:"log"`
+	HTTP       HTTPConfig       `json:"http"`
+	NATS       NATSConfig       `json:"nats"`
+	Venue      VenueConfig      `json:"venue"`
+	Pipeline   PipelineConfig   `json:"pipeline"`
+	ClickHouse ClickHouseConfig `json:"clickhouse"`
+}
+
+// ClickHouseConfig holds ClickHouse connection and batching parameters.
+// Optional — only used by the writer binary. Other services ignore this section.
+type ClickHouseConfig struct {
+	Addr           string `json:"addr"`
+	Database       string `json:"database"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	BatchSize      int    `json:"batch_size"`
+	FlushInterval  string `json:"flush_interval"`
+	MaxPending     int    `json:"max_pending"`
+	MaxRetries     int    `json:"max_retries"`
+	InitialBackoff string `json:"initial_backoff"`
+}
+
+// Validate checks that ClickHouse config is structurally valid when configured.
+// Returns nil if addr is empty (not configured).
+func (c ClickHouseConfig) Validate() *problem.Problem {
+	if c.Addr == "" {
+		return nil // optional — not every binary uses ClickHouse
+	}
+	return c.validateFields()
+}
+
+// ValidateForWriter checks that ClickHouse config is complete and structurally
+// valid for the writer binary, where ClickHouse is a hard requirement.
+// Unlike Validate(), this method rejects an empty addr as a configuration error.
+func (c ClickHouseConfig) ValidateForWriter() *problem.Problem {
+	var issues []problem.ValidationIssue
+	if c.Addr == "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.addr",
+			Message: "must not be empty — writer requires a ClickHouse connection",
+		})
+	}
+	if c.Database == "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.database",
+			Message: "must not be empty when clickhouse is configured",
+		})
+	}
+	if c.Username == "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.username",
+			Message: "must not be empty — ClickHouse requires authentication credentials",
+		})
+	}
+	issues = append(issues, c.validateBatchingFields()...)
+	if len(issues) == 0 {
+		return nil
+	}
+	return validationProblem("clickhouse config is invalid for writer", issues...)
+}
+
+// validateFields checks structural validity of all ClickHouse config fields.
+func (c ClickHouseConfig) validateFields() *problem.Problem {
+	var issues []problem.ValidationIssue
+	if c.Database == "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.database",
+			Message: "must not be empty when clickhouse is configured",
+		})
+	}
+	issues = append(issues, c.validateBatchingFields()...)
+	if len(issues) == 0 {
+		return nil
+	}
+	return validationProblem("clickhouse config is invalid", issues...)
+}
+
+// validateBatchingFields checks batching-related fields (shared between Validate and ValidateForWriter).
+func (c ClickHouseConfig) validateBatchingFields() []problem.ValidationIssue {
+	var issues []problem.ValidationIssue
+	if c.BatchSize < 0 {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.batch_size",
+			Message: "must not be negative",
+			Value:   c.BatchSize,
+		})
+	}
+	if c.MaxPending < 0 {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.max_pending",
+			Message: "must not be negative",
+			Value:   c.MaxPending,
+		})
+	}
+	if c.MaxRetries < 0 {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "clickhouse.max_retries",
+			Message: "must not be negative",
+			Value:   c.MaxRetries,
+		})
+	}
+	issues = append(issues, durationIssue("clickhouse.flush_interval", c.FlushInterval)...)
+	issues = append(issues, durationIssue("clickhouse.initial_backoff", c.InitialBackoff)...)
+	return issues
+}
+
+// BatchSizeOrDefault returns the configured batch size or 1000.
+func (c ClickHouseConfig) BatchSizeOrDefault() int {
+	if c.BatchSize <= 0 {
+		return 1000
+	}
+	return c.BatchSize
+}
+
+// FlushIntervalOrDefault returns the configured flush interval or 5s.
+func (c ClickHouseConfig) FlushIntervalOrDefault() time.Duration {
+	return parseDurationOrDefault(c.FlushInterval, 5*time.Second)
+}
+
+// MaxPendingOrDefault returns the configured max pending or 10000.
+func (c ClickHouseConfig) MaxPendingOrDefault() int {
+	if c.MaxPending <= 0 {
+		return 10000
+	}
+	return c.MaxPending
+}
+
+// MaxRetriesOrDefault returns the configured max retries or 5.
+func (c ClickHouseConfig) MaxRetriesOrDefault() int {
+	if c.MaxRetries <= 0 {
+		return 5
+	}
+	return c.MaxRetries
+}
+
+// InitialBackoffOrDefault returns the configured initial backoff or 1s.
+func (c ClickHouseConfig) InitialBackoffOrDefault() time.Duration {
+	return parseDurationOrDefault(c.InitialBackoff, 1*time.Second)
 }
 
 // ── Known family registries ─────────────────────────────────────────
@@ -27,6 +160,7 @@ var knownEvidenceFamilies = map[string]bool{
 
 var knownSignalFamilies = map[string]bool{
 	"rsi":           true,
+	"ema":           true,
 	"ema_crossover": true,
 }
 
@@ -64,6 +198,7 @@ var knownExecutionFamilies = map[string]bool{
 
 var signalDependsOnEvidence = map[string][]string{
 	"rsi":           {"candle"},
+	"ema":           {"candle"},
 	"ema_crossover": {"candle"},
 }
 
@@ -329,12 +464,47 @@ func (p PipelineConfig) EnabledFamilies() []string {
 	return result
 }
 
+// ValidateTimeframes checks that configured timeframes are within the
+// supported range [10, 86400] seconds and contain no duplicates.
+func (p PipelineConfig) ValidateTimeframes() []problem.ValidationIssue {
+	var issues []problem.ValidationIssue
+
+	seen := make(map[int]bool, len(p.Timeframes))
+	for _, tf := range p.Timeframes {
+		if tf < 10 {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.timeframes",
+				Message: fmt.Sprintf("timeframe %d is below minimum (10s)", tf),
+				Value:   tf,
+			})
+		} else if tf > 86400 {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.timeframes",
+				Message: fmt.Sprintf("timeframe %d exceeds maximum (86400s)", tf),
+				Value:   tf,
+			})
+		}
+		if seen[tf] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.timeframes",
+				Message: fmt.Sprintf("duplicate timeframe %d", tf),
+				Value:   tf,
+			})
+		}
+		seen[tf] = true
+	}
+	return issues
+}
+
 // ValidatePipeline checks that pipeline family names are known, unique, and that
 // cross-layer dependency rules are satisfied. It returns nil when valid.
 func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 	var issues []problem.ValidationIssue
 
-	// 0. Reject duplicate family names in every list.
+	// 0a. Reject invalid or duplicate timeframes.
+	issues = append(issues, p.ValidateTimeframes()...)
+
+	// 0b. Reject duplicate family names in every list.
 	issues = append(issues, rejectDuplicates("pipeline.families", p.Families)...)
 	issues = append(issues, rejectDuplicates("pipeline.signal_families", p.SignalFamilies)...)
 	issues = append(issues, rejectDuplicates("pipeline.decision_families", p.DecisionFamilies)...)
@@ -504,6 +674,35 @@ func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 	return validationProblem("pipeline config has invalid family dependencies", issues...)
 }
 
+// ValidateForWriter checks that pipeline config is valid for the writer binary.
+// In addition to the standard pipeline validation, it verifies that at least one
+// writer-compatible family is explicitly enabled, preventing a startup that would
+// immediately report zero pipelines.
+func (p PipelineConfig) ValidateForWriter() *problem.Problem {
+	// Run standard pipeline validation first.
+	if prob := p.ValidatePipeline(); prob != nil {
+		return prob
+	}
+
+	// The writer requires at least one family to be enabled across any layer.
+	hasAny := len(p.Families) > 0 ||
+		len(p.SignalFamilies) > 0 ||
+		len(p.DecisionFamilies) > 0 ||
+		len(p.StrategyFamilies) > 0 ||
+		len(p.RiskFamilies) > 0 ||
+		len(p.ExecutionFamilies) > 0
+
+	if !hasAny {
+		return validationProblem("writer pipeline config requires at least one family enabled",
+			problem.ValidationIssue{
+				Field:   "pipeline",
+				Message: "no families configured — writer has no pipelines to run",
+			},
+		)
+	}
+	return nil
+}
+
 // Defaults returns the baseline shared application config.
 func Defaults() AppConfig {
 	return AppConfig{
@@ -544,6 +743,7 @@ func (c AppConfig) Validate() *problem.Problem {
 	issues = append(issues, extractIssues(c.NATS.Validate())...)
 	issues = append(issues, extractIssues(c.Venue.Validate())...)
 	issues = append(issues, extractIssues(c.Pipeline.ValidatePipeline())...)
+	issues = append(issues, extractIssues(c.ClickHouse.Validate())...)
 
 	if len(issues) == 0 {
 		return nil

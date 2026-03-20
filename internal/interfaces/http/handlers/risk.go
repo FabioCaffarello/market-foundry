@@ -39,7 +39,7 @@ func (h *RiskWebHandler) GetLatestRisk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return

@@ -131,75 +131,41 @@ func (r ExecutionRegistry) LatestSpecByType(execType string) (ControlSpec, bool)
 	}
 }
 
+// ── Writer Consumer Specs (manual:owned) ─────────────────────────
+// Ownership: human-maintained. Not codegen-governed.
+
+// WriterPaperOrderExecutionConsumer defines the durable consumer spec for writer consuming
+// paper order execution events from EXECUTION_EVENTS.
+func WriterPaperOrderExecutionConsumer() ConsumerSpec {
+	return newConsumerSpec("writer-execution-paper-order", "execution.events.paper_order.submitted.>", "execution.events.v1.paper_order_submitted", "EXECUTION_EVENTS")
+}
+
 // ── Paper Family Consumer ─────────────────────────────────────────
 
 // StorePaperOrderExecutionConsumer defines the durable consumer spec for store consuming
 // paper order execution events from EXECUTION_EVENTS.
-// Family: paper_order. Owner: store binary.
 func StorePaperOrderExecutionConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-execution-paper-order",
-		Event: EventSpec{
-			Subject: "execution.events.paper_order.submitted.>",
-			Type:    "execution.events.v1.paper_order_submitted",
-			Stream: StreamSpec{
-				Name: "EXECUTION_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-execution-paper-order", "execution.events.paper_order.submitted.>", "execution.events.v1.paper_order_submitted", "EXECUTION_EVENTS")
 }
 
 // ── Venue Family Consumers ────────────────────────────────────────
 
 // ExecuteVenueMarketOrderIntakeConsumer defines the durable consumer spec for the execute binary
 // consuming execution intents from EXECUTION_EVENTS for venue submission.
-// Family: venue_market_order (intake side). Owner: execute binary.
 //
-// TRANSITIONAL BRIDGE (paper mode): This consumer currently subscribes to
-// paper_order subjects because derive only produces PaperOrderSubmittedEvent.
-// When venue-specific intent subjects are introduced (future stage), this
-// consumer's filter subject will migrate to execution.events.venue_market_order.submitted.>
-// and a new event type will replace PaperOrderSubmittedEvent for venue intake.
-// See docs/architecture/execution-family-separation-after-paper-step.md.
+// TRANSITIONAL BRIDGE (paper mode): subscribes to paper_order subjects because derive only
+// produces PaperOrderSubmittedEvent. Will migrate to venue-specific subjects in a future stage.
 func ExecuteVenueMarketOrderIntakeConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "execute-venue-market-order-intake",
-		Event: EventSpec{
-			// NOTE: Subscribes to paper_order subjects as transitional bridge.
-			// This will migrate to venue-specific subjects when venue intent events are introduced.
-			Subject: "execution.events.paper_order.submitted.>",
-			Type:    "execution.events.v1.paper_order_submitted",
-			Stream: StreamSpec{
-				Name: "EXECUTION_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("execute-venue-market-order-intake", "execution.events.paper_order.submitted.>", "execution.events.v1.paper_order_submitted", "EXECUTION_EVENTS")
 }
 
 // ExecutionVenueMarketOrderLatestBucket is the KV bucket for venue family fill results.
-// Family: venue_market_order. Authority: store binary (FillProjectionActor).
 const ExecutionVenueMarketOrderLatestBucket = "EXECUTION_VENUE_MARKET_ORDER_LATEST"
 
 // StoreVenueMarketOrderFillConsumer defines the durable consumer spec for store consuming
 // venue market order fill events from EXECUTION_FILL_EVENTS.
-// Family: venue_market_order. Owner: store binary.
 func StoreVenueMarketOrderFillConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-execution-venue-market-order-fill",
-		Event: EventSpec{
-			Subject: "execution.fill.venue_market_order.>",
-			Type:    "execution.fill.v1.venue_market_order_filled",
-			Stream: StreamSpec{
-				Name: "EXECUTION_FILL_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-execution-venue-market-order-fill", "execution.fill.venue_market_order.>", "execution.fill.v1.venue_market_order_filled", "EXECUTION_FILL_EVENTS")
 }
 
 // DefaultStalenessMaxAge is the default maximum age for execution intents before they are

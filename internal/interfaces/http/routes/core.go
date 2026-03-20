@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	configctlcontracts "internal/application/configctl/contracts"
@@ -111,6 +112,8 @@ type Dependencies struct {
 	Strategy                     StrategyFamilyDeps
 	Risk                         RiskFamilyDeps
 	Execution                    ExecutionFamilyDeps
+	Analytical                   AnalyticalFamilyDeps
+	Logger                       *slog.Logger
 }
 
 type handlersCreateDraftUseCase interface {
@@ -235,6 +238,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Execution.HasAny() {
 		routes = append(routes, Execution(deps.Execution)...)
+	}
+	if deps.Analytical.HasAny() {
+		routes = append(routes, Analytical(deps.Analytical, deps.Logger)...)
 	}
 	return routes
 }

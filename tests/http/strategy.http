@@ -14,6 +14,14 @@ Accept: application/json
 GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=ethusdt&timeframe=300
 Accept: application/json
 
+### Get latest strategy — mean_reversion_entry — btcusdt 15m (TC-01)
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+### Get latest strategy — mean_reversion_entry — btcusdt 1h (TC-01)
+GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
 ### Error: unknown strategy type
 GET http://localhost:8080/strategy/unknown_type/latest?source=binancef&symbol=btcusdt&timeframe=60
 Accept: application/json

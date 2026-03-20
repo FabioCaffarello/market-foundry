@@ -1,5 +1,9 @@
 {
-  // Ingest captures external market data and publishes observation events.
+  // Ingest — captures external market data (Binance WS) and publishes observation events to NATS.
+  //
+  // Port: 8082 (internal only, not exposed on host).
+  // Dependencies: nats, configctl.
+  // No pipeline config needed — ingest publishes raw observations, not derived events.
   "log": {
     "level": "info",
     "format": "text"

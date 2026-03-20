@@ -1,0 +1,348 @@
+### ----------------------------------------------------------------------------
+### Analytical query — ClickHouse-backed historical candle queries
+### ----------------------------------------------------------------------------
+### This file validates the analytical query surface added in S149.
+### These endpoints query ClickHouse directly (not NATS KV) for historical data.
+###
+### Prerequisites:
+###   make up           # starts full stack including clickhouse + writer
+###   make seed-multi   # seeds configctl with btcusdt + ethusdt bindings
+###   wait ~120s        # writer needs to flush batches to ClickHouse
+###
+### Note: These endpoints return 503 if ClickHouse is not configured in gateway.
+
+@baseUrl = http://127.0.0.1:8080
+
+### --- Analytical candle history ---
+
+### 1. Basic analytical candle query — btcusdt 60s (default limit=50)
+### Expected: 200 with candles array + source="clickhouse"
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 2. Analytical candle query with limit — btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 3. Analytical candle query with time range
+### since/until are unix seconds. Adjust to current time window.
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### 4. Analytical candle query — ethusdt 300s
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### 5. Analytical candle query — large limit (up to 500)
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&limit=500
+Accept: application/json
+
+###
+
+### --- Error handling ---
+
+### 6. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 7. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###
+
+### 8. since after until — should return 400
+GET {{baseUrl}}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&since=1710003600&until=1710000000
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Analytical signal history — ClickHouse-backed historical signal queries
+### Added in S164 (Wave B family-01: signals)
+### ----------------------------------------------------------------------------
+
+### 9. Basic analytical signal query — RSI btcusdt 60s (default limit=50)
+### Expected: 200 with signals array + source="clickhouse"
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 10. Analytical signal query with limit — RSI btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 11. Analytical signal query with time range
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### 12. Analytical signal query — ethusdt 300s
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### --- Signal error handling ---
+
+### 13. Missing type — should return 400
+GET {{baseUrl}}/analytical/signal/history?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 14. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 15. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Analytical decision history — ClickHouse-backed historical decision queries
+### Added in S169 (Wave B family-02: decisions)
+### ----------------------------------------------------------------------------
+
+### 16. Basic analytical decision query — rsi_oversold btcusdt 60s (default limit=50)
+### Expected: 200 with decisions array + source="clickhouse"
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 17. Analytical decision query with limit — rsi_oversold btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 18. Analytical decision query with outcome filter — triggered only
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered&limit=20
+Accept: application/json
+
+###
+
+### 19. Analytical decision query with time range
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### 20. Analytical decision query — ethusdt 300s
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### --- Decision error handling ---
+
+### 21. Missing type — should return 400
+GET {{baseUrl}}/analytical/decision/history?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 22. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 23. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Analytical strategy history — ClickHouse-backed historical strategy queries
+### Added in S176 (Wave B family-03: strategies)
+### ----------------------------------------------------------------------------
+
+### 24. Basic analytical strategy query — mean_reversion_entry btcusdt 60s (default limit=50)
+### Expected: 200 with strategies array + source="clickhouse"
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 25. Analytical strategy query with limit — mean_reversion_entry btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 26. Analytical strategy query with direction filter — long only
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long&limit=20
+Accept: application/json
+
+###
+
+### 27. Analytical strategy query with time range
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### 28. Analytical strategy query — ethusdt 300s
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### --- Strategy error handling ---
+
+### 29. Missing type — should return 400
+GET {{baseUrl}}/analytical/strategy/history?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 30. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 31. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Analytical risk history — ClickHouse-backed historical risk assessment queries
+### Added in S181 (Wave B family-04: risk assessments)
+### ----------------------------------------------------------------------------
+
+### 32. Basic analytical risk query — position_exposure btcusdt 60s (default limit=50)
+### Expected: 200 with risk_assessments array + source="clickhouse"
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 33. Analytical risk query with limit — position_exposure btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 34. Analytical risk query with disposition filter — approved only
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved&limit=20
+Accept: application/json
+
+###
+
+### 35. Analytical risk query with time range
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### 36. Analytical risk query — ethusdt 300s
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### --- Risk error handling ---
+
+### 37. Missing type — should return 400
+GET {{baseUrl}}/analytical/risk/history?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 38. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 39. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###
+
+### ----------------------------------------------------------------------------
+### Analytical execution history — ClickHouse-backed historical execution queries
+### Added in S187 (Wave B family-05: executions)
+### ----------------------------------------------------------------------------
+
+### 40. Basic analytical execution query — paper_order btcusdt 60s (default limit=50)
+### Expected: 200 with executions array + source="clickhouse"
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 41. Analytical execution query with limit — paper_order btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 42. Analytical execution query with side filter — buy only
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&side=buy&limit=20
+Accept: application/json
+
+###
+
+### 43. Analytical execution query with status filter — filled only
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&status=filled&limit=20
+Accept: application/json
+
+###
+
+### 44. Analytical execution query with both filters — buy + filled
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&side=buy&status=filled&limit=20
+Accept: application/json
+
+###
+
+### 45. Analytical execution query with time range
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=100
+Accept: application/json
+
+###
+
+### --- Execution error handling ---
+
+### 46. Missing type — should return 400
+GET {{baseUrl}}/analytical/execution/history?source=derive&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 47. Missing timeframe — should return 400
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt
+Accept: application/json
+
+###
+
+### 48. Invalid limit (> 500) — should return 400
+GET {{baseUrl}}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&limit=9999
+Accept: application/json
+
+###

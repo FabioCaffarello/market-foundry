@@ -1,5 +1,9 @@
 {
-  // configctl is the control-plane owner and only needs NATS locally.
+  // Configctl — control plane for ingestion binding lifecycle (draft → validate → activate).
+  //
+  // Port: 8080 (internal only, shared port number with gateway — gateway is the external-facing one).
+  // Dependencies: nats.
+  // No pipeline config needed — configctl manages configuration, not data processing.
   "log": {
     "level": "info",
     "format": "text"

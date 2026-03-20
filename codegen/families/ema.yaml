@@ -1,0 +1,17 @@
+family:
+  name: ema
+  layer: signal
+  tier: 1
+nats:
+  subject: "signal.events.ema.generated.>"
+  event_type: "signal.events.v1.ema_generated"
+  stream: SIGNAL_EVENTS
+  durable: writer-signal-ema
+writer:
+  table: signals
+  mapper: mapSignalRow
+  pipeline_family_key: ema
+  config_array: signal_families
+domain:
+  event_package: signal
+  event_type: SignalGeneratedEvent

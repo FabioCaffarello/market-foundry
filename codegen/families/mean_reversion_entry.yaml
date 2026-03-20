@@ -1,0 +1,20 @@
+family:
+  name: mean_reversion_entry
+  layer: strategy
+  tier: 1
+
+nats:
+  subject: "strategy.events.mean_reversion_entry.resolved.>"
+  event_type: "strategy.events.v1.mean_reversion_entry_resolved"
+  stream: STRATEGY_EVENTS
+  durable: writer-strategy-mean-reversion-entry
+
+writer:
+  table: strategies
+  mapper: mapStrategyRow
+  pipeline_family_key: mean_reversion_entry
+  config_array: strategy_families
+
+domain:
+  event_package: strategy
+  event_type: StrategyResolvedEvent

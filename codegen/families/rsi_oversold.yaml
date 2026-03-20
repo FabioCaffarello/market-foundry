@@ -1,0 +1,20 @@
+family:
+  name: rsi_oversold
+  layer: decision
+  tier: 1
+
+nats:
+  subject: "decision.events.rsi_oversold.evaluated.>"
+  event_type: "decision.events.v1.rsi_oversold_evaluated"
+  stream: DECISION_EVENTS
+  durable: writer-decision-rsi-oversold
+
+writer:
+  table: decisions
+  mapper: mapDecisionRow
+  pipeline_family_key: rsi_oversold
+  config_array: decision_families
+
+domain:
+  event_package: decision
+  event_type: DecisionEvaluatedEvent

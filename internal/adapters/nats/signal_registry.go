@@ -62,34 +62,32 @@ func (r SignalRegistry) LatestSpecByType(signalType string) (ControlSpec, bool) 
 	}
 }
 
+// ── Writer Consumer Specs ─────────────────────────────────────────
+// RSI and EMA are codegen-governed (markers below).
+// Store consumer specs remain manual:owned.
+
+// codegen:begin consumer_spec family=rsi source=codegen/families/rsi.yaml
+// WriterRSISignalConsumer defines the durable consumer spec for writer consuming RSI signal events.
+func WriterRSISignalConsumer() ConsumerSpec {
+	return newConsumerSpec("writer-signal-rsi", "signal.events.rsi.generated.>", "signal.events.v1.rsi_generated", "SIGNAL_EVENTS")
+}
+
+// codegen:end consumer_spec family=rsi
+
+// codegen:begin consumer_spec family=ema source=codegen/families/ema.yaml
+// WriterEMASignalConsumer defines the durable consumer spec for writer consuming ema signal events.
+func WriterEMASignalConsumer() ConsumerSpec {
+	return newConsumerSpec("writer-signal-ema", "signal.events.ema.generated.>", "signal.events.v1.ema_generated", "SIGNAL_EVENTS")
+}
+
+// codegen:end consumer_spec family=ema
+
 // StoreRSISignalConsumer defines the durable consumer spec for store consuming RSI signal events.
 func StoreRSISignalConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-signal-rsi",
-		Event: EventSpec{
-			Subject: "signal.events.rsi.generated.>",
-			Type:    "signal.events.v1.rsi_generated",
-			Stream: StreamSpec{
-				Name: "SIGNAL_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-signal-rsi", "signal.events.rsi.generated.>", "signal.events.v1.rsi_generated", "SIGNAL_EVENTS")
 }
 
 // StoreEMACrossoverSignalConsumer defines the durable consumer spec for store consuming EMA crossover signal events.
 func StoreEMACrossoverSignalConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-signal-ema-crossover",
-		Event: EventSpec{
-			Subject: "signal.events.ema_crossover.generated.>",
-			Type:    "signal.events.v1.ema_crossover_generated",
-			Stream: StreamSpec{
-				Name: "SIGNAL_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-signal-ema-crossover", "signal.events.ema_crossover.generated.>", "signal.events.v1.ema_crossover_generated", "SIGNAL_EVENTS")
 }

@@ -1,5 +1,8 @@
 {
-  // Derive consumes observation events and produces evidence events.
+  // Derive — consumes observation events and produces evidence/signal/decision/strategy/risk/execution events.
+  //
+  // Port: 8083 (internal only, not exposed on host).
+  // Dependencies: nats, configctl.
   "log": {
     "level": "info",
     "format": "text"
@@ -13,21 +16,41 @@
     "request_timeout": "2s"
   },
   "pipeline": {
+    // ── Timeframes ──────────────────────────────────────────────────
     // Candle timeframes in seconds. Each symbol gets one sampler per timeframe.
-    // 60 = 1-minute candles, 300 = 5-minute candles.
-    "timeframes": [60, 300],
-    // Evidence families to derive. Each family gets its own sampler actor per symbol/timeframe.
-    // Omit this field or set to [] to enable all available families.
+    // Valid range: [10, 86400]. No duplicates allowed.
+    // 60 = 1m, 300 = 5m, 900 = 15m, 3600 = 1h.
+    "timeframes": [60, 300, 900, 3600],
+
+    // ── Evidence families ───────────────────────────────────────────
+    // Known: candle, tradeburst, volume.
+    // Empty or absent → all families enabled (backward compatible).
     "families": ["candle", "tradeburst", "volume"],
-    // Signal families to derive from evidence. Opt-in only — absent means no signal activation.
+
+    // ── Signal families (opt-in) ────────────────────────────────────
+    // Known: rsi, ema_crossover. Absent → none enabled.
+    // Dependencies: rsi → candle, ema_crossover → candle.
     "signal_families": ["rsi"],
-    // Decision families to evaluate from signals. Opt-in only — absent means no decision activation.
+
+    // ── Decision families (opt-in) ──────────────────────────────────
+    // Known: rsi_oversold. Absent → none enabled.
+    // Dependencies: rsi_oversold → rsi.
     "decision_families": ["rsi_oversold"],
-    // Strategy families to resolve from decisions. Opt-in only — absent means no strategy activation.
+
+    // ── Strategy families (opt-in) ──────────────────────────────────
+    // Known: mean_reversion_entry. Absent → none enabled.
+    // Dependencies: mean_reversion_entry → rsi_oversold.
     "strategy_families": ["mean_reversion_entry"],
-    // Risk families to evaluate from strategies. Opt-in only — absent means no risk activation.
+
+    // ── Risk families (opt-in) ──────────────────────────────────────
+    // Known: position_exposure. Absent → none enabled.
+    // Dependencies: position_exposure → mean_reversion_entry.
     "risk_families": ["position_exposure"],
-    // Execution families to derive from risk assessments. Opt-in only — absent means no execution activation.
+
+    // ── Execution families (opt-in) ─────────────────────────────────
+    // Known: paper_order, venue_market_order. Absent → none enabled.
+    // Dependencies: paper_order → position_exposure, venue_market_order → position_exposure.
+    // Note: venue_market_order requires execute service with venue adapter.
     "execution_families": ["paper_order"]
   }
 }

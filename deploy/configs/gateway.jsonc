@@ -1,10 +1,19 @@
 {
-  // HTTP API exposed for local development.
+  // Gateway — HTTP API entry point. Proxies domain queries to store via NATS request/reply.
+  // Analytical endpoints (optional) query ClickHouse directly for historical data.
+  //
+  // Ports: Exposed on host :8080 (only service directly reachable from outside Docker network).
+  // Dependencies: nats, configctl, store (must be healthy before gateway reports ready).
+  // Optional: clickhouse (analytical endpoints only — not in readiness check).
   "log": {
+    // level: debug | info | warn | error (default: info)
+    // format: json | text (default: text)
     "level": "info",
     "format": "text"
   },
   "http": {
+    // addr: listen address (default: :8080)
+    // Timeouts: valid Go duration strings, must be > 0.
     "addr": ":8080",
     "read_timeout": "10s",
     "write_timeout": "15s",
@@ -13,7 +22,18 @@
   },
   "nats": {
     "enabled": true,
+    // url: NATS server URL. Use "nats://nats:4222" for Docker, "nats://localhost:4222" for local.
     "url": "nats://nats:4222",
+    // request_timeout: max wait for NATS request/reply (default: 2s). Affects query latency ceiling.
     "request_timeout": "2s"
+  },
+  // ClickHouse — optional. When configured, enables /analytical/* endpoints for historical queries.
+  // Remove or leave addr empty to disable analytical endpoints entirely.
+  // Gateway readiness does NOT depend on ClickHouse (R-02 compliance).
+  "clickhouse": {
+    "addr": "clickhouse:9000",
+    "database": "default",
+    "username": "default",
+    "password": "clickhouse"
   }
 }

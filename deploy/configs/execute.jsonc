@@ -1,5 +1,8 @@
 {
-  // Execute service: consumes execution intents, submits to venue adapter, publishes fills.
+  // Execute — consumes execution intents, submits to venue adapter, publishes fills.
+  //
+  // Port: 8084 (internal only, not exposed on host).
+  // Dependencies: nats, configctl, store.
   // Activation gates: kill switch, staleness guard, domain validation, trace propagation.
   "log": {
     "level": "info",
@@ -13,22 +16,22 @@
     "url": "nats://nats:4222",
     "request_timeout": "2s"
   },
-  // Venue adapter selection. Only "paper_simulator" is allowed until venue activation gate ceremony.
-  // Adding a new venue type requires: activation gate review, adapter implementation, governance update.
+  // ── Venue adapter ─────────────────────────────────────────────────
+  // Known types: paper_simulator, binance_futures_testnet.
+  // Only paper_simulator is approved. Adding a new type requires activation gate ceremony:
+  //   1. Governance review  2. Adapter implementation  3. Integration test  4. Docs update.
   "venue": {
     "type": "paper_simulator",
-    // Maximum age before an execution intent is considered stale (30s–600s, default 120s).
+    // staleness_max_age: reject intents older than this (range: 30s–600s, default: 120s).
     "staleness_max_age": "120s",
-    // Timeout for venue adapter SubmitOrder calls (1s–60s, default 10s).
+    // submit_timeout: max wait for venue SubmitOrder (range: 1s–60s, default: 10s).
     "submit_timeout": "10s"
   },
   "pipeline": {
-    // Execution families consumed by this binary.
-    // Only paper_order is supported — venue_market_order requires activation gate ceremony.
+    // Execute must declare the full dependency chain for pipeline validation.
+    // See deploy/configs/derive.jsonc for valid family names and dependency rules.
     "execution_families": ["paper_order"],
-    // Risk family dependency (required for pipeline validation).
     "risk_families": ["position_exposure"],
-    // Upstream dependencies for risk (transitive validation).
     "strategy_families": ["mean_reversion_entry"],
     "decision_families": ["rsi_oversold"],
     "signal_families": ["rsi"],

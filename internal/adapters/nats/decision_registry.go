@@ -47,18 +47,15 @@ func (r DecisionRegistry) LatestSpecByType(decisionType string) (ControlSpec, bo
 	}
 }
 
+// ── Writer Consumer Specs (manual:owned) ─────────────────────────
+// Ownership: human-maintained. Not codegen-governed.
+
+// WriterRSIOversoldDecisionConsumer defines the durable consumer spec for writer consuming RSI oversold decision events.
+func WriterRSIOversoldDecisionConsumer() ConsumerSpec {
+	return newConsumerSpec("writer-decision-rsi-oversold", "decision.events.rsi_oversold.evaluated.>", "decision.events.v1.rsi_oversold_evaluated", "DECISION_EVENTS")
+}
+
 // StoreRSIOversoldDecisionConsumer defines the durable consumer spec for store consuming RSI oversold decision events.
 func StoreRSIOversoldDecisionConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-decision-rsi-oversold",
-		Event: EventSpec{
-			Subject: "decision.events.rsi_oversold.evaluated.>",
-			Type:    "decision.events.v1.rsi_oversold_evaluated",
-			Stream: StreamSpec{
-				Name: "DECISION_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-decision-rsi-oversold", "decision.events.rsi_oversold.evaluated.>", "decision.events.v1.rsi_oversold_evaluated", "DECISION_EVENTS")
 }

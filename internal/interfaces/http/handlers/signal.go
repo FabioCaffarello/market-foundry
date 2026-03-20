@@ -40,7 +40,7 @@ func (h *SignalWebHandler) GetLatestSignal(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return

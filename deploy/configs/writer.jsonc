@@ -1,0 +1,40 @@
+{
+  // Writer — consumes canonical events from NATS JetStream and appends them
+  // to ClickHouse as an analytical projection. Lateral, optional, append-only.
+  //
+  // Port: 8085 (internal only, not exposed on host).
+  // Dependencies: nats, clickhouse.
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8085"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "clickhouse": {
+    "addr": "clickhouse:9000",
+    "database": "default",
+    "username": "default",
+    "password": "clickhouse",
+    "batch_size": 1000,
+    "flush_interval": "5s",
+    "max_pending": 10000,
+    "max_retries": 5,
+    "initial_backoff": "1s"
+  },
+  "pipeline": {
+    // Writer covers the primary pipeline families for the initial analytical surface.
+    // Each family maps to exactly one ClickHouse core table.
+    "families": ["candle"],
+    "signal_families": ["rsi", "ema"],
+    "decision_families": ["rsi_oversold"],
+    "strategy_families": ["mean_reversion_entry"],
+    "risk_families": ["position_exposure"],
+    "execution_families": ["paper_order"]
+  }
+}

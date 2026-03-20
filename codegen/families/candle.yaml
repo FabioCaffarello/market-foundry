@@ -1,0 +1,20 @@
+family:
+  name: candle
+  layer: evidence
+  tier: 1
+
+nats:
+  subject: "evidence.events.candle.sampled.>"
+  event_type: "evidence.events.v1.candle_sampled"
+  stream: EVIDENCE_EVENTS
+  durable: writer-candle
+
+writer:
+  table: evidence_candles
+  mapper: mapCandleRow
+  pipeline_family_key: candle
+  config_array: families
+
+domain:
+  event_package: evidence
+  event_type: CandleSampledEvent

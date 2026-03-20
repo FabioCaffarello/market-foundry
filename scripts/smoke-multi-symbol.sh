@@ -23,14 +23,14 @@
 #   Control:   GET/PUT /execution/control (kill switch gate cycle with execute active)
 #   Trace:     correlation_id + causation_id persistence through execute chain
 #
-# Validates: 2 symbols (btcusdt, ethusdt) × 2 timeframes (60s, 300s)
-# Evidence   KV keys: 4 (2 symbols × 2 timeframes)
-# Signal RSI KV keys: 4 (2 symbols × 2 timeframes)
-# Signal EMA KV keys: 4 (2 symbols × 2 timeframes)
-# Decision   KV keys: 4 (2 symbols × 2 timeframes)
-# Strategy   KV keys: 4 (2 symbols × 2 timeframes)
-# Risk       KV keys: 4 (2 symbols × 2 timeframes)
-# Execution  KV keys: 4 (2 symbols × 2 timeframes)
+# Validates: 2 symbols (btcusdt, ethusdt) × 4 timeframes (60s, 300s, 900s, 3600s)
+# Evidence   KV keys: 8 (2 symbols × 4 timeframes)
+# Signal RSI KV keys: 8 (2 symbols × 4 timeframes)
+# Signal EMA KV keys: 8 (2 symbols × 4 timeframes)
+# Decision   KV keys: 8 (2 symbols × 4 timeframes)
+# Strategy   KV keys: 8 (2 symbols × 4 timeframes)
+# Risk       KV keys: 8 (2 symbols × 4 timeframes)
+# Execution  KV keys: 8 (2 symbols × 4 timeframes)
 #
 # Prerequisites:
 #   make up
@@ -45,7 +45,7 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="binancef"
 SYMBOLS=(${SMOKE_SYMBOLS:-btcusdt ethusdt})
-TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300})
+TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300 900 3600})
 WAIT_SECONDS="${1:-90}"
 if [[ "${1:-}" == "--wait" ]]; then
     WAIT_SECONDS="${2:-90}"

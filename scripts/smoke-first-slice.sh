@@ -6,7 +6,8 @@
 #                                                     → store (NATS KV)
 #                                                     → gateway HTTP endpoint
 #
-# Validates two timeframes: 60s (1-minute) and 300s (5-minute) candles.
+# Validates four timeframes: 60s (1m), 300s (5m), 900s (15m), 3600s (1h) candles.
+# Note: 900s and 3600s candles need longer to finalize (15min and 60min respectively).
 #
 # Prerequisites:
 #   make up   (starts nats, configctl, gateway, ingest, derive, store)
@@ -133,6 +134,58 @@ else
     fail "300s endpoint returned $HTTP_CODE — expected 200"
 fi
 
+# ---------- Step 6b: Validate 900s candle endpoint (TC-01) ----------
+info "Step 6b: Checking 900s (15-minute) candle endpoint..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=900")
+RESPONSE_900=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=900")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "900s endpoint reachable (200)"
+    echo "$RESPONSE_900" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'candle' in data, 'missing candle key'
+candle = data['candle']
+if candle is not None:
+    assert candle['timeframe'] == 900, f'wrong timeframe: {candle[\"timeframe\"]}'
+    print(f'  source={candle[\"source\"]} symbol={candle[\"symbol\"]} tf={candle[\"timeframe\"]}')
+    print(f'  OHLCV: {candle[\"open\"]}/{candle[\"high\"]}/{candle[\"low\"]}/{candle[\"close\"]} vol={candle[\"volume\"]}')
+    print(f'  trades={candle[\"trade_count\"]} final={candle[\"final\"]}')
+    print(f'  window: {candle[\"open_time\"]} → {candle[\"close_time\"]}')
+else:
+    print('  900s candle is null (expected — 15-minute window needs more time to finalize)')
+print('OK')
+" 2>&1 && pass "900s response structure valid" || fail "900s response structure invalid"
+else
+    fail "900s endpoint returned $HTTP_CODE — expected 200"
+fi
+
+# ---------- Step 6c: Validate 3600s candle endpoint (TC-01) ----------
+info "Step 6c: Checking 3600s (1-hour) candle endpoint..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=3600")
+RESPONSE_3600=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=3600")
+
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "3600s endpoint reachable (200)"
+    echo "$RESPONSE_3600" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'candle' in data, 'missing candle key'
+candle = data['candle']
+if candle is not None:
+    assert candle['timeframe'] == 3600, f'wrong timeframe: {candle[\"timeframe\"]}'
+    print(f'  source={candle[\"source\"]} symbol={candle[\"symbol\"]} tf={candle[\"timeframe\"]}')
+    print(f'  OHLCV: {candle[\"open\"]}/{candle[\"high\"]}/{candle[\"low\"]}/{candle[\"close\"]} vol={candle[\"volume\"]}')
+    print(f'  trades={candle[\"trade_count\"]} final={candle[\"final\"]}')
+    print(f'  window: {candle[\"open_time\"]} → {candle[\"close_time\"]}')
+else:
+    print('  3600s candle is null (expected — 1-hour window needs ~60min to finalize)')
+print('OK')
+" 2>&1 && pass "3600s response structure valid" || fail "3600s response structure invalid"
+else
+    fail "3600s endpoint returned $HTTP_CODE — expected 200"
+fi
+
 # ---------- Step 7: Validate error handling ----------
 info "Step 7: Checking error handling..."
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt")
@@ -149,12 +202,14 @@ echo "======================================"
 echo ""
 echo "Flow validated:"
 echo "  Binance WS → ingest → OBSERVATION_EVENTS"
-echo "                       → derive (60s + 300s candle samplers)"
+echo "                       → derive (60s + 300s + 900s + 3600s candle samplers)"
 echo "                       → EVIDENCE_EVENTS → store (NATS KV)"
 echo "                       → evidence.query.candle.latest"
 echo "                       → GET /evidence/candles/latest"
 echo ""
 echo "Timeframes validated:"
-echo "  60s  (1-minute) — candle query endpoint reachable"
-echo "  300s (5-minute) — candle query endpoint reachable"
+echo "  60s   (1-minute)  — candle query endpoint reachable"
+echo "  300s  (5-minute)  — candle query endpoint reachable"
+echo "  900s  (15-minute) — candle query endpoint reachable"
+echo "  3600s (1-hour)    — candle query endpoint reachable"
 echo ""

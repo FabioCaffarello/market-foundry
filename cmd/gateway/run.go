@@ -30,8 +30,14 @@ func Run(config settings.AppConfig) {
 	}
 	defer conns.Close(logger)
 
-	// Phase 2: Wire use cases from connections → route dependencies.
-	deps := buildRouteDependencies(config, conns)
+	// Phase 2a: Create optional ClickHouse client for analytical queries.
+	chClient := buildAnalyticalClient(config, logger)
+	if chClient != nil {
+		defer chClient.Close()
+	}
+
+	// Phase 2b: Wire use cases from connections → route dependencies.
+	deps := buildRouteDependencies(config, conns, chClient, logger)
 
 	// Phase 3: Assemble routes and spawn the gateway actor.
 	gatewayRoutes := routes.DefaultRoutes(deps)

@@ -44,7 +44,7 @@ func (h *ExecutionWebHandler) GetLatestExecution(w http.ResponseWriter, r *http.
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -71,7 +71,7 @@ func (h *ExecutionWebHandler) GetExecutionStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return

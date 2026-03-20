@@ -69,7 +69,7 @@ services:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
       - ../clickhouse/config/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
-      - ../clickhouse/users/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
+      - ../clickhouse/users/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml
     cap_add:
       - SYS_NICE
     networks:
@@ -205,6 +205,28 @@ services:
       timeout: 3s
       retries: 6
       start_period: 10s
+
+  writer:
+    <<: *go-service
+    build:
+      <<: *go-build
+      args:
+        SERVICE: writer
+    image: market-foundry/writer:dev
+    command: ["-config", "/etc/market-foundry/writer.jsonc"]
+    volumes:
+      - ../configs/writer.jsonc:/etc/market-foundry/writer.jsonc:ro
+    depends_on:
+      nats:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8085/readyz | grep -q 'ready'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
 networks:
   market-foundry-network:

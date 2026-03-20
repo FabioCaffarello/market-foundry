@@ -1,0 +1,46 @@
+# codegen/integrated.yaml
+#
+# Manifest of codegen-governed slices integrated into the monorepo.
+# Each entry maps a generated artifact to its target file and the golden
+# snapshot that serves as the source of truth.
+#
+# Governance rule: changes to code inside codegen:begin/codegen:end markers
+# MUST originate from the codegen pipeline (spec → generate → compare → insert).
+# Direct manual edits to marked regions trigger a CI violation.
+
+slices:
+  - family: rsi
+    artifact: consumer_spec
+    spec: codegen/families/rsi.yaml
+    golden: codegen/golden-snapshots/rsi/consumer_spec.go.golden
+    target: internal/adapters/nats/signal_registry.go
+    marker: "codegen:begin consumer_spec family=rsi"
+    integrated_at: "2026-03-20"
+    stage: S200
+
+  - family: rsi
+    artifact: pipeline_entry
+    spec: codegen/families/rsi.yaml
+    golden: codegen/golden-snapshots/rsi/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=rsi"
+    integrated_at: "2026-03-20"
+    stage: S200
+
+  - family: ema
+    artifact: consumer_spec
+    spec: codegen/families/ema.yaml
+    golden: codegen/golden-snapshots/ema/consumer_spec.go.golden
+    target: internal/adapters/nats/signal_registry.go
+    marker: "codegen:begin consumer_spec family=ema"
+    integrated_at: "2026-03-20"
+    stage: S203
+
+  - family: ema
+    artifact: pipeline_entry
+    spec: codegen/families/ema.yaml
+    golden: codegen/golden-snapshots/ema/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=ema"
+    integrated_at: "2026-03-20"
+    stage: S203

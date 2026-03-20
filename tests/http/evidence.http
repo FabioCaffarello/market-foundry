@@ -4,7 +4,7 @@
 ### This file validates the multi-symbol vertical slice:
 ###   Binance WS → ingest → OBSERVATION_EVENTS → derive → store → gateway HTTP
 ###
-### Scenario: 2 symbols (btcusdt, ethusdt) × 2 timeframes (60s, 300s)
+### Scenario: 2 symbols (btcusdt, ethusdt) × 4 timeframes (60s, 300s, 900s, 3600s)
 ###
 ### Prerequisites:
 ###   make up           # starts nats, configctl, gateway, ingest, derive, store
@@ -45,6 +45,20 @@ Accept: application/json
 
 ###
 
+### 4b. Latest 900s candle — btcusdt (TC-01)
+### Expected: 200 with candle data (after ~16min) or 200 with null candle (if < 900s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 4c. Latest 3600s candle — btcusdt (TC-01)
+### Expected: 200 with candle data (after ~61min) or 200 with null candle (if < 3600s)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
+###
+
 ### --- ETHUSDT (symbol 2) ---
 
 ### 5. Latest 60s candle — ethusdt
@@ -57,6 +71,18 @@ Accept: application/json
 ### 6. Latest 300s candle — ethusdt
 ### Expected: 200 with candle data (after ~6min) or 200 with null candle (if < 300s)
 GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 6b. Latest 900s candle — ethusdt (TC-01)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=ethusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 6c. Latest 3600s candle — ethusdt (TC-01)
+GET {{baseUrl}}/evidence/candles/latest?source=binancef&symbol=ethusdt&timeframe=3600
 Accept: application/json
 
 ###
@@ -121,6 +147,18 @@ Accept: application/json
 
 ### 15. Latest trade burst — ethusdt 60s
 GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 15b. Latest trade burst — btcusdt 900s (TC-01)
+GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 15c. Latest trade burst — btcusdt 3600s (TC-01)
+GET {{baseUrl}}/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=3600
 Accept: application/json
 
 ###

@@ -6,7 +6,7 @@ DOCKER ?= docker
 COMPOSE_FILE ?= deploy/compose/docker-compose.yaml
 COMPOSE := $(DOCKER) compose -f $(COMPOSE_FILE)
 BUILD_DIR ?= bin
-BUILDABLE_SERVICES := configctl derive execute gateway ingest store
+BUILDABLE_SERVICES := configctl derive execute gateway ingest migrate store writer
 
 RACCOON_DIR := tools/raccoon-cli
 RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
@@ -19,8 +19,10 @@ endef
 
 .PHONY: help tidy test test-integration build docker-build compose-config up down restart logs ps clean \
        raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep \
-       check check-deep verify smoke smoke-multi seed seed-multi live live-check live-multi live-multi-check \
-       coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing
+       check check-deep verify smoke smoke-multi smoke-analytical ci-analytical seed seed-multi live live-check live-multi live-multi-check \
+       diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
+       migrate-up migrate-status migrate-validate \
+       codegen-check codegen-test codegen-integrated codegen-validate-all codegen-status
 
 help:
 	@echo "Targets:"
@@ -30,7 +32,7 @@ help:
 	@echo "  make build                - build local service binaries into $(BUILD_DIR)/"
 	@echo "  make docker-build         - build docker images for local services"
 	@echo "  make compose-config       - render and validate the compose file"
-	@echo "  make up                   - start the stack (nats + configctl + gateway + ingest + derive + store + execute)"
+	@echo "  make up                   - start the full stack (nats + clickhouse + migrations + all services)"
 	@echo "  make down                 - stop the compose stack"
 	@echo "  make restart              - restart the whole stack or SERVICE=<name>"
 	@echo "  make logs                 - stream logs for the whole stack or SERVICE=<name>"
@@ -42,10 +44,13 @@ help:
 	@echo "  make live-check           - validate running stack (skip build+up)"
 	@echo "  make live-multi           - full multi-symbol pipeline activation (btcusdt + ethusdt)"
 	@echo "  make live-multi-check     - validate multi-symbol running stack"
+	@echo "  make diag                 - lightweight diagnostic snapshot of running stack"
 	@echo "  make seed                 - seed configctl with single symbol (btcusdt)"
 	@echo "  make seed-multi           - seed configctl with multi-symbol (btcusdt + ethusdt)"
 	@echo "  make smoke                - E2E smoke test (single symbol)"
 	@echo "  make smoke-multi          - E2E smoke test (2 symbols × 2 timeframes)"
+	@echo "  make smoke-analytical     - E2E analytical layer proof (NATS→writer→CH→reader→HTTP)"
+	@echo "  make ci-analytical        - CI gate: unit tests + smoke-analytical (use in CI pipelines)"
 	@echo "  make check                - pre-code guard rail (quality-gate fast)"
 	@echo "  make verify               - post-change: Go tests + quality-gate"
 	@echo "  make check-deep           - full validation"
@@ -57,6 +62,18 @@ help:
 	@echo "  make snapshot-diff        - compare two snapshots (SNAP1= SNAP2=)"
 	@echo "  make baseline-drift       - detect drift against baseline (BASELINE=)"
 	@echo "  make recommend            - smart recommendations from diff/baseline"
+	@echo ""
+	@echo "Codegen:"
+	@echo "  make codegen-check        - verify generated output matches golden snapshots (all families)"
+	@echo "  make codegen-test         - run codegen unit tests"
+	@echo "  make codegen-integrated   - verify integrated slices match golden snapshots"
+	@echo "  make codegen-validate-all - validate all specs (per-spec + cross-spec uniqueness)"
+	@echo "  make codegen-status       - show governance status of all families"
+	@echo ""
+	@echo "Migrations (ClickHouse):"
+	@echo "  make migrate-up           - apply pending ClickHouse migrations"
+	@echo "  make migrate-status       - show migration status (applied/pending)"
+	@echo "  make migrate-validate     - verify checksums of applied migrations"
 	@echo ""
 	@echo "Quality (raccoon-cli):"
 	@echo "  make quality-gate         - fast static checks (local dev, pre-commit)"
@@ -205,6 +222,12 @@ smoke-multi:
 	@echo "Running multi-symbol E2E smoke test..."
 	@./scripts/smoke-multi-symbol.sh
 
+smoke-analytical:
+	@echo "Running analytical layer E2E integration proof..."
+	@./scripts/smoke-analytical-e2e.sh
+
+ci-analytical: test smoke-analytical
+
 live:
 	@echo "Live pipeline activation (build + start + seed + validate)..."
 	@./scripts/live-pipeline-activate.sh
@@ -220,6 +243,9 @@ live-multi:
 live-multi-check:
 	@echo "Live multi-symbol pipeline check (validate running stack)..."
 	@./scripts/live-pipeline-activate.sh --multi-symbol --check-only
+
+diag:
+	@./scripts/diag-check.sh
 
 seed:
 	@echo "Seeding configctl (single symbol)..."
@@ -261,3 +287,53 @@ baseline-drift: $(RACCOON_BIN)
 		echo "Usage: make baseline-drift BASELINE=baseline.json"; exit 1; \
 	fi
 	$(RACCOON_BIN) --project-root . baseline-drift $(BASELINE)
+
+# --- codegen validation ---
+
+codegen-check:
+	@echo "Running codegen golden equivalence check (all families × all artifacts)..."
+	@cd codegen && CODEGEN_ROOT=. $(GO) run . check-all
+
+codegen-test:
+	@echo "Running codegen unit tests..."
+	@cd codegen && $(GO) test ./... -count=1
+
+codegen-integrated:
+	@echo "Running codegen integrated slice verification..."
+	@./scripts/codegen-integrated-check.sh
+
+codegen-validate-all:
+	@echo "Running cross-spec validation (per-spec + uniqueness)..."
+	@cd codegen && CODEGEN_ROOT=. $(GO) run . validate-all
+
+codegen-status:
+	@echo "=== Codegen Governance Status ==="
+	@echo ""
+	@echo "Families with specs:"
+	@ls -1 codegen/families/*.yaml 2>/dev/null | while read f; do \
+		name=$$(basename "$$f" .yaml); \
+		if grep -qE "^  - family: $$name$$" codegen/integrated.yaml 2>/dev/null; then \
+			echo "  $$name  [GOVERNED] (markers + CI gate)"; \
+		else \
+			echo "  $$name  [MANUAL]   (golden-only, no markers)"; \
+		fi; \
+	done
+	@echo ""
+	@echo "Integrated slices (from codegen/integrated.yaml):"
+	@awk '/^  - family:/{f=$$3} /artifact:/{gsub(/^ +/,""); sub(/artifact: /,""); print "  " f "/" $$0}' \
+		codegen/integrated.yaml 2>/dev/null || echo "  (none)"
+	@echo ""
+
+# --- ClickHouse migrations ---
+
+migrate-up:
+	@set -a && [ -f deploy/envs/local.env ] && . deploy/envs/local.env; set +a; \
+	$(GO) run ./cmd/migrate up
+
+migrate-status:
+	@set -a && [ -f deploy/envs/local.env ] && . deploy/envs/local.env; set +a; \
+	$(GO) run ./cmd/migrate status
+
+migrate-validate:
+	@set -a && [ -f deploy/envs/local.env ] && . deploy/envs/local.env; set +a; \
+	$(GO) run ./cmd/migrate validate

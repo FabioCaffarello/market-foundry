@@ -1,0 +1,23 @@
+// ── Signal: ema → signals ──
+{
+	family:       "ema",
+	consumerName: "writer-signal-ema-consumer",
+	inserterName: "writer-signal-ema-inserter",
+	table:        "signals",
+	insertSQL:    "INSERT INTO signals",
+	consumerSpec: adapternats.WriterEMASignalConsumer(),
+	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema") },
+	startConsumer: func(natsURL string, spec adapternats.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
+		consumer := adapternats.NewSignalConsumer(natsURL, spec, reg.signal,
+			func(event signal.SignalGeneratedEvent) {
+				if tracker != nil {
+					tracker.RecordEvent()
+					tracker.Counter("events_received").Add(1)
+				}
+				actorCtx.Send(inserterPID, insertRowMsg{row: mapSignalRow(event)})
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	},
+},

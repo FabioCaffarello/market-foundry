@@ -144,6 +144,10 @@ func TestHealthServer_Statusz(t *testing.T) {
 	if first["event_count"] != float64(2) {
 		t.Fatalf("expected 2, got %v", first["event_count"])
 	}
+	// Phase should be "active" since the tracker has events and is not idle.
+	if resp["phase"] != "active" {
+		t.Fatalf("expected phase active, got %v", resp["phase"])
+	}
 }
 
 func TestHealthServer_Statusz_IdleWarning(t *testing.T) {
@@ -217,6 +221,126 @@ func TestHealthServer_Statusz_WithCounters(t *testing.T) {
 	}
 	if counters["skipped_halt"] != float64(2) {
 		t.Fatalf("expected skipped_halt=2, got %v", counters["skipped_halt"])
+	}
+}
+
+func TestHealthServer_Statusz_Phase_Warming(t *testing.T) {
+	active := healthz.NewTracker("projection")
+	active.RecordEvent()
+	waiting := healthz.NewTracker("consumer")
+
+	srv := healthz.NewHealthServer(":0", nil, []*healthz.Tracker{active, waiting})
+	handler := testHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/statusz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["phase"] != "warming" {
+		t.Fatalf("expected phase warming, got %v", resp["phase"])
+	}
+}
+
+func TestHealthServer_Statusz_Phase_Stalled(t *testing.T) {
+	tr := healthz.NewTracker("projection")
+	tr.RecordEvent()
+
+	srv := healthz.NewHealthServer(":0", nil, []*healthz.Tracker{tr},
+		healthz.WithIdleThreshold(1*time.Nanosecond))
+	handler := testHandler(srv)
+
+	time.Sleep(time.Millisecond)
+	req := httptest.NewRequest(http.MethodGet, "/statusz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["phase"] != "stalled" {
+		t.Fatalf("expected phase stalled, got %v", resp["phase"])
+	}
+}
+
+func TestHealthServer_Diagz_RuntimeMetadata(t *testing.T) {
+	srv := healthz.NewHealthServer(":0", nil, nil, healthz.WithRuntime("test"))
+	handler := testHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/diagz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["go_version"] == nil || resp["go_version"] == "" {
+		t.Fatal("expected go_version in diagz response")
+	}
+	if resp["num_goroutines"] == nil {
+		t.Fatal("expected num_goroutines in diagz response")
+	}
+	if resp["phase"] == nil || resp["phase"] == "" {
+		t.Fatal("expected phase in diagz response")
+	}
+}
+
+func TestHealthServer_Statusz_Phase_Degraded(t *testing.T) {
+	tr := healthz.NewTracker("writer-candle-consumer")
+	tr.RecordEvent()
+	tr.Counter("pipeline_degraded").Add(1)
+
+	srv := healthz.NewHealthServer(":0", nil, []*healthz.Tracker{tr})
+	handler := testHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/statusz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["phase"] != "degraded" {
+		t.Fatalf("expected phase degraded, got %v", resp["phase"])
+	}
+
+	// Verify degraded_trackers field lists the degraded tracker.
+	degraded, ok := resp["degraded_trackers"].([]any)
+	if !ok || len(degraded) != 1 {
+		t.Fatalf("expected 1 degraded tracker, got %v", resp["degraded_trackers"])
+	}
+	if degraded[0] != "writer-candle-consumer" {
+		t.Fatalf("expected writer-candle-consumer, got %v", degraded[0])
+	}
+}
+
+func TestHealthServer_Statusz_NoDegradedTrackers(t *testing.T) {
+	tr := healthz.NewTracker("healthy")
+	tr.RecordEvent()
+
+	srv := healthz.NewHealthServer(":0", nil, []*healthz.Tracker{tr})
+	handler := testHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/statusz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["degraded_trackers"] != nil {
+		t.Fatalf("expected no degraded_trackers, got %v", resp["degraded_trackers"])
 	}
 }
 

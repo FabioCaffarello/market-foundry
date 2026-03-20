@@ -47,18 +47,15 @@ func (r RiskRegistry) LatestSpecByType(riskType string) (ControlSpec, bool) {
 	}
 }
 
+// ── Writer Consumer Specs (manual:owned) ─────────────────────────
+// Ownership: human-maintained. Not codegen-governed.
+
+// WriterPositionExposureRiskConsumer defines the durable consumer spec for writer consuming position exposure risk events.
+func WriterPositionExposureRiskConsumer() ConsumerSpec {
+	return newConsumerSpec("writer-risk-position-exposure", "risk.events.position_exposure.assessed.>", "risk.events.v1.position_exposure_assessed", "RISK_EVENTS")
+}
+
 // StorePositionExposureRiskConsumer defines the durable consumer spec for store consuming position exposure risk events.
 func StorePositionExposureRiskConsumer() ConsumerSpec {
-	return ConsumerSpec{
-		Durable: "store-risk-position-exposure",
-		Event: EventSpec{
-			Subject: "risk.events.position_exposure.assessed.>",
-			Type:    "risk.events.v1.position_exposure_assessed",
-			Stream: StreamSpec{
-				Name: "RISK_EVENTS",
-			},
-		},
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	return newConsumerSpec("store-risk-position-exposure", "risk.events.position_exposure.assessed.>", "risk.events.v1.position_exposure_assessed", "RISK_EVENTS")
 }

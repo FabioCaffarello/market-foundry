@@ -1,0 +1,20 @@
+family:
+  name: paper_order
+  layer: execution
+  tier: 1
+
+nats:
+  subject: "execution.events.paper_order.submitted.>"
+  event_type: "execution.events.v1.paper_order_submitted"
+  stream: EXECUTION_EVENTS
+  durable: writer-execution-paper-order
+
+writer:
+  table: executions
+  mapper: mapExecutionRow
+  pipeline_family_key: paper_order
+  config_array: execution_families
+
+domain:
+  event_package: execution
+  event_type: PaperOrderSubmittedEvent

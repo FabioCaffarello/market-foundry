@@ -43,29 +43,30 @@ func NewEvidenceWebHandler(getLatestCandle getLatestCandleUseCase, getCandleHist
 	}
 }
 
-// evidenceKeyParams holds the common query parameters shared by all evidence queries.
-type evidenceKeyParams struct {
+// queryKeyParams holds the common query parameters shared by all handler families
+// (evidence, signal, decision, strategy, risk, execution, analytical).
+type queryKeyParams struct {
 	Source    string
 	Symbol    string
 	Timeframe int
 }
 
-// parseEvidenceKeyParams extracts source, symbol, timeframe from query string.
+// parseQueryKeyParams extracts source, symbol, timeframe from query string.
 // Returns a problem if timeframe is missing or invalid.
-func parseEvidenceKeyParams(r *http.Request) (evidenceKeyParams, *problem.Problem) {
+func parseQueryKeyParams(r *http.Request) (queryKeyParams, *problem.Problem) {
 	source := r.URL.Query().Get("source")
 	symbol := r.URL.Query().Get("symbol")
 	timeframeStr := r.URL.Query().Get("timeframe")
 
 	if timeframeStr == "" {
-		return evidenceKeyParams{}, problem.New(problem.InvalidArgument, "timeframe query parameter is required")
+		return queryKeyParams{}, problem.New(problem.InvalidArgument, "timeframe query parameter is required")
 	}
 	timeframe, err := strconv.Atoi(timeframeStr)
 	if err != nil {
-		return evidenceKeyParams{}, problem.New(problem.InvalidArgument, "timeframe must be a valid integer")
+		return queryKeyParams{}, problem.New(problem.InvalidArgument, "timeframe must be a valid integer")
 	}
 
-	return evidenceKeyParams{Source: source, Symbol: symbol, Timeframe: timeframe}, nil
+	return queryKeyParams{Source: source, Symbol: symbol, Timeframe: timeframe}, nil
 }
 
 type latestCandleResponse struct {
@@ -79,7 +80,7 @@ func (h *EvidenceWebHandler) GetLatestCandle(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -109,7 +110,7 @@ func (h *EvidenceWebHandler) GetCandleHistory(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -179,7 +180,7 @@ func (h *EvidenceWebHandler) GetLatestTradeBurst(w http.ResponseWriter, r *http.
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return
@@ -209,7 +210,7 @@ func (h *EvidenceWebHandler) GetLatestVolume(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	key, prob := parseEvidenceKeyParams(r)
+	key, prob := parseQueryKeyParams(r)
 	if prob != nil {
 		writeProblemResponse(w, prob)
 		return

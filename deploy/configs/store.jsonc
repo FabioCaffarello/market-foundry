@@ -1,5 +1,8 @@
 {
-  // Store service: materializes evidence into a persistent read model.
+  // Store — materializes domain events into NATS KV read models and serves query requests.
+  //
+  // Port: 8081 (internal only, not exposed on host).
+  // Dependencies: nats, configctl, ingest, derive.
   "log": {
     "level": "info",
     "format": "text"
@@ -13,18 +16,15 @@
     "request_timeout": "2s"
   },
   "pipeline": {
-    // Evidence families to project. Each family gets a consumer + projection actor pair.
-    // Omit this field or set to [] to enable all available families.
+    // Store must list every family it should project into KV.
+    // The lists here should be a superset of (or equal to) derive's lists.
+    // See deploy/configs/derive.jsonc for valid family names and dependency rules.
     "families": ["candle", "tradeburst", "volume"],
-    // Signal families to project. Opt-in only — absent or empty means no signal activation.
     "signal_families": ["rsi"],
-    // Decision families to project. Opt-in only — absent or empty means no decision activation.
     "decision_families": ["rsi_oversold"],
-    // Strategy families to project. Opt-in only — absent or empty means no strategy activation.
     "strategy_families": ["mean_reversion_entry"],
-    // Risk families to project. Opt-in only — absent or empty means no risk activation.
     "risk_families": ["position_exposure"],
-    // Execution families to project. Opt-in only — absent or empty means no execution activation.
+    // Store projects both execution families (paper intents + venue fills).
     "execution_families": ["paper_order", "venue_market_order"]
   }
 }

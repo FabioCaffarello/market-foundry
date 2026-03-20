@@ -1,18 +1,23 @@
 go 1.25.7
 
 use (
+	./codegen
 	./cmd/configctl
 	./cmd/derive
 	./cmd/execute
 	./cmd/gateway
 	./cmd/ingest
+	./cmd/migrate
 	./cmd/store
+	./cmd/writer
 	./internal/actors
+	./internal/adapters/clickhouse
 	./internal/adapters/exchanges
 	./internal/adapters/nats
 	./internal/adapters/repositories
 	./internal/application
 	./internal/domain
 	./internal/interfaces/http
+	./internal/migrate
 	./internal/shared
 )
