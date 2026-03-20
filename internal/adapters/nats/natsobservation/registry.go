@@ -19,7 +19,7 @@ func DefaultRegistry() Registry {
 		Subjects: []string{"observation.events.market.>"},
 		Storage:  jetstream.FileStorage,
 		MaxAge:   6 * time.Hour,
-		MaxBytes: 1 * 1024 * 1024 * 1024, // 1 GB
+		MaxBytes: 256 * 1024 * 1024, // 256 MB — sized for local/CI event retention
 	}
 
 	return Registry{

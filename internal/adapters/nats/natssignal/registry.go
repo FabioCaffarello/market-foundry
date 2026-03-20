@@ -22,7 +22,7 @@ func DefaultRegistry() Registry {
 		Subjects: []string{"signal.events.>"},
 		Storage:  jetstream.FileStorage,
 		MaxAge:   72 * time.Hour,
-		MaxBytes: 2 * 1024 * 1024 * 1024, // 2 GB
+		MaxBytes: 256 * 1024 * 1024, // 256 MB — sized for local/CI event retention
 	}
 
 	return Registry{

@@ -14,19 +14,11 @@ func Execution(deps ExecutionFamilyDeps) []webserver.Route {
 
 	var routes []webserver.Route
 
-	if deps.GetLatestExecution != nil {
+	if deps.GetLatestExecution != nil || deps.GetExecutionStatus != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodGet,
 			Path:    "/execution/:type/latest",
 			Handler: handler.GetLatestExecution,
-		})
-	}
-
-	if deps.GetExecutionStatus != nil {
-		routes = append(routes, webserver.Route{
-			Method:  http.MethodGet,
-			Path:    "/execution/status/latest",
-			Handler: handler.GetExecutionStatus,
 		})
 	}
 

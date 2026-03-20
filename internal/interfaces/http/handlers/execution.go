@@ -32,15 +32,22 @@ type latestExecutionResponse struct {
 }
 
 // GetLatestExecution handles GET /execution/:type/latest?source=...&symbol=...&timeframe=...
+// The composite status path is served through the same route with type=status
+// to avoid a wildcard/static conflict in httprouter.
 func (h *ExecutionWebHandler) GetLatestExecution(w http.ResponseWriter, r *http.Request) {
-	if h == nil || h.getLatestExecution == nil {
-		writeProblemResponse(w, problem.New(problem.Unavailable, "execution query is unavailable"))
-		return
-	}
-
 	execType := pathParam(r, "type")
 	if execType == "" {
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "execution type path parameter is required"))
+		return
+	}
+
+	if execType == "status" {
+		h.GetExecutionStatus(w, r)
+		return
+	}
+
+	if h == nil || h.getLatestExecution == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "execution query is unavailable"))
 		return
 	}
 
