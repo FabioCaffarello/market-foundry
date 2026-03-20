@@ -4,6 +4,7 @@
 **Stage:** S222
 **Scope:** Formal gate review after the S217–S221 restructure tranche
 **Verdict:** Expansion charter should **not** open yet; execute one last short consolidation tranche first
+**S226 Reconciliation:** XC-6 is no longer a pending/inferential item. Real push run `23361711481` on commit `43aa2b01c41d8490477174aaf49ff3276d49247f` produced `Codegen Golden Equivalence=PASS`, `Unit Tests=PASS`, and `Smoke Analytical E2E=FAIL` at `Run smoke-analytical E2E`, where the runner reported analytical endpoint `503` and missing ClickHouse configuration in the gateway path under test. This document remains the S222 decision snapshot; current-state evidence lives in `real-ci-on-push-closure.md` and `ci-evidence-log-and-gate-satisfaction.md`.
 
 ---
 
