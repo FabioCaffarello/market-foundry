@@ -1,23 +1,11 @@
-// ── Risk: position_exposure → risk_assessments ──────────
+// ── Risk: position_exposure → risk_assessments ──
 {
-	family:       "position_exposure",
-	consumerName: "writer-risk-position-exposure-consumer",
-	inserterName: "writer-risk-position-exposure-inserter",
-	table:        "risk_assessments",
-	insertSQL:    "INSERT INTO risk_assessments",
-	consumerSpec: natsrisk.WriterPositionExposureRiskConsumer(),
-	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
-	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := natsrisk.NewConsumer(natsURL, spec, reg.risk,
-			func(event risk.RiskAssessedEvent) {
-				if tracker != nil {
-					tracker.RecordEvent()
-					tracker.Counter("events_received").Add(1)
-				}
-				actorCtx.Send(inserterPID, insertRowMsg{row: mapRiskRow(event)})
-			},
-			logger,
-		)
-		return consumer, consumer.Start()
-	},
+	family:        "position_exposure",
+	consumerName:  "writer-risk-position-exposure-consumer",
+	inserterName:  "writer-risk-position-exposure-inserter",
+	table:         "risk_assessments",
+	insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
+	consumerSpec:  natsrisk.WriterPositionExposureRiskConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
+	startConsumer: writerpipeline.NewRiskStarter(reg.risk),
 },

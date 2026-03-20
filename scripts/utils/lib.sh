@@ -34,18 +34,6 @@ record_fail() { ERRORS=$((ERRORS + 1)); fail "$1"; }
 # Override any of these via environment variables before sourcing.
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 
-# Service name → internal port mapping. This is the single source of truth
-# for which port each service listens on inside the container/host.
-declare -A SVC_PORTS=(
-    [configctl]=8080
-    [store]=8081
-    [ingest]=8082
-    [derive]=8083
-    [execute]=8084
-    [writer]=8085
-    [gateway]=8080
-)
-
 # Ordered list of all Go services (startup dependency order).
 ALL_SERVICES=("nats" "configctl" "gateway" "ingest" "derive" "store" "execute" "writer")
 
@@ -110,5 +98,13 @@ compose_cmd() {
 # svc_port returns the internal port for a service name.
 svc_port() {
     local svc="$1"
-    echo "${SVC_PORTS[$svc]:-8080}"
+    case "$svc" in
+        configctl|gateway) echo "8080" ;;
+        store) echo "8081" ;;
+        ingest) echo "8082" ;;
+        derive) echo "8083" ;;
+        execute) echo "8084" ;;
+        writer) echo "8085" ;;
+        *) echo "8080" ;;
+    esac
 }

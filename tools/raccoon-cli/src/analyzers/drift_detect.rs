@@ -34,7 +34,7 @@ const CANONICAL_STREAMS: &[&str] = &[
 ];
 
 /// Old service names that should no longer appear in active code.
-const DEFUNCT_NAMES: &[&str] = &["consumer", "emulator", "validator"];
+const DEFUNCT_NAMES: &[&str] = &["emulator", "validator"];
 
 /// Architecture docs that must exist and mention all services.
 const ARCH_DOCS: &[&str] = &[
@@ -736,32 +736,23 @@ fn gather_evidence(project_root: &Path) -> Result<Evidence> {
 fn scan_stale_references(project_root: &Path, refs: &mut Vec<StaleReference>) {
     // Scan Go source and config files for residual old names.
     //
-    // "consumer" is only checked in cmd/ and deploy/ because internal/ legitimately
-    // uses "consumer" for NATS JetStream durable consumers (adapters, actors).
-    // "emulator" and "validator" are checked everywhere — no legitimate usage exists.
+    // "consumer" is now legitimate across cmd/, internal/, and deploy/ as part of the
+    // current JetStream/durable-consumer topology. Only truly defunct service identities
+    // remain actionable here.
 
     let universal_patterns: Vec<(&str, &str)> = vec![
         ("emulator", "old service name 'emulator'"),
         ("validator", "old service name 'validator'"),
     ];
 
-    let consumer_pattern: Vec<(&str, &str)> = vec![("consumer", "old service name 'consumer'")];
-
-    // Scan internal/ for emulator and validator only (consumer is legitimate here)
     let internal_dir = project_root.join("internal");
     if internal_dir.is_dir() {
         scan_dir_for_patterns(&internal_dir, &universal_patterns, refs, project_root);
     }
 
-    // Scan cmd/ and deploy/ for all patterns including consumer
-    let all_patterns: Vec<(&str, &str)> = consumer_pattern
-        .iter()
-        .chain(universal_patterns.iter())
-        .copied()
-        .collect();
     for dir in &[project_root.join("cmd"), project_root.join("deploy")] {
         if dir.is_dir() {
-            scan_dir_for_patterns(dir, &all_patterns, refs, project_root);
+            scan_dir_for_patterns(dir, &universal_patterns, refs, project_root);
         }
     }
 }
@@ -3341,14 +3332,14 @@ mod tests {
         evidence.stale_references.push(StaleReference {
             file: "internal/foo/bar.go".into(),
             line_num: 42,
-            pattern: "old service name 'consumer'".into(),
-            context: "// references consumer service".into(),
+            pattern: "old service name 'validator'".into(),
+            context: "// references validator service".into(),
         });
         let result = check_naming_identity_drift(&evidence);
         assert!(result
             .findings
             .iter()
-            .any(|f| f.check == "stale-name" && f.message.contains("consumer")));
+            .any(|f| f.check == "stale-name" && f.message.contains("validator")));
     }
 
     #[test]

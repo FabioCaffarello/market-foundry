@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
+	writerpipeline "internal/adapters/clickhouse/writerpipeline"
 	natskit "internal/adapters/nats/natskit"
 	"internal/shared/healthz"
 
@@ -19,7 +20,7 @@ type writerConsumerConfig struct {
 	consumerSpec  natskit.ConsumerSpec
 	inserterPID   *actor.PID
 	tracker       *healthz.Tracker
-	startConsumer func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
+	startConsumer writerpipeline.ConsumerStarter
 	supervisorPID *actor.PID
 }
 
@@ -47,10 +48,11 @@ func (a *writerConsumerActor) Receive(c *actor.Context) {
 		closer, err := a.cfg.startConsumer(
 			a.cfg.natsURL,
 			a.cfg.consumerSpec,
-			a.cfg.inserterPID,
+			func(row []any) {
+				c.Send(a.cfg.inserterPID, insertRowMsg{row: row})
+			},
 			a.cfg.tracker,
 			a.logger,
-			c,
 		)
 		if err != nil {
 			a.logger.Error("start consumer", "family", a.cfg.family, "error", err)

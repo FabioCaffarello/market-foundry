@@ -1,23 +1,11 @@
-// ── Evidence: candle → evidence_candles ──────────────────
+// ── Evidence: candle → evidence_candles ──
 {
-	family:       "candle",
-	consumerName: "writer-candle-consumer",
-	inserterName: "writer-candle-inserter",
-	table:        "evidence_candles",
-	insertSQL:    "INSERT INTO evidence_candles",
-	consumerSpec: natsevidence.WriterCandleConsumer(),
-	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
-	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := natsevidence.NewCandleConsumer(natsURL, spec, reg.evidence,
-			func(event evidence.CandleSampledEvent) {
-				if tracker != nil {
-					tracker.RecordEvent()
-					tracker.Counter("events_received").Add(1)
-				}
-				actorCtx.Send(inserterPID, insertRowMsg{row: mapCandleRow(event)})
-			},
-			logger,
-		)
-		return consumer, consumer.Start()
-	},
+	family:        "candle",
+	consumerName:  "writer-candle-consumer",
+	inserterName:  "writer-candle-inserter",
+	table:         "evidence_candles",
+	insertSQL:     "INSERT INTO evidence_candles (event_id, occurred_at, correlation_id, causation_id, source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final)",
+	consumerSpec:  natsevidence.WriterCandleConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
+	startConsumer: writerpipeline.NewCandleStarter(reg.evidence),
 },

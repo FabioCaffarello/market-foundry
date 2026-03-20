@@ -24,7 +24,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${PROJECT_ROOT}/deploy/compose/docker-compose.yaml"
-COMPOSE="docker compose -f ${COMPOSE_FILE}"
+compose() {
+    docker compose -f "${COMPOSE_FILE}" "$@"
+}
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 
 SKIP_BUILD=false
@@ -65,10 +67,10 @@ if ! $CHECK_ONLY; then
     phase "Phase 1: Starting Compose Stack"
     if $SKIP_BUILD; then
         info "Starting stack (reusing existing images)..."
-        $COMPOSE up -d
+        compose up -d
     else
         info "Building and starting stack..."
-        $COMPOSE up -d --build
+        compose up -d --build
     fi
     pass "Compose stack started"
 fi
@@ -84,7 +86,7 @@ for svc in "${SERVICES[@]}"; do
     info "Waiting for ${svc} to become healthy..."
     elapsed=0
     while [[ $elapsed -lt $MAX_WAIT ]]; do
-        status=$($COMPOSE ps --format json "${svc}" 2>/dev/null | python3 -c "
+        status=$(compose ps --format json "${svc}" 2>/dev/null | python3 -c "
 import sys, json
 for line in sys.stdin:
     data = json.loads(line)
@@ -129,7 +131,7 @@ check_readiness "configctl" "http://127.0.0.1:8080/readyz"  # behind gateway por
 for svc_port in "configctl:8080" "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
-    result=$($COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/readyz" 2>/dev/null || echo '{"status":"error"}')
+    result=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/readyz" 2>/dev/null || echo '{"status":"error"}')
     status=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','error'))" 2>/dev/null || echo "error")
     if [[ "$status" == "ready" ]]; then
         pass "${svc} internal /readyz → ready"
@@ -138,29 +140,37 @@ for svc_port in "configctl:8080" "ingest:8082" "derive:8083" "store:8081" "execu
     fi
 done
 
-# ---------- Phase 4: Seed Configctl ----------
+# ---------- Phase 4: Apply ClickHouse Migrations ----------
+if ! $CHECK_ONLY; then
+    phase "Phase 4: Apply ClickHouse Migrations"
+    info "Running make migrate-up..."
+    make migrate-up
+    pass "ClickHouse migrations applied"
+fi
+
+# ---------- Phase 5: Seed Configctl ----------
 if ! $CHECK_ONLY; then
     if $MULTI_SYMBOL; then
-        phase "Phase 4: Seed Configctl (Multi-Symbol: ${SYMBOLS[*]})"
+        phase "Phase 5: Seed Configctl (Multi-Symbol: ${SYMBOLS[*]})"
         info "Running seed-configctl.sh --multi-symbol..."
         "${SCRIPT_DIR}/seed-configctl.sh" --multi-symbol
     else
-        phase "Phase 4: Seed Configctl (Single Symbol: btcusdt)"
+        phase "Phase 5: Seed Configctl (Single Symbol: btcusdt)"
         info "Running seed-configctl.sh (btcusdt)..."
         "${SCRIPT_DIR}/seed-configctl.sh"
     fi
     pass "Configctl seeded"
 fi
 
-# ---------- Phase 5: Diagnostics Validation ----------
-phase "Phase 5: Runtime Diagnostics"
+# ---------- Phase 6: Diagnostics Validation ----------
+phase "Phase 6: Runtime Diagnostics"
 
 check_diagnostics() {
     local svc="$1"
     local port="$2"
 
     # /statusz
-    statusz=$($COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null || echo "")
+    statusz=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null || echo "")
     if [[ -n "$statusz" ]]; then
         runtime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('runtime',''))" 2>/dev/null || echo "")
         uptime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('uptime',''))" 2>/dev/null || echo "")
@@ -172,7 +182,7 @@ check_diagnostics() {
     fi
 
     # /diagz
-    diagz=$($COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/diagz" 2>/dev/null || echo "")
+    diagz=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/diagz" 2>/dev/null || echo "")
     if [[ -n "$diagz" ]]; then
         checks=$(echo "$diagz" | python3 -c "
 import sys,json
@@ -195,8 +205,8 @@ check_diagnostics "store"     "8081"
 check_diagnostics "execute"   "8084"
 check_diagnostics "writer"    "8085"
 
-# ---------- Phase 6: Gateway Query Surface ----------
-phase "Phase 6: Gateway Query Surface Validation"
+# ---------- Phase 7: Gateway Query Surface ----------
+phase "Phase 7: Gateway Query Surface Validation"
 
 check_endpoint() {
     local label="$1"
@@ -248,8 +258,8 @@ done
 # Execution control (symbol-independent)
 check_endpoint "GET /execution/control" "${BASE_URL}/execution/control"
 
-# ---------- Phase 7: Pipeline Event Flow ----------
-phase "Phase 7: Pipeline Event Flow (wait for evidence materialization)"
+# ---------- Phase 8: Pipeline Event Flow ----------
+phase "Phase 8: Pipeline Event Flow (wait for evidence materialization)"
 
 CANDLE_WAIT=90
 CANDLE_POLL=5
@@ -297,11 +307,12 @@ print(f'  trades={c[\"trade_count\"]} final={c[\"final\"]}')
     fi
 done
 
-# ---------- Phase 8: Tracker Activity Summary ----------
-phase "Phase 8: Tracker Activity Summary"
+# ---------- Phase 9: Tracker Activity Summary ----------
+phase "Phase 9: Tracker Activity Summary"
 
 # CF-04: Automated error-level log scanning.
-ERROR_COUNT=$($COMPOSE logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || echo "0")
+ERROR_COUNT=$(compose logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
+ERROR_COUNT="${ERROR_COUNT:-0}"
 if [[ "$ERROR_COUNT" -gt 0 ]]; then
     record_fail "Found ${ERROR_COUNT} error-level log entries across all services"
     info "Run 'make logs | grep error' to inspect"
@@ -311,14 +322,14 @@ fi
 
 # CF-05: Memory usage snapshot for regression detection.
 info "Container memory usage:"
-$COMPOSE ps -q 2>/dev/null | while read -r cid; do
+compose ps -q 2>/dev/null | while read -r cid; do
     docker stats --no-stream --format '  {{.Name}}\t{{.MemUsage}}' "$cid" 2>/dev/null
 done || info "docker stats unavailable"
 
 for svc_port in "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
-    $COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null | python3 -c "
+    compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 name=d.get('runtime','${svc}')
@@ -357,7 +368,7 @@ fi
 
 echo ""
 echo "Services running:"
-$COMPOSE ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || $COMPOSE ps
+compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || compose ps
 
 echo ""
 echo "Mode: $(if $MULTI_SYMBOL; then echo "multi-symbol (${SYMBOLS[*]})"; else echo "single-symbol (btcusdt)"; fi)"

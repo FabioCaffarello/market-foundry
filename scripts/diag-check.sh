@@ -16,7 +16,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${PROJECT_ROOT}/deploy/compose/docker-compose.yaml"
-COMPOSE="docker compose -f ${COMPOSE_FILE}"
+compose() {
+    docker compose -f "${COMPOSE_FILE}" "$@"
+}
 
 LOCAL=false
 for arg in "$@"; do
@@ -46,7 +48,7 @@ fetch() {
     if $LOCAL; then
         curl -s "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
     else
-        $COMPOSE exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
+        compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
     fi
 }
 
@@ -150,10 +152,11 @@ done
 phase "Error Log Scan"
 
 if ! $LOCAL; then
-    ERROR_COUNT=$($COMPOSE logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || echo "0")
+    ERROR_COUNT=$(compose logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
+    ERROR_COUNT="${ERROR_COUNT:-0}"
     if [[ "$ERROR_COUNT" -gt 0 ]]; then
         warn "Found ${ERROR_COUNT} error-level log entries"
-        $COMPOSE logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
+        compose logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
     else
         pass "No error-level log entries"
     fi

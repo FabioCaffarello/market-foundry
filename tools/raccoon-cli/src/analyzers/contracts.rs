@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::models::{CheckResult, Finding, Report};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::path::Path;
 
 mod dataplane;
@@ -265,9 +265,8 @@ fn check_reply_type_symmetry(index: &ContractIndex) -> CheckResult {
     let mut findings = Vec::new();
 
     for spec in &index.registry.control_specs {
-        // The request-reply pair should share the same operation suffix
-        let req_suffix = spec.request_type.split('.').last().unwrap_or("");
-        let reply_suffix = spec.reply_type.split('.').last().unwrap_or("");
+        let req_suffix = control_operation_suffix(&spec.request_type);
+        let reply_suffix = control_operation_suffix(&spec.reply_type);
 
         if req_suffix != reply_suffix {
             findings.push(
@@ -797,63 +796,72 @@ fn check_event_registry_alignment(index: &ContractIndex) -> CheckResult {
         );
     }
 
-    // Build set of domain event names (e.g., "config.draft_created")
-    let domain_names: HashSet<&str> = index
-        .events
-        .events
+    let mut domain_events: HashMap<&str, Vec<&events::DomainEventDef>> = HashMap::new();
+    for event in &index.events.events {
+        domain_events
+            .entry(event.domain.as_str())
+            .or_default()
+            .push(event);
+    }
+
+    let registry_specs: Vec<_> = index
+        .registry
+        .event_specs
         .iter()
-        .map(|e| e.event_name.as_str())
+        .filter(|spec| !spec.subject.contains("dataplane."))
+        .filter(|spec| !spec.subject.contains('>') && !spec.subject.contains('*'))
         .collect();
 
-    // Check registry event subjects contain the domain event name as suffix
-    // Registry subject: "configctl.events.config.draft_created"
-    // Domain event name: "config.draft_created"
-    for spec in &index.registry.event_specs {
-        // Skip dataplane events (different convention)
-        if spec.subject.contains("dataplane.") {
+    if registry_specs.is_empty() {
+        return CheckResult::skip(
+            "event-registry-alignment",
+            "registry event specs not found",
+        );
+    }
+
+    for spec in &registry_specs {
+        let domain = spec.subject.split('.').next().unwrap_or("");
+        let Some(domain_defs) = domain_events.get(domain) else {
+            findings.push(
+                Finding::warning(
+                    "event-alignment",
+                    format!(
+                        "registry event '{}' (subject '{}') has no domain events in internal/domain/{domain}/events.go",
+                        spec.name, spec.subject
+                    ),
+                )
+                .with_location(&spec.file),
+            );
             continue;
-        }
+        };
 
-        // Extract the event name suffix from the subject
-        // "configctl.events.config.draft_created" → "config.draft_created"
-        let parts: Vec<&str> = spec.subject.split('.').collect();
-        if parts.len() >= 4 {
-            // Skip the first two segments (e.g., "configctl.events")
-            let event_suffix = parts[2..].join(".");
-
-            if !domain_names.contains(event_suffix.as_str()) {
-                // Check if it's a wildcard pattern
-                if !spec.subject.contains('>') && !spec.subject.contains('*') {
-                    findings.push(
-                        Finding::warning(
-                            "event-alignment",
-                            format!(
-                                "registry event '{}' (subject '{}', suffix '{}') has no matching domain event",
-                                spec.name, spec.subject, event_suffix
-                            ),
-                        )
-                        .with_location(&spec.file),
-                    );
-                }
-            }
+        if !registry_event_matches_domain(spec, domain_defs) {
+            findings.push(
+                Finding::warning(
+                    "event-alignment",
+                    format!(
+                        "registry event '{}' (subject '{}', type '{}') has no matching domain event in '{domain}'",
+                        spec.name, spec.subject, spec.event_type
+                    ),
+                )
+                .with_location(&spec.file),
+            );
         }
     }
 
-    // Check domain events have matching registry specs
     for event in &index.events.events {
-        let has_registry = index
-            .registry
-            .event_specs
-            .iter()
-            .any(|spec| spec.subject.ends_with(&event.event_name));
+        let has_registry = registry_specs.iter().any(|spec| {
+            spec.subject.split('.').next().unwrap_or("") == event.domain
+                && domain_event_matches_registry(event, spec)
+        });
 
         if !has_registry {
             findings.push(
                 Finding::warning(
                     "event-alignment",
                     format!(
-                        "domain event '{}' ({}) has no matching registry event spec",
-                        event.event_name, event.struct_name
+                        "domain event '{}' ({}) in '{}' has no matching registry event spec",
+                        event.event_name, event.struct_name, event.domain
                     ),
                 )
                 .with_location(&event.file),
@@ -865,6 +873,93 @@ fn check_event_registry_alignment(index: &ContractIndex) -> CheckResult {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
+
+fn control_operation_suffix(type_name: &str) -> String {
+    let suffix = type_name.split('.').last().unwrap_or("");
+    suffix
+        .trim_end_matches("_request")
+        .trim_end_matches("_reply")
+        .to_string()
+}
+
+fn registry_event_matches_domain(
+    spec: &registry::EventSpecRecord,
+    domain_events: &[&events::DomainEventDef],
+) -> bool {
+    domain_events
+        .iter()
+        .any(|event| domain_event_matches_registry(event, spec))
+}
+
+fn domain_event_matches_registry(
+    event: &events::DomainEventDef,
+    spec: &registry::EventSpecRecord,
+) -> bool {
+    let subject_suffix = subject_suffix(&spec.subject);
+    let type_suffix = event_type_suffix(&spec.event_type);
+    let event_tokens = tokenize_event_name(&event.event_name);
+    let subject_tokens = tokenize_event_name(&subject_suffix);
+    let type_tokens = tokenize_event_name(&type_suffix);
+
+    event_tokens == subject_tokens
+        || event_tokens == type_tokens
+        || is_subsequence(&event_tokens, &subject_tokens)
+        || is_subsequence(&subject_tokens, &event_tokens)
+        || is_subsequence(&event_tokens, &type_tokens)
+        || is_subsequence(&type_tokens, &event_tokens)
+        || (event.domain == spec.subject.split('.').next().unwrap_or("")
+            && event_tokens.last() == type_tokens.last())
+}
+
+fn subject_suffix(subject: &str) -> String {
+    let parts: Vec<&str> = subject.split('.').collect();
+    if parts.len() <= 2 {
+        return subject.to_string();
+    }
+    parts[2..].join(".")
+}
+
+fn event_type_suffix(event_type: &str) -> String {
+    let parts: Vec<&str> = event_type.split('.').collect();
+    if let Some(version_idx) = parts.iter().position(|part| {
+        part.starts_with('v') && part[1..].chars().all(|c| c.is_ascii_digit())
+    }) {
+        if version_idx + 1 < parts.len() {
+            return parts[version_idx + 1..].join(".");
+        }
+    }
+
+    parts.last().copied().unwrap_or(event_type).to_string()
+}
+
+fn tokenize_event_name(value: &str) -> Vec<String> {
+    value
+        .split(['.', '_'])
+        .filter(|part| !part.is_empty())
+        .map(|part| part.to_lowercase())
+        .collect()
+}
+
+fn is_subsequence(needle: &[String], haystack: &[String]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    if needle.len() > haystack.len() {
+        return false;
+    }
+
+    let mut needle_idx = 0usize;
+    for token in haystack {
+        if token == &needle[needle_idx] {
+            needle_idx += 1;
+            if needle_idx == needle.len() {
+                return true;
+            }
+        }
+    }
+
+    false
+}
 
 /// Check if a concrete subject matches a NATS subject pattern.
 /// Supports ">" (multi-level wildcard) and "*" (single-level wildcard).
@@ -983,6 +1078,15 @@ mod tests {
     #[test]
     fn check_reply_symmetry_passes() {
         let index = make_test_index();
+        let result = check_reply_type_symmetry(&index);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
+    }
+
+    #[test]
+    fn check_reply_symmetry_accepts_versioned_request_reply_pairs() {
+        let mut index = make_test_index();
+        index.registry.control_specs[0].request_type = "signal.query.v1.rsi_latest_request".into();
+        index.registry.control_specs[0].reply_type = "signal.query.v1.rsi_latest_reply".into();
         let result = check_reply_type_symmetry(&index);
         assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
@@ -1147,6 +1251,63 @@ mod tests {
         let index = make_test_index();
         let result = check_event_registry_alignment(&index);
         assert_eq!(result.status, crate::models::CheckStatus::Skip);
+    }
+
+    #[test]
+    fn check_event_registry_alignment_accepts_family_specific_registry_subjects() {
+        let mut index = make_test_index();
+        index.registry.event_specs = vec![
+            registry::EventSpecRecord {
+                name: "TradeReceived".into(),
+                subject: "observation.events.market.trade".into(),
+                event_type: "observation.events.v1.trade_received".into(),
+                stream_name: Some("OBSERVATION_EVENTS".into()),
+                file: "observation_registry.go".into(),
+            },
+            registry::EventSpecRecord {
+                name: "RSIGenerated".into(),
+                subject: "signal.events.rsi.generated".into(),
+                event_type: "signal.events.v1.rsi_generated".into(),
+                stream_name: Some("SIGNAL_EVENTS".into()),
+                file: "signal_registry.go".into(),
+            },
+            registry::EventSpecRecord {
+                name: "VenueOrderFilled".into(),
+                subject: "execution.fill.venue_market_order".into(),
+                event_type: "execution.fill.v1.venue_market_order_filled".into(),
+                stream_name: Some("EXECUTION_FILL_EVENTS".into()),
+                file: "execution_registry.go".into(),
+            },
+        ];
+        index.events.events = vec![
+            events::DomainEventDef {
+                domain: "observation".into(),
+                const_name: "EventTradeReceived".into(),
+                event_name: "market.trade_received".into(),
+                struct_name: "TradeReceivedEvent".into(),
+                has_metadata: true,
+                file: "internal/domain/observation/events.go".into(),
+            },
+            events::DomainEventDef {
+                domain: "signal".into(),
+                const_name: "EventSignalGenerated".into(),
+                event_name: "signal_generated".into(),
+                struct_name: "SignalGeneratedEvent".into(),
+                has_metadata: true,
+                file: "internal/domain/signal/events.go".into(),
+            },
+            events::DomainEventDef {
+                domain: "execution".into(),
+                const_name: "EventVenueOrderFilled".into(),
+                event_name: "venue_order_filled".into(),
+                struct_name: "VenueOrderFilledEvent".into(),
+                has_metadata: true,
+                file: "internal/domain/execution/events.go".into(),
+            },
+        ];
+
+        let result = check_event_registry_alignment(&index);
+        assert_eq!(result.status, crate::models::CheckStatus::Pass);
     }
 
     #[test]

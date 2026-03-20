@@ -107,8 +107,8 @@ Market Foundry now evolves from a **post-first-slice, post-restructure baseline*
 Phase 0 — Sanitization                          ✅ Complete
 Phase 1 — First vertical slice                  ✅ Complete
 Phase 2 — Structural recentralization           ✅ Complete
-Phase 3 — Closure and active-doc reconciliation ✅ In progress at S223–S225
-Phase 4 — Next governed expansion               Locked behind S226 evidence
+Phase 3 — Closure and active-doc reconciliation ✅ Completed through S227
+Phase 4 — Next governed expansion               Locked behind fresh remote gate evidence on the reconciled baseline
 ```
 
 ### Current Implemented Baseline

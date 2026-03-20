@@ -11,6 +11,7 @@ nats:
 
 writer:
   table: signals
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp"
   mapper: mapSignalRow
   pipeline_family_key: rsi
   config_array: signal_families

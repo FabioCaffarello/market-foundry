@@ -70,9 +70,9 @@ Adding a new family via codegen is permitted if **all** conditions are met:
 
 | Family | Artifact | Target File | Stage |
 |--------|----------|-------------|-------|
-| rsi | consumer_spec | internal/adapters/nats/signal_registry.go | S200 |
+| rsi | consumer_spec | internal/adapters/nats/natssignal/registry.go | S200 |
 | rsi | pipeline_entry | cmd/writer/pipeline.go | S200 |
-| ema | consumer_spec | internal/adapters/nats/signal_registry.go | S203 |
+| ema | consumer_spec | internal/adapters/nats/natssignal/registry.go | S203 |
 | ema | pipeline_entry | cmd/writer/pipeline.go | S203 |
 
 ### Golden Snapshots Only (10 slices — not integrated)

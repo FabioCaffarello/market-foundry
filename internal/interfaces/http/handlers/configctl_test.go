@@ -268,7 +268,7 @@ func TestConfigctlCompileConfig(t *testing.T) {
 	}
 	handler := NewConfigctlWebHandler(nil, nil, nil, nil, nil, nil, compileSpy, nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/configctl/config-versions/cfg-123/compile", strings.NewReader(`{"runtime_loader":"validator:v2"}`))
+	req := httptest.NewRequest(http.MethodPost, "/configctl/config-versions/cfg-123/compile", strings.NewReader(`{"runtime_loader":"configctl-sync/v1"}`))
 	req = req.WithContext(context.WithValue(req.Context(), httprouter.ParamsKey, httprouter.Params{{Key: "id", Value: "cfg-123"}}))
 	rec := httptest.NewRecorder()
 
@@ -277,7 +277,7 @@ func TestConfigctlCompileConfig(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
-	if compileSpy.command.VersionID != "cfg-123" || compileSpy.command.RuntimeLoader != "validator:v2" {
+	if compileSpy.command.VersionID != "cfg-123" || compileSpy.command.RuntimeLoader != "configctl-sync/v1" {
 		t.Fatalf("unexpected compile command: %+v", compileSpy.command)
 	}
 }

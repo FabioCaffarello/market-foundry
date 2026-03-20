@@ -4,6 +4,8 @@
 **Stage:** S226  
 **Purpose:** Convert the inherited CI-on-push pending item into explicit remote evidence, using real pushes and real GitHub Actions runs rather than local inference.
 
+**S227 reconciliation note:** The remote S226 run facts are unchanged. What changed in S227 is the interpretation of the final analytical `503`: local reproduction on 2026-03-20 showed that the smoke script's "missing ClickHouse config" message was too narrow. The failure surface also included omitted schema bootstrap in `make up`/CI, runtime configs still pointing to `default` while migrations targeted `market_foundry`, and writer insert SQL that omitted explicit column lists after the DDL introduced `ingested_at`. Those local drifts were reconciled; remote CI still needs a fresh run on the corrected baseline.
+
 ---
 
 ## 1. Scope Discipline
@@ -102,7 +104,8 @@ Run `23361711481` on `43aa2b0...` produced the first end-to-end remote progressi
 The failed smoke log recorded the remaining runner-real defect explicitly:
 
 1. analytical endpoint availability returned `503`,
-2. the smoke script reported `Gateway has no ClickHouse config. Check deploy/configs/gateway.jsonc.`
+2. the smoke script reported `Gateway has no ClickHouse config. Check deploy/configs/gateway.jsonc.`,
+3. S227 later reproduced the same failure class locally and traced it to schema/bootstrap and database-target drift rather than an actually absent ClickHouse section
 
 This is the decisive S226 result: the inherited CI-on-push item is no longer pending or inferential, but XC-6 / EC-7 is still not green.
 
@@ -151,6 +154,6 @@ S226 achieved formal closure of the CI-on-push evidence trail, but not a green g
 1. the inherited CI-on-push item is no longer `PENDING`,
 2. XC-6 / EC-7 can now be adjudicated from objective remote evidence,
 3. the current adjudication is **FAIL**, based on run `23361711481`,
-4. the remaining blocker is not startup, readiness, route collision, or seeding; it is the analytical smoke failure caused by missing ClickHouse configuration at the gateway path exercised by the runner.
+4. the remaining blocker captured by S226 is not startup, readiness, route collision, or seeding; it is the analytical smoke failure that S227 later refined from "missing ClickHouse config" to a broader runtime-alignment problem on the closure baseline.
 
 Therefore S226 closes the evidence problem and leaves S227 with a precise, archivable runtime issue instead of a vague CI-on-push pending condition.

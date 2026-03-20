@@ -35,17 +35,13 @@ func TestRenderPipelineEntry_RSI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mustContain(t, output, `family:       "rsi"`)
-	mustContain(t, output, `consumerName: "writer-signal-rsi-consumer"`)
-	mustContain(t, output, `inserterName: "writer-signal-rsi-inserter"`)
-	mustContain(t, output, `table:        "signals"`)
+	mustContain(t, output, `family:        "rsi"`)
+	mustContain(t, output, `consumerName:  "writer-signal-rsi-consumer"`)
+	mustContain(t, output, `inserterName:  "writer-signal-rsi-inserter"`)
+	mustContain(t, output, `table:         "signals"`)
 	mustContain(t, output, `natssignal.WriterRSISignalConsumer()`)
 	mustContain(t, output, `p.IsSignalFamilyEnabled("rsi")`)
-	mustContain(t, output, `natssignal.NewConsumer(`)
-	mustContain(t, output, `natskit.ConsumerSpec`)
-	mustContain(t, output, `reg.signal`)
-	mustContain(t, output, `signal.SignalGeneratedEvent`)
-	mustContain(t, output, `mapSignalRow(event)`)
+	mustContain(t, output, `writerpipeline.NewSignalStarter(reg.signal)`)
 }
 
 func TestRenderConsumerSpec_PaperOrder(t *testing.T) {
@@ -72,14 +68,11 @@ func TestRenderPipelineEntry_PaperOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mustContain(t, output, `family:       "paper_order"`)
-	mustContain(t, output, `consumerName: "writer-execution-paper-order-consumer"`)
+	mustContain(t, output, `family:        "paper_order"`)
+	mustContain(t, output, `consumerName:  "writer-execution-paper-order-consumer"`)
 	mustContain(t, output, `natsexecution.WriterPaperOrderExecutionConsumer()`)
 	mustContain(t, output, `p.IsExecutionFamilyEnabled("paper_order")`)
-	mustContain(t, output, `natsexecution.NewConsumer(`)
-	mustContain(t, output, `reg.execution`)
-	mustContain(t, output, `execution.PaperOrderSubmittedEvent`)
-	mustContain(t, output, `mapExecutionRow(event)`)
+	mustContain(t, output, `writerpipeline.NewExecutionStarter(reg.execution)`)
 }
 
 func TestGoldenComparison_RSI_ConsumerSpec(t *testing.T) {
@@ -305,6 +298,7 @@ func rsiSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "signals",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp",
 			Mapper:            "mapSignalRow",
 			PipelineFamilyKey: "rsi",
 			ConfigArray:       "signal_families",
@@ -327,6 +321,7 @@ func paperOrderSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "executions",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
 			Mapper:            "mapExecutionRow",
 			PipelineFamilyKey: "paper_order",
 			ConfigArray:       "execution_families",
@@ -349,6 +344,7 @@ func candleSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "evidence_candles",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final",
 			Mapper:            "mapCandleRow",
 			PipelineFamilyKey: "candle",
 			ConfigArray:       "families",
@@ -371,6 +367,7 @@ func rsiOversoldSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "decisions",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp",
 			Mapper:            "mapDecisionRow",
 			PipelineFamilyKey: "rsi_oversold",
 			ConfigArray:       "decision_families",
@@ -393,6 +390,7 @@ func meanReversionEntrySpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "strategies",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp",
 			Mapper:            "mapStrategyRow",
 			PipelineFamilyKey: "mean_reversion_entry",
 			ConfigArray:       "strategy_families",
@@ -415,6 +413,7 @@ func positionExposureSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "risk_assessments",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp",
 			Mapper:            "mapRiskRow",
 			PipelineFamilyKey: "position_exposure",
 			ConfigArray:       "risk_families",

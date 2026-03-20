@@ -1,10 +1,8 @@
 package main
 
 import (
-	"io"
-	"log/slog"
-
 	adapterch "internal/adapters/clickhouse"
+	writerpipeline "internal/adapters/clickhouse/writerpipeline"
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
@@ -12,30 +10,19 @@ import (
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
 	natsstrategy "internal/adapters/nats/natsstrategy"
-	"internal/domain/decision"
-	"internal/domain/evidence"
-	"internal/domain/execution"
-	"internal/domain/risk"
-	"internal/domain/signal"
-	"internal/domain/strategy"
-	"internal/shared/healthz"
 	"internal/shared/settings"
-
-	"github.com/anthdm/hollywood/actor"
 )
 
 // writerPipeline describes one consumer-inserter pair in the writer.
 type writerPipeline struct {
-	family       string
-	consumerName string
-	inserterName string
-	table        string
-	insertSQL    string
-	consumerSpec natskit.ConsumerSpec
-	isEnabled    func(settings.PipelineConfig) bool
-	// startConsumer creates the NATS consumer, wiring it to send rows to the inserter.
-	// The actor.Context is the consumer actor's context for sending messages.
-	startConsumer func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error)
+	family        string
+	consumerName  string
+	inserterName  string
+	table         string
+	insertSQL     string
+	consumerSpec  natskit.ConsumerSpec
+	isEnabled     func(settings.PipelineConfig) bool
+	startConsumer writerpipeline.ConsumerStarter
 }
 
 // writerTrackerDef describes the tracker pair for one writer pipeline.
@@ -86,77 +73,41 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 
 		// ── Evidence: candle → evidence_candles ──────────────────
 		{
-			family:       "candle",
-			consumerName: "writer-candle-consumer",
-			inserterName: "writer-candle-inserter",
-			table:        "evidence_candles",
-			insertSQL:    "INSERT INTO evidence_candles",
-			consumerSpec: natsevidence.WriterCandleConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natsevidence.NewCandleConsumer(natsURL, spec, reg.evidence,
-					func(event evidence.CandleSampledEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapCandleRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "candle",
+			consumerName:  "writer-candle-consumer",
+			inserterName:  "writer-candle-inserter",
+			table:         "evidence_candles",
+			insertSQL:     "INSERT INTO evidence_candles (event_id, occurred_at, correlation_id, causation_id, source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final)",
+			consumerSpec:  natsevidence.WriterCandleConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
+			startConsumer: writerpipeline.NewCandleStarter(reg.evidence),
 		},
 
 		// codegen:begin pipeline_entry family=rsi source=codegen/families/rsi.yaml
 		// ── Signal: rsi → signals ───────────────────────────────
 		{
-			family:       "rsi",
-			consumerName: "writer-signal-rsi-consumer",
-			inserterName: "writer-signal-rsi-inserter",
-			table:        "signals",
-			insertSQL:    "INSERT INTO signals",
-			consumerSpec: natssignal.WriterRSISignalConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natssignal.NewConsumer(natsURL, spec, reg.signal,
-					func(event signal.SignalGeneratedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapSignalRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "rsi",
+			consumerName:  "writer-signal-rsi-consumer",
+			inserterName:  "writer-signal-rsi-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterRSISignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
 		},
 		// codegen:end pipeline_entry family=rsi
 
 		// codegen:begin pipeline_entry family=ema source=codegen/families/ema.yaml
 		// ── Signal: ema → signals ──
 		{
-			family:       "ema",
-			consumerName: "writer-signal-ema-consumer",
-			inserterName: "writer-signal-ema-inserter",
-			table:        "signals",
-			insertSQL:    "INSERT INTO signals",
-			consumerSpec: natssignal.WriterEMASignalConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natssignal.NewConsumer(natsURL, spec, reg.signal,
-					func(event signal.SignalGeneratedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapSignalRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "ema",
+			consumerName:  "writer-signal-ema-consumer",
+			inserterName:  "writer-signal-ema-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterEMASignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
 		},
 		// codegen:end pipeline_entry family=ema
 
@@ -168,98 +119,50 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 
 		// ── Decision: rsi_oversold → decisions ──────────────────
 		{
-			family:       "rsi_oversold",
-			consumerName: "writer-decision-rsi-oversold-consumer",
-			inserterName: "writer-decision-rsi-oversold-inserter",
-			table:        "decisions",
-			insertSQL:    "INSERT INTO decisions",
-			consumerSpec: natsdecision.WriterRSIOversoldDecisionConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natsdecision.NewConsumer(natsURL, spec, reg.decision,
-					func(event decision.DecisionEvaluatedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapDecisionRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "rsi_oversold",
+			consumerName:  "writer-decision-rsi-oversold-consumer",
+			inserterName:  "writer-decision-rsi-oversold-inserter",
+			table:         "decisions",
+			insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp)",
+			consumerSpec:  natsdecision.WriterRSIOversoldDecisionConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
+			startConsumer: writerpipeline.NewDecisionStarter(reg.decision),
 		},
 
 		// ── Strategy: mean_reversion_entry → strategies ─────────
 		{
-			family:       "mean_reversion_entry",
-			consumerName: "writer-strategy-mean-reversion-entry-consumer",
-			inserterName: "writer-strategy-mean-reversion-entry-inserter",
-			table:        "strategies",
-			insertSQL:    "INSERT INTO strategies",
-			consumerSpec: natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natsstrategy.NewConsumer(natsURL, spec, reg.strategy,
-					func(event strategy.StrategyResolvedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapStrategyRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "mean_reversion_entry",
+			consumerName:  "writer-strategy-mean-reversion-entry-consumer",
+			inserterName:  "writer-strategy-mean-reversion-entry-inserter",
+			table:         "strategies",
+			insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+			consumerSpec:  natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
+			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
 		},
 
 		// ── Risk: position_exposure → risk_assessments ──────────
 		{
-			family:       "position_exposure",
-			consumerName: "writer-risk-position-exposure-consumer",
-			inserterName: "writer-risk-position-exposure-inserter",
-			table:        "risk_assessments",
-			insertSQL:    "INSERT INTO risk_assessments",
-			consumerSpec: natsrisk.WriterPositionExposureRiskConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natsrisk.NewConsumer(natsURL, spec, reg.risk,
-					func(event risk.RiskAssessedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapRiskRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "position_exposure",
+			consumerName:  "writer-risk-position-exposure-consumer",
+			inserterName:  "writer-risk-position-exposure-inserter",
+			table:         "risk_assessments",
+			insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
+			consumerSpec:  natsrisk.WriterPositionExposureRiskConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
+			startConsumer: writerpipeline.NewRiskStarter(reg.risk),
 		},
 
 		// ── Execution: paper_order → executions ─────────────────
 		{
-			family:       "paper_order",
-			consumerName: "writer-execution-paper-order-consumer",
-			inserterName: "writer-execution-paper-order-inserter",
-			table:        "executions",
-			insertSQL:    "INSERT INTO executions",
-			consumerSpec: natsexecution.WriterPaperOrderExecutionConsumer(),
-			isEnabled:    func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
-			startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-				consumer := natsexecution.NewConsumer(natsURL, spec, reg.execution,
-					func(event execution.PaperOrderSubmittedEvent) {
-						if tracker != nil {
-							tracker.RecordEvent()
-							tracker.Counter("events_received").Add(1)
-						}
-						actorCtx.Send(inserterPID, insertRowMsg{row: mapExecutionRow(event)})
-					},
-					logger,
-				)
-				return consumer, consumer.Start()
-			},
+			family:        "paper_order",
+			consumerName:  "writer-execution-paper-order-consumer",
+			inserterName:  "writer-execution-paper-order-inserter",
+			table:         "executions",
+			insertSQL:     "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)",
+			consumerSpec:  natsexecution.WriterPaperOrderExecutionConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
+			startConsumer: writerpipeline.NewExecutionStarter(reg.execution),
 		},
 	}
 }

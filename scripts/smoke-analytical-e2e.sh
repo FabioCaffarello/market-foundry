@@ -32,9 +32,12 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${SCRIPT_DIR}/utils/lib.sh"
 
 COMPOSE_FILE="${PROJECT_ROOT}/deploy/compose/docker-compose.yaml"
-COMPOSE="docker compose -f ${COMPOSE_FILE}"
+compose() {
+    docker compose -f "${COMPOSE_FILE}" "$@"
+}
 
 FLUSH_WAIT="${FLUSH_WAIT:-120}"
+CLICKHOUSE_DATABASE="${CLICKHOUSE_DATABASE:-market_foundry}"
 if [[ "${1:-}" == "--wait" ]]; then
     FLUSH_WAIT="${2:-120}"
 fi
@@ -72,7 +75,7 @@ validate_analytical_family() {
     local ch_query="SELECT count() FROM ${ch_table}"
     [[ -n "$ch_where" ]] && ch_query="${ch_query} WHERE ${ch_where}"
     info "Querying ClickHouse for ${ch_table} rows..."
-    _VAL_CH_COUNT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+    _VAL_CH_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
         --query "$ch_query" 2>/dev/null || echo "0")
 
     if [[ "$_VAL_CH_COUNT" -gt 0 ]]; then
@@ -187,7 +190,7 @@ phase "Phase 1: Infrastructure Readiness"
 
 # --- 1a. ClickHouse health ---
 info "Checking ClickHouse health..."
-CH_RESULT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --query "SELECT 1" 2>/dev/null || echo "")
+CH_RESULT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --query "SELECT 1" 2>/dev/null || echo "")
 if [[ "$CH_RESULT" == "1" ]]; then
     pass "ClickHouse is healthy (SELECT 1 = 1)"
 else
@@ -198,7 +201,7 @@ fi
 
 # --- 1b. Writer readiness ---
 info "Checking writer readiness..."
-WRITER_READY=$($COMPOSE exec -T writer wget -q -O - http://127.0.0.1:8085/readyz 2>/dev/null || echo "")
+WRITER_READY=$(compose exec -T writer wget -q -O - http://127.0.0.1:8085/readyz 2>/dev/null || echo "")
 WRITER_STATUS=$(echo "$WRITER_READY" | json_field "status")
 if [[ "$WRITER_STATUS" == "ready" ]]; then
     pass "Writer is ready"
@@ -223,13 +226,12 @@ fi
 info "Checking analytical endpoint availability..."
 ANALYTICAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60")
 if [[ "$ANALYTICAL_CODE" == "503" ]]; then
-    record_fail "Analytical endpoint returns 503 — ClickHouse not configured in gateway"
-    echo -e "\n${RED}Gateway has no ClickHouse config. Check deploy/configs/gateway.jsonc.${NC}"
-    exit 1
+    record_fail "Analytical endpoint returns 503 — inspect gateway logs, ClickHouse schema, and runtime config alignment"
+    warn "Continuing so migration and table checks can identify the concrete blocker."
 elif [[ "$ANALYTICAL_CODE" == "200" ]]; then
     pass "Analytical endpoint reachable (HTTP 200)"
 else
-    # 200 with empty candles or other codes are acceptable at this stage
+    # 200 with empty candles or other non-503 codes are acceptable at this stage
     pass "Analytical endpoint reachable (HTTP ${ANALYTICAL_CODE})"
 fi
 
@@ -239,8 +241,8 @@ phase "Phase 2: Migration Status"
 
 info "Checking ClickHouse tables..."
 
-TABLES=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
-    --query "SELECT name FROM system.tables WHERE database = 'default' AND name NOT LIKE '.%' ORDER BY name" 2>/dev/null || echo "")
+TABLES=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
+    --query "SELECT name FROM system.tables WHERE database = '${CLICKHOUSE_DATABASE}' AND name NOT LIKE '.%' ORDER BY name" 2>/dev/null || echo "")
 
 EXPECTED_TABLES=("_migrations" "decisions" "evidence_candles" "executions" "risk_assessments" "signals" "strategies")
 MISSING_TABLES=()
@@ -262,7 +264,7 @@ fi
 
 # --- 2b. Check migration records ---
 info "Checking applied migrations..."
-MIGRATION_COUNT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+MIGRATION_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
     --query "SELECT count() FROM _migrations" 2>/dev/null || echo "0")
 if [[ "$MIGRATION_COUNT" -ge 7 ]]; then
     pass "All 7 core migrations applied (count=${MIGRATION_COUNT})"
@@ -275,7 +277,7 @@ phase "Phase 3: Writer Pipeline Health"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking writer statusz..."
-WRITER_STATUSZ=$($COMPOSE exec -T writer wget -q -O - http://127.0.0.1:8085/statusz 2>/dev/null || echo "{}")
+WRITER_STATUSZ=$(compose exec -T writer wget -q -O - http://127.0.0.1:8085/statusz 2>/dev/null || echo "{}")
 
 echo "$WRITER_STATUSZ" | python3 -c "
 import sys, json
@@ -318,7 +320,7 @@ else
     while [[ $ELAPSED -lt $FLUSH_WAIT ]]; do
         sleep $POLL
         ELAPSED=$((ELAPSED + POLL))
-        WRITER_STATUSZ=$($COMPOSE exec -T writer wget -q -O - http://127.0.0.1:8085/statusz 2>/dev/null || echo "{}")
+        WRITER_STATUSZ=$(compose exec -T writer wget -q -O - http://127.0.0.1:8085/statusz 2>/dev/null || echo "{}")
         WRITER_EVENTS=$(echo "$WRITER_STATUSZ" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
@@ -343,7 +345,7 @@ phase "Phase 4: ClickHouse Data Verification"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Querying ClickHouse for evidence_candles rows..."
-CH_CANDLE_COUNT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+CH_CANDLE_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
     --query "SELECT count() FROM evidence_candles" 2>/dev/null || echo "0")
 
 if [[ "$CH_CANDLE_COUNT" -gt 0 ]]; then
@@ -354,7 +356,7 @@ else
     info "Waiting up to 30s for flush..."
     for i in 1 2 3; do
         sleep 10
-        CH_CANDLE_COUNT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+        CH_CANDLE_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
             --query "SELECT count() FROM evidence_candles" 2>/dev/null || echo "0")
         if [[ "$CH_CANDLE_COUNT" -gt 0 ]]; then
             pass "evidence_candles has ${CH_CANDLE_COUNT} rows after extra wait"
@@ -369,14 +371,14 @@ fi
 # --- 4b. Sample a row from ClickHouse ---
 if [[ "$CH_CANDLE_COUNT" -gt 0 ]]; then
     info "Sampling one candle row from ClickHouse..."
-    $COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+    compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
         --query "SELECT source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final FROM evidence_candles ORDER BY open_time DESC LIMIT 1 FORMAT Pretty" 2>/dev/null || warn "Could not sample row"
 fi
 
 # --- 4c. Check other analytical tables (informational) ---
 info "Checking row counts in other analytical tables..."
 for tbl in signals decisions strategies risk_assessments executions; do
-    COUNT=$($COMPOSE exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse \
+    COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
         --query "SELECT count() FROM ${tbl}" 2>/dev/null || echo "error")
     if [[ "$COUNT" == "error" ]]; then
         warn "${tbl}: query failed (table may not exist)"
@@ -560,7 +562,7 @@ phase "Phase 7: Writer Observability Check"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking writer diagz..."
-WRITER_DIAGZ=$($COMPOSE exec -T writer wget -q -O - http://127.0.0.1:8085/diagz 2>/dev/null || echo "{}")
+WRITER_DIAGZ=$(compose exec -T writer wget -q -O - http://127.0.0.1:8085/diagz 2>/dev/null || echo "{}")
 
 echo "$WRITER_DIAGZ" | python3 -c "
 import sys, json
@@ -589,10 +591,11 @@ phase "Phase 8: Error Log Scan"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Scanning compose logs for error-level entries..."
-ERROR_LOG_COUNT=$($COMPOSE logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || echo "0")
+ERROR_LOG_COUNT=$(compose logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
+ERROR_LOG_COUNT="${ERROR_LOG_COUNT:-0}"
 if [[ "$ERROR_LOG_COUNT" -gt 0 ]]; then
     warn "Found ${ERROR_LOG_COUNT} error-level log entries across all services"
-    $COMPOSE logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
+    compose logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
     info "(showing last 5 — review full logs with: make logs)"
 else
     pass "No error-level log entries found"

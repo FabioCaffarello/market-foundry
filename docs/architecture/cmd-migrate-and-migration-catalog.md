@@ -60,7 +60,7 @@ deploy/migrations/
 
 ```
 1. Parse CLI flags and environment variables
-2. Connect to ClickHouse (default database)
+2. Connect to ClickHouse (initial bootstrap connection to system database)
 3. CREATE DATABASE IF NOT EXISTS {target}
 4. Reconnect to target database
 5. CREATE TABLE IF NOT EXISTS _migrations (bootstrap)

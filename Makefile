@@ -162,6 +162,20 @@ compose-config:
 
 up:
 	$(COMPOSE) up -d --build
+	@echo "Waiting for ClickHouse before applying migrations..."
+	@set -a && [ -f deploy/envs/local.env ] && . deploy/envs/local.env; set +a; \
+	attempts=0; \
+	until $(COMPOSE) exec -T clickhouse \
+		clickhouse-client --port 9000 --user "$${CLICKHOUSE_USER:-default}" --password "$${CLICKHOUSE_PASSWORD:-clickhouse}" \
+		--query "SELECT 1" >/dev/null 2>&1; do \
+		attempts=$$((attempts + 1)); \
+		if [[ $$attempts -ge 24 ]]; then \
+			echo "clickhouse did not become ready in time" >&2; \
+			exit 1; \
+		fi; \
+		sleep 5; \
+	done
+	@$(MAKE) migrate-up
 
 down:
 	$(COMPOSE) down --remove-orphans

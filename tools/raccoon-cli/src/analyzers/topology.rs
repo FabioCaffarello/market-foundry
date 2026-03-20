@@ -76,7 +76,7 @@ const EXPECTED_DURABLES: &[&str] = &[
 
 const EXPECTED_SUBJECT_PREFIXES: &[&str] = &[
     "configctl.events.config",
-    "configctl.control.config",
+    "configctl.control.",
     "observation.events.market.trade",
     "evidence.events.candle.sampled",
     "evidence.events.tradeburst.sampled",
@@ -699,7 +699,8 @@ mod tests {
         );
 
         let subjects = vec![
-            "configctl.control.config.>".into(),
+            "configctl.control.create_draft".into(),
+            "configctl.control.compile_config".into(),
             "configctl.events.config.>".into(),
             "configctl.events.config.activated".into(),
             "evidence.events.candle.sampled.>".into(),

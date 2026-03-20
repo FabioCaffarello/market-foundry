@@ -1,23 +1,11 @@
-// ── Strategy: mean_reversion_entry → strategies ─────────
+// ── Strategy: mean_reversion_entry → strategies ──
 {
-	family:       "mean_reversion_entry",
-	consumerName: "writer-strategy-mean-reversion-entry-consumer",
-	inserterName: "writer-strategy-mean-reversion-entry-inserter",
-	table:        "strategies",
-	insertSQL:    "INSERT INTO strategies",
-	consumerSpec: natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
-	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
-	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := natsstrategy.NewConsumer(natsURL, spec, reg.strategy,
-			func(event strategy.StrategyResolvedEvent) {
-				if tracker != nil {
-					tracker.RecordEvent()
-					tracker.Counter("events_received").Add(1)
-				}
-				actorCtx.Send(inserterPID, insertRowMsg{row: mapStrategyRow(event)})
-			},
-			logger,
-		)
-		return consumer, consumer.Start()
-	},
+	family:        "mean_reversion_entry",
+	consumerName:  "writer-strategy-mean-reversion-entry-consumer",
+	inserterName:  "writer-strategy-mean-reversion-entry-inserter",
+	table:         "strategies",
+	insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+	consumerSpec:  natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
+	startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
 },

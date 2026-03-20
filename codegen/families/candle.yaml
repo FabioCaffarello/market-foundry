@@ -11,6 +11,7 @@ nats:
 
 writer:
   table: evidence_candles
+  columns: "event_id, occurred_at, correlation_id, causation_id, source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final"
   mapper: mapCandleRow
   pipeline_family_key: candle
   config_array: families

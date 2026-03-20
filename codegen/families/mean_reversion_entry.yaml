@@ -11,6 +11,7 @@ nats:
 
 writer:
   table: strategies
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp"
   mapper: mapStrategyRow
   pipeline_family_key: mean_reversion_entry
   config_array: strategy_families

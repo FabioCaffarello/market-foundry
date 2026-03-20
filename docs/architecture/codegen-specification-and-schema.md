@@ -199,7 +199,7 @@ Every spec file must pass all invariants before codegen execution. Violation is 
 
 | # | Artifact | Condition | Target File |
 |---|----------|-----------|-------------|
-| 1 | Writer consumer spec | Always | `internal/adapters/nats/{domain}_registry.go` |
+| 1 | Writer consumer spec | Always | `internal/adapters/nats/nats{domain}/registry.go` |
 | 2 | Writer pipeline entry | Always | `cmd/writer/pipeline.go` |
 | 3 | Writer mapper | When `mapper: "generate"` | `cmd/writer/mappers.go` |
 | 4 | Writer mapper tests | When mapper generated | `cmd/writer/mappers_test.go` |
@@ -286,10 +286,9 @@ Files missing this header are not codegen-owned and must not be overwritten.
 
 **Rule 4 -- Human-Owned Files Are Never Overwritten**: Where integration requires modifying human-owned files, codegen uses append-only sections delimited by markers:
 ```go
-// --- BEGIN CODEGEN MANAGED SECTION ---
-// Do not edit between these markers. Managed by mf-codegen.
+// codegen:begin <artifact_type> family=<family_name> source=<spec_path>
 // ... generated entries ...
-// --- END CODEGEN MANAGED SECTION ---
+// codegen:end <artifact_type> family=<family_name>
 ```
 
 **Rule 5 -- Templates Are Human-Owned**: Reviewed, versioned, modified exclusively by humans.

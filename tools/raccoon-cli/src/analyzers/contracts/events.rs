@@ -5,6 +5,7 @@ use crate::error::Result;
 /// A domain event discovered from Go source.
 #[derive(Debug, Clone)]
 pub struct DomainEventDef {
+    pub domain: String,
     #[allow(dead_code)]
     pub const_name: String,
     pub event_name: String, // e.g., "config.draft_created"
@@ -23,18 +24,38 @@ pub struct DomainEventIndex {
 pub fn scan_domain_events(internal_dir: &Path) -> Result<DomainEventIndex> {
     let mut index = DomainEventIndex::default();
 
-    // Scan domain event files
-    let events_file = internal_dir.join("domain/configctl/events.go");
-    if events_file.is_file() {
-        let content = std::fs::read_to_string(&events_file)?;
-        let rel = "internal/domain/configctl/events.go".to_string();
-        extract_domain_events(&content, &rel, &mut index);
+    let domain_dir = internal_dir.join("domain");
+    if !domain_dir.is_dir() {
+        return Ok(index);
+    }
+
+    for entry in std::fs::read_dir(&domain_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let Some(domain_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+
+        let events_file = path.join("events.go");
+        if events_file.is_file() {
+            let content = std::fs::read_to_string(&events_file)?;
+            let rel = events_file
+                .strip_prefix(internal_dir.parent().unwrap_or(internal_dir))
+                .unwrap_or(&events_file)
+                .to_string_lossy()
+                .to_string();
+            extract_domain_events(&content, &rel, domain_name, &mut index);
+        }
     }
 
     Ok(index)
 }
 
-fn extract_domain_events(source: &str, file: &str, index: &mut DomainEventIndex) {
+fn extract_domain_events(source: &str, file: &str, domain: &str, index: &mut DomainEventIndex) {
     // Step 1: Extract event name constants
     // Pattern: EventXxx events.Name = "config.xxx"
     let mut event_consts: Vec<(String, String)> = Vec::new();
@@ -79,6 +100,7 @@ fn extract_domain_events(source: &str, file: &str, index: &mut DomainEventIndex)
                         .map_or(false, |(_, has_meta)| *has_meta);
 
                     index.events.push(DomainEventDef {
+                        domain: domain.to_string(),
                         const_name: cname.clone(),
                         event_name: event_name.clone(),
                         struct_name: sname,
@@ -244,7 +266,7 @@ func (e ConfigArchivedEvent) EventMetadata() events.Metadata          { return e
     #[test]
     fn extracts_domain_events() {
         let mut index = DomainEventIndex::default();
-        extract_domain_events(SAMPLE_EVENTS, "test.go", &mut index);
+        extract_domain_events(SAMPLE_EVENTS, "test.go", "configctl", &mut index);
 
         assert_eq!(index.events.len(), 5);
 
@@ -254,6 +276,7 @@ func (e ConfigArchivedEvent) EventMetadata() events.Metadata          { return e
             .find(|e| e.event_name == "config.draft_created")
             .unwrap();
         assert_eq!(draft.struct_name, "DraftCreatedEvent");
+        assert_eq!(draft.domain, "configctl");
         assert_eq!(draft.const_name, "EventDraftCreated");
         assert!(draft.has_metadata);
 
@@ -269,7 +292,7 @@ func (e ConfigArchivedEvent) EventMetadata() events.Metadata          { return e
     #[test]
     fn all_events_have_metadata() {
         let mut index = DomainEventIndex::default();
-        extract_domain_events(SAMPLE_EVENTS, "test.go", &mut index);
+        extract_domain_events(SAMPLE_EVENTS, "test.go", "configctl", &mut index);
 
         for event in &index.events {
             assert!(

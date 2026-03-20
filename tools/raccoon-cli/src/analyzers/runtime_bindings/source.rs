@@ -6,7 +6,7 @@ use std::path::Path;
 /// Reflects the market-foundry NATS/JetStream architecture:
 /// - Streams: CONFIGCTL_EVENTS, OBSERVATION_EVENTS, EVIDENCE_EVENTS, SIGNAL_EVENTS, DECISION_EVENTS, STRATEGY_EVENTS
 /// - Durable consumers: derive-observation, store-candle, store-trade-burst, store-volume, store-signal-rsi, store-decision-rsi_oversold, store-strategy-mean-reversion-entry
-/// - Query subjects: evidence.query.{candle,tradeburst,volume}.latest, evidence.query.candle.history, signal.query.rsi.latest, decision.query.rsi_oversold.latest, strategy.query.mean_reversion_entry.latest, configctl.control.config.*
+/// - Query subjects: evidence.query.{candle,tradeburst,volume}.latest, evidence.query.candle.history, signal.query.rsi.latest, decision.query.rsi_oversold.latest, strategy.query.mean_reversion_entry.latest, configctl.control.*
 /// - Service binaries: configctl, gateway, ingest, derive, store
 #[derive(Debug, Clone, Default)]
 pub struct RuntimeBindingSource {
@@ -563,13 +563,13 @@ func StoreRSISignalConsumer() natskit.ConsumerSpec {
     #[test]
     fn extract_subjects_classifies_configctl_control() {
         let content = r#"
-    subject := "configctl.control.config.compile"
+    subject := "configctl.control.compile_config"
 "#;
         let mut src = RuntimeBindingSource::default();
         extract_subjects(content, &mut src);
         assert!(src
             .query_subjects
-            .contains("configctl.control.config.compile"));
+            .contains("configctl.control.compile_config"));
     }
 
     #[test]

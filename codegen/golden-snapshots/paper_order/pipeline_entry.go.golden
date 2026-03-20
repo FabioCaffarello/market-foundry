@@ -1,23 +1,11 @@
-// ── Execution: paper_order → executions ─────────────────
+// ── Execution: paper_order → executions ──
 {
-	family:       "paper_order",
-	consumerName: "writer-execution-paper-order-consumer",
-	inserterName: "writer-execution-paper-order-inserter",
-	table:        "executions",
-	insertSQL:    "INSERT INTO executions",
-	consumerSpec: natsexecution.WriterPaperOrderExecutionConsumer(),
-	isEnabled:    func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
-	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := natsexecution.NewConsumer(natsURL, spec, reg.execution,
-			func(event execution.PaperOrderSubmittedEvent) {
-				if tracker != nil {
-					tracker.RecordEvent()
-					tracker.Counter("events_received").Add(1)
-				}
-				actorCtx.Send(inserterPID, insertRowMsg{row: mapExecutionRow(event)})
-			},
-			logger,
-		)
-		return consumer, consumer.Start()
-	},
+	family:        "paper_order",
+	consumerName:  "writer-execution-paper-order-consumer",
+	inserterName:  "writer-execution-paper-order-inserter",
+	table:         "executions",
+	insertSQL:     "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)",
+	consumerSpec:  natsexecution.WriterPaperOrderExecutionConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
+	startConsumer: writerpipeline.NewExecutionStarter(reg.execution),
 },

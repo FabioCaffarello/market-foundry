@@ -32,7 +32,7 @@
   // Gateway readiness does NOT depend on ClickHouse (R-02 compliance).
   "clickhouse": {
     "addr": "clickhouse:9000",
-    "database": "default",
+    "database": "market_foundry",
     "username": "default",
     "password": "clickhouse"
   }

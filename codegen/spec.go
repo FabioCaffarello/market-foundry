@@ -32,6 +32,7 @@ type NATSSpec struct {
 
 type WriterSpec struct {
 	Table             string `yaml:"table"`
+	Columns           string `yaml:"columns"`
 	Mapper            string `yaml:"mapper"`
 	PipelineFamilyKey string `yaml:"pipeline_family_key"`
 	ConfigArray       string `yaml:"config_array"`
@@ -51,9 +52,10 @@ type DerivedFields struct {
 	IsEnabledMethod  string // e.g. IsSignalFamilyEnabled
 	RegistryField    string // e.g. signal
 	NewConsumerFunc  string // e.g. NewConsumer (or NewCandleConsumer for evidence)
+	StarterFunc      string // e.g. NewSignalStarter (or NewCandleStarter for evidence)
 	PascalFamily     string // e.g. RSI
 	PascalLayer      string // e.g. Signal
-	InsertSQL        string // e.g. INSERT INTO signals
+	InsertSQL        string // e.g. INSERT INTO signals (col1, col2, ...)
 	HyphenFamily     string // e.g. rsi (or paper-order)
 	PackageAlias     string // e.g. natssignal, natsevidence
 }
@@ -236,6 +238,21 @@ func (s *FamilySpec) Derived() DerivedFields {
 		newConsumerFunc = "NewConsumer"
 	}
 
+	// StarterFunc: evidence layer uses New{PascalFamily}Starter (e.g. NewCandleStarter),
+	// all other layers use New{PascalLayer}Starter (e.g. NewSignalStarter).
+	var starterFunc string
+	if s.Family.Layer == "evidence" {
+		starterFunc = "New" + pascalFamily + "Starter"
+	} else {
+		starterFunc = "New" + pascalLayer + "Starter"
+	}
+
+	// InsertSQL includes explicit column list when writer.columns is specified.
+	insertSQL := "INSERT INTO " + s.Writer.Table
+	if s.Writer.Columns != "" {
+		insertSQL += " (" + s.Writer.Columns + ")"
+	}
+
 	return DerivedFields{
 		ConsumerSpecFunc: consumerSpecFunc,
 		ConsumerName:     consumerName,
@@ -243,9 +260,10 @@ func (s *FamilySpec) Derived() DerivedFields {
 		IsEnabledMethod:  isEnabledMethod,
 		RegistryField:    s.Family.Layer,
 		NewConsumerFunc:  newConsumerFunc,
+		StarterFunc:      starterFunc,
 		PascalFamily:     pascalFamily,
 		PascalLayer:      pascalLayer,
-		InsertSQL:        "INSERT INTO " + s.Writer.Table,
+		InsertSQL:        insertSQL,
 		HyphenFamily:     hyphenFamily,
 		PackageAlias:     "nats" + s.Family.Layer,
 	}

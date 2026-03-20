@@ -107,7 +107,7 @@ Writer uses the standard `AppConfig` with an additional `clickhouse` section:
 {
   "clickhouse": {
     "addr": "clickhouse:9000",
-    "database": "default",
+    "database": "market_foundry",
     "username": "default",
     "password": "clickhouse",
     "batch_size": 1000,

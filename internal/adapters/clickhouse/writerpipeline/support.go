@@ -1,18 +1,159 @@
-package main
+package writerpipeline
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
 
+	natsdecision "internal/adapters/nats/natsdecision"
+	natsevidence "internal/adapters/nats/natsevidence"
+	natsexecution "internal/adapters/nats/natsexecution"
+	natskit "internal/adapters/nats/natskit"
+	natsrisk "internal/adapters/nats/natsrisk"
+	natssignal "internal/adapters/nats/natssignal"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
+	"internal/shared/healthz"
 )
+
+type RowEmitter func([]any)
+
+type ConsumerStarter func(
+	natsURL string,
+	spec natskit.ConsumerSpec,
+	emitRow RowEmitter,
+	tracker *healthz.Tracker,
+	logger *slog.Logger,
+) (io.Closer, error)
+
+func NewCandleStarter(reg natsevidence.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsevidence.NewCandleConsumer(natsURL, spec, reg,
+			func(event evidence.CandleSampledEvent) {
+				recordEvent(tracker)
+				emitRow(mapCandleRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func NewSignalStarter(reg natssignal.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natssignal.NewConsumer(natsURL, spec, reg,
+			func(event signal.SignalGeneratedEvent) {
+				recordEvent(tracker)
+				emitRow(mapSignalRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func NewDecisionStarter(reg natsdecision.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsdecision.NewConsumer(natsURL, spec, reg,
+			func(event decision.DecisionEvaluatedEvent) {
+				recordEvent(tracker)
+				emitRow(mapDecisionRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func NewStrategyStarter(reg natsstrategy.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsstrategy.NewConsumer(natsURL, spec, reg,
+			func(event strategy.StrategyResolvedEvent) {
+				recordEvent(tracker)
+				emitRow(mapStrategyRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func NewRiskStarter(reg natsrisk.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsrisk.NewConsumer(natsURL, spec, reg,
+			func(event risk.RiskAssessedEvent) {
+				recordEvent(tracker)
+				emitRow(mapRiskRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func NewExecutionStarter(reg natsexecution.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsexecution.NewConsumer(natsURL, spec, reg,
+			func(event execution.PaperOrderSubmittedEvent) {
+				recordEvent(tracker)
+				emitRow(mapExecutionRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+func recordEvent(tracker *healthz.Tracker) {
+	if tracker == nil {
+		return
+	}
+	tracker.RecordEvent()
+	tracker.Counter("events_received").Add(1)
+}
 
 // mapCandleRow maps a CandleSampledEvent to ClickHouse evidence_candles row values.
 // Column order matches DDL: event_id, occurred_at, correlation_id, causation_id,
@@ -171,9 +312,6 @@ func mapExecutionRow(e execution.PaperOrderSubmittedEvent) []any {
 	}
 }
 
-// parseFloat converts a decimal string to float64.
-// Returns 0 on parse failure and logs a warning so silent zero-value injection
-// is visible to operators.
 func parseFloat(s string) float64 {
 	if s == "" {
 		slog.Warn("parseFloat: empty string, defaulting to 0")
@@ -187,9 +325,6 @@ func parseFloat(s string) float64 {
 	return f
 }
 
-// marshalJSON serializes a value to a JSON string for ClickHouse String columns.
-// Returns "{}" on nil or marshal failure and logs a warning on actual errors
-// so silent fallback injection is visible to operators.
 func marshalJSON(v any) string {
 	if v == nil {
 		return "{}"

@@ -123,7 +123,7 @@ Gateway config gains an optional `clickhouse` section:
   // ... existing config unchanged ...
   "clickhouse": {
     "addr": "clickhouse:9000",
-    "database": "default",
+    "database": "market_foundry",
     "username": "default",
     "password": "clickhouse"
   }

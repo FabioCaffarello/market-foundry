@@ -1,4 +1,4 @@
-package main
+package writerpipeline
 
 import (
 	"encoding/json"
@@ -14,8 +14,6 @@ import (
 	"internal/shared/events"
 )
 
-// ── Fixtures ────────────────────────────────────────────────────
-
 var fixedTime = time.Date(2025, 3, 15, 12, 0, 0, 0, time.UTC)
 
 func testMetadata() events.Metadata {
@@ -26,8 +24,6 @@ func testMetadata() events.Metadata {
 		CausationID:   "caus-1",
 	}
 }
-
-// ── mapCandleRow ────────────────────────────────────────────────
 
 func TestMapCandleRow_ColumnCount(t *testing.T) {
 	e := evidence.CandleSampledEvent{
@@ -50,9 +46,6 @@ func TestMapCandleRow_ColumnCount(t *testing.T) {
 
 	row := mapCandleRow(e)
 
-	// DDL has 16 columns: event_id, occurred_at, correlation_id, causation_id,
-	// source, symbol, timeframe, open, high, low, close, volume, trade_count,
-	// open_time, close_time, final.
 	if len(row) != 16 {
 		t.Fatalf("expected 16 columns, got %d", len(row))
 	}
@@ -113,15 +106,12 @@ func TestMapCandleRow_EmptyDecimalStrings(t *testing.T) {
 	}
 	row := mapCandleRow(e)
 
-	// Empty strings should parse as 0.0 via parseFloat.
 	for _, idx := range []int{7, 8, 9, 10, 11} {
 		if row[idx].(float64) != 0 {
 			t.Errorf("column %d: expected 0.0 for empty string, got %v", idx, row[idx])
 		}
 	}
 }
-
-// ── mapSignalRow ────────────────────────────────────────────────
 
 func TestMapSignalRow_ColumnCount(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
@@ -134,8 +124,6 @@ func TestMapSignalRow_ColumnCount(t *testing.T) {
 	}
 	row := mapSignalRow(e)
 
-	// DDL: event_id, occurred_at, correlation_id, causation_id,
-	// type, source, symbol, timeframe, value, metadata, final, timestamp.
 	if len(row) != 12 {
 		t.Fatalf("expected 12 columns, got %d", len(row))
 	}
@@ -161,7 +149,6 @@ func TestMapSignalRow_DomainFields(t *testing.T) {
 	assertEq(t, "final", row[10], true)
 	assertEq(t, "timestamp", row[11], fixedTime)
 
-	// Metadata should be valid JSON containing the map.
 	metaJSON := row[9].(string)
 	var parsed map[string]string
 	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
@@ -183,14 +170,11 @@ func TestMapSignalRow_NilMetadata(t *testing.T) {
 	}
 	row := mapSignalRow(e)
 
-	// nil metadata should serialize as "null" (json.Marshal of nil map).
 	metaJSON := row[9].(string)
 	if metaJSON != "null" {
 		t.Errorf("expected null for nil metadata, got %q", metaJSON)
 	}
 }
-
-// ── mapDecisionRow ──────────────────────────────────────────────
 
 func TestMapDecisionRow_ColumnCount(t *testing.T) {
 	e := decision.DecisionEvaluatedEvent{
@@ -199,12 +183,11 @@ func TestMapDecisionRow_ColumnCount(t *testing.T) {
 			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Confidence: "0.85",
 			Signals: []decision.SignalInput{{Type: "rsi", Value: "28.5", Timeframe: 60}},
-			Final: true, Timestamp: fixedTime,
+			Final:   true, Timestamp: fixedTime,
 		},
 	}
 	row := mapDecisionRow(e)
 
-	// DDL: 14 columns.
 	if len(row) != 14 {
 		t.Fatalf("expected 14 columns, got %d", len(row))
 	}
@@ -231,7 +214,6 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	assertEq(t, "confidence", row[9], 0.85)
 	assertEq(t, "final", row[12], true)
 
-	// Signals should be valid JSON array.
 	var parsedSignals []decision.SignalInput
 	if err := json.Unmarshal([]byte(row[10].(string)), &parsedSignals); err != nil {
 		t.Fatalf("signals is not valid JSON: %v", err)
@@ -241,8 +223,6 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	}
 }
 
-// ── mapStrategyRow ──────────────────────────────────────────────
-
 func TestMapStrategyRow_ColumnCount(t *testing.T) {
 	e := strategy.StrategyResolvedEvent{
 		Metadata: testMetadata(),
@@ -250,12 +230,11 @@ func TestMapStrategyRow_ColumnCount(t *testing.T) {
 			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.75",
 			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Timeframe: 60}},
-			Final: true, Timestamp: fixedTime,
+			Final:     true, Timestamp: fixedTime,
 		},
 	}
 	row := mapStrategyRow(e)
 
-	// DDL: 15 columns.
 	if len(row) != 15 {
 		t.Fatalf("expected 15 columns, got %d", len(row))
 	}
@@ -270,7 +249,7 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Timeframe: 60}},
 			Parameters: map[string]string{"lookback": "5"},
 			Metadata:   map[string]string{"version": "1"},
-			Final: true, Timestamp: fixedTime,
+			Final:      true, Timestamp: fixedTime,
 		},
 	}
 	row := mapStrategyRow(e)
@@ -280,7 +259,6 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	assertEq(t, "confidence", row[9], 0.65)
 	assertEq(t, "final", row[13], true)
 
-	// Decisions JSON
 	var parsedDec []strategy.DecisionInput
 	if err := json.Unmarshal([]byte(row[10].(string)), &parsedDec); err != nil {
 		t.Fatalf("decisions is not valid JSON: %v", err)
@@ -290,23 +268,20 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	}
 }
 
-// ── mapRiskRow ──────────────────────────────────────────────────
-
 func TestMapRiskRow_ColumnCount(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
 			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.9",
-			Strategies: []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
+			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1000", StopDistance: "50"},
-			Rationale: "within limits",
-			Final: true, Timestamp: fixedTime,
+			Rationale:   "within limits",
+			Final:       true, Timestamp: fixedTime,
 		},
 	}
 	row := mapRiskRow(e)
 
-	// DDL: 17 columns.
 	if len(row) != 17 {
 		t.Fatalf("expected 17 columns, got %d", len(row))
 	}
@@ -318,12 +293,12 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 		RiskAssessment: risk.RiskAssessment{
 			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Disposition: risk.DispositionModified, Confidence: "0.7",
-			Strategies: []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
+			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.05"},
-			Rationale: "position too large, modified",
-			Parameters: map[string]string{"max_risk": "0.02"},
-			Metadata:   map[string]string{"version": "1"},
-			Final: true, Timestamp: fixedTime,
+			Rationale:   "position too large, modified",
+			Parameters:  map[string]string{"max_risk": "0.02"},
+			Metadata:    map[string]string{"version": "1"},
+			Final:       true, Timestamp: fixedTime,
 		},
 	}
 	row := mapRiskRow(e)
@@ -333,7 +308,6 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	assertEq(t, "rationale", row[12], "position too large, modified")
 	assertEq(t, "final", row[15], true)
 
-	// Constraints JSON
 	var parsedConstraints risk.Constraints
 	if err := json.Unmarshal([]byte(row[11].(string)), &parsedConstraints); err != nil {
 		t.Fatalf("constraints is not valid JSON: %v", err)
@@ -343,8 +317,6 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	}
 }
 
-// ── mapExecutionRow ─────────────────────────────────────────────
-
 func TestMapExecutionRow_ColumnCount(t *testing.T) {
 	e := execution.PaperOrderSubmittedEvent{
 		Metadata: testMetadata(),
@@ -352,14 +324,13 @@ func TestMapExecutionRow_ColumnCount(t *testing.T) {
 			Type: "paper_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.1", FilledQuantity: "0.1",
 			Status: execution.StatusFilled,
-			Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
-			Fills: []execution.FillRecord{{Price: "100.0", Quantity: "0.1", Fee: "0.01", Simulated: true, Timestamp: fixedTime}},
-			Final: true, Timestamp: fixedTime,
+			Risk:   execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
+			Fills:  []execution.FillRecord{{Price: "100.0", Quantity: "0.1", Fee: "0.01", Simulated: true, Timestamp: fixedTime}},
+			Final:  true, Timestamp: fixedTime,
 		},
 	}
 	row := mapExecutionRow(e)
 
-	// DDL: 20 columns.
 	if len(row) != 20 {
 		t.Fatalf("expected 20 columns, got %d", len(row))
 	}
@@ -372,7 +343,7 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 			Type: "paper_order", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
 			Side: execution.SideSell, Quantity: "1.5", FilledQuantity: "1.0",
 			Status: execution.StatusPartiallyFilled,
-			Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
+			Risk:   execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
 			Fills: []execution.FillRecord{
 				{Price: "3500.0", Quantity: "0.5", Fee: "0.35", Simulated: true, Timestamp: fixedTime},
 				{Price: "3501.0", Quantity: "0.5", Fee: "0.35", Simulated: true, Timestamp: fixedTime},
@@ -381,7 +352,7 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 			Metadata:      map[string]string{"origin": "paper"},
 			CorrelationID: "exec-corr-1",
 			CausationID:   "exec-caus-1",
-			Final: false, Timestamp: fixedTime,
+			Final:         false, Timestamp: fixedTime,
 		},
 	}
 	row := mapExecutionRow(e)
@@ -394,7 +365,6 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 	assertEq(t, "exec_causation_id", row[17], "exec-caus-1")
 	assertEq(t, "final", row[18], false)
 
-	// Fills JSON
 	var parsedFills []execution.FillRecord
 	if err := json.Unmarshal([]byte(row[13].(string)), &parsedFills); err != nil {
 		t.Fatalf("fills is not valid JSON: %v", err)
@@ -403,7 +373,6 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 		t.Errorf("expected 2 fills, got %d", len(parsedFills))
 	}
 
-	// Risk JSON
 	var parsedRisk execution.RiskInput
 	if err := json.Unmarshal([]byte(row[12].(string)), &parsedRisk); err != nil {
 		t.Fatalf("risk is not valid JSON: %v", err)
@@ -412,8 +381,6 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 		t.Errorf("expected risk type position_exposure, got %q", parsedRisk.Type)
 	}
 }
-
-// ── parseFloat ──────────────────────────────────────────────────
 
 func TestParseFloat(t *testing.T) {
 	tests := []struct {
@@ -425,8 +392,8 @@ func TestParseFloat(t *testing.T) {
 		{"-1.23", -1.23},
 		{"0.000001", 0.000001},
 		{"99999999.99", 99999999.99},
-		{"", 0},          // empty → 0
-		{"not-a-num", 0}, // invalid → 0
+		{"", 0},
+		{"not-a-num", 0},
 	}
 
 	for _, tt := range tests {
@@ -436,8 +403,6 @@ func TestParseFloat(t *testing.T) {
 		}
 	}
 }
-
-// ── marshalJSON ─────────────────────────────────────────────────
 
 func TestMarshalJSON_Nil(t *testing.T) {
 	result := marshalJSON(nil)
@@ -502,8 +467,6 @@ func TestMarshalJSON_Struct(t *testing.T) {
 		t.Errorf("expected max_position_size=0.1, got %q", parsed.MaxPositionSize)
 	}
 }
-
-// ── Helpers ─────────────────────────────────────────────────────
 
 func assertEq(t *testing.T, field string, got, want any) {
 	t.Helper()

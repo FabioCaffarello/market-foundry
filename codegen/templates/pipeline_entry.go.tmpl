@@ -1,23 +1,11 @@
 // ── {{.Derived.PascalLayer}}: {{.Spec.Family.Name}} → {{.Spec.Writer.Table}} ──
 {
-	family:       "{{.Spec.Family.Name}}",
-	consumerName: "{{.Derived.ConsumerName}}",
-	inserterName: "{{.Derived.InserterName}}",
-	table:        "{{.Spec.Writer.Table}}",
-	insertSQL:    "{{.Derived.InsertSQL}}",
-	consumerSpec: {{.Derived.PackageAlias}}.{{.Derived.ConsumerSpecFunc}}(),
-	isEnabled:    func(p settings.PipelineConfig) bool { return p.{{.Derived.IsEnabledMethod}}("{{.Spec.Family.Name}}") },
-	startConsumer: func(natsURL string, spec natskit.ConsumerSpec, inserterPID *actor.PID, tracker *healthz.Tracker, logger *slog.Logger, actorCtx *actor.Context) (io.Closer, error) {
-		consumer := {{.Derived.PackageAlias}}.{{.Derived.NewConsumerFunc}}(natsURL, spec, reg.{{.Derived.RegistryField}},
-			func(event {{.Spec.Domain.EventPackage}}.{{.Spec.Domain.EventType}}) {
-				if tracker != nil {
-					tracker.RecordEvent()
-					tracker.Counter("events_received").Add(1)
-				}
-				actorCtx.Send(inserterPID, insertRowMsg{row: {{.Spec.Writer.Mapper}}(event)})
-			},
-			logger,
-		)
-		return consumer, consumer.Start()
-	},
+	family:        "{{.Spec.Family.Name}}",
+	consumerName:  "{{.Derived.ConsumerName}}",
+	inserterName:  "{{.Derived.InserterName}}",
+	table:         "{{.Spec.Writer.Table}}",
+	insertSQL:     "{{.Derived.InsertSQL}}",
+	consumerSpec:  {{.Derived.PackageAlias}}.{{.Derived.ConsumerSpecFunc}}(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.{{.Derived.IsEnabledMethod}}("{{.Spec.Family.Name}}") },
+	startConsumer: writerpipeline.{{.Derived.StarterFunc}}(reg.{{.Derived.RegistryField}}),
 },

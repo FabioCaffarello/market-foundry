@@ -4,6 +4,8 @@
 **Stage:** S226  
 **Purpose:** Provide a compact evidence ledger for the inherited CI-on-push gate item and state exactly how the evidence maps to XC-6 / EC-7.
 
+**S227 reconciliation note:** The S226 smoke script treated any analytical `503` as "missing ClickHouse config." Fresh local reproduction on 2026-03-20 showed the same failure class can also come from schema/bootstrap drift and database-target drift. On the reconciled baseline, the blocking condition was closed by aligning `make up`, `gateway`, `writer`, and `cmd/migrate` on `market_foundry` and rebuilding the writer inserts to match the live DDL. Remote CI evidence itself has not yet been rerun on that corrected baseline.
+
 ---
 
 ## 1. Evidence Log
@@ -29,7 +31,7 @@
 | D | JetStream storage exhausted on runner | run `23360347842` compose logs artifact | reduced stream retention footprint to CI/local-safe size |
 | E | `/execution/control` route collision | run `23360780900` compose logs artifact | moved control handling into wildcard route path with explicit validation |
 | F | Seed script expected `config.version_id`, but the returned draft identifier could be `config.id` | repeated `Seed configctl` failures on runs `23361089050` and `23361436729`, then fresh clean-stack reproduction | updated `scripts/seed-configctl.sh` to accept both fields |
-| G | Analytical smoke fails with endpoint `503`; gateway reports no ClickHouse config for the path under test | failed step `Run smoke-analytical E2E` on run `23361711481` | no S226 redesign or functional expansion; limitation carried forward explicitly for S227 |
+| G | Analytical smoke fails with endpoint `503`; the smoke script reported missing ClickHouse config, but S227 later confirmed that this failure class also covered schema/bootstrap and database-target drift | failed step `Run smoke-analytical E2E` on run `23361711481`, then local S227 reproduction on the closure baseline | no S226 redesign or functional expansion; the residual runtime drift was closed in S227 locally and still needs fresh remote proof |
 
 ---
 
@@ -66,7 +68,7 @@ The current gate adjudication is:
 2. adjudicating run: `23361711481`
 3. adjudicating commit: `43aa2b01c41d8490477174aaf49ff3276d49247f`
 4. decisive failed step: `Smoke Analytical E2E -> Run smoke-analytical E2E`
-5. decisive observed condition: analytical endpoint returned `503`, and the smoke script reported missing ClickHouse configuration in the gateway path under test
+5. decisive observed condition: analytical endpoint returned `503`; S226 recorded the smoke-script message about missing ClickHouse config, and S227 later refined that interpretation to schema/bootstrap plus database-target drift on the closure baseline
 
 This means S226 closes the inherited pending state, but it does **not** upgrade the gate to PASS.
 

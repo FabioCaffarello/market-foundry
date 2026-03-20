@@ -50,6 +50,7 @@ func TestDerivedFields_RSI(t *testing.T) {
 	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewConsumer")
 	assertField(t, "PascalFamily", d.PascalFamily, "RSI")
 	assertField(t, "PascalLayer", d.PascalLayer, "Signal")
+	assertField(t, "StarterFunc", d.StarterFunc, "NewSignalStarter")
 	assertField(t, "InsertSQL", d.InsertSQL, "INSERT INTO signals")
 	assertField(t, "HyphenFamily", d.HyphenFamily, "rsi")
 	assertField(t, "PackageAlias", d.PackageAlias, "natssignal")
@@ -87,7 +88,26 @@ func TestDerivedFields_Evidence(t *testing.T) {
 	assertField(t, "InserterName", d.InserterName, "writer-candle-inserter")
 	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsFamilyEnabled")
 	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewCandleConsumer")
+	assertField(t, "StarterFunc", d.StarterFunc, "NewCandleStarter")
 	assertField(t, "PackageAlias", d.PackageAlias, "natsevidence")
+}
+
+func TestDerivedFields_InsertSQLWithColumns(t *testing.T) {
+	spec := &FamilySpec{
+		Family: FamilyMeta{Name: "rsi", Layer: "signal", Tier: 1},
+		Writer: WriterSpec{Table: "signals", Columns: "event_id, occurred_at, type"},
+	}
+	d := spec.Derived()
+	assertField(t, "InsertSQL", d.InsertSQL, "INSERT INTO signals (event_id, occurred_at, type)")
+}
+
+func TestDerivedFields_InsertSQLWithoutColumns(t *testing.T) {
+	spec := &FamilySpec{
+		Family: FamilyMeta{Name: "rsi", Layer: "signal", Tier: 1},
+		Writer: WriterSpec{Table: "signals"},
+	}
+	d := spec.Derived()
+	assertField(t, "InsertSQL", d.InsertSQL, "INSERT INTO signals")
 }
 
 func TestLoadSpec(t *testing.T) {
