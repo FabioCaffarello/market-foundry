@@ -5,5 +5,6 @@
 -- Idempotent: Yes (ALTER TABLE ADD COLUMN IF NOT EXISTS)
 -- Reversible: Yes (ALTER TABLE DROP COLUMN)
 
-ALTER TABLE decisions ADD COLUMN IF NOT EXISTS severity LowCardinality(String) DEFAULT '' AFTER confidence;
-ALTER TABLE decisions ADD COLUMN IF NOT EXISTS rationale String DEFAULT '' AFTER severity;
+ALTER TABLE decisions
+    ADD COLUMN IF NOT EXISTS severity LowCardinality(String) DEFAULT '' AFTER confidence,
+    ADD COLUMN IF NOT EXISTS rationale String DEFAULT '' AFTER severity;
