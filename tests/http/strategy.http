@@ -22,6 +22,32 @@ Accept: application/json
 GET http://localhost:8080/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=3600
 Accept: application/json
 
+### --- Trend Following Entry (Breadth S242) ---
+
+### Get latest strategy — trend_following_entry — btcusdt 1m
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+### Get latest strategy — trend_following_entry — btcusdt 5m
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+### Get latest strategy — trend_following_entry — ethusdt 1m
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+### Get latest strategy — trend_following_entry — ethusdt 5m
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+### Get latest strategy — trend_following_entry — btcusdt 15m
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+### Get latest strategy — trend_following_entry — btcusdt 1h
+GET http://localhost:8080/strategy/trend_following_entry/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
 ### Error: unknown strategy type
 GET http://localhost:8080/strategy/unknown_type/latest?source=binancef&symbol=btcusdt&timeframe=60
 Accept: application/json

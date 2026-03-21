@@ -11,10 +11,16 @@
 #                                                               → gateway HTTP endpoint
 #   Decision:  derive (RSI Oversold evaluator) → DECISION_EVENTS → store (NATS KV)
 #                                                                 → gateway HTTP endpoint
+#   Decision:  derive (EMA Crossover evaluator) → DECISION_EVENTS → store (NATS KV)
+#                                                                  → gateway HTTP endpoint
 #   Strategy:  derive (Mean Reversion Entry resolver) → STRATEGY_EVENTS → store (NATS KV)
 #                                                                        → gateway HTTP endpoint
+#   Strategy:  derive (Trend Following Entry resolver) → STRATEGY_EVENTS → store (NATS KV)
+#                                                                         → gateway HTTP endpoint
 #   Risk:      derive (Position Exposure evaluator) → RISK_EVENTS → store (NATS KV)
 #                                                                  → gateway HTTP endpoint
+#   Risk:      derive (Drawdown Limit evaluator) → RISK_EVENTS → store (NATS KV)
+#                                                                → gateway HTTP endpoint
 #   Execution: derive (Paper Order evaluator) → EXECUTION_EVENTS → store (NATS KV)
 #                                                                 → gateway HTTP endpoint
 #   Fill:      execute (Venue Adapter) → EXECUTION_FILL_EVENTS → store (NATS KV)
@@ -452,6 +458,98 @@ else:
     esac
 done
 
+# ---------- Step 7a: Decision EMA Crossover multi-symbol validation (Breadth S241) ----------
+section "Step 7a: Decision EMA Crossover multi-symbol validation (Breadth S241)"
+info "Note: EMA Crossover decision evaluates after each EMA signal. Requires EMA warm-up (~21min at 60s)."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking decision ema_crossover ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "decision ema_crossover ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'decision' in data, 'missing decision key'
+dec = data['decision']
+if dec is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'outcome', 'confidence', 'final', 'timestamp']
+    for field in required:
+        assert field in dec, f'missing field: {field}'
+    assert dec['source'] == '${SOURCE}', f'wrong source: {dec[\"source\"]}'
+    assert dec['symbol'] == '${sym}', f'wrong symbol: {dec[\"symbol\"]}'
+    assert dec['timeframe'] == ${tf}, f'wrong timeframe: {dec[\"timeframe\"]}'
+    assert dec['type'] == 'ema_crossover', f'wrong type: {dec[\"type\"]}'
+    assert dec['outcome'] in ('triggered', 'not_triggered', 'insufficient'), f'invalid outcome: {dec[\"outcome\"]}'
+    meta = dec.get('metadata', {})
+    if 'crossover_direction' in meta:
+        print(f'DECISION type={dec[\"type\"]} source={dec[\"source\"]} symbol={dec[\"symbol\"]} tf={dec[\"timeframe\"]} outcome={dec[\"outcome\"]} confidence={dec[\"confidence\"]} crossover={meta[\"crossover_direction\"]} final={dec[\"final\"]}')
+    else:
+        print(f'DECISION type={dec[\"type\"]} source={dec[\"source\"]} symbol={dec[\"symbol\"]} tf={dec[\"timeframe\"]} outcome={dec[\"outcome\"]} confidence={dec[\"confidence\"]} final={dec[\"final\"]}')
+else:
+    print('NULL (EMA warm-up not complete — ema_crossover decision pending)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "DECISION"; then
+                pass "decision ema_crossover ${sym}/${tf}s → decision present"
+                echo "    $(echo "$RESULT" | head -1)"
+            else
+                pass "decision ema_crossover ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "decision ema_crossover ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 8a: Cross-symbol ema_crossover decision isolation ----------
+section "Step 8a: Cross-symbol ema_crossover decision isolation (Breadth S241)"
+info "Verifying decision EMA Crossover produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    DEC_A=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    DEC_B=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${DEC_A}''')['decision']
+b = json.loads('''${DEC_B}''')['decision']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "decision ema_crossover tf=${tf}s: symbols produce independent decision data" ;;
+        PARTIAL)  pass "decision ema_crossover tf=${tf}s: one symbol has decision, other pending (expected)" ;;
+        NONE)     info "decision ema_crossover tf=${tf}s: no decisions yet (warm-up pending)" ;;
+        COLLISION) fail "decision ema_crossover tf=${tf}s: SYMBOL COLLISION — both decisions have same symbol" ;;
+        BLEED_A)  fail "decision ema_crossover tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "decision ema_crossover tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "decision ema_crossover tf=${tf}s: isolation check error" ;;
+    esac
+done
+
 # ---------- Step 9: Strategy Mean Reversion Entry multi-symbol validation ----------
 section "Step 9: Strategy Mean Reversion Entry multi-symbol validation"
 info "Note: Strategy resolves after each decision. Requires RSI warm-up (~15min at 60s)."
@@ -540,6 +638,97 @@ else:
         BLEED_A)  fail "strategy mean_reversion_entry tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
         BLEED_B)  fail "strategy mean_reversion_entry tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
         *)        fail "strategy mean_reversion_entry tf=${tf}s: isolation check error" ;;
+    esac
+done
+
+# ---------- Step 9a: Strategy Trend Following Entry multi-symbol validation (Breadth S242) ----------
+section "Step 9a: Strategy Trend Following Entry multi-symbol validation (Breadth S242)"
+info "Note: Trend Following Entry resolves after each ema_crossover decision. Requires EMA warm-up (~21min at 60s)."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking strategy trend_following_entry ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "strategy trend_following_entry ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'strategy' in data, 'missing strategy key'
+strat = data['strategy']
+if strat is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'direction', 'confidence', 'decisions', 'final', 'timestamp']
+    for field in required:
+        assert field in strat, f'missing field: {field}'
+    assert strat['source'] == '${SOURCE}', f'wrong source: {strat[\"source\"]}'
+    assert strat['symbol'] == '${sym}', f'wrong symbol: {strat[\"symbol\"]}'
+    assert strat['timeframe'] == ${tf}, f'wrong timeframe: {strat[\"timeframe\"]}'
+    assert strat['type'] == 'trend_following_entry', f'wrong type: {strat[\"type\"]}'
+    assert strat['direction'] in ('long', 'short', 'flat'), f'invalid direction: {strat[\"direction\"]}'
+    assert isinstance(strat['decisions'], list) and len(strat['decisions']) > 0, 'decisions must be non-empty list'
+    print(f'STRATEGY type={strat[\"type\"]} source={strat[\"source\"]} symbol={strat[\"symbol\"]} tf={strat[\"timeframe\"]} direction={strat[\"direction\"]} confidence={strat[\"confidence\"]} final={strat[\"final\"]}')
+    print(f'  decisions={len(strat[\"decisions\"])} parameters={strat.get(\"parameters\", {})}')
+else:
+    print('NULL (ema_crossover decision warm-up not complete — trend_following_entry pending)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "STRATEGY"; then
+                pass "strategy trend_following_entry ${sym}/${tf}s → strategy present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "strategy trend_following_entry ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "strategy trend_following_entry ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 10a: Cross-symbol trend_following_entry strategy isolation ----------
+section "Step 10a: Cross-symbol trend_following_entry strategy isolation (Breadth S242)"
+info "Verifying strategy Trend Following Entry produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    STRAT_A=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    STRAT_B=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${STRAT_A}''')['strategy']
+b = json.loads('''${STRAT_B}''')['strategy']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "strategy trend_following_entry tf=${tf}s: symbols produce independent strategy data" ;;
+        PARTIAL)  pass "strategy trend_following_entry tf=${tf}s: one symbol has strategy, other pending (expected)" ;;
+        NONE)     info "strategy trend_following_entry tf=${tf}s: no strategies yet (warm-up pending)" ;;
+        COLLISION) fail "strategy trend_following_entry tf=${tf}s: SYMBOL COLLISION — both strategies have same symbol" ;;
+        BLEED_A)  fail "strategy trend_following_entry tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "strategy trend_following_entry tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "strategy trend_following_entry tf=${tf}s: isolation check error" ;;
     esac
 done
 
@@ -632,6 +821,98 @@ else:
         BLEED_A)  fail "risk position_exposure tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
         BLEED_B)  fail "risk position_exposure tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
         *)        fail "risk position_exposure tf=${tf}s: isolation check error" ;;
+    esac
+done
+
+# ---------- Step 11a: Risk Drawdown Limit multi-symbol validation (Breadth S243) ----------
+section "Step 11a: Risk Drawdown Limit multi-symbol validation (Breadth S243)"
+info "Note: Drawdown Limit evaluates after each trend_following_entry strategy. Requires full Chain B warm-up."
+
+for sym in "${SYMBOLS[@]}"; do
+    for tf in "${TIMEFRAMES[@]}"; do
+        info "Checking risk drawdown_limit ${SOURCE}/${sym}/${tf}s..."
+
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+
+        if [[ "$HTTP_CODE" != "200" ]]; then
+            fail "risk drawdown_limit ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
+            continue
+        fi
+
+        RESULT=$(echo "$RESPONSE" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+assert 'risk' in data, 'missing risk key'
+r = data['risk']
+if r is not None:
+    required = ['type', 'source', 'symbol', 'timeframe', 'disposition', 'confidence', 'strategies', 'constraints', 'rationale', 'parameters', 'final', 'timestamp']
+    for field in required:
+        assert field in r, f'missing field: {field}'
+    assert r['source'] == '${SOURCE}', f'wrong source: {r[\"source\"]}'
+    assert r['symbol'] == '${sym}', f'wrong symbol: {r[\"symbol\"]}'
+    assert r['timeframe'] == ${tf}, f'wrong timeframe: {r[\"timeframe\"]}'
+    assert r['type'] == 'drawdown_limit', f'wrong type: {r[\"type\"]}'
+    assert r['disposition'] in ('approved', 'modified', 'rejected'), f'invalid disposition: {r[\"disposition\"]}'
+    assert isinstance(r['strategies'], list) and len(r['strategies']) > 0, 'strategies must be non-empty list'
+    assert isinstance(r['constraints'], dict), 'constraints must be an object'
+    print(f'RISK type={r[\"type\"]} source={r[\"source\"]} symbol={r[\"symbol\"]} tf={r[\"timeframe\"]} disposition={r[\"disposition\"]} confidence={r[\"confidence\"]} final={r[\"final\"]}')
+    print(f'  constraints={r[\"constraints\"]} strategies={len(r[\"strategies\"])}')
+else:
+    print('NULL (trend_following_entry warm-up not complete — drawdown_limit pending)')
+print('OK')
+" 2>&1)
+
+        if echo "$RESULT" | grep -q "OK"; then
+            if echo "$RESULT" | grep -q "RISK"; then
+                pass "risk drawdown_limit ${sym}/${tf}s → risk present"
+                echo "    $(echo "$RESULT" | head -1)"
+                echo "    $(echo "$RESULT" | sed -n '2p')"
+            else
+                pass "risk drawdown_limit ${sym}/${tf}s → endpoint reachable (null — warm-up pending)"
+            fi
+        else
+            fail "risk drawdown_limit ${sym}/${tf}s → structure invalid: $RESULT"
+        fi
+    done
+done
+
+# ---------- Step 12a: Cross-symbol drawdown_limit risk isolation ----------
+section "Step 12a: Cross-symbol drawdown_limit risk isolation (Breadth S243)"
+info "Verifying risk Drawdown Limit produces independent data per symbol..."
+
+for tf in "${TIMEFRAMES[@]}"; do
+    RISK_A=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
+    RISK_B=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+
+    RESULT=$(python3 -c "
+import sys, json
+a = json.loads('''${RISK_A}''')['risk']
+b = json.loads('''${RISK_B}''')['risk']
+if a is not None and b is not None:
+    if a['symbol'] == b['symbol']:
+        print('COLLISION')
+    elif a['symbol'] != '${SYMBOLS[0]}':
+        print('BLEED_A')
+    elif b['symbol'] != '${SYMBOLS[1]}':
+        print('BLEED_B')
+    else:
+        print('ISOLATED')
+elif a is not None or b is not None:
+    print('PARTIAL')
+else:
+    print('NONE')
+" 2>/dev/null || echo "ERROR")
+
+    case "$RESULT" in
+        ISOLATED) pass "risk drawdown_limit tf=${tf}s: symbols produce independent risk data" ;;
+        PARTIAL)  pass "risk drawdown_limit tf=${tf}s: one symbol has risk, other pending (expected)" ;;
+        NONE)     info "risk drawdown_limit tf=${tf}s: no risk assessments yet (warm-up pending)" ;;
+        COLLISION) fail "risk drawdown_limit tf=${tf}s: SYMBOL COLLISION — both risks have same symbol" ;;
+        BLEED_A)  fail "risk drawdown_limit tf=${tf}s: CROSS-SYMBOL BLEED — symbol A has wrong symbol field" ;;
+        BLEED_B)  fail "risk drawdown_limit tf=${tf}s: CROSS-SYMBOL BLEED — symbol B has wrong symbol field" ;;
+        *)        fail "risk drawdown_limit tf=${tf}s: isolation check error" ;;
     esac
 done
 
@@ -1137,19 +1418,28 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/unknown
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown decision type → 400" || info "Unknown decision type → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
-[[ "$HTTP_CODE" == "400" ]] && pass "Decision missing timeframe → 400" || info "Decision missing timeframe → $HTTP_CODE"
+[[ "$HTTP_CODE" == "400" ]] && pass "Decision rsi_oversold missing timeframe → 400" || info "Decision rsi_oversold missing timeframe → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+[[ "$HTTP_CODE" == "400" ]] && pass "Decision ema_crossover missing timeframe → 400" || info "Decision ema_crossover missing timeframe → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown strategy type → 400" || info "Unknown strategy type → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
-[[ "$HTTP_CODE" == "400" ]] && pass "Strategy missing timeframe → 400" || info "Strategy missing timeframe → $HTTP_CODE"
+[[ "$HTTP_CODE" == "400" ]] && pass "Strategy mean_reversion_entry missing timeframe → 400" || info "Strategy mean_reversion_entry missing timeframe → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+[[ "$HTTP_CODE" == "400" ]] && pass "Strategy trend_following_entry missing timeframe → 400" || info "Strategy trend_following_entry missing timeframe → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown risk type → 400" || info "Unknown risk type → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
-[[ "$HTTP_CODE" == "400" ]] && pass "Risk missing timeframe → 400" || info "Risk missing timeframe → $HTTP_CODE"
+[[ "$HTTP_CODE" == "400" ]] && pass "Risk position_exposure missing timeframe → 400" || info "Risk position_exposure missing timeframe → $HTTP_CODE"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+[[ "$HTTP_CODE" == "400" ]] && pass "Risk drawdown_limit missing timeframe → 400" || info "Risk drawdown_limit missing timeframe → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown execution type → 400" || info "Unknown execution type → $HTTP_CODE"
@@ -1204,13 +1494,25 @@ echo "  derive (RSI Oversold evaluator) → DECISION_EVENTS → store (NATS KV)"
 echo "                                  → decision.query.rsi_oversold.latest"
 echo "                                  → GET /decision/rsi_oversold/latest"
 echo ""
+echo "  derive (EMA Crossover evaluator) → DECISION_EVENTS → store (NATS KV)"
+echo "                                   → decision.query.ema_crossover.latest"
+echo "                                   → GET /decision/ema_crossover/latest"
+echo ""
 echo "  derive (Mean Reversion Entry resolver) → STRATEGY_EVENTS → store (NATS KV)"
 echo "                                         → strategy.query.mean_reversion_entry.latest"
 echo "                                         → GET /strategy/mean_reversion_entry/latest"
 echo ""
+echo "  derive (Trend Following Entry resolver) → STRATEGY_EVENTS → store (NATS KV)"
+echo "                                          → strategy.query.trend_following_entry.latest"
+echo "                                          → GET /strategy/trend_following_entry/latest"
+echo ""
 echo "  derive (Position Exposure evaluator) → RISK_EVENTS → store (NATS KV)"
 echo "                                       → risk.query.position_exposure.latest"
 echo "                                       → GET /risk/position_exposure/latest"
+echo ""
+echo "  derive (Drawdown Limit evaluator) → RISK_EVENTS → store (NATS KV)"
+echo "                                    → risk.query.drawdown_limit.latest"
+echo "                                    → GET /risk/drawdown_limit/latest"
 echo ""
 echo "  derive (Paper Order evaluator) → EXECUTION_EVENTS → store (NATS KV)"
 echo "                                 → execution.query.paper_order.latest"

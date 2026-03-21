@@ -17,3 +17,25 @@ Accept: application/json
 ### Latest risk assessment — position exposure (1-hour, TC-01)
 GET http://localhost:8080/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=3600
 Accept: application/json
+
+### --- Drawdown Limit (Breadth S243) ---
+
+### Latest risk assessment — drawdown_limit — btcusdt 1m
+GET http://localhost:8080/risk/drawdown_limit/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+### Latest risk assessment — drawdown_limit — ethusdt 1m
+GET http://localhost:8080/risk/drawdown_limit/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+### Latest risk assessment — drawdown_limit — btcusdt 5m
+GET http://localhost:8080/risk/drawdown_limit/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+### Latest risk assessment — drawdown_limit — btcusdt 15m
+GET http://localhost:8080/risk/drawdown_limit/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+### Latest risk assessment — drawdown_limit — btcusdt 1h
+GET http://localhost:8080/risk/drawdown_limit/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json

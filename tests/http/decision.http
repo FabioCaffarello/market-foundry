@@ -41,6 +41,39 @@ Accept: application/json
 
 ###
 
+### ----------------------------------------------------------------------------
+### Decision query — EMA Crossover breadth type (S241)
+### ----------------------------------------------------------------------------
+### Validates the ema_crossover decision type:
+###   derive (EMA signal → EMA Crossover evaluator) → DECISION_EVENTS → store → gateway HTTP
+###
+### Note: EMA Crossover evaluates after every EMA signal. Requires 21 candles warm-up.
+
+### 2d. Latest EMA Crossover decision — btcusdt 60s
+### Expected: 200 with decision data (after warm-up) or 200 with null decision
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 2e. Latest EMA Crossover decision — btcusdt 300s
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=btcusdt&timeframe=300
+Accept: application/json
+
+###
+
+### 2f. Latest EMA Crossover decision — btcusdt 900s
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=btcusdt&timeframe=900
+Accept: application/json
+
+###
+
+### 2g. Latest EMA Crossover decision — btcusdt 3600s
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=btcusdt&timeframe=3600
+Accept: application/json
+
+###
+
 ### 3. Unknown decision type — should return 400
 GET {{baseUrl}}/decision/unknown/latest?source=binancef&symbol=btcusdt&timeframe=60
 Accept: application/json
@@ -59,6 +92,19 @@ Accept: application/json
 ### Prerequisites:
 ###   make seed-multi    # seeds configctl with btcusdt + ethusdt
 ###   wait ~20min        # RSI warm-up + decision evaluation
+
+### 4a. Latest EMA Crossover decision — ethusdt 60s
+### Expected: 200 with decision data (after warm-up) or 200 with null
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=ethusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 4b. Latest EMA Crossover decision — ethusdt 300s
+GET {{baseUrl}}/decision/ema_crossover/latest?source=binancef&symbol=ethusdt&timeframe=300
+Accept: application/json
+
+###
 
 ### 5. Latest RSI Oversold decision — ethusdt 60s
 ### Expected: 200 with decision data (after warm-up) or 200 with null

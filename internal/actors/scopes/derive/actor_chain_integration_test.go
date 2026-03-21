@@ -430,6 +430,127 @@ func TestActorChain_EMACrossover_TrendFollowingEntry_To_Risk(t *testing.T) {
 	}
 }
 
+func TestActorChain_EMACrossover_TrendFollowingEntry_To_DrawdownLimitRisk(t *testing.T) {
+	e := newTestEngine(t)
+
+	// Terminal collectors.
+	decisionPub := newMsgCollector()
+	strategyPub := newMsgCollector()
+	riskPub := newMsgCollector()
+	decisionPubPID := e.Spawn(decisionPub.producer(), "decision-pub")
+	strategyPubPID := e.Spawn(strategyPub.producer(), "strategy-pub")
+	riskPubPID := e.Spawn(riskPub.producer(), "risk-pub")
+
+	// Fan-out collectors.
+	decFanout := newMsgCollector()
+	stratFanout := newMsgCollector()
+	decFanoutPID := e.Spawn(decFanout.producer(), "dec-fanout")
+	stratFanoutPID := e.Spawn(stratFanout.producer(), "strat-fanout")
+
+	// Wire actors: EMA crossover decision → trend following strategy → drawdown_limit risk.
+	decisionEvalPID := e.Spawn(NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
+		Source:               "binancef",
+		Symbol:               "btcusdt",
+		Timeframe:            60 * time.Second,
+		DecisionPublisherPID: decisionPubPID,
+		ScopePID:             decFanoutPID,
+	}), "decision-eval-ema")
+
+	strategyResolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
+		Source:               "binancef",
+		Symbol:               "btcusdt",
+		Timeframe:            60 * time.Second,
+		StrategyPublisherPID: strategyPubPID,
+		ScopePID:             stratFanoutPID,
+	}), "strategy-resolver-trend")
+
+	riskEvalPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
+		Source:           "binancef",
+		Symbol:           "btcusdt",
+		Timeframe:        60 * time.Second,
+		RiskPublisherPID: riskPubPID,
+	}), "risk-eval-drawdown")
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Stage 1: Bullish EMA crossover signal → ema_crossover decision → triggered.
+	e.Send(decisionEvalPID, signalGeneratedMessage{
+		Symbol:        "btcusdt",
+		SignalType:    "ema_crossover",
+		SignalValue:   "bullish",
+		Timeframe:     60,
+		Timestamp:     windowBase(),
+		CorrelationID: "drawdown-chain-corr-1",
+	})
+
+	decisionPub.waitFor(t, 1, 2*time.Second)
+	decFanout.waitFor(t, 1, 2*time.Second)
+
+	dec := decisionPub.messages()[0].(publishDecisionMessage).Event.Decision
+	if string(dec.Outcome) != "triggered" {
+		t.Fatalf("decision outcome: want triggered, got %s", dec.Outcome)
+	}
+	if dec.Type != "ema_crossover" {
+		t.Fatalf("decision type: want ema_crossover, got %s", dec.Type)
+	}
+
+	// Stage 2: Forward to trend following strategy resolver.
+	decisionFanoutMsg := decFanout.messages()[0].(decisionEvaluatedMessage)
+	e.Send(strategyResolverPID, decisionFanoutMsg)
+
+	strategyPub.waitFor(t, 1, 2*time.Second)
+	stratFanout.waitFor(t, 1, 2*time.Second)
+
+	strat := strategyPub.messages()[0].(publishStrategyMessage).Event.Strategy
+	if strat.Type != "trend_following_entry" {
+		t.Fatalf("strategy type: want trend_following_entry, got %s", strat.Type)
+	}
+	if string(strat.Direction) != "long" {
+		t.Fatalf("strategy direction: want long, got %s", strat.Direction)
+	}
+
+	// Stage 3: Forward to drawdown_limit risk evaluator.
+	strategyFanoutMsg := stratFanout.messages()[0].(strategyResolvedMessage)
+	e.Send(riskEvalPID, strategyFanoutMsg)
+
+	riskPub.waitFor(t, 1, 2*time.Second)
+
+	riskMsg := riskPub.messages()[0].(publishRiskMessage)
+	riskA := riskMsg.Event.RiskAssessment
+
+	// Verify drawdown_limit-specific assertions.
+	if riskA.Type != "drawdown_limit" {
+		t.Fatalf("risk type: want drawdown_limit, got %s", riskA.Type)
+	}
+	if string(riskA.Disposition) != "approved" {
+		t.Fatalf("risk disposition: want approved, got %s", riskA.Disposition)
+	}
+	if !riskA.Final {
+		t.Error("expected risk final=true")
+	}
+	if len(riskA.Strategies) != 1 {
+		t.Fatalf("expected 1 strategy input in risk, got %d", len(riskA.Strategies))
+	}
+	if riskA.Strategies[0].Type != "trend_following_entry" {
+		t.Errorf("risk strategy type: want trend_following_entry, got %s", riskA.Strategies[0].Type)
+	}
+	if riskA.Strategies[0].Direction != "long" {
+		t.Errorf("risk strategy direction: want long, got %s", riskA.Strategies[0].Direction)
+	}
+	if riskA.Strategies[0].DecisionSeverity == "" {
+		t.Error("expected decision severity to survive full Chain B into drawdown_limit risk")
+	}
+	if riskA.Constraints.StopDistance == "" {
+		t.Error("expected stop_distance constraint in drawdown_limit assessment")
+	}
+	if riskMsg.Event.Metadata.CorrelationID != "drawdown-chain-corr-1" {
+		t.Errorf("risk correlationID: want drawdown-chain-corr-1, got %s", riskMsg.Event.Metadata.CorrelationID)
+	}
+	if prob := riskA.Validate(); prob != nil {
+		t.Errorf("risk assessment validation failed: %s", prob.Message)
+	}
+}
+
 func TestActorChain_CorrelationID_PreservedEndToEnd(t *testing.T) {
 	e := newTestEngine(t)
 

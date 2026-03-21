@@ -4,9 +4,12 @@
 # Flows validated:
 #   [Baseline]    NATS JetStream → writer → ClickHouse → reader → GET /analytical/evidence/candles
 #   [Wave B F-01] NATS JetStream → writer → ClickHouse → reader → GET /analytical/signal/history
-#   [Wave B F-02] NATS JetStream → writer → ClickHouse → reader → GET /analytical/decision/history
-#   [Wave B F-03] NATS JetStream → writer → ClickHouse → reader → GET /analytical/strategy/history
-#   [Wave B F-04] NATS JetStream → writer → ClickHouse → reader → GET /analytical/risk/history
+#   [Wave B F-02] NATS JetStream → writer → ClickHouse → reader → GET /analytical/decision/history  (rsi_oversold)
+#   [Breadth S241] NATS JetStream → writer → ClickHouse → reader → GET /analytical/decision/history  (ema_crossover)
+#   [Wave B F-03] NATS JetStream → writer → ClickHouse → reader → GET /analytical/strategy/history  (mean_reversion_entry)
+#   [Breadth S242] NATS JetStream → writer → ClickHouse → reader → GET /analytical/strategy/history  (trend_following_entry)
+#   [Wave B F-04] NATS JetStream → writer → ClickHouse → reader → GET /analytical/risk/history      (position_exposure)
+#   [Breadth S243] NATS JetStream → writer → ClickHouse → reader → GET /analytical/risk/history      (drawdown_limit)
 #   [Wave B F-05] NATS JetStream → writer → ClickHouse → reader → GET /analytical/execution/history
 #
 # This script validates the complete analytical data path in the minimum useful scope:
@@ -434,6 +437,26 @@ else
     record_fail "Decision endpoint with outcome=triggered → ${DEC_OUTCOME_CODE} (expected 200)"
 fi
 
+# --- Decisions/EMA Crossover (Breadth Wave — S241) ---
+validate_analytical_family \
+    "Decisions/EMA Crossover — Breadth S241" \
+    "decisions" \
+    "type = 'ema_crossover'" \
+    "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60" \
+    "decisions" \
+    "type|source|symbol|timeframe|outcome|confidence|severity|rationale|signals|metadata|final|timestamp"
+CH_DECISION_EMA_COUNT=$_VAL_CH_COUNT
+DEC_EMA_COUNT=$_VAL_HTTP_COUNT
+
+# --- Decision EMA Crossover: Outcome filter validation ---
+info "Checking outcome filter on ema_crossover decision endpoint..."
+DEC_EMA_OUTCOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered")
+if [[ "$DEC_EMA_OUTCOME_CODE" == "200" ]]; then
+    pass "Decision ema_crossover endpoint with outcome=triggered → 200"
+else
+    record_fail "Decision ema_crossover endpoint with outcome=triggered → ${DEC_EMA_OUTCOME_CODE} (expected 200)"
+fi
+
 # --- Strategies/Mean Reversion Entry (Wave B Family-03) ---
 validate_analytical_family \
     "Strategies/Mean Reversion Entry — Wave B Family-03" \
@@ -454,6 +477,26 @@ else
     record_fail "Strategy endpoint with direction=long → ${STRAT_DIR_CODE} (expected 200)"
 fi
 
+# --- Strategies/Trend Following Entry (Breadth Wave — S242) ---
+validate_analytical_family \
+    "Strategies/Trend Following Entry — Breadth S242" \
+    "strategies" \
+    "type = 'trend_following_entry'" \
+    "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60" \
+    "strategies" \
+    "type|source|symbol|timeframe|direction|confidence|decisions|parameters|metadata|final|timestamp"
+CH_STRATEGY_TFE_COUNT=$_VAL_CH_COUNT
+STRAT_TFE_COUNT=$_VAL_HTTP_COUNT
+
+# --- Strategy Trend Following Entry: Direction filter validation ---
+info "Checking direction filter on trend_following_entry strategy endpoint..."
+STRAT_TFE_DIR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long")
+if [[ "$STRAT_TFE_DIR_CODE" == "200" ]]; then
+    pass "Strategy trend_following_entry endpoint with direction=long → 200"
+else
+    record_fail "Strategy trend_following_entry endpoint with direction=long → ${STRAT_TFE_DIR_CODE} (expected 200)"
+fi
+
 # --- Risk Assessments/Position Exposure (Wave B Family-04) ---
 validate_analytical_family \
     "Risk Assessments/Position Exposure — Wave B Family-04" \
@@ -472,6 +515,26 @@ if [[ "$RISK_DISP_CODE" == "200" ]]; then
     pass "Risk endpoint with disposition=approved → 200"
 else
     record_fail "Risk endpoint with disposition=approved → ${RISK_DISP_CODE} (expected 200)"
+fi
+
+# --- Risk Assessments/Drawdown Limit (Breadth Wave — S243) ---
+validate_analytical_family \
+    "Risk Assessments/Drawdown Limit — Breadth S243" \
+    "risk_assessments" \
+    "type = 'drawdown_limit'" \
+    "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60" \
+    "risk_assessments" \
+    "type|source|symbol|timeframe|disposition|confidence|strategies|constraints|rationale|parameters|metadata|final|timestamp"
+CH_RISK_DL_COUNT=$_VAL_CH_COUNT
+RISK_DL_COUNT=$_VAL_HTTP_COUNT
+
+# --- Risk Drawdown Limit: Disposition filter validation ---
+info "Checking disposition filter on drawdown_limit risk endpoint..."
+RISK_DL_DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved")
+if [[ "$RISK_DL_DISP_CODE" == "200" ]]; then
+    pass "Risk drawdown_limit endpoint with disposition=approved → 200"
+else
+    record_fail "Risk drawdown_limit endpoint with disposition=approved → ${RISK_DL_DISP_CODE} (expected 200)"
 fi
 
 # --- Executions/Paper Order (Wave B Family-05) ---
@@ -691,6 +754,130 @@ case "$RISK_DEPTH" in
         ;;
 esac
 
+# --- Chain B: EMA Crossover → Trend Following Entry → Drawdown Limit depth (S246) ---
+info "Checking Chain B: ema_crossover decision severity/rationale propagation..."
+DEPTH_EMA=$(curl -s "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    decisions = d.get('decisions', [])
+    if len(decisions) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    checked = 0
+    for dec in decisions:
+        sev = dec.get('severity', '')
+        rat = dec.get('rationale', '')
+        if sev and rat:
+            checked += 1
+    if checked == len(decisions):
+        print(f'ALL_OK checked={checked}')
+    elif checked > 0:
+        print(f'PARTIAL checked={checked}/{len(decisions)}')
+    else:
+        print(f'NONE checked=0/{len(decisions)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$DEPTH_EMA" in
+    ALL_OK*)
+        pass "Chain B: ema_crossover severity/rationale present (${DEPTH_EMA})"
+        ;;
+    PARTIAL*)
+        warn "Chain B: ema_crossover severity/rationale partial (${DEPTH_EMA})"
+        ;;
+    NO_DATA*)
+        warn "Chain B: no ema_crossover data to validate domain depth"
+        ;;
+    *)
+        record_fail "Chain B: ema_crossover domain depth validation failed: ${DEPTH_EMA}"
+        ;;
+esac
+
+info "Checking Chain B: trend_following_entry→decision context propagation..."
+STRAT_TFE_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    strategies = d.get('strategies', [])
+    if len(strategies) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    propagated = 0
+    for strat in strategies:
+        decs = strat.get('decisions', [])
+        if isinstance(decs, list) and len(decs) > 0:
+            dec = decs[0]
+            if isinstance(dec, dict) and dec.get('severity') and dec.get('rationale'):
+                propagated += 1
+    if propagated == len(strategies):
+        print(f'ALL_OK propagated={propagated}')
+    elif propagated > 0:
+        print(f'PARTIAL propagated={propagated}/{len(strategies)}')
+    else:
+        print(f'NONE propagated=0/{len(strategies)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$STRAT_TFE_DEPTH" in
+    ALL_OK*)
+        pass "Chain B: trend_following_entry carries decision context (${STRAT_TFE_DEPTH})"
+        ;;
+    PARTIAL*)
+        warn "Chain B: trend_following_entry decision context partial (${STRAT_TFE_DEPTH})"
+        ;;
+    NO_DATA*)
+        warn "Chain B: no trend_following_entry data to validate decision context"
+        ;;
+    *)
+        record_fail "Chain B: trend_following_entry decision context validation failed: ${STRAT_TFE_DEPTH}"
+        ;;
+esac
+
+info "Checking Chain B: drawdown_limit→decision context propagation..."
+RISK_DL_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    risks = d.get('risk_assessments', [])
+    if len(risks) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    propagated = 0
+    for risk in risks:
+        meta = risk.get('metadata', {})
+        if isinstance(meta, dict) and meta.get('decision_severity'):
+            propagated += 1
+    if propagated == len(risks):
+        print(f'ALL_OK propagated={propagated}')
+    elif propagated > 0:
+        print(f'PARTIAL propagated={propagated}/{len(risks)}')
+    else:
+        print(f'NONE propagated=0/{len(risks)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$RISK_DL_DEPTH" in
+    ALL_OK*)
+        pass "Chain B: drawdown_limit carries decision severity in metadata (${RISK_DL_DEPTH})"
+        ;;
+    PARTIAL*)
+        warn "Chain B: drawdown_limit decision context partial (${RISK_DL_DEPTH})"
+        ;;
+    NO_DATA*)
+        warn "Chain B: no drawdown_limit data to validate decision context"
+        ;;
+    *)
+        record_fail "Chain B: drawdown_limit decision context validation failed: ${RISK_DL_DEPTH}"
+        ;;
+esac
+
 # ══════════════════════════════════════════════════════════════════════
 phase "Phase 8: Writer Observability Check"
 # ══════════════════════════════════════════════════════════════════════
@@ -749,46 +936,66 @@ echo "  [Wave B Family-01] Signals (RSI):"
 echo "    NATS JetStream → writer → ClickHouse (signals) → reader → GET /analytical/signal/history"
 echo ""
 echo "  [Wave B Family-02] Decisions (RSI Oversold):"
-echo "    NATS JetStream → writer → ClickHouse (decisions) → reader → GET /analytical/decision/history"
+echo "    NATS JetStream → writer → ClickHouse (decisions) → reader → GET /analytical/decision/history?type=rsi_oversold"
+echo ""
+echo "  [Breadth S241] Decisions (EMA Crossover):"
+echo "    NATS JetStream → writer → ClickHouse (decisions) → reader → GET /analytical/decision/history?type=ema_crossover"
 echo ""
 echo "  [Wave B Family-03] Strategies (Mean Reversion Entry):"
-echo "    NATS JetStream → writer → ClickHouse (strategies) → reader → GET /analytical/strategy/history"
+echo "    NATS JetStream → writer → ClickHouse (strategies) → reader → GET /analytical/strategy/history?type=mean_reversion_entry"
+echo ""
+echo "  [Breadth S242] Strategies (Trend Following Entry):"
+echo "    NATS JetStream → writer → ClickHouse (strategies) → reader → GET /analytical/strategy/history?type=trend_following_entry"
 echo ""
 echo "  [Wave B Family-04] Risk Assessments (Position Exposure):"
-echo "    NATS JetStream → writer → ClickHouse (risk_assessments) → reader → GET /analytical/risk/history"
+echo "    NATS JetStream → writer → ClickHouse (risk_assessments) → reader → GET /analytical/risk/history?type=position_exposure"
+echo ""
+echo "  [Breadth S243] Risk Assessments (Drawdown Limit):"
+echo "    NATS JetStream → writer → ClickHouse (risk_assessments) → reader → GET /analytical/risk/history?type=drawdown_limit"
 echo ""
 echo "  [Wave B Family-05] Executions (Paper Order):"
 echo "    NATS JetStream → writer → ClickHouse (executions) → reader → GET /analytical/execution/history"
 echo ""
 echo "Proof points:"
-echo "  [Infrastructure]   ClickHouse + writer + gateway all healthy"
-echo "  [Migrations]       ${MIGRATION_COUNT:-?} migrations applied, ${#EXPECTED_TABLES[@]} tables verified"
-echo "  [Write path]       Writer received ${WRITER_EVENTS:-0} events from NATS"
-echo "  [Candle persist]   evidence_candles has ${CH_CANDLE_COUNT:-0} rows in ClickHouse"
-echo "  [Signal persist]   signals (RSI) has ${CH_SIGNAL_COUNT:-0} rows in ClickHouse"
-echo "  [Decision persist] decisions (rsi_oversold) has ${CH_DECISION_COUNT:-0} rows in ClickHouse"
-echo "  [Strategy persist] strategies (mean_reversion_entry) has ${CH_STRATEGY_COUNT:-0} rows in ClickHouse"
-echo "  [Risk persist]     risk_assessments (position_exposure) has ${CH_RISK_COUNT:-0} rows in ClickHouse"
-echo "  [Exec persist]     executions (paper_order) has ${CH_EXECUTION_COUNT:-0} rows in ClickHouse"
-echo "  [Candle read]      HTTP returned ${CANDLE_COUNT:-0} candles via analytical endpoint"
-echo "  [Signal read]      HTTP returned ${SIG_COUNT:-0} signals via analytical endpoint"
-echo "  [Decision read]    HTTP returned ${DEC_COUNT:-0} decisions via analytical endpoint"
-echo "  [Strategy read]    HTTP returned ${STRAT_COUNT:-0} strategies via analytical endpoint"
-echo "  [Risk read]        HTTP returned ${RISK_COUNT:-0} risk assessments via analytical endpoint"
-echo "  [Exec read]        HTTP returned ${EXEC_COUNT:-0} executions via analytical endpoint"
-echo "  [Error handling]   400 responses for invalid params confirmed (candle + signal + decision + strategy + risk + execution)"
+echo "  [Infrastructure]       ClickHouse + writer + gateway all healthy"
+echo "  [Migrations]           ${MIGRATION_COUNT:-?} migrations applied, ${#EXPECTED_TABLES[@]} tables verified"
+echo "  [Write path]           Writer received ${WRITER_EVENTS:-0} events from NATS"
+echo "  [Candle persist]       evidence_candles has ${CH_CANDLE_COUNT:-0} rows in ClickHouse"
+echo "  [Signal persist]       signals (RSI) has ${CH_SIGNAL_COUNT:-0} rows in ClickHouse"
+echo "  [Decision persist A]   decisions (rsi_oversold) has ${CH_DECISION_COUNT:-0} rows in ClickHouse"
+echo "  [Decision persist B]   decisions (ema_crossover) has ${CH_DECISION_EMA_COUNT:-0} rows in ClickHouse"
+echo "  [Strategy persist A]   strategies (mean_reversion_entry) has ${CH_STRATEGY_COUNT:-0} rows in ClickHouse"
+echo "  [Strategy persist B]   strategies (trend_following_entry) has ${CH_STRATEGY_TFE_COUNT:-0} rows in ClickHouse"
+echo "  [Risk persist A]       risk_assessments (position_exposure) has ${CH_RISK_COUNT:-0} rows in ClickHouse"
+echo "  [Risk persist B]       risk_assessments (drawdown_limit) has ${CH_RISK_DL_COUNT:-0} rows in ClickHouse"
+echo "  [Exec persist]         executions (paper_order) has ${CH_EXECUTION_COUNT:-0} rows in ClickHouse"
+echo "  [Candle read]          HTTP returned ${CANDLE_COUNT:-0} candles via analytical endpoint"
+echo "  [Signal read]          HTTP returned ${SIG_COUNT:-0} signals via analytical endpoint"
+echo "  [Decision read A]      HTTP returned ${DEC_COUNT:-0} rsi_oversold decisions via analytical endpoint"
+echo "  [Decision read B]      HTTP returned ${DEC_EMA_COUNT:-0} ema_crossover decisions via analytical endpoint"
+echo "  [Strategy read A]      HTTP returned ${STRAT_COUNT:-0} mean_reversion_entry strategies via analytical endpoint"
+echo "  [Strategy read B]      HTTP returned ${STRAT_TFE_COUNT:-0} trend_following_entry strategies via analytical endpoint"
+echo "  [Risk read A]          HTTP returned ${RISK_COUNT:-0} position_exposure risk assessments via analytical endpoint"
+echo "  [Risk read B]          HTTP returned ${RISK_DL_COUNT:-0} drawdown_limit risk assessments via analytical endpoint"
+echo "  [Exec read]            HTTP returned ${EXEC_COUNT:-0} executions via analytical endpoint"
+echo "  [Error handling]       400 responses for invalid params confirmed (candle + signal + decision + strategy + risk + execution)"
+echo "  [Domain depth A]       Chain A (rsi_oversold → mean_reversion_entry → position_exposure) context propagation"
+echo "  [Domain depth B]       Chain B (ema_crossover → trend_following_entry → drawdown_limit) context propagation"
 echo ""
 
 if [[ $ERRORS -eq 0 ]]; then
     echo -e "${GREEN}${BOLD}ANALYTICAL E2E PROOF: ALL CHECKS PASSED${NC}"
     echo ""
     echo "All analytical families proven end-to-end:"
-    echo "  [Baseline]    Evidence Candles    — NATS → writer → ClickHouse → reader → HTTP"
-    echo "  [Wave B F-01] Signals (RSI)      — NATS → writer → ClickHouse → reader → HTTP"
-    echo "  [Wave B F-02] Decisions (RSI OB) — NATS → writer → ClickHouse → reader → HTTP"
-    echo "  [Wave B F-03] Strategies (MR)    — NATS → writer → ClickHouse → reader → HTTP"
-    echo "  [Wave B F-04] Risk (PE)          — NATS → writer → ClickHouse → reader → HTTP"
-    echo "  [Wave B F-05] Executions (PO)    — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Baseline]      Evidence Candles           — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Wave B F-01]   Signals (RSI)             — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Wave B F-02]   Decisions (RSI Oversold)  — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Breadth S241]  Decisions (EMA Crossover) — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Wave B F-03]   Strategies (MR Entry)     — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Breadth S242]  Strategies (TF Entry)     — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Wave B F-04]   Risk (Position Exposure)  — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Breadth S243]  Risk (Drawdown Limit)     — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [Wave B F-05]   Executions (Paper Order)  — NATS → writer → ClickHouse → reader → HTTP"
 else
     echo -e "${RED}${BOLD}ANALYTICAL E2E PROOF: ${ERRORS} ISSUE(S) DETECTED${NC}"
     echo ""

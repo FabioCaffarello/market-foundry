@@ -153,6 +153,32 @@ Accept: application/json
 
 ###
 
+### --- Analytical decision history — EMA Crossover (Breadth S241) ---
+
+### 16a. Analytical decision query — ema_crossover btcusdt 60s
+GET {{baseUrl}}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 16b. Analytical decision query with limit — ema_crossover btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 16c. Analytical decision query with outcome filter — ema_crossover triggered only
+GET {{baseUrl}}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered&limit=20
+Accept: application/json
+
+###
+
+### 16d. Analytical decision query — ema_crossover ethusdt 300s
+GET {{baseUrl}}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
 ### --- Decision error handling ---
 
 ### 21. Missing type — should return 400
@@ -209,6 +235,32 @@ Accept: application/json
 
 ###
 
+### --- Analytical strategy history — Trend Following Entry (Breadth S242) ---
+
+### 24a. Analytical strategy query — trend_following_entry btcusdt 60s
+GET {{baseUrl}}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 24b. Analytical strategy query with limit — trend_following_entry btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 24c. Analytical strategy query with direction filter — trend_following_entry long only
+GET {{baseUrl}}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long&limit=20
+Accept: application/json
+
+###
+
+### 24d. Analytical strategy query — trend_following_entry ethusdt 300s
+GET {{baseUrl}}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
 ### --- Strategy error handling ---
 
 ### 29. Missing type — should return 400
@@ -261,6 +313,32 @@ Accept: application/json
 
 ### 36. Analytical risk query — ethusdt 300s
 GET {{baseUrl}}/analytical/risk/history?type=position_exposure&source=binancef&symbol=ethusdt&timeframe=300&limit=20
+Accept: application/json
+
+###
+
+### --- Analytical risk history — Drawdown Limit (Breadth S243) ---
+
+### 32a. Analytical risk query — drawdown_limit btcusdt 60s
+GET {{baseUrl}}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60
+Accept: application/json
+
+###
+
+### 32b. Analytical risk query with limit — drawdown_limit btcusdt 60s (last 10)
+GET {{baseUrl}}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&limit=10
+Accept: application/json
+
+###
+
+### 32c. Analytical risk query with disposition filter — drawdown_limit approved only
+GET {{baseUrl}}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved&limit=20
+Accept: application/json
+
+###
+
+### 32d. Analytical risk query — drawdown_limit ethusdt 300s
+GET {{baseUrl}}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=ethusdt&timeframe=300&limit=20
 Accept: application/json
 
 ###
