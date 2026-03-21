@@ -12,7 +12,7 @@ func TestMeanReversionEntryResolver_Triggered(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", 60, now)
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "RSI 28.50 below oversold threshold 30.0 (distance 5.0%); severity low", 60, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -49,7 +49,7 @@ func TestMeanReversionEntryResolver_NotTriggered(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "not_triggered", "0.7500", 60, now)
+	s, ok := resolver.Resolve("rsi_oversold", "not_triggered", "0.7500", "none", "RSI 65.00 above oversold threshold 30.0; not oversold", 60, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -68,7 +68,7 @@ func TestMeanReversionEntryResolver_Insufficient(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "insufficient", "0.0000", 60, now)
+	s, ok := resolver.Resolve("rsi_oversold", "insufficient", "0.0000", "", "", 60, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -84,7 +84,7 @@ func TestMeanReversionEntryResolver_UnknownOutcome(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	_, ok := resolver.Resolve("rsi_oversold", "unknown", "0.5000", 60, now)
+	_, ok := resolver.Resolve("rsi_oversold", "unknown", "0.5000", "", "", 60, now)
 	if ok {
 		t.Fatal("expected resolution to fail for unknown outcome")
 	}
@@ -94,7 +94,7 @@ func TestMeanReversionEntryResolver_InvalidConfidence(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	_, ok := resolver.Resolve("rsi_oversold", "triggered", "not-a-number", 60, now)
+	_, ok := resolver.Resolve("rsi_oversold", "triggered", "not-a-number", "low", "test", 60, now)
 	if ok {
 		t.Fatal("expected resolution to fail for invalid confidence")
 	}
@@ -104,7 +104,7 @@ func TestMeanReversionEntryResolver_TimestampPreserved(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
-	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", 60, ts)
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "RSI below threshold", 60, ts)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -117,7 +117,7 @@ func TestMeanReversionEntryResolver_Validation(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", 60, now)
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "moderate", "RSI below threshold", 60, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -130,7 +130,7 @@ func TestMeanReversionEntryResolver_PartitionKey(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", 60, now)
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "test", 60, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -143,7 +143,7 @@ func TestMeanReversionEntryResolver_DecisionInputPreserved(t *testing.T) {
 	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 300)
 	now := time.Now().UTC()
 
-	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.9000", 300, now)
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.9000", "high", "RSI 5.00 below oversold threshold 30.0 (distance 83.3%); severity high", 300, now)
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
@@ -160,7 +160,64 @@ func TestMeanReversionEntryResolver_DecisionInputPreserved(t *testing.T) {
 	if di.Confidence != "0.9000" {
 		t.Errorf("expected decision confidence 0.9000, got %s", di.Confidence)
 	}
+	if di.Severity != "high" {
+		t.Errorf("expected decision severity high, got %s", di.Severity)
+	}
+	if di.Rationale == "" {
+		t.Error("expected decision rationale to be non-empty")
+	}
 	if di.Timeframe != 300 {
 		t.Errorf("expected decision timeframe 300, got %d", di.Timeframe)
+	}
+}
+
+func TestMeanReversionEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
+	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	rationale := "RSI 25.00 below oversold threshold 30.0 (distance 16.7%); severity low"
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", rationale, 60, now)
+	if !ok {
+		t.Fatal("expected resolution to succeed")
+	}
+	if s.Metadata["decision_rationale"] != rationale {
+		t.Fatalf("expected decision_rationale in metadata, got %v", s.Metadata)
+	}
+}
+
+func TestMeanReversionEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
+	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "", "", 60, now)
+	if !ok {
+		t.Fatal("expected resolution to succeed")
+	}
+	if _, exists := s.Metadata["decision_rationale"]; exists {
+		t.Fatal("expected no decision_rationale in metadata when rationale is empty")
+	}
+}
+
+func TestMeanReversionEntryResolver_SeverityPreservedForAllOutcomes(t *testing.T) {
+	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	tests := []struct {
+		outcome  string
+		severity string
+	}{
+		{"triggered", "high"},
+		{"not_triggered", "none"},
+		{"insufficient", ""},
+	}
+
+	for _, tt := range tests {
+		s, ok := resolver.Resolve("rsi_oversold", tt.outcome, "0.5000", tt.severity, "test rationale", 60, now)
+		if !ok {
+			t.Fatalf("expected resolution to succeed for outcome %s", tt.outcome)
+		}
+		if s.Decisions[0].Severity != tt.severity {
+			t.Errorf("outcome %s: expected severity %q, got %q", tt.outcome, tt.severity, s.Decisions[0].Severity)
+		}
 	}
 }

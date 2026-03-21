@@ -51,7 +51,9 @@ func TestGetLatestDecisionUseCase_ReturnsDecision(t *testing.T) {
 		Symbol:     "btcusdt",
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
+		Severity:   decision.SeverityLow,
 		Confidence: "0.85",
+		Rationale:  "RSI 25.00 below oversold threshold 30.0 (distance 16.7%); severity low",
 		Signals: []decision.SignalInput{
 			{Type: "rsi", Value: "25.00", Timeframe: 60},
 		},

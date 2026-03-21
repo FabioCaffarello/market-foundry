@@ -1,0 +1,21 @@
+family:
+  name: ema_crossover
+  layer: decision
+  tier: 1
+
+nats:
+  subject: "decision.events.ema_crossover.evaluated.>"
+  event_type: "decision.events.v1.ema_crossover_evaluated"
+  stream: DECISION_EVENTS
+  durable: writer-decision-ema-crossover
+
+writer:
+  table: decisions
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp"
+  mapper: mapDecisionRow
+  pipeline_family_key: ema_crossover
+  config_array: decision_families
+
+domain:
+  event_package: decision
+  event_type: DecisionEvaluatedEvent

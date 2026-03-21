@@ -1,0 +1,21 @@
+family:
+  name: drawdown_limit
+  layer: risk
+  tier: 1
+
+nats:
+  subject: "risk.events.drawdown_limit.assessed.>"
+  event_type: "risk.events.v1.drawdown_limit_assessed"
+  stream: RISK_EVENTS
+  durable: writer-risk-drawdown-limit
+
+writer:
+  table: risk_assessments
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp"
+  mapper: mapRiskRow
+  pipeline_family_key: drawdown_limit
+  config_array: risk_families
+
+domain:
+  event_package: risk
+  event_type: RiskAssessedEvent

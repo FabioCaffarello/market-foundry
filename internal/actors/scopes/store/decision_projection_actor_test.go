@@ -30,7 +30,9 @@ func validDecision(ts time.Time) decision.Decision {
 		Symbol:     "btcusdt",
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
+		Severity:   decision.SeverityLow,
 		Confidence: "0.85",
+		Rationale:  "RSI 28.5 below oversold threshold 30.0 (distance 5.0%); severity low",
 		Signals: []decision.SignalInput{
 			{Type: "rsi", Value: "28.5", Timeframe: 60},
 		},

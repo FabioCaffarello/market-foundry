@@ -92,6 +92,9 @@ func (p *Publisher) specForType(riskType string) *natskit.EventSpec {
 	case "position_exposure":
 		spec := p.registry.PositionExposureAssessed
 		return &spec
+	case "drawdown_limit":
+		spec := p.registry.DrawdownLimitAssessed
+		return &spec
 	default:
 		return nil
 	}

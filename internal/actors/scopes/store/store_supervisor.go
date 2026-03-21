@@ -302,6 +302,32 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			}),
 		},
 
+		{
+			Scope:          DomainDecision,
+			Family:         "ema_crossover",
+			ProjectionName: "decision-ema-crossover-projection",
+			ConsumerName:   "decision-ema-crossover-consumer",
+			Buckets:        []string{natsdecision.EMACrossoverLatestBucket},
+			ConsumerSpec:   natsdecision.StoreEMACrossoverDecisionConsumer(),
+			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("ema_crossover") },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewDecisionProjectionActor(DecisionProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  natsdecision.EMACrossoverLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: startConsumer("ema_crossover", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsdecision.NewConsumer(url, spec, reg.decision, func(event decision.DecisionEvaluatedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, decisionReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
 		// --- Strategy pipelines (opt-in via pipeline.strategy_families) ---
 		{
 			Scope:          DomainStrategy,
@@ -329,6 +355,32 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			}),
 		},
 
+		{
+			Scope:          DomainStrategy,
+			Family:         "trend_following_entry",
+			ProjectionName: "strategy-trend-following-entry-projection",
+			ConsumerName:   "strategy-trend-following-entry-consumer",
+			Buckets:        []string{natsstrategy.TrendFollowingEntryLatestBucket},
+			ConsumerSpec:   natsstrategy.StoreTrendFollowingEntryStrategyConsumer(),
+			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("trend_following_entry") },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewStrategyProjectionActor(StrategyProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  natsstrategy.TrendFollowingEntryLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: startConsumer("trend_following_entry", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsstrategy.NewConsumer(url, spec, reg.strategy, func(event strategy.StrategyResolvedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, strategyReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
 		// --- Risk pipelines (opt-in via pipeline.risk_families) ---
 		{
 			Scope:          DomainRisk,
@@ -346,6 +398,33 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 				})
 			},
 			NewConsumer: startConsumer("position_exposure", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsrisk.NewConsumer(url, spec, reg.risk, func(event risk.RiskAssessedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, riskReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
+		// Risk Family: drawdown_limit — materializes drawdown limit risk from derive.
+		{
+			Scope:          DomainRisk,
+			Family:         "drawdown_limit",
+			ProjectionName: "risk-drawdown-limit-projection",
+			ConsumerName:   "risk-drawdown-limit-consumer",
+			Buckets:        []string{natsrisk.DrawdownLimitLatestBucket},
+			ConsumerSpec:   natsrisk.StoreDrawdownLimitRiskConsumer(),
+			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("drawdown_limit") },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewRiskProjectionActor(RiskProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  natsrisk.DrawdownLimitLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: startConsumer("drawdown_limit", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
 				c := natsrisk.NewConsumer(url, spec, reg.risk, func(event risk.RiskAssessedEvent) {
 					if tracker != nil {
 						tracker.RecordEvent()

@@ -170,6 +170,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
+		{
+			Family:      "ema_crossover",
+			ActorPrefix: "decision-ema-crossover",
+			NewActor: func(source, symbol string, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
+				return NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
+				})
+			},
+		},
 	}, func(p DecisionFamilyProcessor) string { return p.Family },
 		s.cfg.Pipeline.IsDecisionFamilyEnabled, s.logger, "decision")
 
@@ -184,6 +193,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
+		{
+			Family:      "trend_following_entry",
+			ActorPrefix: "strategy-trend-following-entry",
+			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
+				return NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
+				})
+			},
+		},
 	}, func(p StrategyFamilyProcessor) string { return p.Family },
 		s.cfg.Pipeline.IsStrategyFamilyEnabled, s.logger, "strategy")
 
@@ -194,6 +212,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 			ActorPrefix: "risk-position-exposure",
 			NewActor: func(source, symbol string, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
 				return NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
+				})
+			},
+		},
+		{
+			Family:      "drawdown_limit",
+			ActorPrefix: "risk-drawdown-limit",
+			NewActor: func(source, symbol string, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
+				return NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
 				})
 			},

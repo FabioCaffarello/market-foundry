@@ -181,15 +181,16 @@ func TestMapDecisionRow_ColumnCount(t *testing.T) {
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
 			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
-			Outcome: decision.OutcomeTriggered, Confidence: "0.85",
+			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
+			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: []decision.SignalInput{{Type: "rsi", Value: "28.5", Timeframe: 60}},
 			Final:   true, Timestamp: fixedTime,
 		},
 	}
 	row := mapDecisionRow(e)
 
-	if len(row) != 14 {
-		t.Fatalf("expected 14 columns, got %d", len(row))
+	if len(row) != 16 {
+		t.Fatalf("expected 16 columns, got %d", len(row))
 	}
 }
 
@@ -202,7 +203,8 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
 			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
-			Outcome: decision.OutcomeTriggered, Confidence: "0.85",
+			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
+			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: signals, Metadata: map[string]string{"threshold": "30"},
 			Final: true, Timestamp: fixedTime,
 		},
@@ -212,10 +214,12 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	assertEq(t, "type", row[4], "rsi_oversold")
 	assertEq(t, "outcome", row[8], "triggered")
 	assertEq(t, "confidence", row[9], 0.85)
-	assertEq(t, "final", row[12], true)
+	assertEq(t, "severity", row[10], "low")
+	assertEq(t, "rationale", row[11], "RSI 28.5 below threshold")
+	assertEq(t, "final", row[14], true)
 
 	var parsedSignals []decision.SignalInput
-	if err := json.Unmarshal([]byte(row[10].(string)), &parsedSignals); err != nil {
+	if err := json.Unmarshal([]byte(row[12].(string)), &parsedSignals); err != nil {
 		t.Fatalf("signals is not valid JSON: %v", err)
 	}
 	if len(parsedSignals) != 2 {
@@ -229,7 +233,7 @@ func TestMapStrategyRow_ColumnCount(t *testing.T) {
 		Strategy: strategy.Strategy{
 			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.75",
-			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Timeframe: 60}},
+			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "low", Rationale: "RSI below threshold", Timeframe: 60}},
 			Final:     true, Timestamp: fixedTime,
 		},
 	}
@@ -246,7 +250,7 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 		Strategy: strategy.Strategy{
 			Type: "mean_reversion_entry", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
 			Direction: strategy.DirectionShort, Confidence: "0.65",
-			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Timeframe: 60}},
+			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "moderate", Rationale: "RSI 15.00 below threshold", Timeframe: 60}},
 			Parameters: map[string]string{"lookback": "5"},
 			Metadata:   map[string]string{"version": "1"},
 			Final:      true, Timestamp: fixedTime,
@@ -266,6 +270,12 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	if parsedDec[0].Type != "rsi_oversold" {
 		t.Errorf("expected decision type rsi_oversold, got %q", parsedDec[0].Type)
 	}
+	if parsedDec[0].Severity != "moderate" {
+		t.Errorf("expected decision severity moderate, got %q", parsedDec[0].Severity)
+	}
+	if parsedDec[0].Rationale == "" {
+		t.Error("expected decision rationale to be non-empty")
+	}
 }
 
 func TestMapRiskRow_ColumnCount(t *testing.T) {
@@ -274,7 +284,7 @@ func TestMapRiskRow_ColumnCount(t *testing.T) {
 		RiskAssessment: risk.RiskAssessment{
 			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.9",
-			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
+			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "low", DecisionRationale: "RSI below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1000", StopDistance: "50"},
 			Rationale:   "within limits",
 			Final:       true, Timestamp: fixedTime,
@@ -293,7 +303,7 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 		RiskAssessment: risk.RiskAssessment{
 			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			Disposition: risk.DispositionModified, Confidence: "0.7",
-			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60}},
+			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "moderate", DecisionRationale: "RSI 15.00 below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.05"},
 			Rationale:   "position too large, modified",
 			Parameters:  map[string]string{"max_risk": "0.02"},
@@ -314,6 +324,36 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	}
 	if parsedConstraints.MaxPositionSize != "0.05" {
 		t.Errorf("expected max_position_size=0.05, got %q", parsedConstraints.MaxPositionSize)
+	}
+}
+
+func TestMapRiskRow_StrategyInputDecisionContext(t *testing.T) {
+	e := risk.RiskAssessedEvent{
+		Metadata: testMetadata(),
+		RiskAssessment: risk.RiskAssessment{
+			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Disposition: risk.DispositionApproved, Confidence: "0.8",
+			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.85", Timeframe: 60, DecisionSeverity: "high", DecisionRationale: "RSI 10.00 below threshold"}},
+			Constraints: risk.Constraints{MaxPositionSize: "0.01"},
+			Rationale:   "approved with high severity decision",
+			Final:       true, Timestamp: fixedTime,
+		},
+	}
+	row := mapRiskRow(e)
+
+	// Verify strategies JSON preserves decision context.
+	var parsedStrategies []risk.StrategyInput
+	if err := json.Unmarshal([]byte(row[10].(string)), &parsedStrategies); err != nil {
+		t.Fatalf("strategies is not valid JSON: %v", err)
+	}
+	if len(parsedStrategies) != 1 {
+		t.Fatalf("expected 1 strategy, got %d", len(parsedStrategies))
+	}
+	if parsedStrategies[0].DecisionSeverity != "high" {
+		t.Errorf("expected decision severity high, got %q", parsedStrategies[0].DecisionSeverity)
+	}
+	if parsedStrategies[0].DecisionRationale != "RSI 10.00 below threshold" {
+		t.Errorf("expected decision rationale, got %q", parsedStrategies[0].DecisionRationale)
 	}
 }
 

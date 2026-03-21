@@ -14,6 +14,7 @@ import (
 )
 
 const MeanReversionEntryLatestBucket = "STRATEGY_MEAN_REVERSION_ENTRY_LATEST"
+const TrendFollowingEntryLatestBucket = "STRATEGY_TREND_FOLLOWING_ENTRY_LATEST"
 
 // KVStore persists the latest finalized strategy per source/symbol/timeframe.
 // One instance per strategy type; the bucket name is injected at construction.

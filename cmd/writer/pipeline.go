@@ -123,9 +123,21 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			consumerName:  "writer-decision-rsi-oversold-consumer",
 			inserterName:  "writer-decision-rsi-oversold-inserter",
 			table:         "decisions",
-			insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp)",
+			insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)",
 			consumerSpec:  natsdecision.WriterRSIOversoldDecisionConsumer(),
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
+			startConsumer: writerpipeline.NewDecisionStarter(reg.decision),
+		},
+
+		// ── Decision: ema_crossover → decisions ─────────────────
+		{
+			family:        "ema_crossover",
+			consumerName:  "writer-decision-ema-crossover-consumer",
+			inserterName:  "writer-decision-ema-crossover-inserter",
+			table:         "decisions",
+			insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)",
+			consumerSpec:  natsdecision.WriterEMACrossoverDecisionConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("ema_crossover") },
 			startConsumer: writerpipeline.NewDecisionStarter(reg.decision),
 		},
 
@@ -141,6 +153,18 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
 		},
 
+		// ── Strategy: trend_following_entry → strategies ─────────
+		{
+			family:        "trend_following_entry",
+			consumerName:  "writer-strategy-trend-following-entry-consumer",
+			inserterName:  "writer-strategy-trend-following-entry-inserter",
+			table:         "strategies",
+			insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+			consumerSpec:  natsstrategy.WriterTrendFollowingEntryStrategyConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("trend_following_entry") },
+			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
+		},
+
 		// ── Risk: position_exposure → risk_assessments ──────────
 		{
 			family:        "position_exposure",
@@ -150,6 +174,18 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
 			consumerSpec:  natsrisk.WriterPositionExposureRiskConsumer(),
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
+			startConsumer: writerpipeline.NewRiskStarter(reg.risk),
+		},
+
+		// ── Risk: drawdown_limit → risk_assessments ─────────────
+		{
+			family:        "drawdown_limit",
+			consumerName:  "writer-risk-drawdown-limit-consumer",
+			inserterName:  "writer-risk-drawdown-limit-inserter",
+			table:         "risk_assessments",
+			insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
+			consumerSpec:  natsrisk.WriterDrawdownLimitRiskConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("drawdown_limit") },
 			startConsumer: writerpipeline.NewRiskStarter(reg.risk),
 		},
 

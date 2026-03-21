@@ -17,7 +17,7 @@ func validStrategy() strategy.Strategy {
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.85",
 		Decisions: []strategy.DecisionInput{
-			{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Timeframe: 60},
+			{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "low", Rationale: "RSI 28.50 below oversold threshold 30.0 (distance 5.0%); severity low", Timeframe: 60},
 		},
 		Parameters: map[string]string{"entry": "market", "target_offset": "0.02", "stop_offset": "0.01"},
 		Final:      true,
@@ -119,6 +119,68 @@ func TestStrategy_PartitionKey(t *testing.T) {
 	expected := "binancef.btcusdt.60"
 	if got := s.PartitionKey(); got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestStrategy_MultiSymbol_PartitionKeyIsolation(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	timeframes := []int{60, 300}
+	seen := make(map[string]bool)
+
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			s := validStrategy()
+			s.Symbol = sym
+			s.Timeframe = tf
+			key := s.PartitionKey()
+			if seen[key] {
+				t.Fatalf("duplicate partition key: %s", key)
+			}
+			seen[key] = true
+		}
+	}
+	if len(seen) != 6 {
+		t.Fatalf("expected 6 unique keys, got %d", len(seen))
+	}
+}
+
+func TestStrategy_MultiSymbol_DeduplicationKeyIsolation(t *testing.T) {
+	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	timeframes := []int{60, 300}
+	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
+	seen := make(map[string]bool)
+
+	for _, sym := range symbols {
+		for _, tf := range timeframes {
+			s := validStrategy()
+			s.Symbol = sym
+			s.Timeframe = tf
+			s.Timestamp = ts
+			key := s.DeduplicationKey()
+			if seen[key] {
+				t.Fatalf("duplicate deduplication key: %s", key)
+			}
+			seen[key] = true
+		}
+	}
+	if len(seen) != 6 {
+		t.Fatalf("expected 6 unique keys, got %d", len(seen))
+	}
+}
+
+func TestStrategy_Validate_NegativeTimeframe(t *testing.T) {
+	s := validStrategy()
+	s.Timeframe = -1
+	if prob := s.Validate(); prob == nil {
+		t.Fatal("expected validation error for negative timeframe")
+	}
+}
+
+func TestStrategy_Validate_NilDecisions(t *testing.T) {
+	s := validStrategy()
+	s.Decisions = []strategy.DecisionInput{}
+	if prob := s.Validate(); prob == nil {
+		t.Fatal("expected validation error for empty decisions slice")
 	}
 }
 

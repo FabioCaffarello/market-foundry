@@ -66,7 +66,7 @@ func (a *MeanReversionEntryResolverActor) Receive(c *actor.Context) {
 }
 
 func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, msg decisionEvaluatedMessage) {
-	strat, ok := a.resolver.Resolve(msg.DecisionType, msg.DecisionOutcome, msg.DecisionConfidence, msg.Timeframe, msg.Timestamp)
+	strat, ok := a.resolver.Resolve(msg.DecisionType, msg.DecisionOutcome, msg.DecisionConfidence, msg.DecisionSeverity, msg.DecisionRationale, msg.Timeframe, msg.Timestamp)
 	if !ok {
 		return
 	}
@@ -87,12 +87,20 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 	c.Send(a.cfg.StrategyPublisherPID, publishStrategyMessage{Event: event})
 
 	// Fan out to risk evaluators via scope PID.
+	// Forward decision severity and rationale from the first DecisionInput for risk context.
 	if a.cfg.ScopePID != nil {
+		var decSeverity, decRationale string
+		if len(strat.Decisions) > 0 {
+			decSeverity = strat.Decisions[0].Severity
+			decRationale = strat.Decisions[0].Rationale
+		}
 		c.Send(a.cfg.ScopePID, strategyResolvedMessage{
 			Symbol:             strat.Symbol,
 			StrategyType:       strat.Type,
 			StrategyDirection:  string(strat.Direction),
 			StrategyConfidence: strat.Confidence,
+			DecisionSeverity:   decSeverity,
+			DecisionRationale:  decRationale,
 			Timeframe:          strat.Timeframe,
 			Timestamp:          strat.Timestamp,
 			CorrelationID:      meta.CorrelationID,

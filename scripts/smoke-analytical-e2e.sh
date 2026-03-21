@@ -421,7 +421,7 @@ validate_analytical_family \
     "type = 'rsi_oversold'" \
     "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60" \
     "decisions" \
-    "type|source|symbol|timeframe|outcome|confidence|signals|metadata|final|timestamp"
+    "type|source|symbol|timeframe|outcome|confidence|severity|rationale|signals|metadata|final|timestamp"
 CH_DECISION_COUNT=$_VAL_CH_COUNT
 DEC_COUNT=$_VAL_HTTP_COUNT
 
@@ -558,7 +558,141 @@ validate_analytical_error_handling "Execution" \
     "type=paper_order&source=derive&symbol=btcusdt"
 
 # ══════════════════════════════════════════════════════════════════════
-phase "Phase 7: Writer Observability Check"
+phase "Phase 7: Domain Depth Validation (S234–S236)"
+# ══════════════════════════════════════════════════════════════════════
+
+# Validate that the new domain depth fields (severity, rationale) are
+# present and non-empty in decisions returned via the analytical read path.
+# This proves the S234 decision deepening survives the full pipeline:
+#   evaluator → NATS → writer → ClickHouse → reader → HTTP
+
+info "Checking decision severity/rationale propagation..."
+DEPTH_RESULT=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    decisions = d.get('decisions', [])
+    if len(decisions) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    checked = 0
+    for dec in decisions:
+        sev = dec.get('severity', '')
+        rat = dec.get('rationale', '')
+        if sev and rat:
+            checked += 1
+    if checked == len(decisions):
+        print(f'ALL_OK checked={checked}')
+    elif checked > 0:
+        print(f'PARTIAL checked={checked}/{len(decisions)}')
+    else:
+        print(f'NONE checked=0/{len(decisions)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$DEPTH_RESULT" in
+    ALL_OK*)
+        pass "Decision severity/rationale present in all returned rows (${DEPTH_RESULT})"
+        ;;
+    PARTIAL*)
+        warn "Decision severity/rationale present in some rows (${DEPTH_RESULT})"
+        ;;
+    NO_DATA*)
+        warn "No decision data to validate domain depth (pipeline may not have produced decisions yet)"
+        ;;
+    *)
+        record_fail "Decision domain depth validation failed: ${DEPTH_RESULT}"
+        ;;
+esac
+
+# Validate that strategy responses carry decision severity/rationale in their decisions JSON
+info "Checking strategy→decision context propagation..."
+STRAT_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    strategies = d.get('strategies', [])
+    if len(strategies) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    propagated = 0
+    for strat in strategies:
+        decs = strat.get('decisions', [])
+        if isinstance(decs, list) and len(decs) > 0:
+            dec = decs[0]
+            if isinstance(dec, dict) and dec.get('severity') and dec.get('rationale'):
+                propagated += 1
+    if propagated == len(strategies):
+        print(f'ALL_OK propagated={propagated}')
+    elif propagated > 0:
+        print(f'PARTIAL propagated={propagated}/{len(strategies)}')
+    else:
+        print(f'NONE propagated=0/{len(strategies)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$STRAT_DEPTH" in
+    ALL_OK*)
+        pass "Strategy carries decision severity/rationale context (${STRAT_DEPTH})"
+        ;;
+    PARTIAL*)
+        warn "Strategy decision context partial (${STRAT_DEPTH}) — some may predate S235"
+        ;;
+    NO_DATA*)
+        warn "No strategy data to validate decision context propagation"
+        ;;
+    *)
+        record_fail "Strategy decision context validation failed: ${STRAT_DEPTH}"
+        ;;
+esac
+
+# Validate that risk responses carry decision context in metadata
+info "Checking risk→decision context propagation..."
+RISK_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    risks = d.get('risk_assessments', [])
+    if len(risks) == 0:
+        print('NO_DATA')
+        sys.exit(0)
+    propagated = 0
+    for risk in risks:
+        meta = risk.get('metadata', {})
+        if isinstance(meta, dict) and meta.get('decision_severity'):
+            propagated += 1
+    if propagated == len(risks):
+        print(f'ALL_OK propagated={propagated}')
+    elif propagated > 0:
+        print(f'PARTIAL propagated={propagated}/{len(risks)}')
+    else:
+        print(f'NONE propagated=0/{len(risks)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$RISK_DEPTH" in
+    ALL_OK*)
+        pass "Risk carries decision severity in metadata (${RISK_DEPTH})"
+        ;;
+    PARTIAL*)
+        warn "Risk decision context partial (${RISK_DEPTH}) — some may predate S236"
+        ;;
+    NO_DATA*)
+        warn "No risk data to validate decision context propagation"
+        ;;
+    *)
+        record_fail "Risk decision context validation failed: ${RISK_DEPTH}"
+        ;;
+esac
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 8: Writer Observability Check"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking writer diagz..."
@@ -587,7 +721,7 @@ except:
 " 2>/dev/null || warn "Writer diagz parse error"
 
 # ══════════════════════════════════════════════════════════════════════
-phase "Phase 8: Error Log Scan"
+phase "Phase 9: Error Log Scan"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Scanning compose logs for error-level entries..."

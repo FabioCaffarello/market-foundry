@@ -1,0 +1,16 @@
+// WriterTrendFollowingEntryStrategyConsumer defines the durable consumer spec for writer consuming
+// trend_following_entry strategy events.
+func WriterTrendFollowingEntryStrategyConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-strategy-trend-following-entry",
+		Event: natskit.EventSpec{
+			Subject: "strategy.events.trend_following_entry.resolved.>",
+			Type:    "strategy.events.v1.trend_following_entry_resolved",
+			Stream: natskit.StreamSpec{
+				Name: "STRATEGY_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

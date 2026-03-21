@@ -1,0 +1,11 @@
+// ── Strategy: trend_following_entry → strategies ──
+{
+	family:        "trend_following_entry",
+	consumerName:  "writer-strategy-trend-following-entry-consumer",
+	inserterName:  "writer-strategy-trend-following-entry-inserter",
+	table:         "strategies",
+	insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+	consumerSpec:  natsstrategy.WriterTrendFollowingEntryStrategyConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("trend_following_entry") },
+	startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
+},

@@ -15,11 +15,13 @@ func validDecision() decision.Decision {
 		Symbol:     "btcusdt",
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
+		Severity:   decision.SeverityLow,
 		Confidence: "0.85",
+		Rationale:  "RSI 28.50 below oversold threshold 30.0 (distance 5.0%); severity low",
 		Signals: []decision.SignalInput{
 			{Type: "rsi", Value: "28.50", Timeframe: 60},
 		},
-		Metadata:  map[string]string{"threshold": "30"},
+		Metadata:  map[string]string{"threshold": "30", "rsi_zone": "low", "distance_pct": "5.0"},
 		Final:     true,
 		Timestamp: time.Now().UTC(),
 	}
@@ -34,9 +36,9 @@ func TestDecision_Validate_Valid(t *testing.T) {
 
 func TestDecision_Validate_RequiredFields(t *testing.T) {
 	tests := []struct {
-		name    string
-		mutate  func(*decision.Decision)
-		field   string
+		name   string
+		mutate func(*decision.Decision)
+		field  string
 	}{
 		{"empty type", func(d *decision.Decision) { d.Type = "" }, "type"},
 		{"empty source", func(d *decision.Decision) { d.Source = "" }, "source"},
@@ -69,6 +71,15 @@ func TestDecision_Validate_InvalidOutcome(t *testing.T) {
 	}
 }
 
+func TestDecision_Validate_InvalidSeverity(t *testing.T) {
+	d := validDecision()
+	d.Severity = "invalid_severity"
+	prob := d.Validate()
+	if prob == nil {
+		t.Fatal("expected validation error for invalid severity")
+	}
+}
+
 func TestDecision_Validate_AllOutcomes(t *testing.T) {
 	outcomes := []decision.Outcome{
 		decision.OutcomeTriggered,
@@ -84,6 +95,33 @@ func TestDecision_Validate_AllOutcomes(t *testing.T) {
 				t.Fatalf("expected valid outcome %s, got: %s", outcome, prob.Message)
 			}
 		})
+	}
+}
+
+func TestDecision_Validate_AllSeverities(t *testing.T) {
+	severities := []decision.Severity{
+		decision.SeverityNone,
+		decision.SeverityLow,
+		decision.SeverityModerate,
+		decision.SeverityHigh,
+	}
+
+	for _, sev := range severities {
+		t.Run(string(sev), func(t *testing.T) {
+			d := validDecision()
+			d.Severity = sev
+			if prob := d.Validate(); prob != nil {
+				t.Fatalf("expected valid severity %s, got: %s", sev, prob.Message)
+			}
+		})
+	}
+}
+
+func TestDecision_Validate_EmptySeverityValid(t *testing.T) {
+	d := validDecision()
+	d.Severity = ""
+	if prob := d.Validate(); prob != nil {
+		t.Fatalf("empty severity should be valid (optional), got: %s", prob.Message)
 	}
 }
 

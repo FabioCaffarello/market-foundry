@@ -18,11 +18,15 @@ const (
 
 // StrategyInput records which strategy contributed to this risk assessment.
 // This is a risk-owned type — it does not import from the strategy domain.
+// DecisionSeverity and DecisionRationale carry the originating decision's semantic
+// depth forward for traceability. They do not alter risk assessment logic directly.
 type StrategyInput struct {
-	Type       string `json:"type"`
-	Direction  string `json:"direction"`
-	Confidence string `json:"confidence"`
-	Timeframe  int    `json:"timeframe"`
+	Type              string `json:"type"`
+	Direction         string `json:"direction"`
+	Confidence        string `json:"confidence"`
+	Timeframe         int    `json:"timeframe"`
+	DecisionSeverity  string `json:"decision_severity,omitempty"`
+	DecisionRationale string `json:"decision_rationale,omitempty"`
 }
 
 // Constraints holds the risk-imposed limits on a position.

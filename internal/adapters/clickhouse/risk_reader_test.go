@@ -188,6 +188,32 @@ func TestParseStrategyInputsJSON_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestParseStrategyInputsJSON_WithDecisionContext(t *testing.T) {
+	result := clickhouse.ParseStrategyInputsJSON(`[{"type":"mean_reversion_entry","direction":"long","confidence":"0.85","timeframe":60,"decision_severity":"high","decision_rationale":"RSI 10.00 below threshold"}]`)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(result))
+	}
+	if result[0].DecisionSeverity != "high" {
+		t.Errorf("expected decision_severity=high, got %q", result[0].DecisionSeverity)
+	}
+	if result[0].DecisionRationale != "RSI 10.00 below threshold" {
+		t.Errorf("expected decision_rationale, got %q", result[0].DecisionRationale)
+	}
+}
+
+func TestParseStrategyInputsJSON_WithoutDecisionContext_BackwardCompatible(t *testing.T) {
+	result := clickhouse.ParseStrategyInputsJSON(`[{"type":"mean_reversion_entry","direction":"long","confidence":"0.85","timeframe":60}]`)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(result))
+	}
+	if result[0].DecisionSeverity != "" {
+		t.Errorf("expected empty decision_severity for legacy data, got %q", result[0].DecisionSeverity)
+	}
+	if result[0].DecisionRationale != "" {
+		t.Errorf("expected empty decision_rationale for legacy data, got %q", result[0].DecisionRationale)
+	}
+}
+
 // -- ParseConstraintsJSON -----------------------------------------------------
 
 func TestParseConstraintsJSON_ValidStruct(t *testing.T) {

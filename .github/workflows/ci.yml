@@ -45,6 +45,19 @@ jobs:
       - name: Verify integrated slices match golden snapshots
         run: make codegen-integrated
 
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run integration tests (embedded NATS)
+        run: make test-integration
+
   smoke-analytical:
     name: Smoke Analytical E2E
     runs-on: ubuntu-latest

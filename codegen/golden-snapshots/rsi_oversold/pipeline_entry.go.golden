@@ -4,7 +4,7 @@
 	consumerName:  "writer-decision-rsi-oversold-consumer",
 	inserterName:  "writer-decision-rsi-oversold-inserter",
 	table:         "decisions",
-	insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)",
 	consumerSpec:  natsdecision.WriterRSIOversoldDecisionConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
 	startConsumer: writerpipeline.NewDecisionStarter(reg.decision),

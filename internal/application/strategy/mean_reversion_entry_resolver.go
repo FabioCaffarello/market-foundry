@@ -32,9 +32,11 @@ func NewMeanReversionEntryResolver(source, symbol string, timeframe int) *MeanRe
 // Resolve processes a decision outcome and produces a strategy.
 // decisionOutcome is the categorical result from the decision event.
 // decisionConfidence is the decimal string from the decision event.
+// decisionSeverity and decisionRationale carry the decision's semantic depth
+// forward into DecisionInput for traceability. They do not alter resolution logic.
 // Returns a Strategy and true if resolution succeeded.
 func (r *MeanReversionEntryResolver) Resolve(
-	decisionType, decisionOutcome, decisionConfidence string,
+	decisionType, decisionOutcome, decisionConfidence, decisionSeverity, decisionRationale string,
 	decisionTimeframe int,
 	ts time.Time,
 ) (domainstrategy.Strategy, bool) {
@@ -70,6 +72,14 @@ func (r *MeanReversionEntryResolver) Resolve(
 		return domainstrategy.Strategy{}, false
 	}
 
+	// Propagate decision rationale into strategy metadata for observability.
+	if decisionRationale != "" {
+		if metadata == nil {
+			metadata = map[string]string{}
+		}
+		metadata["decision_rationale"] = decisionRationale
+	}
+
 	return domainstrategy.Strategy{
 		Type:      "mean_reversion_entry",
 		Source:    r.source,
@@ -82,6 +92,8 @@ func (r *MeanReversionEntryResolver) Resolve(
 				Type:       decisionType,
 				Outcome:    decisionOutcome,
 				Confidence: decisionConfidence,
+				Severity:   decisionSeverity,
+				Rationale:  decisionRationale,
 				Timeframe:  decisionTimeframe,
 			},
 		},

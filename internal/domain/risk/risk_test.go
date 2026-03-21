@@ -17,7 +17,7 @@ func validRisk() risk.RiskAssessment {
 		Disposition: risk.DispositionApproved,
 		Confidence:  "0.85",
 		Strategies: []risk.StrategyInput{
-			{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.72", Timeframe: 60},
+			{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.72", Timeframe: 60, DecisionSeverity: "low", DecisionRationale: "RSI 28.50 below threshold"},
 		},
 		Constraints: risk.Constraints{MaxPositionSize: "0.01", MaxExposure: "0.05"},
 		Rationale:   "Position size within exposure limits",
@@ -196,6 +196,30 @@ func TestRiskAssessment_MultiSymbol_DeduplicationKeyIsolation(t *testing.T) {
 
 	if len(dedupKeys) != len(symbols) {
 		t.Fatalf("expected %d unique dedup keys, got %d", len(symbols), len(dedupKeys))
+	}
+}
+
+func TestRiskAssessment_StrategyInput_DecisionContextPreserved(t *testing.T) {
+	r := validRisk()
+	si := r.Strategies[0]
+	if si.DecisionSeverity != "low" {
+		t.Errorf("expected decision severity low, got %s", si.DecisionSeverity)
+	}
+	if si.DecisionRationale != "RSI 28.50 below threshold" {
+		t.Errorf("expected decision rationale, got %s", si.DecisionRationale)
+	}
+}
+
+func TestRiskAssessment_StrategyInput_EmptyDecisionContext(t *testing.T) {
+	r := validRisk()
+	r.Strategies = []risk.StrategyInput{
+		{Type: "mean_reversion_entry", Direction: "flat", Confidence: "0.0000", Timeframe: 60},
+	}
+	if prob := r.Validate(); prob != nil {
+		t.Fatalf("risk with empty decision context should be valid, got: %s", prob.Message)
+	}
+	if r.Strategies[0].DecisionSeverity != "" {
+		t.Errorf("expected empty decision severity, got %s", r.Strategies[0].DecisionSeverity)
 	}
 }
 

@@ -92,6 +92,9 @@ func (p *Publisher) specForType(strategyType string) *natskit.EventSpec {
 	case "mean_reversion_entry":
 		spec := p.registry.MeanReversionEntryResolved
 		return &spec
+	case "trend_following_entry":
+		spec := p.registry.TrendFollowingEntryResolved
+		return &spec
 	default:
 		return nil
 	}

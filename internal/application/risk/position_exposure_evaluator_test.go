@@ -1,6 +1,7 @@
 package risk_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ func TestPositionExposureEvaluator_LongApproved(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI 28.50 below threshold", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -40,7 +41,7 @@ func TestPositionExposureEvaluator_ShortApproved(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "short", "0.7500", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "short", "0.7500", "moderate", "", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -56,7 +57,7 @@ func TestPositionExposureEvaluator_FlatApproved(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -75,7 +76,7 @@ func TestPositionExposureEvaluator_UnknownDirection(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	_, ok := eval.Evaluate("mean_reversion_entry", "sideways", "0.5000", 60, now)
+	_, ok := eval.Evaluate("mean_reversion_entry", "sideways", "0.5000", "", "", 60, now)
 	if ok {
 		t.Fatal("expected evaluation to fail for unknown direction")
 	}
@@ -85,7 +86,7 @@ func TestPositionExposureEvaluator_InvalidConfidence(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	_, ok := eval.Evaluate("mean_reversion_entry", "long", "not-a-number", 60, now)
+	_, ok := eval.Evaluate("mean_reversion_entry", "long", "not-a-number", "", "", 60, now)
 	if ok {
 		t.Fatal("expected evaluation to fail for invalid confidence")
 	}
@@ -95,7 +96,7 @@ func TestPositionExposureEvaluator_TimestampPreserved(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", 60, ts)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, ts)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -108,7 +109,7 @@ func TestPositionExposureEvaluator_Validation(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI below threshold", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -121,7 +122,7 @@ func TestPositionExposureEvaluator_PartitionKey(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -134,7 +135,7 @@ func TestPositionExposureEvaluator_StrategyInputPreserved(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 300)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", 300, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", "high", "RSI 10.00 below threshold", 300, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -154,13 +155,19 @@ func TestPositionExposureEvaluator_StrategyInputPreserved(t *testing.T) {
 	if si.Timeframe != 300 {
 		t.Errorf("expected strategy timeframe 300, got %d", si.Timeframe)
 	}
+	if si.DecisionSeverity != "high" {
+		t.Errorf("expected decision severity high, got %s", si.DecisionSeverity)
+	}
+	if si.DecisionRationale != "RSI 10.00 below threshold" {
+		t.Errorf("expected decision rationale, got %s", si.DecisionRationale)
+	}
 }
 
 func TestPositionExposureEvaluator_ParametersPresent(t *testing.T) {
 	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	now := time.Now().UTC()
 
-	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -182,7 +189,7 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
-			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tf, now)
+			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if !ok {
 				t.Fatalf("expected evaluation to succeed for %s/%d", sym, tf)
 			}
@@ -201,7 +208,7 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
-			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tf, now)
+			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if r.Symbol != sym {
 				t.Errorf("expected symbol %s, got %s", sym, r.Symbol)
 			}
@@ -221,11 +228,11 @@ func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 	evalBTC := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
 	evalETH := apprisk.NewPositionExposureEvaluator("binancef", "ethusdt", 60)
 
-	rBTC, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.8500", 60, now)
+	rBTC, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "BTC RSI low", 60, now)
 	if !ok {
 		t.Fatal("BTC evaluation should succeed")
 	}
-	rETH, ok := evalETH.Evaluate("mean_reversion_entry", "short", "0.7500", 60, now)
+	rETH, ok := evalETH.Evaluate("mean_reversion_entry", "short", "0.7500", "low", "ETH RSI low", 60, now)
 	if !ok {
 		t.Fatal("ETH evaluation should succeed")
 	}
@@ -257,5 +264,85 @@ func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 	}
 	if rETH.Strategies[0].Direction != "short" {
 		t.Errorf("ETH strategy direction bleed: got %s", rETH.Strategies[0].Direction)
+	}
+
+	// Verify decision severity isolation
+	if rBTC.Strategies[0].DecisionSeverity != "high" {
+		t.Errorf("BTC decision severity bleed: got %s", rBTC.Strategies[0].DecisionSeverity)
+	}
+	if rETH.Strategies[0].DecisionSeverity != "low" {
+		t.Errorf("ETH decision severity bleed: got %s", rETH.Strategies[0].DecisionSeverity)
+	}
+}
+
+func TestPositionExposureEvaluator_DecisionSeverityInRationale(t *testing.T) {
+	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "RSI 10.00 below threshold", 60, now)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if !strings.Contains(r.Rationale, "decision severity high") {
+		t.Errorf("expected rationale to reference decision severity, got: %s", r.Rationale)
+	}
+}
+
+func TestPositionExposureEvaluator_NoSeverityInRationale_WhenNone(t *testing.T) {
+	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "none", "", 60, now)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if strings.Contains(r.Rationale, "decision severity") {
+		t.Errorf("expected no decision severity in rationale for none, got: %s", r.Rationale)
+	}
+}
+
+func TestPositionExposureEvaluator_DecisionContextInMetadata(t *testing.T) {
+	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "moderate", "RSI 20.00 below threshold", 60, now)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if r.Metadata["decision_severity"] != "moderate" {
+		t.Errorf("expected decision_severity=moderate in metadata, got %q", r.Metadata["decision_severity"])
+	}
+	if r.Metadata["decision_rationale"] != "RSI 20.00 below threshold" {
+		t.Errorf("expected decision_rationale in metadata, got %q", r.Metadata["decision_rationale"])
+	}
+}
+
+func TestPositionExposureEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
+	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if r.Metadata != nil {
+		t.Errorf("expected nil metadata when no decision context, got %v", r.Metadata)
+	}
+}
+
+func TestPositionExposureEvaluator_FlatWithDecisionContext(t *testing.T) {
+	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	now := time.Now().UTC()
+
+	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "RSI above threshold", 60, now)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if r.Strategies[0].DecisionSeverity != "none" {
+		t.Errorf("expected decision severity none for flat, got %s", r.Strategies[0].DecisionSeverity)
+	}
+	// Flat still carries decision context in metadata for observability
+	if r.Metadata["decision_severity"] != "none" {
+		t.Errorf("expected decision_severity=none in flat metadata, got %q", r.Metadata["decision_severity"])
 	}
 }

@@ -80,6 +80,8 @@ type decisionEvaluatedMessage struct {
 	DecisionType       string
 	DecisionOutcome    string
 	DecisionConfidence string
+	DecisionSeverity   string
+	DecisionRationale  string
 	Timeframe          int
 	Timestamp          time.Time
 	CorrelationID      string
@@ -93,11 +95,15 @@ type publishStrategyMessage struct {
 
 // strategyResolvedMessage is sent from the SourceScopeActor to risk evaluator actors
 // when a strategy is resolved. Contains primitive data per domain isolation (no strategy.Strategy struct).
+// DecisionSeverity and DecisionRationale carry the originating decision's semantic depth
+// forward so risk can incorporate decision context into rationale and consistency checks.
 type strategyResolvedMessage struct {
 	Symbol             string
 	StrategyType       string
 	StrategyDirection  string
 	StrategyConfidence string
+	DecisionSeverity   string
+	DecisionRationale  string
 	Timeframe          int
 	Timestamp          time.Time
 	CorrelationID      string
@@ -112,18 +118,20 @@ type publishRiskMessage struct {
 // riskAssessedMessage is sent from risk evaluator actors to the SourceScopeActor,
 // which fans it out to execution evaluator actors for the matching symbol.
 // Contains primitive data per domain isolation (no risk.RiskAssessment struct).
+// DecisionSeverity carries the originating decision's severity for downstream traceability.
 type riskAssessedMessage struct {
-	Symbol              string
-	RiskType            string
-	RiskDisposition     string
-	RiskConfidence      string
-	MaxPositionPct      string
-	StrategyDirection   string
-	StrategyConfidence  string
-	Timeframe           int
-	Timestamp           time.Time
-	CorrelationID       string
-	CausationID         string // event ID of the risk assessment that caused this fan-out
+	Symbol             string
+	RiskType           string
+	RiskDisposition    string
+	RiskConfidence     string
+	MaxPositionPct     string
+	StrategyDirection  string
+	StrategyConfidence string
+	DecisionSeverity   string
+	Timeframe          int
+	Timestamp          time.Time
+	CorrelationID      string
+	CausationID        string // event ID of the risk assessment that caused this fan-out
 }
 
 // publishExecutionMessage is sent from execution evaluator actors to the execution publisher actor.

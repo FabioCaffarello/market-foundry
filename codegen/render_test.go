@@ -367,7 +367,7 @@ func rsiOversoldSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "decisions",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp",
 			Mapper:            "mapDecisionRow",
 			PipelineFamilyKey: "rsi_oversold",
 			ConfigArray:       "decision_families",

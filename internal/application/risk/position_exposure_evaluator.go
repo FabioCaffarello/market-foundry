@@ -16,6 +16,7 @@ const (
 // PositionExposureEvaluator assesses strategy intent against configurable exposure limits.
 // Pure application logic — no I/O, no actor references, no NATS dependency.
 // Receives strategy values as primitive data (not strategy.Strategy structs) per domain isolation.
+// Decision severity and rationale flow through for traceability and richer rationale generation.
 type PositionExposureEvaluator struct {
 	source                  string
 	symbol                  string
@@ -37,12 +38,29 @@ func NewPositionExposureEvaluator(source, symbol string, timeframe int) *Positio
 // Evaluate processes a strategy resolution and produces a risk assessment.
 // strategyDirection is "long", "short", or "flat".
 // strategyConfidence is a decimal string from the strategy event.
+// decisionSeverity and decisionRationale carry the originating decision's semantic depth
+// forward into StrategyInput and risk rationale for end-to-end traceability.
 // Returns a RiskAssessment and true if evaluation succeeded.
 func (e *PositionExposureEvaluator) Evaluate(
 	strategyType, strategyDirection, strategyConfidence string,
+	decisionSeverity, decisionRationale string,
 	strategyTimeframe int,
 	ts time.Time,
 ) (domainrisk.RiskAssessment, bool) {
+	strategyInput := domainrisk.StrategyInput{
+		Type:              strategyType,
+		Direction:         strategyDirection,
+		Confidence:        strategyConfidence,
+		Timeframe:         strategyTimeframe,
+		DecisionSeverity:  decisionSeverity,
+		DecisionRationale: decisionRationale,
+	}
+
+	baseParams := map[string]string{
+		"max_position_pct":           fmt.Sprintf("%.4f", e.maxPositionPct),
+		"max_portfolio_exposure_pct": fmt.Sprintf("%.4f", e.maxPortfolioExposurePct),
+	}
+
 	// Flat strategies are always approved with zero constraints.
 	if strategyDirection == "flat" {
 		return domainrisk.RiskAssessment{
@@ -52,21 +70,12 @@ func (e *PositionExposureEvaluator) Evaluate(
 			Timeframe:   e.timeframe,
 			Disposition: domainrisk.DispositionApproved,
 			Confidence:  "1.0000",
-			Strategies: []domainrisk.StrategyInput{
-				{
-					Type:       strategyType,
-					Direction:  strategyDirection,
-					Confidence: strategyConfidence,
-					Timeframe:  strategyTimeframe,
-				},
-			},
-			Rationale: "Flat strategy requires no position",
-			Parameters: map[string]string{
-				"max_position_pct":          fmt.Sprintf("%.4f", e.maxPositionPct),
-				"max_portfolio_exposure_pct": fmt.Sprintf("%.4f", e.maxPortfolioExposurePct),
-			},
-			Final:     true,
-			Timestamp: ts,
+			Strategies:  []domainrisk.StrategyInput{strategyInput},
+			Rationale:   "Flat strategy requires no position",
+			Parameters:  baseParams,
+			Metadata:    e.buildMetadata(decisionSeverity, decisionRationale),
+			Final:       true,
+			Timestamp:   ts,
 		}, true
 	}
 
@@ -94,7 +103,7 @@ func (e *PositionExposureEvaluator) Evaluate(
 
 	if requestedSize <= e.maxPositionPct && requestedSize <= e.maxPortfolioExposurePct {
 		disposition = domainrisk.DispositionApproved
-		rationale = "Position size within exposure limits"
+		rationale = e.buildRationale("approved", strategyDirection, requestedSize, decisionSeverity)
 		constraints = domainrisk.Constraints{
 			MaxPositionSize: fmt.Sprintf("%.4f", requestedSize),
 			MaxExposure:     fmt.Sprintf("%.4f", e.maxPortfolioExposurePct),
@@ -106,7 +115,7 @@ func (e *PositionExposureEvaluator) Evaluate(
 			cappedSize = e.maxPortfolioExposurePct
 		}
 		disposition = domainrisk.DispositionModified
-		rationale = "Position size capped to exposure limits"
+		rationale = e.buildRationale("modified", strategyDirection, cappedSize, decisionSeverity)
 		constraints = domainrisk.Constraints{
 			MaxPositionSize: fmt.Sprintf("%.4f", cappedSize),
 			MaxExposure:     fmt.Sprintf("%.4f", e.maxPortfolioExposurePct),
@@ -123,21 +132,42 @@ func (e *PositionExposureEvaluator) Evaluate(
 		Timeframe:   e.timeframe,
 		Disposition: disposition,
 		Confidence:  riskConfidence,
-		Strategies: []domainrisk.StrategyInput{
-			{
-				Type:       strategyType,
-				Direction:  strategyDirection,
-				Confidence: strategyConfidence,
-				Timeframe:  strategyTimeframe,
-			},
-		},
+		Strategies:  []domainrisk.StrategyInput{strategyInput},
 		Constraints: constraints,
 		Rationale:   rationale,
-		Parameters: map[string]string{
-			"max_position_pct":          fmt.Sprintf("%.4f", e.maxPositionPct),
-			"max_portfolio_exposure_pct": fmt.Sprintf("%.4f", e.maxPortfolioExposurePct),
-		},
-		Final:     true,
-		Timestamp: ts,
+		Parameters:  baseParams,
+		Metadata:    e.buildMetadata(decisionSeverity, decisionRationale),
+		Final:       true,
+		Timestamp:   ts,
 	}, true
+}
+
+// buildRationale generates a context-rich rationale incorporating decision severity.
+func (e *PositionExposureEvaluator) buildRationale(outcome, direction string, positionSize float64, decisionSeverity string) string {
+	base := fmt.Sprintf("%s %s position %.4f", direction, outcome, positionSize)
+	switch outcome {
+	case "approved":
+		base = fmt.Sprintf("Position size %.4f within exposure limits", positionSize)
+	case "modified":
+		base = fmt.Sprintf("Position size capped to %.4f by exposure limits", positionSize)
+	}
+	if decisionSeverity != "" && decisionSeverity != "none" {
+		base += fmt.Sprintf("; decision severity %s", decisionSeverity)
+	}
+	return base
+}
+
+// buildMetadata populates risk metadata with decision context for observability.
+func (e *PositionExposureEvaluator) buildMetadata(decisionSeverity, decisionRationale string) map[string]string {
+	meta := map[string]string{}
+	if decisionSeverity != "" {
+		meta["decision_severity"] = decisionSeverity
+	}
+	if decisionRationale != "" {
+		meta["decision_rationale"] = decisionRationale
+	}
+	if len(meta) == 0 {
+		return nil
+	}
+	return meta
 }

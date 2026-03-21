@@ -16,6 +16,18 @@ const (
 	OutcomeInsufficient Outcome = "insufficient"
 )
 
+// Severity classifies how strong or extreme the evaluated condition is.
+// For triggered decisions, higher severity means a more extreme signal.
+// For not_triggered decisions, severity is always "none".
+type Severity string
+
+const (
+	SeverityNone     Severity = "none"
+	SeverityLow      Severity = "low"
+	SeverityModerate Severity = "moderate"
+	SeverityHigh     Severity = "high"
+)
+
 // SignalInput records which signal contributed to this decision.
 // This is a decision-owned type — it does not import from the signal domain.
 type SignalInput struct {
@@ -32,7 +44,9 @@ type Decision struct {
 	Symbol     string            `json:"symbol"`
 	Timeframe  int               `json:"timeframe"`
 	Outcome    Outcome           `json:"outcome"`
+	Severity   Severity          `json:"severity"`
 	Confidence string            `json:"confidence"`
+	Rationale  string            `json:"rationale"`
 	Signals    []SignalInput     `json:"signals"`
 	Metadata   map[string]string `json:"metadata"`
 	Final      bool              `json:"final"`
@@ -60,6 +74,11 @@ func (d Decision) Validate() *problem.Problem {
 	if d.Outcome != OutcomeTriggered && d.Outcome != OutcomeNotTriggered && d.Outcome != OutcomeInsufficient {
 		if d.Outcome != "" {
 			issues = append(issues, problem.ValidationIssue{Field: "outcome", Message: "must be one of triggered, not_triggered, insufficient"})
+		}
+	}
+	if d.Severity != SeverityNone && d.Severity != SeverityLow && d.Severity != SeverityModerate && d.Severity != SeverityHigh {
+		if d.Severity != "" {
+			issues = append(issues, problem.ValidationIssue{Field: "severity", Message: "must be one of none, low, moderate, high"})
 		}
 	}
 	if d.Confidence == "" {

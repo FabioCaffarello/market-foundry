@@ -92,6 +92,9 @@ func (p *Publisher) specForType(decisionType string) *natskit.EventSpec {
 	case "rsi_oversold":
 		spec := p.registry.RSIOversoldEvaluated
 		return &spec
+	case "ema_crossover":
+		spec := p.registry.EMACrossoverEvaluated
+		return &spec
 	default:
 		return nil
 	}

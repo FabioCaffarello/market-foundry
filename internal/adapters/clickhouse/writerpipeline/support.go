@@ -206,7 +206,8 @@ func mapSignalRow(e signal.SignalGeneratedEvent) []any {
 
 // mapDecisionRow maps a DecisionEvaluatedEvent to ClickHouse decisions row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, outcome, confidence, signals, metadata, final, timestamp.
+// type, source, symbol, timeframe, outcome, confidence, severity, rationale,
+// signals, metadata, final, timestamp.
 func mapDecisionRow(e decision.DecisionEvaluatedEvent) []any {
 	m := e.Metadata
 	d := e.Decision
@@ -221,6 +222,8 @@ func mapDecisionRow(e decision.DecisionEvaluatedEvent) []any {
 		uint32(d.Timeframe),
 		string(d.Outcome),
 		parseFloat(d.Confidence),
+		string(d.Severity),
+		d.Rationale,
 		marshalJSON(d.Signals),
 		marshalJSON(d.Metadata),
 		d.Final,

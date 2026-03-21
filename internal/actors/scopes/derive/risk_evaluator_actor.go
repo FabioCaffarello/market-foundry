@@ -66,7 +66,7 @@ func (a *PositionExposureEvaluatorActor) Receive(c *actor.Context) {
 }
 
 func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, msg strategyResolvedMessage) {
-	assessment, ok := a.evaluator.Evaluate(msg.StrategyType, msg.StrategyDirection, msg.StrategyConfidence, msg.Timeframe, msg.Timestamp)
+	assessment, ok := a.evaluator.Evaluate(msg.StrategyType, msg.StrategyDirection, msg.StrategyConfidence, msg.DecisionSeverity, msg.DecisionRationale, msg.Timeframe, msg.Timestamp)
 	if !ok {
 		return
 	}
@@ -89,9 +89,11 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 	if a.cfg.ScopePID != nil {
 		stratDirection := ""
 		stratConfidence := ""
+		decSeverity := ""
 		if len(assessment.Strategies) > 0 {
 			stratDirection = assessment.Strategies[0].Direction
 			stratConfidence = assessment.Strategies[0].Confidence
+			decSeverity = assessment.Strategies[0].DecisionSeverity
 		}
 		c.Send(a.cfg.ScopePID, riskAssessedMessage{
 			Symbol:             a.cfg.Symbol,
@@ -101,6 +103,7 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 			MaxPositionPct:     assessment.Constraints.MaxPositionSize,
 			StrategyDirection:  stratDirection,
 			StrategyConfidence: stratConfidence,
+			DecisionSeverity:   decSeverity,
 			Timeframe:          assessment.Timeframe,
 			Timestamp:          assessment.Timestamp,
 			CorrelationID:      msg.CorrelationID,

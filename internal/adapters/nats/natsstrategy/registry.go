@@ -10,8 +10,10 @@ import (
 
 // Registry defines the NATS subject and stream contracts for the strategy domain.
 type Registry struct {
-	MeanReversionEntryResolved natskit.EventSpec
-	MeanReversionEntryLatest   natskit.ControlSpec
+	MeanReversionEntryResolved  natskit.EventSpec
+	MeanReversionEntryLatest    natskit.ControlSpec
+	TrendFollowingEntryResolved natskit.EventSpec
+	TrendFollowingEntryLatest   natskit.ControlSpec
 }
 
 func DefaultRegistry() Registry {
@@ -35,6 +37,17 @@ func DefaultRegistry() Registry {
 			ReplyType:   "strategy.query.v1.mean_reversion_entry_latest_reply",
 			QueueGroup:  "strategy.query",
 		},
+		TrendFollowingEntryResolved: natskit.EventSpec{
+			Subject: "strategy.events.trend_following_entry.resolved",
+			Type:    "strategy.events.v1.trend_following_entry_resolved",
+			Stream:  eventStream,
+		},
+		TrendFollowingEntryLatest: natskit.ControlSpec{
+			Subject:     "strategy.query.trend_following_entry.latest",
+			RequestType: "strategy.query.v1.trend_following_entry_latest_request",
+			ReplyType:   "strategy.query.v1.trend_following_entry_latest_reply",
+			QueueGroup:  "strategy.query",
+		},
 	}
 }
 
@@ -44,6 +57,8 @@ func (r Registry) LatestSpecByType(strategyType string) (natskit.ControlSpec, bo
 	switch strategyType {
 	case "mean_reversion_entry":
 		return r.MeanReversionEntryLatest, true
+	case "trend_following_entry":
+		return r.TrendFollowingEntryLatest, true
 	default:
 		return natskit.ControlSpec{}, false
 	}
@@ -57,4 +72,14 @@ func WriterMeanReversionEntryStrategyConsumer() natskit.ConsumerSpec {
 // StoreMeanReversionEntryStrategyConsumer defines the durable consumer spec for store consuming mean reversion entry strategy events.
 func StoreMeanReversionEntryStrategyConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-strategy-mean-reversion-entry", "strategy.events.mean_reversion_entry.resolved.>", "strategy.events.v1.mean_reversion_entry_resolved", "STRATEGY_EVENTS")
+}
+
+// WriterTrendFollowingEntryStrategyConsumer defines the durable consumer spec for writer consuming trend following entry strategy events.
+func WriterTrendFollowingEntryStrategyConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec("writer-strategy-trend-following-entry", "strategy.events.trend_following_entry.resolved.>", "strategy.events.v1.trend_following_entry_resolved", "STRATEGY_EVENTS")
+}
+
+// StoreTrendFollowingEntryStrategyConsumer defines the durable consumer spec for store consuming trend following entry strategy events.
+func StoreTrendFollowingEntryStrategyConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec("store-strategy-trend-following-entry", "strategy.events.trend_following_entry.resolved.>", "strategy.events.v1.trend_following_entry_resolved", "STRATEGY_EVENTS")
 }

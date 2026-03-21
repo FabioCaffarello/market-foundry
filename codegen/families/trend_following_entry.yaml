@@ -1,0 +1,21 @@
+family:
+  name: trend_following_entry
+  layer: strategy
+  tier: 1
+
+nats:
+  subject: "strategy.events.trend_following_entry.resolved.>"
+  event_type: "strategy.events.v1.trend_following_entry_resolved"
+  stream: STRATEGY_EVENTS
+  durable: writer-strategy-trend-following-entry
+
+writer:
+  table: strategies
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp"
+  mapper: mapStrategyRow
+  pipeline_family_key: trend_following_entry
+  config_array: strategy_families
+
+domain:
+  event_package: strategy
+  event_type: StrategyResolvedEvent

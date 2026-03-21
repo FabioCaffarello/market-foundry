@@ -93,6 +93,8 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 			DecisionType:       dec.Type,
 			DecisionOutcome:    string(dec.Outcome),
 			DecisionConfidence: dec.Confidence,
+			DecisionSeverity:   string(dec.Severity),
+			DecisionRationale:  dec.Rationale,
 			Timeframe:          dec.Timeframe,
 			Timestamp:          dec.Timestamp,
 			CorrelationID:      msg.CorrelationID,

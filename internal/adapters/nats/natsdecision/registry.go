@@ -10,8 +10,10 @@ import (
 
 // Registry defines the NATS subject and stream contracts for the decision domain.
 type Registry struct {
-	RSIOversoldEvaluated natskit.EventSpec
-	RSIOversoldLatest    natskit.ControlSpec
+	RSIOversoldEvaluated  natskit.EventSpec
+	RSIOversoldLatest     natskit.ControlSpec
+	EMACrossoverEvaluated natskit.EventSpec
+	EMACrossoverLatest    natskit.ControlSpec
 }
 
 func DefaultRegistry() Registry {
@@ -35,6 +37,17 @@ func DefaultRegistry() Registry {
 			ReplyType:   "decision.query.v1.rsi_oversold_latest_reply",
 			QueueGroup:  "decision.query",
 		},
+		EMACrossoverEvaluated: natskit.EventSpec{
+			Subject: "decision.events.ema_crossover.evaluated",
+			Type:    "decision.events.v1.ema_crossover_evaluated",
+			Stream:  eventStream,
+		},
+		EMACrossoverLatest: natskit.ControlSpec{
+			Subject:     "decision.query.ema_crossover.latest",
+			RequestType: "decision.query.v1.ema_crossover_latest_request",
+			ReplyType:   "decision.query.v1.ema_crossover_latest_reply",
+			QueueGroup:  "decision.query",
+		},
 	}
 }
 
@@ -44,6 +57,8 @@ func (r Registry) LatestSpecByType(decisionType string) (natskit.ControlSpec, bo
 	switch decisionType {
 	case "rsi_oversold":
 		return r.RSIOversoldLatest, true
+	case "ema_crossover":
+		return r.EMACrossoverLatest, true
 	default:
 		return natskit.ControlSpec{}, false
 	}
@@ -57,4 +72,14 @@ func WriterRSIOversoldDecisionConsumer() natskit.ConsumerSpec {
 // StoreRSIOversoldDecisionConsumer defines the durable consumer spec for store consuming RSI oversold decision events.
 func StoreRSIOversoldDecisionConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-decision-rsi-oversold", "decision.events.rsi_oversold.evaluated.>", "decision.events.v1.rsi_oversold_evaluated", "DECISION_EVENTS")
+}
+
+// WriterEMACrossoverDecisionConsumer defines the durable consumer spec for writer consuming EMA crossover decision events.
+func WriterEMACrossoverDecisionConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec("writer-decision-ema-crossover", "decision.events.ema_crossover.evaluated.>", "decision.events.v1.ema_crossover_evaluated", "DECISION_EVENTS")
+}
+
+// StoreEMACrossoverDecisionConsumer defines the durable consumer spec for store consuming EMA crossover decision events.
+func StoreEMACrossoverDecisionConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec("store-decision-ema-crossover", "decision.events.ema_crossover.evaluated.>", "decision.events.v1.ema_crossover_evaluated", "DECISION_EVENTS")
 }

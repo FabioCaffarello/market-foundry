@@ -18,10 +18,13 @@ const (
 
 // DecisionInput records which decision contributed to this strategy.
 // This is a strategy-owned type — it does not import from the decision domain.
+// Severity and Rationale carry the decision's semantic depth forward for traceability.
 type DecisionInput struct {
 	Type       string `json:"type"`
 	Outcome    string `json:"outcome"`
 	Confidence string `json:"confidence"`
+	Severity   string `json:"severity"`
+	Rationale  string `json:"rationale"`
 	Timeframe  int    `json:"timeframe"`
 }
 

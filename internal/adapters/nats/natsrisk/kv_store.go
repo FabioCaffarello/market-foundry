@@ -14,6 +14,7 @@ import (
 )
 
 const PositionExposureLatestBucket = "RISK_POSITION_EXPOSURE_LATEST"
+const DrawdownLimitLatestBucket = "RISK_DRAWDOWN_LIMIT_LATEST"
 
 // KVStore persists the latest finalized risk assessment per source/symbol/timeframe.
 // One instance per risk type; the bucket name is injected at construction.

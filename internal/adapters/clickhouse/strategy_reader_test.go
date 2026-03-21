@@ -135,7 +135,7 @@ func TestBuildStrategyQuery_SelectColumns(t *testing.T) {
 // -- ParseDecisionInputsJSON -------------------------------------------------
 
 func TestParseDecisionInputsJSON_ValidArray(t *testing.T) {
-	result := clickhouse.ParseDecisionInputsJSON(`[{"type":"rsi_oversold","outcome":"triggered","confidence":"0.85","timeframe":60}]`)
+	result := clickhouse.ParseDecisionInputsJSON(`[{"type":"rsi_oversold","outcome":"triggered","confidence":"0.85","severity":"low","rationale":"RSI below threshold","timeframe":60}]`)
 	if len(result) != 1 {
 		t.Fatalf("expected 1 entry, got %d", len(result))
 	}
@@ -148,8 +148,31 @@ func TestParseDecisionInputsJSON_ValidArray(t *testing.T) {
 	if result[0].Confidence != "0.85" {
 		t.Errorf("expected confidence=0.85, got %q", result[0].Confidence)
 	}
+	if result[0].Severity != "low" {
+		t.Errorf("expected severity=low, got %q", result[0].Severity)
+	}
+	if result[0].Rationale != "RSI below threshold" {
+		t.Errorf("expected rationale='RSI below threshold', got %q", result[0].Rationale)
+	}
 	if result[0].Timeframe != 60 {
 		t.Errorf("expected timeframe=60, got %d", result[0].Timeframe)
+	}
+}
+
+func TestParseDecisionInputsJSON_BackwardCompatible(t *testing.T) {
+	// Old format without severity/rationale should still parse — fields default to zero values.
+	result := clickhouse.ParseDecisionInputsJSON(`[{"type":"rsi_oversold","outcome":"triggered","confidence":"0.85","timeframe":60}]`)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(result))
+	}
+	if result[0].Type != "rsi_oversold" {
+		t.Errorf("expected type=rsi_oversold, got %q", result[0].Type)
+	}
+	if result[0].Severity != "" {
+		t.Errorf("expected empty severity for old format, got %q", result[0].Severity)
+	}
+	if result[0].Rationale != "" {
+		t.Errorf("expected empty rationale for old format, got %q", result[0].Rationale)
 	}
 }
 

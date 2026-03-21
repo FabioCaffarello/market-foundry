@@ -1,0 +1,16 @@
+// WriterEMACrossoverDecisionConsumer defines the durable consumer spec for writer consuming
+// ema_crossover decision events.
+func WriterEMACrossoverDecisionConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-decision-ema-crossover",
+		Event: natskit.EventSpec{
+			Subject: "decision.events.ema_crossover.evaluated.>",
+			Type:    "decision.events.v1.ema_crossover_evaluated",
+			Stream: natskit.StreamSpec{
+				Name: "DECISION_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
