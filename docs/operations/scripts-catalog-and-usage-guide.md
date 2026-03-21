@@ -36,6 +36,8 @@ Rule of thumb:
 | smoke/integration | `make smoke` | `scripts/smoke-first-slice.sh` | Run the smallest operational E2E proof | First vertical slice coverage |
 | smoke/integration | `make smoke-multi` | `scripts/smoke-multi-symbol.sh` | Run multi-symbol operational proof | Broadest KV/query smoke |
 | smoke/integration | `make smoke-analytical` | `scripts/smoke-analytical-e2e.sh` | Prove analytical writer/reader path | Large harness; active domain-adjacent surface |
+| smoke/integration | `make smoke-round-trip` | `scripts/smoke-round-trip.sh` | Prove full persistence round-trip behavior | Adapter to ClickHouse to HTTP specialized proof |
+| smoke/integration | `make smoke-live-stack` | `scripts/smoke-live-stack.sh` | Prove live stack and gateway verification path | Specialized live-stack proof surface |
 | smoke/integration | `make smoke-operational` | `scripts/smoke-os-process-operational.sh` | Prove isolated-process operational behavior | OS-process/container operational proof |
 | smoke/integration | `make smoke-restart-recovery` | `scripts/smoke-restart-recovery.sh` | Prove restart/recovery resilience | Durable consumer and gate recovery proof |
 | local dev | `make diag` | `scripts/diag-check.sh` | Capture a quick runtime health snapshot | Supports `--local` |
@@ -79,6 +81,8 @@ Use:
 
 - `make smoke-help`
 - `make smoke-analytical`
+- `make smoke-round-trip`
+- `make smoke-live-stack`
 - `make smoke-operational`
 - `make smoke-restart-recovery`
 
@@ -158,6 +162,8 @@ Common forms:
 - `./scripts/smoke-os-process-operational.sh --wait 180`
 - `./scripts/smoke-restart-recovery.sh --wait 180`
 - `./scripts/smoke-analytical-e2e.sh --wait 180`
+- `./scripts/smoke-round-trip.sh --wait 180`
+- `./scripts/smoke-live-stack.sh --wait 180`
 
 Use direct invocation when:
 

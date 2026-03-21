@@ -23,6 +23,8 @@
 | `make smoke` | First-slice E2E smoke test (requires `make up` + `make seed`) |
 | `make smoke-multi` | Multi-symbol E2E smoke test (requires `make up` + `make seed-multi`) |
 | `make smoke-analytical` | Analytical path proof (NATS → writer → ClickHouse → reader → gateway) |
+| `make smoke-round-trip` | Full persistence round-trip proof (adapter → NATS → ClickHouse → HTTP) |
+| `make smoke-live-stack` | Live stack smoke and gateway verification |
 | `make smoke-operational` | OS-process/container operational proof (halt/resume plus read-path checks) |
 | `make smoke-restart-recovery` | Restart/recovery smoke for durable consumers and projections |
 | `make check` | Pre-code guard rail (repo consistency + quality-gate fast) |
@@ -127,6 +129,8 @@ Full validation including all quality-gate checks.
 | Baseline single-symbol runtime flow | `make smoke` |
 | Broader multi-symbol runtime flow | `make smoke-multi` |
 | Analytical writer/reader path | `make smoke-analytical` |
+| Full persistence round-trip path | `make smoke-round-trip` |
+| Live stack plus gateway verification | `make smoke-live-stack` |
 | Process/container operational behavior | `make smoke-operational` |
 | Restart and recovery resilience | `make smoke-restart-recovery` |
 
@@ -180,6 +184,8 @@ See:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/operations/README.md`](docs/operations/README.md)
+- [`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md)
+- [`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md)
 - [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md)
 - [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md)
 - [`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md)

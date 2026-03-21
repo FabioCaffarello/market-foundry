@@ -11,6 +11,7 @@ when you only need the day-to-day command surface.
 Canonical workflow note:
 
 - prefer `make` for the repository-level workflow contract;
+- use [`../operations/development-environment-architecture-and-lifecycle.md`](../operations/development-environment-architecture-and-lifecycle.md) and [`../operations/development-lifecycle-entrypoints-and-canonical-flows.md`](../operations/development-lifecycle-entrypoints-and-canonical-flows.md) when deciding whether a tooling action belongs in the main developer lifecycle or only in expert tooling flows;
 - use direct `raccoon-cli` commands when you need expert inspection, machine-readable output, or you are changing the CLI/tooling layer itself.
 
 ## Start Here
@@ -18,6 +19,8 @@ Canonical workflow note:
 | Need | Primary document |
 |---|---|
 | Tooling entrypoint and taxonomy | [`cli-overview.md`](cli-overview.md) |
+| Development CLI reliability strategy | [`development-cli-reliability-and-command-testing-strategy.md`](development-cli-reliability-and-command-testing-strategy.md) |
+| CLI trustworthiness and error semantics | [`raccoon-cli-command-trustworthiness-and-error-semantics.md`](raccoon-cli-command-trustworthiness-and-error-semantics.md) |
 | Raccoon CLI internal architecture | [`raccoon-cli-internal-modularity-and-command-architecture.md`](raccoon-cli-internal-modularity-and-command-architecture.md) |
 | Raccoon CLI module rules | [`raccoon-cli-module-boundaries-and-evolution-rules.md`](raccoon-cli-module-boundaries-and-evolution-rules.md) |
 | User-facing `raccoon-cli` commands | [`../operations/raccoon-cli-command-reference.md`](../operations/raccoon-cli-command-reference.md) |
@@ -30,6 +33,8 @@ Canonical workflow note:
 ### Core CLI references
 
 - [`cli-overview.md`](cli-overview.md)
+- [`development-cli-reliability-and-command-testing-strategy.md`](development-cli-reliability-and-command-testing-strategy.md)
+- [`raccoon-cli-command-trustworthiness-and-error-semantics.md`](raccoon-cli-command-trustworthiness-and-error-semantics.md)
 - [`raccoon-cli-internal-modularity-and-command-architecture.md`](raccoon-cli-internal-modularity-and-command-architecture.md)
 - [`raccoon-cli-module-boundaries-and-evolution-rules.md`](raccoon-cli-module-boundaries-and-evolution-rules.md)
 - [`cli-architecture-guardrails.md`](cli-architecture-guardrails.md)

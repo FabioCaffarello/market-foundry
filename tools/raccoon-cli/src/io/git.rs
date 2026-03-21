@@ -2,7 +2,16 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
 
-pub(crate) fn status_porcelain_paths(project_root: &Path) -> Vec<String> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum GitStatusProbe {
+    Changed(Vec<String>),
+    Clean,
+    NotRepository,
+    Unavailable { detail: String },
+    Failed { detail: String },
+}
+
+pub(crate) fn status_porcelain(project_root: &Path) -> GitStatusProbe {
     let output = Command::new("git")
         .args(["status", "--porcelain", "-u"])
         .current_dir(project_root)
@@ -10,9 +19,30 @@ pub(crate) fn status_porcelain_paths(project_root: &Path) -> Vec<String> {
 
     match output {
         Ok(out) if out.status.success() => {
-            parse_status_paths(&String::from_utf8_lossy(&out.stdout))
+            let paths = parse_status_paths(&String::from_utf8_lossy(&out.stdout));
+            if paths.is_empty() {
+                GitStatusProbe::Clean
+            } else {
+                GitStatusProbe::Changed(paths)
+            }
         }
-        Err(_) | Ok(_) => Vec::new(),
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            if stderr.contains("not a git repository") {
+                GitStatusProbe::NotRepository
+            } else {
+                GitStatusProbe::Failed {
+                    detail: if stderr.is_empty() {
+                        format!("git exited with status {}", out.status)
+                    } else {
+                        stderr
+                    },
+                }
+            }
+        }
+        Err(error) => GitStatusProbe::Unavailable {
+            detail: error.to_string(),
+        },
     }
 }
 
@@ -72,6 +102,38 @@ mod tests {
                 "internal/application/bar.go".to_string(),
                 "docs/note.md".to_string()
             ]
+        );
+    }
+
+    #[test]
+    fn failed_probe_classifies_non_git_repository() {
+        let probe = match Command::new("git")
+            .args(["status", "--porcelain", "-u"])
+            .current_dir("/nonexistent")
+            .output()
+        {
+            Ok(out) if !out.status.success() => {
+                let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                if stderr.contains("not a git repository") {
+                    GitStatusProbe::NotRepository
+                } else {
+                    GitStatusProbe::Failed { detail: stderr }
+                }
+            }
+            Ok(_) => GitStatusProbe::Clean,
+            Err(error) => GitStatusProbe::Unavailable {
+                detail: error.to_string(),
+            },
+        };
+
+        assert!(
+            matches!(
+                probe,
+                GitStatusProbe::NotRepository
+                    | GitStatusProbe::Failed { .. }
+                    | GitStatusProbe::Unavailable { .. }
+            ),
+            "unexpected probe variant: {probe:?}"
         );
     }
 }

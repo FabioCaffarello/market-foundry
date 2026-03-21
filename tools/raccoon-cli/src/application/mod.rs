@@ -217,14 +217,16 @@ fn run_snapshot_diff(
 
 fn run_recommend(context: &AppContext, args: RecommendArgs) -> Result<i32> {
     let changed = change_targets::resolve_change_targets(&context.project_root, &args.files);
-    let report = match args.baseline {
+    let mut report = match args.baseline {
         Some(baseline_path) => analyzers::recommend::analyze_with_baseline(
             &context.project_root,
-            &changed,
+            &changed.targets,
             &baseline_path,
         ),
-        None => analyzers::recommend::analyze(&context.project_root, &changed),
+        None => analyzers::recommend::analyze(&context.project_root, &changed.targets),
     };
+    report.input.detection_mode = changed.source.as_str().into();
+    report.scope_note = merge_scope_note(changed.scope_note("files"), &report.scope_note);
 
     emit_structured_report(
         context,
@@ -310,14 +312,16 @@ fn run_symbol_trace(context: &AppContext, args: crate::cli::SymbolTraceArgs) -> 
 
 fn run_briefing(context: &AppContext, args: BriefingArgs) -> Result<i32> {
     let changed = change_targets::resolve_change_targets(&context.project_root, &args.targets);
-    let report = with_optional_lsp(
+    let mut report = with_optional_lsp(
         &context.project_root,
         args.lsp && !args.no_lsp,
-        |project_root| analyzers::briefing::analyze(project_root, &changed),
+        |project_root| analyzers::briefing::analyze(project_root, &changed.targets),
         |project_root, bridge| {
-            analyzers::briefing::analyze_with_lsp(project_root, &changed, bridge)
+            analyzers::briefing::analyze_with_lsp(project_root, &changed.targets, bridge)
         },
     );
+    report.input_source = changed.source.as_str().into();
+    report.scope_note = merge_scope_note(changed.scope_note("targets"), &report.scope_note);
 
     emit_structured_report(
         context,
@@ -330,14 +334,16 @@ fn run_briefing(context: &AppContext, args: BriefingArgs) -> Result<i32> {
 
 fn run_impact_map(context: &AppContext, args: crate::cli::ImpactMapArgs) -> Result<i32> {
     let changed = change_targets::resolve_change_targets(&context.project_root, &args.targets);
-    let report = with_optional_lsp(
+    let mut report = with_optional_lsp(
         &context.project_root,
         args.lsp && !args.no_lsp,
-        |project_root| analyzers::impact_map::analyze(project_root, &changed),
+        |project_root| analyzers::impact_map::analyze(project_root, &changed.targets),
         |project_root, bridge| {
-            analyzers::impact_map::analyze_with_lsp(project_root, &changed, bridge)
+            analyzers::impact_map::analyze_with_lsp(project_root, &changed.targets, bridge)
         },
     );
+    report.input_source = changed.source.as_str().into();
+    report.scope_note = merge_scope_note(changed.scope_note("targets"), &report.scope_note);
 
     emit_structured_report(
         context,
@@ -350,7 +356,9 @@ fn run_impact_map(context: &AppContext, args: crate::cli::ImpactMapArgs) -> Resu
 
 fn run_tdd(context: &AppContext, files: Vec<String>) -> Result<i32> {
     let changed = change_targets::resolve_change_targets(&context.project_root, &files);
-    let report = analyzers::tdd::analyze(&context.project_root, &changed);
+    let mut report = analyzers::tdd::analyze(&context.project_root, &changed.targets);
+    report.input_source = changed.source.as_str().into();
+    report.scope_note = merge_scope_note(changed.scope_note("files"), &report.scope_note);
 
     emit_structured_report(
         context,
@@ -421,6 +429,14 @@ fn with_lsp_mode<T>(
     result
 }
 
+fn merge_scope_note(input_scope_note: String, analyzer_scope_note: &str) -> String {
+    if analyzer_scope_note.trim().is_empty() {
+        input_scope_note
+    } else {
+        format!("{input_scope_note} {analyzer_scope_note}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -439,5 +455,12 @@ mod tests {
             gate::Profile::from(crate::cli::GateProfile::Deep),
             gate::Profile::Deep
         );
+    }
+
+    #[test]
+    fn merge_scope_note_preserves_both_contexts() {
+        let merged = merge_scope_note("Input source: explicit.".into(), "AST-only scope.");
+        assert!(merged.contains("Input source: explicit."));
+        assert!(merged.contains("AST-only scope."));
     }
 }

@@ -28,12 +28,15 @@ func Run(config settings.AppConfig) {
 	}
 
 	// Build venue adapter via config-driven selection.
-	venue, err := buildVenueAdapter(config)
+	venueResult, err := buildVenueAdapter(config)
 	if err != nil {
 		logger.Error("build venue adapter", "error", err)
 		os.Exit(1)
 	}
-	logger.Info("venue adapter selected", "type", config.Venue.Type)
+	logger.Info("venue adapter selected",
+		"type", config.Venue.Type,
+		"query_capable", venueResult.query != nil,
+	)
 
 	// Build health trackers.
 	trackers := map[string]*healthz.Tracker{
@@ -42,7 +45,7 @@ func Run(config settings.AppConfig) {
 	}
 
 	pid := engine.Spawn(
-		executeactor.NewExecuteSupervisor(config, venue, trackers),
+		executeactor.NewExecuteSupervisor(config, venueResult.submit, venueResult.query, trackers),
 		"execute",
 	)
 
@@ -66,29 +69,37 @@ func Run(config settings.AppConfig) {
 	_ = srv.GracefulShutdown(5 * time.Second)
 }
 
-func buildVenueAdapter(config settings.AppConfig) (ports.VenuePort, error) {
+// venueAdapterResult holds both the submit and optional query ports for a venue.
+// The query port is used by Post200Reconciler (S322) for body-read-failure recovery.
+type venueAdapterResult struct {
+	submit ports.VenuePort
+	query  ports.VenueQueryPort // nil for adapters without query capability (e.g. paper)
+}
+
+func buildVenueAdapter(config settings.AppConfig) (venueAdapterResult, error) {
 	switch config.Venue.Type {
 	case settings.VenueTypePaperSimulator:
-		return appexec.NewPaperVenueAdapter(0), nil
+		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0)}, nil
 	case "":
 		// Default to paper_simulator when venue config is absent (backward compatible).
-		return appexec.NewPaperVenueAdapter(0), nil
+		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0)}, nil
 
 	case settings.VenueTypeBinanceFuturesTestnet:
 		creds, prob := appexec.LoadCredentials(string(config.Venue.Type), []string{"API_KEY", "API_SECRET"})
 		if prob != nil {
-			return nil, fmt.Errorf("venue %q credential load failed: %s", config.Venue.Type, prob.Message)
+			return venueAdapterResult{}, fmt.Errorf("venue %q credential load failed: %s", config.Venue.Type, prob.Message)
 		}
 		submitTimeout := config.Venue.SubmitTimeoutDuration()
-		return appexec.NewBinanceFuturesTestnetAdapter(creds, submitTimeout), nil
+		adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, submitTimeout)
+		return venueAdapterResult{submit: adapter, query: adapter}, nil
 
 	default:
 		// Unknown venue types require credential loading and activation gate ceremony.
 		creds, prob := appexec.LoadCredentials(string(config.Venue.Type), []string{"API_KEY", "API_SECRET"})
 		if prob != nil {
-			return nil, fmt.Errorf("venue %q credential load failed: %s", config.Venue.Type, prob.Message)
+			return venueAdapterResult{}, fmt.Errorf("venue %q credential load failed: %s", config.Venue.Type, prob.Message)
 		}
 		_ = creds
-		return nil, fmt.Errorf("venue type %q is registered but has no adapter implementation yet; activation gate ceremony required", config.Venue.Type)
+		return venueAdapterResult{}, fmt.Errorf("venue type %q is registered but has no adapter implementation yet; activation gate ceremony required", config.Venue.Type)
 	}
 }

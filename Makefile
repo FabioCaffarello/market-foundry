@@ -20,7 +20,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
-	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-operational smoke-restart-recovery \
+	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-composed smoke-operational smoke-restart-recovery \
 	ci-analytical seed seed-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
 	migrate-up migrate-status migrate-validate \
@@ -91,6 +91,8 @@ docs: ## Show primary docs for workflows, targets, and tooling.
 	@printf "  DEVELOPMENT.md\n"
 	@printf "  docs/README.md\n"
 	@printf "  docs/operations/README.md\n"
+	@printf "  docs/operations/development-environment-architecture-and-lifecycle.md\n"
+	@printf "  docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md\n"
 	@printf "  docs/operations/documentation-system-hardening.md\n"
 	@printf "  docs/operations/documentation-governance-entrypoints-and-taxonomy.md\n"
 	@printf "  docs/operations/repository-policy-and-lightweight-enforcement-2.md\n"
@@ -279,6 +281,7 @@ smoke-help: ## Show smoke/proof selection, prerequisites, and common troubleshoo
 	@printf "  %-24s %s\n" "make smoke-analytical" "ClickHouse writer/reader proof. Requires: make up && make seed*"
 	@printf "  %-24s %s\n" "make smoke-round-trip" "Full persistence round-trip proof (S317). Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-live-stack" "Live stack smoke + gateway verification (S318). Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-composed" "Composed pipeline smoke (S330). No stack needed"
 	@printf "  %-24s %s\n" "make smoke-operational" "Process isolation + halt/resume proof. Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-restart-recovery" "Restart/recovery resilience proof. Requires: make up && make seed"
 	@printf "\nCommon overrides\n"
@@ -313,6 +316,10 @@ smoke-live-stack: ## S318: Live stack smoke and gateway verification (venue path
 smoke-operational: ## Canonical specialized proof for OS-process/container operational behavior.
 	@echo "Running OS-process operational smoke (S279)..."
 	@./scripts/smoke-os-process-operational.sh
+
+smoke-composed: ## S330: Composed pipeline operational smoke (no stack needed).
+	@echo "Running composed pipeline smoke (S330)..."
+	@./scripts/smoke-composed-pipeline.sh
 
 smoke-restart-recovery: ## Canonical specialized proof for restart/recovery behavior.
 	@echo "Running restart and recovery smoke..."

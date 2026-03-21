@@ -170,6 +170,14 @@ func (a *BinanceFuturesTestnetAdapter) handleErrorResponse(statusCode int, body 
 		details["venue_error_code"] = errResp.Code
 	}
 
+	// S325: Check venue error code for classification override before HTTP-based routing.
+	// Some Binance error codes carry stronger semantic signal than the HTTP status alone.
+	// This enrichment is applied ONLY within the 4xx client-error range where the HTTP
+	// status is ambiguous but the venue code disambiguates the actual failure class.
+	if override, ok := a.classifyByVenueErrorCode(statusCode, errResp.Code, details); ok {
+		return ports.VenueOrderReceipt{}, override
+	}
+
 	// Classify the error without leaking credentials.
 	// Classification follows S308 §2.5 C-FAIL taxonomy (8 failure classes)
 	// and S310 §6.2 retryability semantics.
@@ -210,6 +218,59 @@ func (a *BinanceFuturesTestnetAdapter) handleErrorResponse(statusCode int, body 
 			"venue server error (HTTP %d)", statusCode).
 			WithDetails(details).MarkRetryable()
 	}
+}
+
+// classifyByVenueErrorCode applies venue-error-code-aware classification overrides.
+// Returns (problem, true) if the venue code overrides the HTTP-based classification,
+// or (nil, false) to fall through to the standard HTTP-based classification.
+//
+// S325: Only three Binance error codes are mapped here — all cases where the HTTP
+// status (typically 400 or 418) would produce a non-retryable InvalidArgument, but
+// the venue code reveals the actual failure is transient and retryable.
+//
+// Mapped codes:
+//   - -1001: Binance internal error — venue-side transient failure, not a client error.
+//   - -1003: Too many requests (IP-level) — rate-limit enforced via IP ban (HTTP 418).
+//   - -1015: Too many new orders — order-rate-limit sometimes returned as HTTP 400.
+//
+// Unmapped codes fall through to HTTP-based classification, which remains the default.
+func (a *BinanceFuturesTestnetAdapter) classifyByVenueErrorCode(statusCode, venueCode int, details map[string]any) (*problem.Problem, bool) {
+	// Only override within the 4xx range. 401/403 (auth) and 429 (rate limit)
+	// are already correctly classified by HTTP status and must not be overridden.
+	if statusCode < 400 || statusCode >= 500 {
+		return nil, false
+	}
+	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden || statusCode == http.StatusTooManyRequests {
+		return nil, false
+	}
+
+	switch venueCode {
+	case -1001:
+		// Binance internal error: venue-side transient failure surfaced as HTTP 400.
+		// Reclassify as Unavailable + retryable (was: InvalidArgument, non-retryable).
+		details["venue_error_class"] = "venue_internal"
+		return problem.Newf(problem.Unavailable,
+			"venue internal error (HTTP %d, code %d)", statusCode, venueCode).
+			WithDetails(details).MarkRetryable(), true
+
+	case -1003:
+		// IP-level rate limit: Binance returns HTTP 418 with code -1003 for IP bans.
+		// Reclassify as Unavailable + retryable (was: InvalidArgument, non-retryable).
+		details["venue_error_class"] = "ip_rate_limit"
+		return problem.Newf(problem.Unavailable,
+			"venue IP rate limited (HTTP %d, code %d)", statusCode, venueCode).
+			WithDetails(details).MarkRetryable(), true
+
+	case -1015:
+		// Order rate limit: Binance sometimes returns HTTP 400 for order rate limits.
+		// Reclassify as Unavailable + retryable (was: InvalidArgument, non-retryable).
+		details["venue_error_class"] = "order_rate_limit"
+		return problem.Newf(problem.Unavailable,
+			"venue order rate limited (HTTP %d, code %d)", statusCode, venueCode).
+			WithDetails(details).MarkRetryable(), true
+	}
+
+	return nil, false
 }
 
 func (a *BinanceFuturesTestnetAdapter) parseOrderResponse(body []byte, intent domainexec.ExecutionIntent) (ports.VenueOrderReceipt, *problem.Problem) {

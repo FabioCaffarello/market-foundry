@@ -26,16 +26,29 @@ type VenueAdapterConfig struct {
 	StalenessMaxAge  time.Duration
 	SubmitTimeout    time.Duration
 	Tracker          *healthz.Tracker
+	// VenueQuery is the query port for post-200 reconciliation (S322).
+	// When set, the Post200Reconciler is composed around the submit pipeline.
+	// When nil, reconciliation is skipped (e.g. paper adapter has no query path).
+	VenueQuery       ports.VenueQueryPort
 }
 
 // VenueAdapterActor consumes execution intents, checks kill switch + staleness,
 // calls VenuePort.SubmitOrder, and publishes fill events.
+//
+// S328: The submit pipeline is composed at startup via decorator stacking:
+//
+//	Post200Reconciler → RetrySubmitter(+hooks) → rawAdapter
+//
+// The composed venue replaces the raw adapter for all onIntent calls.
 type VenueAdapterActor struct {
 	cfg           VenueAdapterConfig
 	logger        *slog.Logger
 	controlStore  *natsexecution.ControlKVStore
 	fillPublisher *natsexecution.Publisher
 	safetyGate    *appexec.SafetyGate
+	// venue is the fully composed submit pipeline, assembled in start().
+	// Before start(), this is nil; onIntent uses this instead of cfg.Venue.
+	venue         ports.VenuePort
 }
 
 func NewVenueAdapterActor(cfg VenueAdapterConfig) actor.Producer {
@@ -89,6 +102,44 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 	// Assemble the safety gate with the available components.
 	a.safetyGate = appexec.NewSafetyGate(gateChecker, 2*time.Second, staleness)
 
+	// --- S328: Compose decorator pipeline around the raw venue adapter ---
+	//
+	// Decorator order (innermost → outermost):
+	//   1. rawAdapter        — the venue HTTP adapter (e.g. BinanceFuturesTestnetAdapter)
+	//   2. RetrySubmitter    — retries retryable failures with backoff, deadline, halt check
+	//   3. Post200Reconciler — recovers body-read-failure-after-200 via QueryOrder
+	//
+	// Rationale: RetrySubmitter wraps the raw adapter so transient failures are
+	// retried before surfacing. body-read-failure-after-200 is non-retryable
+	// (the venue accepted the order), so it passes through RetrySubmitter unchanged
+	// and is caught by Post200Reconciler at the outer layer.
+	//
+	// Observability hooks (PWT-3): WithHaltChecker, WithLogger, WithTracker are
+	// attached to RetrySubmitter so retry events are observable in structured logs
+	// and health counters.
+	rawVenue := a.cfg.Venue
+
+	// PWT-1: Wrap with RetrySubmitter for retryable failure recovery.
+	retrySubmitter := appexec.NewRetrySubmitter(rawVenue, appexec.DefaultRetryPolicy())
+	if gateChecker != nil {
+		retrySubmitter = retrySubmitter.WithHaltChecker(gateChecker)
+	}
+	// PWT-3: Attach observability hooks.
+	retrySubmitter = retrySubmitter.WithLogger(a.logger.With("component", "retry-submitter"))
+	if a.cfg.Tracker != nil {
+		retrySubmitter = retrySubmitter.WithTracker(a.cfg.Tracker)
+	}
+
+	// PWT-2: Wrap with Post200Reconciler for body-read-failure recovery.
+	var composedVenue ports.VenuePort = retrySubmitter
+	reconcilerActive := false
+	if a.cfg.VenueQuery != nil {
+		composedVenue = appexec.NewPost200Reconciler(retrySubmitter, a.cfg.VenueQuery, 0)
+		reconcilerActive = true
+	}
+
+	a.venue = composedVenue
+
 	// Connect fill publisher for publishing fill events.
 	fillPub := natsexecution.NewPublisher(a.cfg.NATSURL, a.cfg.Source, a.cfg.Registry)
 	if err := fillPub.Start(); err != nil {
@@ -102,6 +153,9 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 		"staleness_max_age", a.cfg.StalenessMaxAge.String(),
 		"submit_timeout", a.cfg.SubmitTimeout.String(),
 		"control_gate", a.controlStore != nil,
+		"retry_submitter", true,
+		"retry_halt_checker", gateChecker != nil,
+		"post200_reconciler", reconcilerActive,
 	)
 }
 
@@ -162,7 +216,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	submitCtx, submitCancel := context.WithTimeout(context.Background(), submitTimeout)
 	defer submitCancel()
 
-	receipt, prob := a.cfg.Venue.SubmitOrder(
+	receipt, prob := a.venue.SubmitOrder(
 		submitCtx,
 		ports.VenueOrderRequest{Intent: intent},
 	)
@@ -170,13 +224,23 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		if tracker != nil {
 			tracker.RecordError()
 		}
-		a.logger.Error("venue submit failed",
+		logAttrs := []any{
 			"error", prob.Message,
 			"source", intent.Source,
 			"symbol", intent.Symbol,
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
-		)
+		}
+		// Surface retry metadata from Problem.Details for structured observability.
+		for _, key := range []string{
+			"retry_attempts", "retry_exhausted",
+			"retry_halted", "retry_deadline_exceeded",
+		} {
+			if v, ok := prob.Details[key]; ok {
+				logAttrs = append(logAttrs, key, v)
+			}
+		}
+		a.logger.Error("venue submit failed", logAttrs...)
 		return
 	}
 

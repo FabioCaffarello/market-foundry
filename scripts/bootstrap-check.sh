@@ -62,6 +62,8 @@ required_paths=(
     "DEVELOPMENT.md"
     "docs/README.md"
     "docs/operations/README.md"
+    "docs/operations/development-environment-architecture-and-lifecycle.md"
+    "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md"
     "docs/operations/documentation-system-hardening.md"
     "docs/operations/documentation-governance-entrypoints-and-taxonomy.md"
     "docs/operations/repository-policy-and-lightweight-enforcement-2.md"
@@ -117,4 +119,8 @@ Troubleshooting first steps:
   - make diag
   - make ps
   - make logs SERVICE=gateway
+
+Canonical lifecycle docs:
+  - docs/operations/development-environment-architecture-and-lifecycle.md
+  - docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md
 EOF

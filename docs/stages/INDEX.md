@@ -44,7 +44,7 @@ Recent wave entrypoints:
 | Domain evolution depth wave | [S233](stage-s233-domain-evolution-charter-and-scope-freeze-report.md) | [S238](stage-s238-post-domain-evolution-gate-report.md) |
 | Breadth wave | [S240](stage-s240-breadth-charter-and-scope-freeze-report.md) | [S244](stage-s244-breadth-integration-and-gate-report.md) |
 | Behavioral wave | [S249](stage-s249-behavioral-feature-charter-and-scope-freeze-report.md) | [S254](stage-s254-post-behavioral-wave-gate-report.md) |
-| Venue closure tranche | [S321](stage-s321-venue-closure-tranche-charter-report.md) | S326 (pending) |
+| Venue closure tranche | [S321](stage-s321-venue-closure-tranche-charter-report.md) | [S326](stage-s326-venue-progression-evidence-gate-report.md) |
 
 Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
 for the expected linking model between charter, execution, promoted docs, and
@@ -87,6 +87,8 @@ gate decisions.
 | [C14](stage-c14-smoke-ux-and-proof-execution-ergonomics-report.md) | Smoke UX and proof execution ergonomics |
 | [C15](stage-c15-stage-tooling-and-execution-governance-support-report.md) | Stage tooling and execution governance support |
 | [C16](stage-c16-stage-documentation-governance-and-narrative-coherence-report.md) | Stage documentation governance and narrative coherence |
+| [C17](stage-c17-development-environment-architecture-and-lifecycle-unification-report.md) | Development environment architecture and lifecycle unification |
+| [C18](stage-c18-development-cli-reliability-command-testing-and-trustworthiness-report.md) | Development CLI reliability, command testing, and trustworthiness |
 
 ## Phase 1: Foundation (S06–S10)
 
@@ -564,3 +566,18 @@ gate decisions.
 | Stage | Description |
 |-------|-------------|
 | [S321](stage-s321-venue-closure-tranche-charter-report.md) | Venue closure tranche charter and scope freeze |
+| [S322](stage-s322-reconciliation-for-body-read-failure-after-200-report.md) | Reconciliation for body-read-failure-after-200 (R-S320-1 closure) |
+| [S323](stage-s323-retry-coordination-hardening-report.md) | Retry coordination hardening: global deadline, halt check, abort semantics (R-S320-2/3 closure) |
+| [S324](stage-s324-retry-observability-and-structured-metrics-report.md) | Retry observability and structured metrics (R-S320-5 closure) |
+| [S325](stage-s325-venue-error-code-aware-classification-report.md) | Venue error code aware classification enrichment (R-S320-4 closure) |
+| [S326](stage-s326-venue-progression-evidence-gate-report.md) | Venue progression evidence gate — formal closure after S321 tranche |
+
+## Phase 31b: Production Wiring Tranche (S327–S331)
+
+| Stage | Description |
+|-------|-------------|
+| [S327](stage-s327-production-wiring-tranche-charter-report.md) | Production wiring tranche charter and scope freeze |
+| [S328](stage-s328-execute-supervisor-composition-report.md) | Execute supervisor composition — PWT-1, PWT-2, PWT-3 (retry + reconciler + hooks) |
+| [S329](stage-s329-actor-pipeline-venue-path-verification-report.md) | Actor pipeline venue path verification — operational proof of composed pipeline |
+| [S330](stage-s330-live-smoke-after-production-wiring-report.md) | Live smoke after production wiring — composed pipeline operational verification |
+| [S331](stage-s331-production-wiring-evidence-gate-report.md) | Production wiring tranche evidence gate — formal closure after S327 tranche |

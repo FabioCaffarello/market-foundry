@@ -17,19 +17,21 @@ import (
 // ExecuteSupervisor is the root actor for the execute binary.
 // It consumes execution intents, passes them through the venue adapter, and publishes fills.
 type ExecuteSupervisor struct {
-	cfg      settings.AppConfig
-	venue    ports.VenuePort
-	trackers map[string]*healthz.Tracker
-	logger   *slog.Logger
+	cfg        settings.AppConfig
+	venue      ports.VenuePort
+	venueQuery ports.VenueQueryPort // nil when venue has no query capability (e.g. paper)
+	trackers   map[string]*healthz.Tracker
+	logger     *slog.Logger
 }
 
-func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, trackers map[string]*healthz.Tracker) actor.Producer {
+func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, venueQuery ports.VenueQueryPort, trackers map[string]*healthz.Tracker) actor.Producer {
 	return func() actor.Receiver {
 		return &ExecuteSupervisor{
-			cfg:      config,
-			venue:    venue,
-			trackers: trackers,
-			logger:   slog.Default().With("actor", "execute-supervisor"),
+			cfg:        config,
+			venue:      venue,
+			venueQuery: venueQuery,
+			trackers:   trackers,
+			logger:     slog.Default().With("actor", "execute-supervisor"),
 		}
 	}
 }
@@ -71,6 +73,7 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 		Source:          "execute.venue-adapter",
 		Registry:        execRegistry,
 		Venue:           s.venue,
+		VenueQuery:      s.venueQuery,
 		StalenessMaxAge: stalenessMaxAge,
 		SubmitTimeout:   submitTimeout,
 		Tracker:         adapterTracker,

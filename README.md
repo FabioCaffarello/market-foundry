@@ -119,6 +119,10 @@ The canonical documentation governance, entrypoint, and taxonomy rules live in
 [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md).
 The unified operational journey is documented in
 [`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md).
+The canonical developer-environment architecture and lifecycle now live in
+[`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md)
+and
+[`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md).
 The onboarding and troubleshooting runbook lives in
 [`docs/operations/developer-onboarding-and-troubleshooting-guide.md`](docs/operations/developer-onboarding-and-troubleshooting-guide.md).
 The smoke/proof UX guidance lives in
@@ -144,6 +148,8 @@ and
 - [`docs/README.md`](docs/README.md) - top-level documentation navigation
 - [`docs/operations/README.md`](docs/operations/README.md) - daily workflow,
   command surface, scripts, and documentation conventions
+- [`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md) - canonical developer environment architecture and lifecycle model
+- [`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md) - canonical entrypoints and flow-by-flow operating paths
 - [`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md) - smoke/proof UX model, selection guidance, and operator ergonomics
 - [`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md) - operational flows, failure interpretation, and diagnosis paths
 - [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md) - canonical documentation-system map and cross-surface links

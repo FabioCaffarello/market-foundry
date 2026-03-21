@@ -1,7 +1,9 @@
 package execution_test
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
@@ -56,6 +59,15 @@ func dummyRequest() ports.VenueOrderRequest {
 
 // noSleep replaces time.Sleep for fast tests.
 func noSleep(_ time.Duration) {}
+
+// dynamicGateChecker delegates to a function, allowing halt state to change mid-test.
+type dynamicGateChecker struct {
+	isHaltedFn func() bool
+}
+
+func (d *dynamicGateChecker) IsHalted(_ context.Context) bool {
+	return d.isHaltedFn()
+}
 
 // --- Tests ---
 
@@ -314,5 +326,472 @@ func TestRetry_SuccessOnThirdAttempt_MatchesRealScenario(t *testing.T) {
 	}
 	if venue.calls.Load() != 3 {
 		t.Fatalf("expected 3 calls, got %d", venue.calls.Load())
+	}
+}
+
+// --- S323: Deadline, Halt Check, and Abort Tests ---
+
+func TestRetry_DeadlineExceeded_AbortsLoop(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	tick := int64(0)
+	policy := execution.RetryPolicy{
+		MaxAttempts: 10,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+		Deadline:    50 * time.Millisecond,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	// Simulate time advancing 20ms per call to nowFn.
+	rs = rs.TestWithSleepFn(noSleep)
+	start := time.Now()
+	rs = rs.TestWithNowFn(func() time.Time {
+		n := atomic.AddInt64(&tick, 1)
+		return start.Add(time.Duration(n) * 20 * time.Millisecond)
+	})
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error after deadline exceeded")
+	}
+
+	// Should have deadline metadata.
+	if v, ok := prob.Details["retry_deadline_exceeded"]; !ok || v != true {
+		t.Fatalf("expected retry_deadline_exceeded=true, got %v", prob.Details)
+	}
+
+	// Should NOT have run all 10 attempts.
+	calls := venue.calls.Load()
+	if calls >= 10 {
+		t.Fatalf("expected fewer than 10 calls, got %d", calls)
+	}
+}
+
+func TestRetry_DeadlineZero_NoDeadlineEnforced(t *testing.T) {
+	// When Deadline is 0, only MaxAttempts governs.
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt < 3 {
+			return ports.VenueOrderReceipt{}, retryableProblem("transient")
+		}
+		return okReceipt()
+	}}
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 5,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+		Deadline:    0, // no deadline
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+func TestRetry_HaltChecker_HaltsDuringRetry(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 5,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error when kill switch is halted")
+	}
+
+	// Should carry halt metadata.
+	if v, ok := prob.Details["retry_halted"]; !ok || v != true {
+		t.Fatalf("expected retry_halted=true, got %v", prob.Details)
+	}
+
+	// Should have stopped after 1 attempt (halted before second attempt).
+	if venue.calls.Load() != 1 {
+		t.Fatalf("expected 1 call before halt, got %d", venue.calls.Load())
+	}
+}
+
+func TestRetry_HaltChecker_NotHalted_RetriesNormally(t *testing.T) {
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt < 3 {
+			return ports.VenueOrderReceipt{}, retryableProblem("transient")
+		}
+		return okReceipt()
+	}}
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 5,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithHaltChecker(&mockGateChecker{halted: false})
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+	if venue.calls.Load() != 3 {
+		t.Fatalf("expected 3 calls, got %d", venue.calls.Load())
+	}
+}
+
+func TestRetry_HaltChecker_Nil_FailOpen(t *testing.T) {
+	// When no halt checker is configured, retry proceeds normally (fail-open).
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt == 1 {
+			return ports.VenueOrderReceipt{}, retryableProblem("transient")
+		}
+		return okReceipt()
+	}}
+
+	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
+	rs = rs.TestWithSleepFn(noSleep)
+	// No WithHaltChecker call — nil by default.
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success with nil halt checker, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+func TestRetry_HaltChecker_BecomesHaltedMidLoop(t *testing.T) {
+	// Simulates halt occurring after the 2nd attempt.
+	haltAfter := int32(2)
+	callCount := atomic.Int32{}
+
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	dynamicChecker := &dynamicGateChecker{
+		isHaltedFn: func() bool {
+			n := callCount.Add(1)
+			return n >= int32(haltAfter)
+		},
+	}
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 10,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithHaltChecker(dynamicChecker)
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error when halt triggers mid-loop")
+	}
+	if v, ok := prob.Details["retry_halted"]; !ok || v != true {
+		t.Fatalf("expected retry_halted=true, got %v", prob.Details)
+	}
+}
+
+func TestRetry_DeadlineAndHalt_DeadlineWinsWhenBothTrigger(t *testing.T) {
+	// Both deadline exceeded and halt are true; deadline check runs first.
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	tick := int64(0)
+	start := time.Now()
+	policy := execution.RetryPolicy{
+		MaxAttempts: 10,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+		Deadline:    5 * time.Millisecond,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.TestWithNowFn(func() time.Time {
+		n := atomic.AddInt64(&tick, 1)
+		return start.Add(time.Duration(n) * 10 * time.Millisecond)
+	})
+	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error")
+	}
+
+	// Deadline check fires before halt check in the loop ordering.
+	if v, ok := prob.Details["retry_deadline_exceeded"]; !ok || v != true {
+		t.Fatalf("expected retry_deadline_exceeded=true, got %v", prob.Details)
+	}
+}
+
+func TestRetry_SuccessBeforeDeadline_NoDeadlineMetadata(t *testing.T) {
+	// When retry succeeds within deadline, no deadline metadata appears.
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt == 1 {
+			return ports.VenueOrderReceipt{}, retryableProblem("transient")
+		}
+		return okReceipt()
+	}}
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 5,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+		Deadline:    10 * time.Second,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+// --- S324: Retry Observability Tests ---
+
+// testLogger creates a logger that writes to a buffer for test assertions.
+func testLogger() (*slog.Logger, *bytes.Buffer) {
+	var buf bytes.Buffer
+	h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	return slog.New(h), &buf
+}
+
+func TestRetryObservability_SuccessAfterRetry_LogsAndCounts(t *testing.T) {
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt == 1 {
+			return ports.VenueOrderReceipt{}, retryableProblem("rate limited")
+		}
+		return okReceipt()
+	}}
+
+	logger, logBuf := testLogger()
+	tracker := healthz.NewTracker("retry-test")
+
+	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithLogger(logger)
+	rs = rs.WithTracker(tracker)
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+
+	// Verify structured log contains retry events.
+	logs := logBuf.String()
+	if !bytes.Contains(logBuf.Bytes(), []byte("retry attempt failed")) {
+		t.Errorf("expected 'retry attempt failed' log, got: %s", logs)
+	}
+	if !bytes.Contains(logBuf.Bytes(), []byte("retry succeeded")) {
+		t.Errorf("expected 'retry succeeded' log, got: %s", logs)
+	}
+
+	// Verify counters.
+	if v := tracker.Counter("retry_attempts").Load(); v != 1 {
+		t.Errorf("expected retry_attempts=1, got %d", v)
+	}
+	if v := tracker.Counter("retry_success_after_retry").Load(); v != 1 {
+		t.Errorf("expected retry_success_after_retry=1, got %d", v)
+	}
+}
+
+func TestRetryObservability_Exhaustion_LogsAndCounts(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue unavailable")
+	}}
+
+	logger, logBuf := testLogger()
+	tracker := healthz.NewTracker("retry-test")
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 3,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithLogger(logger)
+	rs = rs.WithTracker(tracker)
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error after exhausting retries")
+	}
+
+	logs := logBuf.String()
+	if !bytes.Contains(logBuf.Bytes(), []byte("retry exhausted")) {
+		t.Errorf("expected 'retry exhausted' log, got: %s", logs)
+	}
+
+	// 2 non-terminal attempt failures + 1 exhaustion.
+	if v := tracker.Counter("retry_attempts").Load(); v != 2 {
+		t.Errorf("expected retry_attempts=2 (non-terminal), got %d", v)
+	}
+	if v := tracker.Counter("retry_exhausted").Load(); v != 1 {
+		t.Errorf("expected retry_exhausted=1, got %d", v)
+	}
+}
+
+func TestRetryObservability_Halt_LogsAndCounts(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	logger, logBuf := testLogger()
+	tracker := healthz.NewTracker("retry-test")
+
+	policy := execution.RetryPolicy{
+		MaxAttempts: 5,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithLogger(logger)
+	rs = rs.WithTracker(tracker)
+	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error when halted")
+	}
+
+	logs := logBuf.String()
+	if !bytes.Contains(logBuf.Bytes(), []byte("retry halted by kill switch")) {
+		t.Errorf("expected 'retry halted by kill switch' log, got: %s", logs)
+	}
+
+	if v := tracker.Counter("retry_halted").Load(); v != 1 {
+		t.Errorf("expected retry_halted=1, got %d", v)
+	}
+}
+
+func TestRetryObservability_Deadline_LogsAndCounts(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return ports.VenueOrderReceipt{}, retryableProblem("venue error")
+	}}
+
+	logger, logBuf := testLogger()
+	tracker := healthz.NewTracker("retry-test")
+
+	tick := int64(0)
+	start := time.Now()
+	policy := execution.RetryPolicy{
+		MaxAttempts: 10,
+		BaseDelay:   time.Millisecond,
+		MaxDelay:    10 * time.Millisecond,
+		Factor:      2.0,
+		Deadline:    50 * time.Millisecond,
+	}
+	rs := execution.NewRetrySubmitter(venue, policy)
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.TestWithNowFn(func() time.Time {
+		n := atomic.AddInt64(&tick, 1)
+		return start.Add(time.Duration(n) * 20 * time.Millisecond)
+	})
+	rs = rs.WithLogger(logger)
+	rs = rs.WithTracker(tracker)
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob == nil {
+		t.Fatal("expected error after deadline")
+	}
+
+	logs := logBuf.String()
+	if !bytes.Contains(logBuf.Bytes(), []byte("retry deadline exceeded")) {
+		t.Errorf("expected 'retry deadline exceeded' log, got: %s", logs)
+	}
+
+	if v := tracker.Counter("retry_deadline_exceeded").Load(); v != 1 {
+		t.Errorf("expected retry_deadline_exceeded=1, got %d", v)
+	}
+}
+
+func TestRetryObservability_FirstAttemptSuccess_NoRetryLogs(t *testing.T) {
+	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
+		return okReceipt()
+	}}
+
+	logger, logBuf := testLogger()
+	tracker := healthz.NewTracker("retry-test")
+
+	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
+	rs = rs.TestWithSleepFn(noSleep)
+	rs = rs.WithLogger(logger)
+	rs = rs.WithTracker(tracker)
+
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+
+	// No retry logs should be emitted on first-attempt success.
+	if logBuf.Len() != 0 {
+		t.Errorf("expected no logs on first-attempt success, got: %s", logBuf.String())
+	}
+
+	// No retry counters should be incremented.
+	if v := tracker.Counter("retry_attempts").Load(); v != 0 {
+		t.Errorf("expected retry_attempts=0, got %d", v)
+	}
+	if v := tracker.Counter("retry_success_after_retry").Load(); v != 0 {
+		t.Errorf("expected retry_success_after_retry=0, got %d", v)
+	}
+}
+
+func TestRetryObservability_NilLoggerAndTracker_NoPanic(t *testing.T) {
+	venue := &fakeVenue{behavior: func(attempt int) (ports.VenueOrderReceipt, *problem.Problem) {
+		if attempt == 1 {
+			return ports.VenueOrderReceipt{}, retryableProblem("transient")
+		}
+		return okReceipt()
+	}}
+
+	// No WithLogger or WithTracker — must not panic.
+	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
+	rs = rs.TestWithSleepFn(noSleep)
+
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	if prob != nil {
+		t.Fatalf("expected success, got: %v", prob)
+	}
+	if receipt.VenueOrderID != "12345" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
 	}
 }

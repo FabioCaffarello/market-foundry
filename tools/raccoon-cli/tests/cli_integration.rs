@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
 
 fn raccoon() -> Command {
@@ -14,6 +15,40 @@ fn make_project(dir: &TempDir) {
     std::fs::create_dir_all(dir.path().join("deploy/compose")).unwrap();
     std::fs::create_dir_all(dir.path().join("tests")).unwrap();
     std::fs::create_dir_all(dir.path().join("tools")).unwrap();
+}
+
+fn init_git_repo(dir: &TempDir) {
+    let status = ProcessCommand::new("git")
+        .args(["init", "-q"])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(status.success(), "git init should succeed");
+}
+
+fn commit_all(dir: &TempDir, message: &str) {
+    let add_status = ProcessCommand::new("git")
+        .args(["add", "."])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(add_status.success(), "git add should succeed");
+
+    let commit_status = ProcessCommand::new("git")
+        .args([
+            "-c",
+            "user.name=Raccoon Test",
+            "-c",
+            "user.email=raccoon@example.test",
+            "commit",
+            "-q",
+            "-m",
+            message,
+        ])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(commit_status.success(), "git commit should succeed");
 }
 
 // ── Version / Help ────────────────────────────────────────────────────
@@ -903,6 +938,39 @@ fn briefing_json_no_targets_is_valid() {
 }
 
 #[test]
+fn briefing_no_targets_reports_non_git_reason() {
+    let dir = TempDir::new().unwrap();
+    make_project(&dir);
+
+    raccoon()
+        .args(["--project-root", dir.path().to_str().unwrap(), "briefing"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Reason:"))
+        .stdout(predicate::str::contains("not a git repository"));
+}
+
+#[test]
+fn briefing_json_reports_input_source() {
+    let dir = TempDir::new().unwrap();
+    make_project(&dir);
+
+    let output = raccoon()
+        .args([
+            "--json",
+            "--project-root",
+            dir.path().to_str().unwrap(),
+            "briefing",
+        ])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(parsed["input_source"], "not_git_repository");
+}
+
+#[test]
 fn briefing_with_file_target() {
     let dir = TempDir::new().unwrap();
     make_project(&dir);
@@ -1140,7 +1208,7 @@ fn briefing_fallback_without_lsp() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Briefing"))
-        .stdout(predicate::str::contains("No LSP enrichment"));
+        .stdout(predicate::str::contains("Input source: explicit"));
 }
 
 // ── Baseline Drift ────────────────────────────────────────────────────
@@ -1424,6 +1492,78 @@ fn recommend_json_output_is_valid() {
     assert!(parsed["risks"].is_array());
     assert!(parsed["commands"].is_object());
     assert!(parsed["scope_note"].is_string());
+    assert!(parsed["input"]["detection_mode"].is_string());
+}
+
+#[test]
+fn recommend_json_reports_non_git_detection_mode() {
+    let dir = TempDir::new().unwrap();
+    make_project(&dir);
+
+    let output = raccoon()
+        .args([
+            "--json",
+            "--project-root",
+            dir.path().to_str().unwrap(),
+            "recommend",
+        ])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(parsed["input"]["detection_mode"], "not_git_repository");
+    assert!(parsed["scope_note"]
+        .as_str()
+        .unwrap()
+        .contains("not a git repository"));
+}
+
+#[test]
+fn tdd_reports_reason_when_auto_detection_is_unavailable() {
+    let dir = TempDir::new().unwrap();
+    make_project(&dir);
+
+    raccoon()
+        .args(["--project-root", dir.path().to_str().unwrap(), "tdd"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Reason:"))
+        .stdout(predicate::str::contains("not a git repository"));
+}
+
+#[test]
+fn tdd_auto_detection_prefers_structural_targets_in_git_worktree() {
+    let dir = TempDir::new().unwrap();
+    make_project(&dir);
+    init_git_repo(&dir);
+    commit_all(&dir, "baseline");
+
+    std::fs::create_dir_all(dir.path().join("docs")).unwrap();
+    std::fs::write(dir.path().join("docs/notes.md"), "# note\n").unwrap();
+    std::fs::create_dir_all(dir.path().join("internal/domain/configctl")).unwrap();
+    std::fs::write(
+        dir.path().join("internal/domain/configctl/config.go"),
+        "package configctl\n\ntype ConfigSet struct { ID string }\n",
+    )
+    .unwrap();
+
+    let output = raccoon()
+        .args([
+            "--json",
+            "--project-root",
+            dir.path().to_str().unwrap(),
+            "tdd",
+        ])
+        .output()
+        .unwrap();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let changed_files = parsed["changed_files"].as_array().unwrap();
+    assert_eq!(parsed["input_source"], "git_status_structural");
+    assert_eq!(changed_files.len(), 1);
+    assert_eq!(changed_files[0], "internal/domain/configctl/config.go");
 }
 
 #[test]

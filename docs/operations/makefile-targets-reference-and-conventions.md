@@ -117,6 +117,8 @@ They must not be documented as replacing the canonical `up`/`down`/`logs` or `sm
 | `make smoke` | First-slice smoke |
 | `make smoke-multi` | Multi-symbol smoke |
 | `make smoke-analytical` | Analytical path proof |
+| `make smoke-round-trip` | Full persistence round-trip proof |
+| `make smoke-live-stack` | Live stack and gateway verification proof |
 | `make smoke-operational` | OS-process operational smoke |
 | `make smoke-restart-recovery` | Compose-level restart and recovery smoke |
 | `make diag` | Diagnostic snapshot |

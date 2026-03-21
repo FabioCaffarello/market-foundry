@@ -43,6 +43,7 @@ pub fn analyze(project_root: &Path, changed_files: &[String]) -> TddReport {
 
     TddReport {
         changed_files: changed_files.to_vec(),
+        input_source: "explicit".into(),
         file_impacts,
         affected_areas,
         existing_tests,
@@ -63,6 +64,7 @@ pub fn analyze(project_root: &Path, changed_files: &[String]) -> TddReport {
 #[derive(Debug, Clone, Serialize)]
 pub struct TddReport {
     pub changed_files: Vec<String>,
+    pub input_source: String,
     pub file_impacts: Vec<FileImpact>,
     pub affected_areas: Vec<AffectedArea>,
     pub existing_tests: Vec<NearbyTest>,
@@ -84,6 +86,7 @@ impl TddReport {
     fn empty() -> Self {
         TddReport {
             changed_files: vec![],
+            input_source: "explicit".into(),
             file_impacts: vec![],
             affected_areas: vec![],
             existing_tests: vec![],
@@ -574,6 +577,8 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
 
     if report.changed_files.is_empty() {
         writeln!(out, "No changed files detected.\n").unwrap();
+        writeln!(out, "Reason: {}", report.scope_note).unwrap();
+        writeln!(out).unwrap();
         writeln!(out, "Usage: raccoon-cli tdd <file1> [file2] ...").unwrap();
         writeln!(
             out,
@@ -593,6 +598,8 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
     }
 
     // Changed files
+    writeln!(out, "Input source: {}", report.input_source).unwrap();
+    writeln!(out).unwrap();
     writeln!(out, "Changed files ({}):", report.changed_files.len()).unwrap();
     for f in &report.changed_files {
         writeln!(out, "  {f}").unwrap();

@@ -43,6 +43,8 @@ This keeps the CLI sustainable as an internal product without turning it into a 
 
 - [`docs/operations/raccoon-cli-ux-taxonomy-and-guard-rails.md`](../operations/raccoon-cli-ux-taxonomy-and-guard-rails.md)
 - [`docs/operations/raccoon-cli-command-reference.md`](../operations/raccoon-cli-command-reference.md)
+- [`docs/tooling/development-cli-reliability-and-command-testing-strategy.md`](development-cli-reliability-and-command-testing-strategy.md)
+- [`docs/tooling/raccoon-cli-command-trustworthiness-and-error-semantics.md`](raccoon-cli-command-trustworthiness-and-error-semantics.md)
 - [`docs/tooling/raccoon-cli-internal-modularity-and-command-architecture.md`](raccoon-cli-internal-modularity-and-command-architecture.md)
 - [`docs/tooling/raccoon-cli-module-boundaries-and-evolution-rules.md`](raccoon-cli-module-boundaries-and-evolution-rules.md)
 - [`docs/stages/stage-c4-raccoon-cli-ux-command-taxonomy-and-guard-rails-report.md`](../stages/stage-c4-raccoon-cli-ux-command-taxonomy-and-guard-rails-report.md)

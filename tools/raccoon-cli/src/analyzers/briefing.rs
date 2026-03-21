@@ -102,6 +102,7 @@ pub fn analyze_with_lsp(
 #[derive(Debug, Clone, Serialize)]
 pub struct BriefingReport {
     pub targets: Vec<String>,
+    pub input_source: String,
     pub facts: Vec<BriefingItem>,
     pub inferences: Vec<BriefingItem>,
     pub recommendations: Vec<BriefingItem>,
@@ -116,6 +117,7 @@ impl BriefingReport {
     fn empty() -> Self {
         BriefingReport {
             targets: vec![],
+            input_source: "explicit".into(),
             facts: vec![],
             inferences: vec![],
             recommendations: vec![
@@ -345,6 +347,7 @@ fn build_report(
 
     BriefingReport {
         targets: targets.to_vec(),
+        input_source: "explicit".into(),
         facts,
         inferences,
         recommendations,
@@ -559,6 +562,8 @@ pub fn render_human(report: &BriefingReport, verbose: bool) -> String {
 
     if report.targets.is_empty() {
         writeln!(out, "No targets provided.\n").unwrap();
+        writeln!(out, "Reason: {}", report.scope_note).unwrap();
+        writeln!(out).unwrap();
         writeln!(out, "Usage: raccoon-cli briefing <target> [target2] ...").unwrap();
         writeln!(
             out,
@@ -568,6 +573,7 @@ pub fn render_human(report: &BriefingReport, verbose: bool) -> String {
         return out;
     }
 
+    writeln!(out, "Input source: {}", report.input_source).unwrap();
     writeln!(out, "Targets: {}\n", report.targets.join(", ")).unwrap();
 
     // Facts

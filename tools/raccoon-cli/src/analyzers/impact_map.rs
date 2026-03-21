@@ -58,6 +58,7 @@ pub fn analyze(project_root: &Path, targets: &[String]) -> ImpactReport {
 
     ImpactReport {
         targets: targets.to_vec(),
+        input_source: "explicit".into(),
         impacts,
         recommended_commands: all_commands.into_iter().collect(),
         sensitive_areas_touched: all_areas.into_iter().collect(),
@@ -155,6 +156,7 @@ pub fn analyze_with_lsp(
 #[derive(Debug, Clone, Serialize)]
 pub struct ImpactReport {
     pub targets: Vec<String>,
+    pub input_source: String,
     pub impacts: Vec<TargetImpact>,
     pub recommended_commands: Vec<String>,
     pub sensitive_areas_touched: Vec<String>,
@@ -169,6 +171,7 @@ impl ImpactReport {
     pub fn empty() -> Self {
         ImpactReport {
             targets: vec![],
+            input_source: "explicit".into(),
             impacts: vec![],
             recommended_commands: vec![],
             sensitive_areas_touched: vec![],
@@ -881,6 +884,8 @@ pub fn render_human(report: &ImpactReport, verbose: bool) -> String {
     let mut out = String::new();
 
     writeln!(out, "=== Impact Map ===").unwrap();
+    writeln!(out).unwrap();
+    writeln!(out, "Input source: {}", report.input_source).unwrap();
     writeln!(out).unwrap();
 
     // LSP status (if enrichment was requested)

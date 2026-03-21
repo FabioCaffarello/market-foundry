@@ -20,6 +20,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 |---|---|
 | Documentation system map and cross-surface ownership | [`documentation-system-hardening.md`](documentation-system-hardening.md) |
 | Documentation governance, entrypoints, and taxonomy | [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md) |
+| Developer environment architecture and lifecycle | [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md) |
+| Canonical lifecycle entrypoints and flows | [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md) |
 | Unified official developer workflow | [`developer-workflow-unification.md`](developer-workflow-unification.md) |
 | Onboarding and first-line troubleshooting | [`developer-onboarding-and-troubleshooting-guide.md`](developer-onboarding-and-troubleshooting-guide.md) |
 | Daily workflow | [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) |
@@ -51,6 +53,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 | Daily workflow | [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) | Operational loop, not taxonomy |
 | Documentation system map | [`documentation-system-hardening.md`](documentation-system-hardening.md) | Canonical map between operations, architecture, tooling, stages, and archive |
 | Documentation governance and taxonomy | [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md) | Canonical rules for placement, naming, and maintenance |
+| Developer environment architecture and lifecycle | [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md) | Canonical lifecycle model and support-surface hierarchy |
+| Canonical lifecycle flows and entrypoints | [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md) | Flow-by-flow commands for bootstrap, dev loop, smoke, troubleshooting, and reset |
 | Operations support docs | [`README.md`](README.md) | User-facing support surface index |
 | Tooling reference | [`../tooling/README.md`](../tooling/README.md) | Analyzer and rule catalogs |
 | Architecture | [`../architecture/README.md`](../architecture/README.md) | Binding architecture and governance |
@@ -63,6 +67,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 
 - [`documentation-system-hardening.md`](documentation-system-hardening.md)
 - [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md)
+- [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md)
+- [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md)
 - [`developer-workflow-unification.md`](developer-workflow-unification.md)
 - [`developer-onboarding-and-troubleshooting-guide.md`](developer-onboarding-and-troubleshooting-guide.md)
 - [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md)

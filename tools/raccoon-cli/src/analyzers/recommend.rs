@@ -105,6 +105,7 @@ impl RecommendReport {
                 changed_files: vec![],
                 has_baseline: false,
                 change_scope: "none".into(),
+                detection_mode: "explicit".into(),
             },
             facts: vec![],
             inferences: vec![],
@@ -136,6 +137,7 @@ pub struct InputSummary {
     pub changed_files: Vec<String>,
     pub has_baseline: bool,
     pub change_scope: String,
+    pub detection_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -637,6 +639,7 @@ fn build_report(
             changed_files: changed_files.to_vec(),
             has_baseline,
             change_scope: change_scope.to_string(),
+            detection_mode: "explicit".into(),
         },
         facts,
         inferences,
@@ -766,6 +769,8 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
 
     if report.input.changed_files.is_empty() && !report.input.has_baseline {
         writeln!(out, "No changed files detected.\n").unwrap();
+        writeln!(out, "Reason: {}", report.scope_note).unwrap();
+        writeln!(out).unwrap();
         writeln!(out, "Usage:").unwrap();
         writeln!(out, "  raccoon-cli recommend <file1> [file2] ...").unwrap();
         writeln!(out, "  raccoon-cli recommend --baseline snapshot.json").unwrap();
@@ -780,9 +785,10 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
     // ── Input summary ──
     writeln!(
         out,
-        "Input: {} file(s), scope: {}{}",
+        "Input: {} file(s), scope: {}, source: {}{}",
         report.input.changed_files.len(),
         report.input.change_scope,
+        report.input.detection_mode,
         if report.input.has_baseline {
             " (with baseline)"
         } else {
