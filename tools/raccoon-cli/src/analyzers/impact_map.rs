@@ -332,7 +332,7 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         commands: &[
             "raccoon-cli contract-audit",
             "raccoon-cli runtime-bindings",
-            "raccoon-cli scenario-smoke happy-path",
+            "make smoke",
         ],
     },
     SensitiveAreaDef {
@@ -345,7 +345,7 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         commands: &[
             "raccoon-cli topology-doctor",
             "raccoon-cli runtime-bindings",
-            "raccoon-cli scenario-smoke happy-path",
+            "make smoke",
         ],
     },
     SensitiveAreaDef {
@@ -355,10 +355,7 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
             "internal/actors/scopes/configctl/",
             "internal/application/configctl/",
         ],
-        commands: &[
-            "raccoon-cli contract-audit",
-            "raccoon-cli scenario-smoke config-lifecycle",
-        ],
+        commands: &["raccoon-cli contract-audit", "make smoke"],
     },
 ];
 

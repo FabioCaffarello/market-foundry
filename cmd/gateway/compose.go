@@ -237,13 +237,17 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 		strategyReader := newAnalyticalStrategyReader(chClient, logger)
 		riskReader := newAnalyticalRiskReader(chClient, logger)
 		executionReader := newAnalyticalExecutionReader(chClient, logger)
+		compositeReader := newAnalyticalCompositeReader(chClient, logger)
 		deps.Analytical = routes.AnalyticalFamilyDeps{
-			GetCandleHistory:    analyticalclient.NewGetCandleHistoryUseCase(candleReader, logger),
-			GetSignalHistory:    analyticalclient.NewGetSignalHistoryUseCase(signalReader, logger),
-			GetDecisionHistory:  analyticalclient.NewGetDecisionHistoryUseCase(decisionReader, logger),
-			GetStrategyHistory:  analyticalclient.NewGetStrategyHistoryUseCase(strategyReader, logger),
-			GetRiskHistory:      analyticalclient.NewGetRiskHistoryUseCase(riskReader, logger),
-			GetExecutionHistory: analyticalclient.NewGetExecutionHistoryUseCase(executionReader, logger),
+			GetCandleHistory:        analyticalclient.NewGetCandleHistoryUseCase(candleReader, logger),
+			GetSignalHistory:        analyticalclient.NewGetSignalHistoryUseCase(signalReader, logger),
+			GetDecisionHistory:      analyticalclient.NewGetDecisionHistoryUseCase(decisionReader, logger),
+			GetStrategyHistory:      analyticalclient.NewGetStrategyHistoryUseCase(strategyReader, logger),
+			GetRiskHistory:          analyticalclient.NewGetRiskHistoryUseCase(riskReader, logger),
+			GetExecutionHistory:     analyticalclient.NewGetExecutionHistoryUseCase(executionReader, logger),
+			GetCompositeChain:       analyticalclient.NewGetCompositeChainUseCase(compositeReader, logger),
+			GetPipelineFunnel:       analyticalclient.NewGetPipelineFunnelUseCase(compositeReader, logger),
+			GetDispositionBreakdown: analyticalclient.NewGetDispositionBreakdownUseCase(compositeReader, logger),
 		}
 	}
 

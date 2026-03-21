@@ -273,5 +273,19 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			startConsumer: writerpipeline.NewExecutionStarter(reg.execution),
 		},
 		// codegen:end pipeline_entry family=paper_order
+
+		// ── Execution: venue_market_order → executions ──
+		// S317: venue fill events from EXECUTION_FILL_EVENTS → same executions table.
+		// Closes the persistence round-trip gap identified in S316 (R-S316-1).
+		{
+			family:        "venue_market_order",
+			consumerName:  "writer-execution-venue-fill-consumer",
+			inserterName:  "writer-execution-venue-fill-inserter",
+			table:         "executions",
+			insertSQL:     "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)",
+			consumerSpec:  natsexecution.WriterVenueMarketOrderFillConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
+			startConsumer: writerpipeline.NewVenueFillStarter(reg.execution),
+		},
 	}
 }

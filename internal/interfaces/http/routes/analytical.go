@@ -14,17 +14,20 @@ import (
 // AnalyticalFamilyDeps groups analytical query use cases backed by ClickHouse.
 // These are additive — they never overlap with or modify existing operational routes.
 type AnalyticalFamilyDeps struct {
-	GetCandleHistory   handlersGetAnalyticalCandleHistoryUseCase
-	GetSignalHistory   handlersGetAnalyticalSignalHistoryUseCase
-	GetDecisionHistory handlersGetAnalyticalDecisionHistoryUseCase
-	GetStrategyHistory handlersGetAnalyticalStrategyHistoryUseCase
-	GetRiskHistory      handlersGetAnalyticalRiskHistoryUseCase
-	GetExecutionHistory handlersGetAnalyticalExecutionHistoryUseCase
+	GetCandleHistory        handlersGetAnalyticalCandleHistoryUseCase
+	GetSignalHistory        handlersGetAnalyticalSignalHistoryUseCase
+	GetDecisionHistory      handlersGetAnalyticalDecisionHistoryUseCase
+	GetStrategyHistory      handlersGetAnalyticalStrategyHistoryUseCase
+	GetRiskHistory          handlersGetAnalyticalRiskHistoryUseCase
+	GetExecutionHistory     handlersGetAnalyticalExecutionHistoryUseCase
+	GetCompositeChain       handlersGetCompositeChainUseCase
+	GetPipelineFunnel       handlersGetPipelineFunnelUseCase
+	GetDispositionBreakdown handlersGetDispositionBreakdownUseCase
 }
 
 // HasAny reports whether at least one analytical use case is available.
 func (a AnalyticalFamilyDeps) HasAny() bool {
-	return a.GetCandleHistory != nil || a.GetSignalHistory != nil || a.GetDecisionHistory != nil || a.GetStrategyHistory != nil || a.GetRiskHistory != nil || a.GetExecutionHistory != nil
+	return a.GetCandleHistory != nil || a.GetSignalHistory != nil || a.GetDecisionHistory != nil || a.GetStrategyHistory != nil || a.GetRiskHistory != nil || a.GetExecutionHistory != nil || a.GetCompositeChain != nil || a.GetPipelineFunnel != nil || a.GetDispositionBreakdown != nil
 }
 
 type handlersGetAnalyticalCandleHistoryUseCase interface {
@@ -49,6 +52,18 @@ type handlersGetAnalyticalRiskHistoryUseCase interface {
 
 type handlersGetAnalyticalExecutionHistoryUseCase interface {
 	Execute(context.Context, analyticalclient.ExecutionHistoryQuery) (analyticalclient.ExecutionHistoryReply, *problem.Problem)
+}
+
+type handlersGetCompositeChainUseCase interface {
+	Execute(context.Context, analyticalclient.CompositeChainQuery) (analyticalclient.CompositeChainReply, *problem.Problem)
+}
+
+type handlersGetPipelineFunnelUseCase interface {
+	Execute(context.Context, analyticalclient.PipelineFunnelQuery) (analyticalclient.PipelineFunnelReply, *problem.Problem)
+}
+
+type handlersGetDispositionBreakdownUseCase interface {
+	Execute(context.Context, analyticalclient.DispositionBreakdownQuery) (analyticalclient.DispositionBreakdownReply, *problem.Problem)
 }
 
 // Analytical registers HTTP routes for analytical (ClickHouse-backed) query endpoints.
@@ -112,6 +127,47 @@ func Analytical(deps AnalyticalFamilyDeps, logger *slog.Logger) []webserver.Rout
 			Path:    "/analytical/execution/history",
 			Handler: handler.GetExecutionHistory,
 		})
+	}
+
+	// Composite chain and aggregation endpoints (S297/S298).
+	if deps.GetCompositeChain != nil || deps.GetPipelineFunnel != nil || deps.GetDispositionBreakdown != nil {
+		compositeHandler := handlers.NewCompositeWebHandler(handlers.CompositeHandlerDeps{
+			GetCompositeChain:      deps.GetCompositeChain,
+			GetPipelineFunnel:      deps.GetPipelineFunnel,
+			GetDispositionBreakdown: deps.GetDispositionBreakdown,
+			Logger:                 logger,
+		})
+
+		if deps.GetCompositeChain != nil {
+			routes = append(routes,
+				webserver.Route{
+					Method:  http.MethodGet,
+					Path:    "/analytical/composite/chain",
+					Handler: compositeHandler.GetChain,
+				},
+				webserver.Route{
+					Method:  http.MethodGet,
+					Path:    "/analytical/composite/chains",
+					Handler: compositeHandler.GetChains,
+				},
+			)
+		}
+
+		if deps.GetPipelineFunnel != nil {
+			routes = append(routes, webserver.Route{
+				Method:  http.MethodGet,
+				Path:    "/analytical/composite/funnel",
+				Handler: compositeHandler.GetFunnel,
+			})
+		}
+
+		if deps.GetDispositionBreakdown != nil {
+			routes = append(routes, webserver.Route{
+				Method:  http.MethodGet,
+				Path:    "/analytical/composite/dispositions",
+				Handler: compositeHandler.GetDispositions,
+			})
+		}
 	}
 
 	return routes

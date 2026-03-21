@@ -13,7 +13,7 @@ pub enum Profile {
     Fast,
     /// Same checks as Fast, but treats warnings as failures (stricter for CI pipelines).
     Ci,
-    /// All checks including runtime-smoke. Requires a running local environment.
+    /// All checks including the legacy runtime-smoke helper. Requires a running local environment.
     Deep,
 }
 
@@ -493,7 +493,7 @@ fn render_human(report: &GateReport, verbose: bool) -> String {
         out.push_str("  2. Implement the change\n");
         out.push_str("  3. Run `make verify` to prove the change is safe\n");
         if report.profile == "fast" || report.profile == "ci" {
-            out.push_str("  4. Run `make check-deep` for full operational proof (requires `make up-dataplane`)\n");
+            out.push_str("  4. Run the relevant `make smoke*` target after `make up` for operational proof (or use `make live*` when you want orchestration plus validation)\n");
         }
     } else {
         let error_word = if s.total_errors == 1 {
@@ -573,7 +573,7 @@ fn step_remediation_hint(step_name: &str) -> String {
                 .to_string()
         }
         "runtime-smoke" => {
-            "[deprecated] use `make smoke` or `make smoke-multi` for E2E testing".to_string()
+            "[legacy helper] use the canonical `make smoke*` surface (`make smoke`, `make smoke-multi`, `make smoke-analytical`, `make smoke-operational`, or `make smoke-restart-recovery`)".to_string()
         }
         other => format!("run `raccoon-cli {other}` for full details"),
     }
@@ -1089,8 +1089,8 @@ mod tests {
             "should recommend make verify, got:\n{out}"
         );
         assert!(
-            out.contains("make check-deep"),
-            "fast profile should recommend check-deep, got:\n{out}"
+            out.contains("make smoke*"),
+            "fast profile should recommend the canonical smoke surface, got:\n{out}"
         );
     }
 

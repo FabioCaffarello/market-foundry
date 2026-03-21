@@ -184,6 +184,13 @@ func StoreVenueMarketOrderFillConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-execution-venue-market-order-fill", "execution.fill.venue_market_order.>", "execution.fill.v1.venue_market_order_filled", "EXECUTION_FILL_EVENTS")
 }
 
+// WriterVenueMarketOrderFillConsumer defines the durable consumer spec for writer consuming
+// venue market order fill events from EXECUTION_FILL_EVENTS.
+// S317: closes the persistence round-trip gap — venue fills now reach ClickHouse.
+func WriterVenueMarketOrderFillConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec("writer-execution-venue-fill", "execution.fill.venue_market_order.>", "execution.fill.v1.venue_market_order_filled", "EXECUTION_FILL_EVENTS")
+}
+
 // DefaultStalenessMaxAge is the default maximum age for execution intents before they are
 // considered stale and skipped. 120 seconds = 2× 1-minute timeframe.
 const DefaultStalenessMaxAge = 120 * time.Second

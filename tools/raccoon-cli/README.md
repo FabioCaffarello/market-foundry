@@ -14,11 +14,33 @@ cargo test
 
 ```sh
 # From the project root:
-raccoon-cli doctor                           # project structure check
-raccoon-cli quality-gate                     # fast static checks (default)
-raccoon-cli quality-gate --profile ci --json # CI pipeline
-raccoon-cli quality-gate --profile deep      # full validation
+raccoon-cli check repo                           # project structure check
+raccoon-cli check gate                           # fast static checks (default)
+raccoon-cli check gate --profile ci --json       # CI pipeline
+raccoon-cli check gate --profile deep            # full validation
 ```
+
+Prefer `make check`, `make tdd`, `make verify`, and `make smoke*` for the
+repository workflow contract. Use direct `raccoon-cli` commands when you need
+expert inspection depth or when working on the tooling layer itself.
+The deep quality-gate profile and `runtime-smoke` compatibility helper are not
+the canonical operational-proof surface; the proof-of-record runtime entrypoints
+remain the `make smoke*` targets.
+
+## Internal Structure
+
+After Stage C8, the CLI is organized around explicit internal layers:
+
+- `src/cli/mod.rs` — command layer, taxonomy, aliases, and help text
+- `src/application/mod.rs` — command dispatch, exit-code policy, and renderer selection
+- `src/application/change_targets.rs` — shared `git status` target detection for change-oriented commands
+- `src/analyzers/*` and `src/gate/mod.rs` — analysis and orchestration logic
+- `src/output/mod.rs`, `src/models/mod.rs`, `src/error/mod.rs`, `src/lsp/*`, `src/codeintel/*`, `src/smoke/*` — support modules
+
+See:
+
+- `docs/tooling/raccoon-cli-internal-modularity-and-command-architecture.md`
+- `docs/tooling/raccoon-cli-module-boundaries-and-evolution-rules.md`
 
 ## Commands
 
@@ -91,8 +113,8 @@ All commands support `--json` for machine-readable output and `-v` for verbose m
 
 ## Deprecated Commands
 
-The following commands are legacy quality-service artifacts and are no longer functional:
-- `runtime-smoke` — replaced by `make smoke` / `make smoke-multi`
+The following commands are legacy quality-service artifacts kept only for compatibility:
+- `runtime-smoke` — replaced by the canonical `make smoke*` surface
 - `scenario-smoke` — replaced by `make smoke` / `make smoke-multi`
 - `results-inspect` — no longer applicable (validator removed)
 - `trace-pack` — no longer applicable

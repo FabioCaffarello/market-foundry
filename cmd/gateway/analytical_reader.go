@@ -49,3 +49,11 @@ func newAnalyticalRiskReader(client *clickhouse.Client, logger *slog.Logger) ana
 func newAnalyticalExecutionReader(client *clickhouse.Client, logger *slog.Logger) analyticalclient.ExecutionReader {
 	return clickhouse.NewExecutionReader(client, logger)
 }
+
+// newAnalyticalCompositeReader creates the composite execution chain reader from the adapter layer.
+// The CompositeReader queries all five domain tables by correlation_id and assembles
+// a unified causal chain. It satisfies both CompositeReader (chain queries) and
+// AggregationReader (funnel/disposition queries) interfaces.
+func newAnalyticalCompositeReader(client *clickhouse.Client, logger *slog.Logger) *clickhouse.CompositeReader {
+	return clickhouse.NewCompositeReader(client, logger)
+}

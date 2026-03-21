@@ -1248,7 +1248,7 @@ pub fn render_human(report: &RenameSafetyReport, verbose: bool) -> String {
     if !report.suggested_smoke_scenarios.is_empty() {
         writeln!(out, "Suggested smoke scenarios:").unwrap();
         for s in &report.suggested_smoke_scenarios {
-            writeln!(out, "  $ raccoon-cli scenario-smoke {s}").unwrap();
+            writeln!(out, "  $ make smoke  # scenario: {s}").unwrap();
         }
     }
 

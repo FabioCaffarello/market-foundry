@@ -39,13 +39,52 @@ compose() {
     docker compose -f "${COMPOSE_FILE}" "$@"
 }
 
-FLUSH_WAIT="${FLUSH_WAIT:-120}"
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/smoke-analytical-e2e.sh [--wait <seconds>] [--help]
+
+Runs the analytical end-to-end proof against a running compose stack.
+Canonical public entrypoint: `make smoke-analytical`
+Expected setup: `make up && make seed` (or `make seed-multi`)
+
+Options:
+  --wait <seconds>  Maximum time to wait for writer flushes. Default: 120
+  --help            Show this help text.
+
+Environment:
+  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT        Preferred wait override from make/env.
+  FLUSH_WAIT        Legacy wait override kept for compatibility.
+EOF
+}
+
+FLUSH_WAIT="${SMOKE_WAIT:-${FLUSH_WAIT:-120}}"
 CLICKHOUSE_DATABASE="${CLICKHOUSE_DATABASE:-market_foundry}"
-if [[ "${1:-}" == "--wait" ]]; then
-    FLUSH_WAIT="${2:-120}"
-fi
+SETUP_HINT="make up && make seed (or make seed-multi)"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --wait)
+            [[ $# -ge 2 ]] || usage_error "--wait requires a value"
+            FLUSH_WAIT="$2"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
+    esac
+    shift
+done
+
+require_commands docker curl python3
+require_positive_integer "--wait" "${FLUSH_WAIT}"
 
 ERRORS=0
+
+smoke_banner "Analytical End-to-End Proof" "make smoke-analytical" "${SETUP_HINT}" "flush-wait" "${FLUSH_WAIT}"
 
 # ── Reusable per-family validation ───────────────────────────────────
 # validate_analytical_family validates an analytical family's read path:
@@ -199,6 +238,7 @@ if [[ "$CH_RESULT" == "1" ]]; then
 else
     record_fail "ClickHouse unreachable or unhealthy"
     echo -e "\n${RED}Cannot proceed without ClickHouse. Aborting.${NC}"
+    print_smoke_diagnosis_hints "${SETUP_HINT}"
     exit 1
 fi
 
@@ -211,17 +251,19 @@ if [[ "$WRITER_STATUS" == "ready" ]]; then
 else
     record_fail "Writer not ready (status=${WRITER_STATUS:-unreachable})"
     echo -e "\n${RED}Cannot proceed without writer. Aborting.${NC}"
+    echo "Most likely next step: make logs SERVICE=writer"
     exit 1
 fi
 
 # --- 1c. Gateway readiness ---
 info "Checking gateway readiness..."
-GW_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/readyz")
+GW_CODE=$(http_code "${BASE_URL}/readyz")
 if [[ "$GW_CODE" == "200" ]]; then
     pass "Gateway is ready"
 else
     record_fail "Gateway not ready (HTTP ${GW_CODE})"
     echo -e "\n${RED}Cannot proceed without gateway. Aborting.${NC}"
+    echo "Most likely next step: make logs SERVICE=gateway"
     exit 1
 fi
 
@@ -1233,6 +1275,11 @@ echo ""
 if [[ $ERRORS -eq 0 ]]; then
     echo -e "${GREEN}${BOLD}ANALYTICAL E2E PROOF: ALL CHECKS PASSED${NC}"
     echo ""
+    echo "Canonical target: make smoke-analytical"
+    echo "Expected setup: ${SETUP_HINT}"
+    echo "Gateway: ${BASE_URL}"
+    echo "Flush wait used: ${FLUSH_WAIT}s"
+    echo ""
     echo "All analytical families proven end-to-end:"
     echo "  [Baseline]      Evidence Candles           — NATS → writer → ClickHouse → reader → HTTP"
     echo "  [Wave B F-01]   Signals (RSI)             — NATS → writer → ClickHouse → reader → HTTP"
@@ -1247,10 +1294,11 @@ else
     echo -e "${RED}${BOLD}ANALYTICAL E2E PROOF: ${ERRORS} ISSUE(S) DETECTED${NC}"
     echo ""
     echo "Review the failures above. Common causes:"
-    echo "  - Stack not fully up: make up && wait 120s"
+    echo "  - Stack not fully up: make up && wait ${FLUSH_WAIT}s"
     echo "  - No data seeded: make seed (or make seed-multi)"
     echo "  - Migrations not applied: migrations run automatically via writer startup"
     echo "  - Writer not consuming: check writer logs (make logs SERVICE=writer)"
+    echo "  - Gateway read path unhealthy: check gateway logs (make logs SERVICE=gateway)"
 fi
 
 exit $ERRORS

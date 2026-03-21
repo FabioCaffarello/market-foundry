@@ -57,6 +57,8 @@ usage() {
 Usage: ./scripts/smoke-multi-symbol.sh [--wait <seconds>] [--help]
 
 Runs the multi-symbol operational smoke against a running stack.
+Canonical public entrypoint: `make smoke-multi`
+Expected setup: `make up && make seed-multi`
 
 Options:
   --wait <seconds>  Maximum time to wait for initial candle materialization. Default: 90
@@ -66,6 +68,7 @@ Environment:
   SMOKE_SYMBOLS     Space-separated symbol list. Default: "btcusdt ethusdt"
   SMOKE_TIMEFRAMES  Space-separated timeframe list. Default: "60 300 900 3600"
   BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT        Alternate way to override --wait from make/env.
 EOF
 }
 
@@ -73,7 +76,8 @@ BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="${SOURCE:-binancef}"
 SYMBOLS=(${SMOKE_SYMBOLS:-btcusdt ethusdt})
 TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300 900 3600})
-WAIT_SECONDS=90
+WAIT_SECONDS="${SMOKE_WAIT:-90}"
+SETUP_HINT="make up && make seed-multi"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -106,14 +110,24 @@ info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 section() { echo -e "\n${CYAN}--- $1 ---${NC}"; }
 hard_fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
 
+smoke_banner "Multi-Symbol Operational Smoke" "make smoke-multi" "${SETUP_HINT}" "wait" "${WAIT_SECONDS}"
+
 # ---------- Step 1: Health + Readiness ----------
 section "Step 1: Gateway checks"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/healthz")
-[[ "$HTTP_CODE" == "200" ]] && pass "/healthz → 200" || hard_fail "/healthz → $HTTP_CODE"
+HTTP_CODE=$(http_code "${BASE_URL}/healthz")
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "/healthz → 200"
+else
+    hard_fail "/healthz → ${HTTP_CODE} (expected 200). Start with: ${SETUP_HINT}; then inspect 'make ps' and 'make logs SERVICE=gateway'."
+fi
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/readyz")
-[[ "$HTTP_CODE" == "200" ]] && pass "/readyz → 200" || hard_fail "/readyz → $HTTP_CODE"
+HTTP_CODE=$(http_code "${BASE_URL}/readyz")
+if [[ "$HTTP_CODE" == "200" ]]; then
+    pass "/readyz → 200"
+else
+    hard_fail "/readyz → ${HTTP_CODE} (expected 200). Stack may be up but not ready, or multi-symbol config has not been activated."
+fi
 
 # ---------- Step 2: Wait for first candle ----------
 section "Step 2: Waiting for pipeline (${WAIT_SECONDS}s max)"
@@ -1481,13 +1495,15 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/paper_
 [[ "$HTTP_CODE" == "400" ]] && pass "Execution missing timeframe → 400" || info "Execution missing timeframe → $HTTP_CODE"
 
 # ---------- Summary ----------
-echo ""
-echo "=========================================="
-echo "  Multi-Symbol E2E Smoke: COMPLETE"
-echo "=========================================="
+phase "Summary"
+echo "Canonical target: make smoke-multi"
+echo "Expected setup: ${SETUP_HINT}"
+echo "Gateway: ${BASE_URL}"
+echo "Warm-up budget: ${WAIT_SECONDS}s"
 echo ""
 echo "  Passed: ${PASS_COUNT}"
 echo "  Failed: ${FAIL_COUNT}"
+echo "  Warned: ${WARN_COUNT}"
 echo ""
 echo "Scenario: ${#SYMBOLS[@]} symbols × ${#TIMEFRAMES[@]} timeframes"
 echo "  Evidence   KV entries: $((${#SYMBOLS[@]} * ${#TIMEFRAMES[@]}))"
@@ -1561,5 +1577,16 @@ echo "  Trace persistence: correlation_id + causation_id through execute chain"
 echo ""
 
 if [[ $FAIL_COUNT -gt 0 ]]; then
+    echo "Recommended diagnosis:"
+    echo "  make ps"
+    echo "  make logs SERVICE=gateway"
+    echo "  make logs SERVICE=derive"
+    echo "  make logs SERVICE=store"
+    echo "  make logs SERVICE=execute"
     exit 1
 fi
+
+echo "Recommended repeat/diagnosis commands:"
+echo "  make smoke-multi"
+echo "  make diag"
+echo "  make logs SERVICE=gateway"

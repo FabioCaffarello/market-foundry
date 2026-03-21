@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -383,5 +384,229 @@ func TestBinanceAdapter_FillNotSimulated(t *testing.T) {
 	}
 	if receipt.Intent.Fills[0].Simulated {
 		t.Fatal("real venue fills must have Simulated=false")
+	}
+}
+
+// --- EC-1.4: VenueOrderReceipt includes ClientOrderID populated from derivation ---
+
+func TestBinanceAdapter_ClientOrderID_InReceipt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"orderId":     100,
+			"symbol":      "BTCUSDT",
+			"status":      "FILLED",
+			"avgPrice":    "65000.00",
+			"executedQty": "0.001",
+			"cumQuote":    "65.00",
+			"updateTime":  time.Now().UnixMilli(),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
+	intent := testBuyIntent()
+
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
+	if prob != nil {
+		t.Fatalf("submit failed: %s", prob.Message)
+	}
+
+	expected := appexec.ClientOrderID(intent)
+	if receipt.ClientOrderID == "" {
+		t.Fatal("ClientOrderID in receipt must not be empty")
+	}
+	if receipt.ClientOrderID != expected {
+		t.Fatalf("expected ClientOrderID %q, got %q", expected, receipt.ClientOrderID)
+	}
+}
+
+// --- EC-1.5: newClientOrderId is present in the HTTP request sent to venue ---
+
+func TestBinanceAdapter_ClientOrderID_InHTTPRequest(t *testing.T) {
+	var capturedClientOrderID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedClientOrderID = r.URL.Query().Get("newClientOrderId")
+		resp := map[string]any{
+			"orderId":     200,
+			"symbol":      "BTCUSDT",
+			"status":      "FILLED",
+			"avgPrice":    "65000.00",
+			"executedQty": "0.001",
+			"cumQuote":    "65.00",
+			"updateTime":  time.Now().UnixMilli(),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
+	intent := testBuyIntent()
+
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
+	if prob != nil {
+		t.Fatalf("submit failed: %s", prob.Message)
+	}
+
+	if capturedClientOrderID == "" {
+		t.Fatal("newClientOrderId must be present in HTTP request")
+	}
+
+	expected := appexec.ClientOrderID(intent)
+	if capturedClientOrderID != expected {
+		t.Fatalf("expected newClientOrderId %q in request, got %q", expected, capturedClientOrderID)
+	}
+}
+
+// --- EC-2.2: Response body exceeding 64 KB is truncated at the read boundary ---
+
+func TestBinanceAdapter_OversizedBody_Truncated(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return a 128 KB body (exceeds 64 KB limit).
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"orderId":1,"status":"FILLED","avgPrice":"100.00","executedQty":"0.001","cumQuote":"0.10","updateTime":1}`))
+		// Pad with spaces to exceed 64 KB.
+		padding := strings.Repeat(" ", 128*1024)
+		w.Write([]byte(padding))
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
+
+	// Should still parse correctly because the JSON is at the front.
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	if prob != nil {
+		t.Fatalf("oversized body with valid JSON at start should parse: %s", prob.Message)
+	}
+	if receipt.VenueOrderID != "1" {
+		t.Fatalf("expected order ID 1, got %s", receipt.VenueOrderID)
+	}
+}
+
+// --- EC-2.3/EC-2.4: Oversized body that cuts valid JSON produces Internal, non-retryable ---
+
+func TestBinanceAdapter_OversizedBody_CorruptedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Start a very large JSON object that will be truncated mid-parse.
+		w.Write([]byte(`{"orderId":1,"status":"FILLED","avgPrice":"100.00","executedQty":"0.001","data":"`))
+		w.Write([]byte(strings.Repeat("x", 128*1024)))
+		w.Write([]byte(`"}`))
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
+
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	if prob == nil {
+		t.Fatal("expected error for corrupted oversized JSON")
+	}
+	if prob.Code != "SYS_INTERNAL" {
+		t.Fatalf("expected SYS_INTERNAL, got %s", prob.Code)
+	}
+	if prob.Retryable {
+		t.Fatal("parse error from oversized body should not be retryable")
+	}
+}
+
+// --- EC-2.5: Normal-sized responses (< 64 KB) are unaffected ---
+// (Covered by TestBinanceAdapter_SubmitOrder_Filled and other existing tests.)
+
+// --- EC-3.3: Slow venue response triggers context cancellation ---
+
+func TestBinanceAdapter_ContextDeadline_Exceeded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		resp := map[string]any{
+			"orderId": 1, "status": "FILLED",
+			"avgPrice": "100.00", "executedQty": "0.001",
+			"cumQuote": "0.10", "updateTime": time.Now().UnixMilli(),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 30*time.Second).WithBaseURL(server.URL)
+
+	// Use a short context deadline (EC-3 enforcement).
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	if prob == nil {
+		t.Fatal("expected error for deadline exceeded")
+	}
+	if !prob.Retryable {
+		t.Fatal("context deadline exceeded should be retryable")
+	}
+}
+
+// --- EC-3.4: Timeout error is classified as problem.Unavailable with Retryable == true ---
+// (Covered by TestBinanceAdapter_SubmitOrder_Timeout and the test above.)
+
+// --- EC-3.5: Intent state after timeout remains submitted (PGR-08 preserved) ---
+
+func TestBinanceAdapter_ContextDeadline_IntentUnmutated(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 30*time.Second).WithBaseURL(server.URL)
+
+	intent := testBuyIntent()
+	originalStatus := intent.Status
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	_, _ = adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: intent})
+
+	// Intent must not be mutated by the adapter.
+	if intent.Status != originalStatus {
+		t.Fatalf("expected intent status %q unchanged after timeout, got %q", originalStatus, intent.Status)
+	}
+}
+
+// --- EC-3.6: Normal venue responses within deadline are unaffected ---
+// (Covered by all existing happy-path tests.)
+
+// --- EC-3.1/EC-3.2: Adapter enforces default deadline when none provided ---
+
+func TestBinanceAdapter_DefaultDeadline_Enforced(t *testing.T) {
+	// Verify that calling SubmitOrder with context.Background() (no deadline)
+	// still works — the adapter internally adds a default deadline.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"orderId":     300,
+			"symbol":      "BTCUSDT",
+			"status":      "FILLED",
+			"avgPrice":    "65000.00",
+			"executedQty": "0.001",
+			"cumQuote":    "65.00",
+			"updateTime":  time.Now().UnixMilli(),
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	creds := testCredentials(t)
+	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
+
+	// No explicit deadline — adapter must enforce its own.
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	if prob != nil {
+		t.Fatalf("default deadline should not block normal responses: %s", prob.Message)
+	}
+	if receipt.VenueOrderID != "300" {
+		t.Fatalf("expected order ID 300, got %s", receipt.VenueOrderID)
 	}
 }

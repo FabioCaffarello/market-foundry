@@ -2,7 +2,60 @@
 
 Chronological audit trail of all market-foundry development stages, grouped by phase.
 
+Use this index for historical evidence and delivery traceability.
+
+This file is the canonical history entrypoint, not the canonical owner of
+current workflow or architecture rules.
+
+For daily workflow and current documentation navigation, start with:
+
+- [`../README.md`](../README.md)
+- [`../operations/README.md`](../operations/README.md)
+- [`../architecture/README.md`](../architecture/README.md)
+- [`../operations/stage-documentation-governance-and-narrative-coherence.md`](../operations/stage-documentation-governance-and-narrative-coherence.md)
+- [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
+
 ---
+
+## How To Read Stage History
+
+Use the stage history in this order:
+
+1. Start with the relevant charter or scope-freeze stage when a wave has one.
+2. Read the execution or hardening stages that sit under that charter.
+3. Read the gate or closure stage that evaluates what the charter actually delivered.
+4. Follow links from the report into promoted architecture or operations docs when a stage established lasting rules.
+
+Recurring stage roles:
+
+| Narrative role | What it usually answers |
+|---|---|
+| Charter / scope freeze | Why the wave opened, what was authorized, what was frozen |
+| Implementation / hardening | What changed and what evidence was produced |
+| Validation / proof | What was exercised end to end |
+| Gate / closure | Whether the wave passed, failed, or needs correction |
+| Support / governance stage | How the repository's own workflows and docs were improved |
+
+Recent wave entrypoints:
+
+| Wave | Start here | Close here |
+|---|---|---|
+| Refactor and documentation consolidation | [S211](stage-s211-refactor-wave-charter-and-entry-freeze-report.md) | [S216](stage-s216-post-refactor-and-documentation-exit-gate-report.md), [S217](stage-s217-exit-gate-closure-and-evidence-reconciliation-report.md) |
+| Domain evolution depth wave | [S233](stage-s233-domain-evolution-charter-and-scope-freeze-report.md) | [S238](stage-s238-post-domain-evolution-gate-report.md) |
+| Breadth wave | [S240](stage-s240-breadth-charter-and-scope-freeze-report.md) | [S244](stage-s244-breadth-integration-and-gate-report.md) |
+| Behavioral wave | [S249](stage-s249-behavioral-feature-charter-and-scope-freeze-report.md) | [S254](stage-s254-post-behavioral-wave-gate-report.md) |
+| Venue closure tranche | [S321](stage-s321-venue-closure-tranche-charter-report.md) | S326 (pending) |
+
+Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
+for the expected linking model between charter, execution, promoted docs, and
+gate decisions.
+
+## History Boundaries
+
+- `docs/stages/` is the immutable evidence trail.
+- `docs/architecture/` owns charter authority, gates, and lasting structural rules.
+- `docs/operations/` owns the stage-documentation governance model and stage-history navigation rules.
+- Stage reports should link outward to promoted docs; promoted docs should link back only when historical rationale materially helps.
 
 ## Pre-Numbered Stages (Foundation Setup)
 
@@ -13,6 +66,27 @@ Chronological audit trail of all market-foundry development stages, grouped by p
 | [architectural-evolution-playbook](stage-architectural-evolution-playbook-report.md) | Evolution playbook definition |
 | [architectural-recentralization](stage-architectural-recentralization-report.md) | Server→gateway rename, canonical patterns |
 | [raccoon-cli-architecture-guardian](stage-raccoon-cli-architecture-guardian-report.md) | CLI guardian tooling |
+
+## Repository Support And Documentation Stages
+
+| Stage | Description |
+|-------|-------------|
+| [C1](stage-c1-repo-support-surface-audit-report.md) | Repository support surface audit |
+| [C2](stage-c2-makefile-cleanup-and-command-ergonomics-hardening-report.md) | Makefile cleanup and command ergonomics hardening |
+| [C3](stage-c3-scripts-normalization-and-harness-hygiene-report.md) | Scripts normalization and harness hygiene |
+| [C4](stage-c4-raccoon-cli-ux-command-taxonomy-and-guard-rails-report.md) | Raccoon CLI taxonomy and guard rails |
+| [C5](stage-c5-documentation-reorganization-and-operational-navigation-report.md) | Documentation reorganization and operational navigation |
+| [C6](stage-c6-lightweight-repository-guard-rails-and-consistency-checks-report.md) | Lightweight repository guard rails and consistency checks |
+| [C7](stage-c7-repository-architecture-convergence-report.md) | Repository support-surface architecture convergence |
+| [C8](stage-c8-raccoon-cli-internal-modularity-and-command-architecture-report.md) | Raccoon CLI internal modularity and command architecture |
+| [C9](stage-c9-smoke-and-operational-harness-governance-report.md) | Smoke and operational harness governance |
+| [C10](stage-c10-developer-workflow-unification-report.md) | Developer workflow unification |
+| [C11](stage-c11-documentation-system-hardening-report.md) | Documentation system hardening |
+| [C12](stage-c12-repository-policy-and-lightweight-enforcement-2-report.md) | Repository policy and lightweight enforcement 2 |
+| [C13](stage-c13-advanced-raccoon-cli-architecture-refinement-report.md) | Advanced raccoon-cli architecture refinement |
+| [C14](stage-c14-smoke-ux-and-proof-execution-ergonomics-report.md) | Smoke UX and proof execution ergonomics |
+| [C15](stage-c15-stage-tooling-and-execution-governance-support-report.md) | Stage tooling and execution governance support |
+| [C16](stage-c16-stage-documentation-governance-and-narrative-coherence-report.md) | Stage documentation governance and narrative coherence |
 
 ## Phase 1: Foundation (S06–S10)
 
@@ -323,8 +397,170 @@ Chronological audit trail of all market-foundry development stages, grouped by p
 |-------|-------------|
 | [S222](stage-s222-post-restructure-gate-and-next-charter-decision-report.md) | Post-restructure gate and next-charter decision |
 
-## Phase 20: Final Exit Closure Planning (S223)
+## Phase 20: Final Exit Closure Planning (S223–S232)
 
 | Stage | Description |
 |-------|-------------|
 | [S223](stage-s223-final-exit-criteria-closure-plan-report.md) | Final exit criteria closure plan |
+| [S224](stage-s224-raccoon-cli-and-quality-gate-reconciliation-report.md) | Raccoon CLI and quality gate reconciliation |
+| [S225](stage-s225-active-documentation-drift-closure-report.md) | Active documentation drift closure |
+| [S226](stage-s226-real-ci-on-push-closure-report.md) | Real CI on push closure |
+| [S227](stage-s227-final-stabilization-reconciliation-report.md) | Final stabilization reconciliation |
+| [S228](stage-s228-final-pre-charter-gate-report.md) | Final pre-charter gate |
+| [S229](stage-s229-ci-profile-reconciliation-closure-report.md) | CI profile reconciliation closure |
+| [S230](stage-s230-residual-active-doc-reconciliation-report.md) | Residual active doc reconciliation |
+| [S231](stage-s231-fresh-remote-ci-proof-and-release-tag-closure-report.md) | Fresh remote CI proof and release tag closure |
+| [S232](stage-s232-clean-pass-gate-and-next-charter-authorization-report.md) | Clean pass gate and next charter authorization |
+
+## Phase 21: Domain Evolution Wave (S233–S239)
+
+| Stage | Description |
+|-------|-------------|
+| [S233](stage-s233-domain-evolution-charter-and-scope-freeze-report.md) | Domain evolution charter and scope freeze |
+| [S234](stage-s234-decision-domain-deepening-report.md) | Decision domain deepening |
+| [S235](stage-s235-strategy-alignment-on-top-of-richer-decisions-report.md) | Strategy alignment on top of richer decisions |
+| [S236](stage-s236-risk-domain-deepening-and-consistency-checks-report.md) | Risk domain deepening and consistency checks |
+| [S237](stage-s237-integration-and-ci-hardening-for-the-new-domain-depth-report.md) | Integration and CI hardening for new domain depth |
+| [S238](stage-s238-post-domain-evolution-gate-report.md) | Post-domain evolution gate |
+| [S239](stage-s239-charter-correction-and-hardening-closure-report.md) | Charter correction and hardening closure |
+
+## Phase 22: Breadth Wave (S240–S248)
+
+| Stage | Description |
+|-------|-------------|
+| [S240](stage-s240-breadth-charter-and-scope-freeze-report.md) | Breadth charter and scope freeze |
+| [S241](stage-s241-decision-breadth-expansion-report.md) | Decision breadth expansion |
+| [S242](stage-s242-strategy-breadth-expansion-report.md) | Strategy breadth expansion |
+| [S243](stage-s243-risk-breadth-expansion-report.md) | Risk breadth expansion |
+| [S244](stage-s244-breadth-integration-and-gate-report.md) | Breadth integration and gate |
+| [S245](stage-s245-remote-ci-closure-for-breadth-wave-report.md) | Remote CI closure for breadth wave |
+| [S246](stage-s246-smoke-e2e-breadth-coverage-expansion-report.md) | Smoke E2E breadth coverage expansion |
+| [S247](stage-s247-chain-b-integration-completion-for-drawdown-limit-report.md) | Chain B integration completion for drawdown limit |
+| [S248](stage-s248-post-breadth-hardening-gate-report.md) | Post-breadth hardening gate |
+
+## Phase 23: Behavioral Feature Wave (S249–S257)
+
+| Stage | Description |
+|-------|-------------|
+| [S249](stage-s249-behavioral-feature-charter-and-scope-freeze-report.md) | Behavioral feature charter and scope freeze |
+| [S250](stage-s250-decision-to-strategy-behavior-activation-report.md) | Decision to strategy behavior activation |
+| [S251](stage-s251-strategy-to-risk-behavior-activation-report.md) | Strategy to risk behavior activation |
+| [S252](stage-s252-scenario-based-end-to-end-domain-validation-report.md) | Scenario-based end-to-end domain validation |
+| [S253](stage-s253-integration-and-ci-hardening-for-behavioral-scenarios-report.md) | Integration and CI hardening for behavioral scenarios |
+| [S254](stage-s254-post-behavioral-wave-gate-report.md) | Post-behavioral wave gate |
+| [S255](stage-s255-behavioral-full-stack-smoke-closure-report.md) | Behavioral full-stack smoke closure |
+| [S256](stage-s256-behavioral-edge-hardening-report.md) | Behavioral edge hardening |
+| [S257](stage-s257-post-behavioral-hardening-transition-gate-report.md) | Post-behavioral hardening transition gate |
+
+## Phase 24: Codegen Re-entry Wave (S258–S263)
+
+| Stage | Description |
+|-------|-------------|
+| [S258](stage-s258-codegen-reentry-charter-and-scope-freeze-report.md) | Codegen re-entry charter and scope freeze |
+| [S259](stage-s259-codegen-spec-reconciliation-with-breadth-and-behavior-report.md) | Codegen spec reconciliation with breadth and behavior |
+| [S260](stage-s260-generated-slice-expansion-for-real-artifact-coverage-report.md) | Generated slice expansion for real artifact coverage |
+| [S261](stage-s261-manual-to-generated-equivalence-on-current-families-report.md) | Manual-to-generated equivalence on current families |
+| [S262](stage-s262-first-codegen-first-family-implementation-report.md) | First codegen-first family implementation |
+| [S263](stage-s263-post-codegen-reentry-gate-report.md) | Post-codegen re-entry gate |
+
+## Phase 25: Paper Execution Wave (S264–S274)
+
+| Stage | Description |
+|-------|-------------|
+| [S264](stage-s264-paper-execution-charter-and-scope-freeze-report.md) | Paper execution charter and scope freeze |
+| [S265](stage-s265-strategy-risk-to-execution-contract-alignment-report.md) | Strategy-risk to execution contract alignment |
+| [S266](stage-s266-controlled-paper-order-generation-report.md) | Controlled paper order generation |
+| [S268](stage-s268-full-closed-loop-scenario-validation-report.md) | Full closed-loop scenario validation |
+| [S269](stage-s269-post-paper-execution-gate-report.md) | Post-paper execution gate |
+| [S270](stage-s270-safety-gate-actor-path-integration-hardening-report.md) | Safety gate actor path integration hardening |
+| [S271](stage-s271-execution-kv-materialization-end-to-end-proof-report.md) | Execution KV materialization end-to-end proof |
+| [S272](stage-s272-execution-analytical-round-trip-proof-report.md) | Execution analytical round-trip proof |
+| [S273](stage-s273-control-gate-runtime-halt-resume-operational-proof-report.md) | Control gate runtime halt/resume operational proof |
+| [S274](stage-s274-post-s273-transition-gate-report.md) | Post-S273 transition gate |
+
+## Phase 26: Operational Proof Wave (S275–S282)
+
+| Stage | Description |
+|-------|-------------|
+| [S275](stage-s275-control-plane-full-path-proof-report.md) | Control plane full path proof |
+| [S276](stage-s276-multi-binary-execution-safety-integration-proof-report.md) | Multi-binary execution safety integration proof |
+| [S277](stage-s277-live-analytical-execution-proof-report.md) | Live analytical execution proof |
+| [S278](stage-s278-post-s277-operational-reconciliation-gate-report.md) | Post-S277 operational reconciliation gate |
+| [S279](stage-s279-os-process-compose-level-operational-smoke-report.md) | OS process compose-level operational smoke |
+| [S280](stage-s280-durable-restart-and-consumer-recovery-proof-report.md) | Durable restart and consumer recovery proof |
+| [S281](stage-s281-post-operational-proof-feature-gate-report.md) | Post-operational proof feature gate |
+| [S282](stage-s282-ci-enforcement-and-non-skipping-test-baseline-report.md) | CI enforcement and non-skipping test baseline |
+
+## Phase 27: Signal Evolution & Squeeze Vertical Slice (S283–S293)
+
+| Stage | Description |
+|-------|-------------|
+| [S283](stage-s283-signal-evolution-charter-and-scope-freeze-report.md) | Signal evolution charter and scope freeze |
+| [S284](stage-s284-macd-signal-family-report.md) | MACD signal family |
+| [S285](stage-s285-vwap-signal-family-report.md) | VWAP signal family |
+| [S286](stage-s286-atr-signal-family-report.md) | ATR signal family |
+| [S287](stage-s287-bollinger-squeeze-decision-family-report.md) | Bollinger squeeze decision family |
+| [S288](stage-s288-bollinger-signal-end-to-end-wiring-completion-report.md) | Bollinger signal end-to-end wiring completion |
+| [S289](stage-s289-squeeze-breakout-strategy-resolver-report.md) | Squeeze breakout strategy resolver |
+| [S290](stage-s290-risk-and-execution-contract-for-squeeze-path-report.md) | Risk and execution contract for squeeze path |
+| [S291](stage-s291-full-closed-loop-squeeze-scenario-report.md) | Full closed-loop squeeze scenario |
+| [S292](stage-s292-interleaved-execution-observability-minimum-report.md) | Interleaved execution observability minimum |
+| [S293](stage-s293-post-squeeze-vertical-slice-gate-report.md) | Post-squeeze vertical slice gate |
+
+## Phase 28: Composite Execution Observability Wave (S294–S299)
+
+| Stage | Description |
+|-------|-------------|
+| [S294](stage-s294-composite-execution-observability-charter-and-scope-freeze-report.md) | Composite execution observability charter and scope freeze |
+| [S295](stage-s295-correlation-causation-spine-validation-report.md) | Correlation/causation spine validation |
+| [S296](stage-s296-composite-execution-read-model-report.md) | Composite execution read model |
+| [S297](stage-s297-http-explainability-query-surface-report.md) | HTTP explainability query surface |
+| [S298](stage-s298-structured-rejection-modification-attribution-report.md) | Structured rejection/modification attribution |
+| [S299](stage-s299-q1-q7-evidence-gate-report.md) | Q1–Q7 evidence gate and wave closure |
+
+## Phase 29: Multi-Symbol Operational Scaling Wave (S300–S305)
+
+| Stage | Description |
+|-------|-------------|
+| [S300](stage-s300-multi-symbol-operational-scaling-charter-report.md) | Multi-symbol operational scaling charter and scope freeze |
+| [S301](stage-s301-symbol-isolation-and-context-integrity-audit-report.md) | Symbol isolation and context integrity audit |
+| [S302](stage-s302-multi-symbol-deterministic-scenario-pack-report.md) | Multi-symbol deterministic scenario pack |
+| [S303](stage-s303-composite-observability-under-multi-symbol-load-report.md) | Composite observability under multi-symbol load |
+| [S304](stage-s304-risk-and-execution-under-multi-symbol-report.md) | Risk and execution behavior under multi-symbol concurrency |
+| [S305](stage-s305-post-multi-symbol-gate-report.md) | Post-multi-symbol gate and strategic direction |
+
+## Phase 30: Venue Readiness Wave (S306–S312)
+
+| Stage | Description |
+|-------|-------------|
+| [S306](stage-s306-venue-readiness-charter-and-scope-freeze-report.md) | Venue readiness charter and scope freeze |
+| [S307](stage-s307-production-gap-map-report.md) | Production gap map from paper execution to venue readiness |
+| [S308](stage-s308-venue-execution-contracts-and-invariants-report.md) | Venue execution contracts and invariants |
+| [S309](stage-s309-oms-and-order-lifecycle-charter-report.md) | OMS and order lifecycle charter |
+| [S310](stage-s310-production-guard-rails-and-failure-envelope-report.md) | Production guard rails and failure envelope |
+| [S311](stage-s311-post-charter-gate-report.md) | Post-charter gate and strategic direction |
+| [S312](stage-s312-adapter-hardening-tranche-charter-report.md) | Adapter hardening tranche charter and scope freeze |
+
+## Phase 30a: Adapter Hardening Tranche (S313–S315)
+
+| Stage | Description |
+|-------|-------------|
+| [S313](stage-s313-deterministic-client-order-id-and-request-hardening-report.md) | Deterministic client order ID and request hardening (EC-1, EC-2, EC-3) |
+| [S314](stage-s314-error-classification-and-retryability-completion-report.md) | Error classification and retryability completion (VA-1, RF-1) |
+| [S315](stage-s315-foundational-tranche-gate-report.md) | Foundational tranche gate — PASS WITH RESIDUALS |
+
+## Phase 31: Implementation Wave (S316–)
+
+| Stage | Description |
+|-------|-------------|
+| [S316](stage-s316-end-to-end-venue-integration-proof-report.md) | End-to-end venue integration proof (VQ1, VQ3, VQ4, VQ6) |
+| [S317](stage-s317-full-persistence-round-trip-report.md) | Full persistence round-trip: adapter → NATS → ClickHouse → HTTP |
+| [S318](stage-s318-live-stack-smoke-and-gateway-verification-report.md) | Live stack smoke and gateway verification |
+| [S319](stage-s319-minimal-retry-loop-infrastructure-report.md) | Minimal retry loop infrastructure for venue failures |
+| [S320](stage-s320-venue-failure-path-verification-report.md) | Venue failure path verification and containment |
+
+## Phase 31a: Venue Closure Tranche (S321–S326)
+
+| Stage | Description |
+|-------|-------------|
+| [S321](stage-s321-venue-closure-tranche-charter-report.md) | Venue closure tranche charter and scope freeze |

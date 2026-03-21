@@ -813,10 +813,7 @@ fn check_event_registry_alignment(index: &ContractIndex) -> CheckResult {
         .collect();
 
     if registry_specs.is_empty() {
-        return CheckResult::skip(
-            "event-registry-alignment",
-            "registry event specs not found",
-        );
+        return CheckResult::skip("event-registry-alignment", "registry event specs not found");
     }
 
     for spec in &registry_specs {
@@ -921,9 +918,10 @@ fn subject_suffix(subject: &str) -> String {
 
 fn event_type_suffix(event_type: &str) -> String {
     let parts: Vec<&str> = event_type.split('.').collect();
-    if let Some(version_idx) = parts.iter().position(|part| {
-        part.starts_with('v') && part[1..].chars().all(|c| c.is_ascii_digit())
-    }) {
+    if let Some(version_idx) = parts
+        .iter()
+        .position(|part| part.starts_with('v') && part[1..].chars().all(|c| c.is_ascii_digit()))
+    {
         if version_idx + 1 < parts.len() {
             return parts[version_idx + 1..].join(".");
         }

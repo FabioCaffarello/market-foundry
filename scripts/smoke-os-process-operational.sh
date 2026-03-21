@@ -36,14 +36,22 @@ usage() {
 Usage: ./scripts/smoke-os-process-operational.sh [--wait <seconds>] [--help]
 
 Runs the OS-process operational smoke against a running compose stack.
+Canonical public entrypoint: `make smoke-operational`
+Expected setup: `make up && make seed`
 
 Options:
   --wait <seconds>  Maximum time to wait for analytical flushes. Default: 120
   --help            Show this help text.
+
+Environment:
+  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT        Preferred wait override from make/env.
+  FLUSH_WAIT        Legacy wait override kept for compatibility.
 EOF
 }
 
-FLUSH_WAIT="${FLUSH_WAIT:-120}"
+FLUSH_WAIT="${SMOKE_WAIT:-${FLUSH_WAIT:-120}}"
+SETUP_HINT="make up && make seed"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --wait)
@@ -69,6 +77,8 @@ ERRORS=0
 SYMBOL="${SYMBOL:-btcusdt}"
 SOURCE="${SOURCE:-binancef}"
 TIMEFRAME="${TIMEFRAME:-60}"
+
+smoke_banner "OS-Process Operational Smoke" "make smoke-operational" "${SETUP_HINT}" "flush-wait" "${FLUSH_WAIT}"
 
 # ── Phase 1: OS Process Isolation Proof (OP-1) ────────────────────────
 phase "Phase 1: OS Process Isolation Proof (OP-1)"
@@ -116,7 +126,8 @@ if $ISOLATION_PASS; then
 else
     record_fail "OP-1: Not all services running — cannot proceed"
     echo ""
-    fail "ABORT: OS process isolation not met. Run 'make up && make seed' first."
+    fail "ABORT: OS process isolation not met."
+    print_smoke_diagnosis_hints "${SETUP_HINT}"
     exit 1
 fi
 
@@ -492,7 +503,7 @@ echo "  OP-7: Analytical Consistency ............ $(if [[ $ANALYTICAL_DEPTH -ge 
 echo ""
 
 if [[ $ERRORS -gt 0 ]]; then
-    fail "OS-process operational smoke completed with $ERRORS error(s)"
+    smoke_fail_summary "OS-process operational smoke" "$ERRORS" "${SETUP_HINT}"
     exit 1
 else
     pass "OS-process operational smoke completed successfully — all scenarios proven"

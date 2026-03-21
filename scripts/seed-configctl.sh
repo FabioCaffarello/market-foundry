@@ -23,6 +23,7 @@ usage() {
 Usage: ./scripts/seed-configctl.sh [--multi-symbol] [--help]
 
 Seeds configctl through the full lifecycle: draft -> validate -> compile -> activate.
+Canonical public entrypoints: `make seed`, `make seed-multi`
 
 Options:
   --multi-symbol  Seed the default multi-symbol configuration (btcusdt,ethusdt).

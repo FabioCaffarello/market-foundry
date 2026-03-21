@@ -14,7 +14,3 @@ references
 /store
 /writer
 /migrate
-
-# Compiled binaries inside cmd/ (go build without -o).
-cmd/*/writer
-cmd/*/migrate

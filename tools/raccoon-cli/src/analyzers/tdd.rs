@@ -395,7 +395,7 @@ fn find_coverage_gaps(
                 has_go_tests: false,
                 has_scenario: false,
                 suggestion: format!(
-                    "add _test.go files in {} or create a scenario-smoke covering {}",
+                    "add _test.go files in {} or extend Makefile-backed smoke coverage for {}",
                     area_def.patterns.first().unwrap_or(&"this area"),
                     area.name,
                 ),
@@ -425,7 +425,7 @@ fn find_coverage_gaps(
                 has_go_tests: true,
                 has_scenario: false,
                 suggestion: "unit tests cover logic but not runtime integration — \
-                    consider adding a scenario-smoke if this area interacts with infra"
+                    consider extending Makefile-backed smoke coverage if this area interacts with infra"
                     .into(),
             });
         }
@@ -523,7 +523,7 @@ fn build_before_commands(
 
     // Add scenario commands for before (confirm baseline).
     for scenario in recommended_scenarios {
-        commands.insert(format!("raccoon-cli scenario-smoke {}", scenario.name));
+        commands.insert(scenario_validation_command(&scenario.name).to_string());
     }
 
     commands.into_iter().collect()
@@ -547,13 +547,17 @@ fn build_after_commands(
     }
 
     for scenario in recommended_scenarios {
-        commands.insert(format!("raccoon-cli scenario-smoke {}", scenario.name));
+        commands.insert(scenario_validation_command(&scenario.name).to_string());
     }
 
     // Always include canonical verification.
     commands.insert("make verify".to_string());
 
     commands.into_iter().collect()
+}
+
+fn scenario_validation_command(_scenario_name: &str) -> &'static str {
+    "make smoke"
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -767,7 +771,7 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
     // Infrastructure note
     if report.needs_infra {
         writeln!(out, "NOTE: Runtime scenarios require a running cluster.").unwrap();
-        writeln!(out, "  Start with: make up-dataplane").unwrap();
+        writeln!(out, "  Start with: make up").unwrap();
         writeln!(
             out,
             "  Recommended gate: raccoon-cli quality-gate --profile {}",

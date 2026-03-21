@@ -1460,7 +1460,7 @@ fn runtime_smoke_bootstrap_error_mentions_make_up_dataplane() {
     // The failure should stay actionable whether the fixture stops at bootstrap
     // or reaches readiness in an environment where Docker is available.
     assert!(
-        stdout.contains("make up-dataplane")
+        stdout.contains("make up")
             || stdout.contains("compose")
             || stdout.contains("docker")
             || stdout.contains("healthz")
@@ -1854,15 +1854,13 @@ fn all_subcommands_have_help() {
 fn help_lists_all_subcommands() {
     let output = raccoon().arg("--help").output().unwrap();
     let stdout = String::from_utf8_lossy(&output.stdout);
-    for cmd in &[
-        "doctor",
-        "topology-doctor",
-        "contract-audit",
-        "runtime-smoke",
-        "quality-gate",
-    ] {
+    for cmd in &["check", "inspect", "change", "legacy", "snapshot"] {
         assert!(stdout.contains(cmd), "main help should list '{cmd}'");
     }
+    assert!(
+        stdout.contains("doctor") && stdout.contains("quality-gate"),
+        "main help should advertise compatibility aliases"
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════

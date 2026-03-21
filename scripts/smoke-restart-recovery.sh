@@ -32,14 +32,22 @@ usage() {
 Usage: ./scripts/smoke-restart-recovery.sh [--wait <seconds>] [--help]
 
 Runs the restart/recovery smoke against a running compose stack.
+Canonical public entrypoint: `make smoke-restart-recovery`
+Expected setup: `make up && make seed`
 
 Options:
   --wait <seconds>  Maximum time to wait for post-restart flushes. Default: 120
   --help            Show this help text.
+
+Environment:
+  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT        Preferred wait override from make/env.
+  FLUSH_WAIT        Legacy wait override kept for compatibility.
 EOF
 }
 
-FLUSH_WAIT="${FLUSH_WAIT:-120}"
+FLUSH_WAIT="${SMOKE_WAIT:-${FLUSH_WAIT:-120}}"
+SETUP_HINT="make up && make seed"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --wait)
@@ -66,6 +74,8 @@ SYMBOL="${SYMBOL:-btcusdt}"
 SOURCE="${SOURCE:-binancef}"
 TIMEFRAME="${TIMEFRAME:-60}"
 GATEWAY_URL="${BASE_URL}"
+
+smoke_banner "Restart And Recovery Smoke" "make smoke-restart-recovery" "${SETUP_HINT}" "flush-wait" "${FLUSH_WAIT}"
 
 CLICKHOUSE_USER="${CLICKHOUSE_USER:-default}"
 CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-clickhouse}"
@@ -124,7 +134,8 @@ for line in lines:
 done
 
 if ! $ALL_RUNNING; then
-    fail "ABORT: Not all services running. Run 'make up && make seed' first."
+    fail "ABORT: Not all services running."
+    print_smoke_diagnosis_hints "${SETUP_HINT}"
     exit 1
 fi
 
@@ -455,7 +466,7 @@ echo "    - No automatic reconnect on NATS connection loss (relies on Docker res
 echo ""
 
 if [[ $ERRORS -gt 0 ]]; then
-    fail "Restart recovery smoke completed with $ERRORS error(s)"
+    smoke_fail_summary "Restart recovery smoke" "$ERRORS" "${SETUP_HINT}"
     exit 1
 else
     pass "Restart recovery smoke completed successfully — all scenarios proven"

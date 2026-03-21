@@ -147,6 +147,28 @@ func NewExecutionStarter(reg natsexecution.Registry) ConsumerStarter {
 	}
 }
 
+// NewVenueFillStarter creates a ConsumerStarter for venue order fill events.
+// S317: closes the persistence round-trip gap — venue fills flow from
+// EXECUTION_FILL_EVENTS stream to the executions ClickHouse table.
+func NewVenueFillStarter(reg natsexecution.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsexecution.NewFillConsumer(natsURL, spec, reg,
+			func(event execution.VenueOrderFilledEvent) {
+				recordEvent(tracker)
+				emitRow(mapVenueFillRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
 func recordEvent(tracker *healthz.Tracker) {
 	if tracker == nil {
 		return
@@ -289,6 +311,37 @@ func mapRiskRow(e risk.RiskAssessedEvent) []any {
 // type, source, symbol, timeframe, side, quantity, filled_quantity, status,
 // risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp.
 func mapExecutionRow(e execution.PaperOrderSubmittedEvent) []any {
+	m := e.Metadata
+	x := e.ExecutionIntent
+	return []any{
+		m.ID,
+		m.OccurredAt,
+		m.CorrelationID,
+		m.CausationID,
+		x.Type,
+		x.Source,
+		x.Symbol,
+		uint32(x.Timeframe),
+		string(x.Side),
+		parseFloat(x.Quantity),
+		parseFloat(x.FilledQuantity),
+		string(x.Status),
+		marshalJSON(x.Risk),
+		marshalJSON(x.Fills),
+		marshalJSON(x.Parameters),
+		marshalJSON(x.Metadata),
+		x.CorrelationID,
+		x.CausationID,
+		x.Final,
+		x.Timestamp,
+	}
+}
+
+// mapVenueFillRow maps a VenueOrderFilledEvent to ClickHouse executions row values.
+// Uses the same column order as mapExecutionRow — both event types target the same table.
+// The execution_intent inside the fill event carries the updated state (status=filled,
+// real fills, filled_quantity) from the venue adapter.
+func mapVenueFillRow(e execution.VenueOrderFilledEvent) []any {
 	m := e.Metadata
 	x := e.ExecutionIntent
 	return []any{

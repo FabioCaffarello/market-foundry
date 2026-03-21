@@ -1,0 +1,541 @@
+#!/usr/bin/env bash
+#
+# repository-consistency-check.sh -- lightweight repository consistency guard rail.
+#
+# This script protects a small set of high-signal repository invariants:
+# - required support/documentation entrypoints exist
+# - docs area entrypoints remain present
+# - stage reports follow the repository naming/layout convention
+# - stage reports remain indexed in docs/stages/INDEX.md
+# - local links in primary support docs resolve
+# - canonical docs only reference real Makefile targets
+# - Makefile script wrappers point to real executable scripts
+# - public script wrappers remain discoverable and self-describing
+# - bootstrap, Makefile, script catalog, and CLI docs stay aligned on the
+#   governed support surface
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/repository-consistency-check.sh [--help]
+
+Runs lightweight repository consistency checks for naming, documentation
+entrypoints, stage indexing, support-doc links, and Makefile script hygiene.
+EOF
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    usage
+    exit 0
+fi
+
+cd "${PROJECT_ROOT}"
+
+PASS_COUNT=0
+FAIL_COUNT=0
+
+print_result() {
+    local status="$1"
+    local name="$2"
+    local output="$3"
+
+    printf '[%s] %s\n' "${status}" "${name}"
+    if [[ -n "${output}" ]]; then
+        while IFS= read -r line; do
+            [[ -z "${line}" ]] && continue
+            printf '  %s\n' "${line}"
+        done <<< "${output}"
+    fi
+}
+
+run_check() {
+    local name="$1"
+    shift
+
+    local output=""
+    if output="$("$@" 2>&1)"; then
+        PASS_COUNT=$((PASS_COUNT + 1))
+        print_result "PASS" "${name}" "${output}"
+        return 0
+    fi
+
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    print_result "FAIL" "${name}" "${output}"
+    return 1
+}
+
+check_required_documents() {
+    local required_docs=(
+        "README.md"
+        "DEVELOPMENT.md"
+        "docs/README.md"
+        "docs/operations/README.md"
+        "docs/operations/documentation-system-hardening.md"
+        "docs/operations/documentation-governance-entrypoints-and-taxonomy.md"
+        "docs/operations/developer-workflow-unification.md"
+        "docs/operations/developer-onboarding-and-troubleshooting-guide.md"
+        "docs/operations/smoke-and-operational-harness-governance.md"
+        "docs/operations/operational-proof-entrypoints-and-ownership.md"
+        "docs/operations/repository-support-surface-canonical-model.md"
+        "docs/operations/repository-architecture-convergence.md"
+        "docs/operations/lightweight-repository-guard-rails-and-consistency-checks.md"
+        "docs/operations/repository-consistency-invariants-and-check-policy.md"
+        "docs/operations/repository-policy-and-lightweight-enforcement-2.md"
+        "docs/operations/repository-invariants-check-matrix-and-enforcement-policy.md"
+        "docs/operations/stage-tooling-and-execution-governance-support.md"
+        "docs/operations/stage-artifacts-conventions-and-support-model.md"
+        "docs/operations/stage-documentation-governance-and-narrative-coherence.md"
+        "docs/operations/stage-history-traceability-and-linking-model.md"
+        "docs/tooling/README.md"
+        "docs/architecture/README.md"
+        "docs/stages/INDEX.md"
+        "docs/stages/stage-c6-lightweight-repository-guard-rails-and-consistency-checks-report.md"
+        "docs/stages/stage-c7-repository-architecture-convergence-report.md"
+        "docs/stages/stage-c9-smoke-and-operational-harness-governance-report.md"
+        "docs/stages/stage-c10-developer-workflow-unification-report.md"
+        "docs/stages/stage-c11-documentation-system-hardening-report.md"
+        "docs/stages/stage-c12-repository-policy-and-lightweight-enforcement-2-report.md"
+        "docs/stages/stage-c15-stage-tooling-and-execution-governance-support-report.md"
+        "docs/stages/stage-c16-stage-documentation-governance-and-narrative-coherence-report.md"
+        "docs/archive/README.md"
+    )
+    local missing=()
+    local doc
+
+    for doc in "${required_docs[@]}"; do
+        [[ -f "${doc}" ]] || missing+=("${doc}")
+    done
+
+    if (( ${#missing[@]} > 0 )); then
+        printf 'missing required repository documents:\n'
+        printf '  - %s\n' "${missing[@]}"
+        return 1
+    fi
+
+    printf 'required repository documents present (%d files)' "${#required_docs[@]}"
+}
+
+check_docs_area_entrypoints() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+expected = {
+    "docs": "README.md",
+    "docs/operations": "README.md",
+    "docs/tooling": "README.md",
+    "docs/architecture": "README.md",
+    "docs/archive": "README.md",
+    "docs/stages": "INDEX.md",
+}
+
+missing = []
+for directory, entrypoint in expected.items():
+    path = Path(directory) / entrypoint
+    if not path.is_file():
+        missing.append(path.as_posix())
+
+if missing:
+    print("missing documentation area entrypoints:")
+    for item in missing:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"documentation area entrypoints present ({len(expected)} directories)")
+PY
+}
+
+check_stage_report_naming() {
+    local invalid=()
+    local count=0
+    local path basename
+
+    while IFS= read -r -d '' path; do
+        basename="$(basename "${path}")"
+        count=$((count + 1))
+        if [[ ! "${basename}" =~ ^stage-[a-z0-9-]+-report\.md$ ]]; then
+            invalid+=("${basename}")
+        fi
+    done < <(find docs/stages -maxdepth 1 -type f -name '*.md' ! -name 'INDEX.md' -print0 | sort -z)
+
+    if (( count == 0 )); then
+        printf 'no stage reports found under docs/stages\n'
+        return 1
+    fi
+
+    if (( ${#invalid[@]} > 0 )); then
+        printf 'invalid stage report filenames:\n'
+        printf '  - %s\n' "${invalid[@]}"
+        return 1
+    fi
+
+    printf 'stage report filenames aligned with stage-*-report.md convention (%d files)' "${count}"
+}
+
+check_stage_report_shape() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+bad = []
+for path in sorted(Path("docs/stages").glob("stage-*-report.md")):
+    text = path.read_text()
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("# "):
+        bad.append(f"{path.name}: missing level-1 title")
+        continue
+    h2_count = len(re.findall(r"^## ", text, re.M))
+    if h2_count < 2:
+        bad.append(f"{path.name}: expected at least 2 level-2 sections, found {h2_count}")
+
+if bad:
+    print("stage reports missing minimum document shape:")
+    for item in bad:
+        print(f"  - {item}")
+    sys.exit(1)
+
+count = len(list(Path("docs/stages").glob("stage-*-report.md")))
+print(f"stage reports have a title and at least two level-2 sections ({count} files)")
+PY
+}
+
+check_stage_index_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+index_text = Path("docs/stages/INDEX.md").read_text()
+referenced = set(re.findall(r"\((stage-[^)]+-report\.md)\)", index_text))
+actual = set(path.name for path in Path("docs/stages").glob("stage-*-report.md"))
+
+missing = sorted(actual - referenced)
+stale = sorted(referenced - actual)
+
+if missing or stale:
+    if missing:
+        print("stage reports missing from docs/stages/INDEX.md:")
+        for item in missing:
+            print(f"  - {item}")
+    if stale:
+        print("stale docs/stages/INDEX.md references:")
+        for item in stale:
+            print(f"  - {item}")
+    sys.exit(1)
+
+print(f"docs/stages/INDEX.md aligned with stage report inventory ({len(actual)} reports)")
+PY
+}
+
+check_support_doc_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(".").resolve()
+files = [
+    Path("README.md"),
+    Path("DEVELOPMENT.md"),
+    Path("docs/README.md"),
+    Path("docs/architecture/README.md"),
+    Path("docs/archive/README.md"),
+    Path("docs/stages/INDEX.md"),
+]
+files.extend(sorted(Path("docs/operations").glob("*.md")))
+files.extend(sorted(Path("docs/tooling").glob("*.md")))
+
+pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+broken = []
+
+for path in files:
+    text = path.read_text()
+    for target in pattern.findall(text):
+        if target.startswith(("http://", "https://", "mailto:", "#")):
+            continue
+        target = target.split("#", 1)[0]
+        if not target:
+            continue
+        resolved = (path.parent / target).resolve()
+        if not resolved.exists():
+            broken.append(f"{path.as_posix()}: {target}")
+
+if broken:
+    print("broken local links in primary support docs:")
+    for item in broken:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"local markdown links resolved across {len(files)} primary support docs")
+PY
+}
+
+check_primary_doc_make_targets() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+targets = set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, re.M))
+docs = [
+    Path("README.md"),
+    Path("DEVELOPMENT.md"),
+    Path("docs/operations/README.md"),
+    Path("docs/operations/makefile-targets-reference-and-conventions.md"),
+]
+
+pattern = re.compile(r"`make\s+([A-Za-z0-9_.-]+)")
+unknown = []
+
+for path in docs:
+    text = path.read_text()
+    for target in sorted(set(pattern.findall(text))):
+        if target not in targets:
+            unknown.append(f"{path.as_posix()}: make {target}")
+
+if unknown:
+    print("canonical docs reference unknown Makefile targets:")
+    for item in unknown:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"canonical docs reference only real Makefile targets ({len(docs)} docs)")
+PY
+}
+
+check_makefile_script_wrappers() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import stat
+import sys
+
+makefile = Path("Makefile").read_text()
+scripts = sorted(set(re.findall(r"\./(scripts/[^\s\\]+?\.sh)", makefile)))
+issues = []
+
+for rel in scripts:
+    path = Path(rel)
+    if not path.exists():
+        issues.append(f"{rel}: missing")
+        continue
+    if not (path.stat().st_mode & stat.S_IXUSR):
+        issues.append(f"{rel}: not executable")
+
+if issues:
+    print("Makefile script wrappers are inconsistent:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"Makefile script wrappers resolved to executable files ({len(scripts)} scripts)")
+PY
+}
+
+check_public_scripts_are_self_describing() {
+    python3 - <<'PY'
+from pathlib import Path
+import subprocess
+import sys
+
+scripts = [
+    "scripts/bootstrap-check.sh",
+    "scripts/seed-configctl.sh",
+    "scripts/diag-check.sh",
+    "scripts/live-pipeline-activate.sh",
+    "scripts/smoke-first-slice.sh",
+    "scripts/smoke-multi-symbol.sh",
+    "scripts/smoke-analytical-e2e.sh",
+    "scripts/smoke-os-process-operational.sh",
+    "scripts/smoke-restart-recovery.sh",
+    "scripts/codegen-integrated-check.sh",
+    "scripts/codegen-equivalence-check.sh",
+    "scripts/repository-consistency-check.sh",
+    "scripts/stage-tooling.sh",
+    "scripts/utils/for-each-module.sh",
+    "scripts/utils/list-modules.sh",
+]
+
+issues = []
+for rel in scripts:
+    path = Path(rel)
+    if not path.is_file():
+        issues.append(f"{rel}: missing")
+        continue
+
+    with path.open() as fh:
+        first_line = fh.readline().rstrip("\n")
+    if first_line != "#!/usr/bin/env bash":
+        issues.append(f"{rel}: expected bash shebang")
+        continue
+
+    proc = subprocess.run([str(path), "--help"], capture_output=True, text=True)
+    if proc.returncode != 0:
+        issues.append(f"{rel}: --help exited {proc.returncode}")
+
+if issues:
+    print("public script entrypoints are not self-describing:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"public script entrypoints expose bash shebang + --help ({len(scripts)} scripts)")
+PY
+}
+
+check_bootstrap_entrypoints_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+text = Path("scripts/bootstrap-check.sh").read_text()
+match = re.search(r"required_paths=\(\n(?P<body>.*?)\n\)", text, re.S)
+if not match:
+    print("scripts/bootstrap-check.sh: could not locate required_paths block")
+    sys.exit(1)
+
+entries = set(re.findall(r'"([^"]+)"', match.group("body")))
+required = {
+    "Makefile",
+    "README.md",
+    "DEVELOPMENT.md",
+    "docs/README.md",
+    "docs/operations/README.md",
+    "docs/operations/documentation-system-hardening.md",
+    "docs/operations/documentation-governance-entrypoints-and-taxonomy.md",
+    "docs/operations/repository-policy-and-lightweight-enforcement-2.md",
+    "docs/operations/repository-invariants-check-matrix-and-enforcement-policy.md",
+    "docs/operations/developer-workflow-unification.md",
+    "docs/operations/developer-onboarding-and-troubleshooting-guide.md",
+    "docs/tooling/README.md",
+    "docs/architecture/README.md",
+    "docs/stages/INDEX.md",
+    "deploy/compose/docker-compose.yaml",
+    "deploy/envs/local.env",
+    "tools/raccoon-cli/Cargo.toml",
+    "go.work",
+}
+
+missing = sorted(required - entries)
+if missing:
+    print("bootstrap required_paths missing governed entrypoints:")
+    for item in missing:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"bootstrap required_paths include governed entrypoints ({len(required)} paths)")
+PY
+}
+
+check_makefile_script_catalog_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+catalog = Path("docs/operations/scripts-catalog-and-usage-guide.md").read_text()
+
+scripts = sorted(set(re.findall(r"\./(scripts/[^\s\\]+?\.sh)", makefile)))
+missing = [rel for rel in scripts if rel not in catalog]
+
+if missing:
+    print("Makefile script wrappers missing from scripts catalog:")
+    for item in missing:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"scripts catalog covers all Makefile script wrappers ({len(scripts)} scripts)")
+PY
+}
+
+check_cli_governance_surface() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+cli = Path("tools/raccoon-cli/src/cli/mod.rs").read_text()
+docs = Path("docs/operations/raccoon-cli-command-reference.md").read_text()
+overview = Path("docs/tooling/cli-overview.md").read_text()
+
+issues = []
+
+cli_tokens = [
+    'about = "Repository support CLI for market-foundry"',
+    "not a product control plane",
+    "Canonical taxonomy:",
+    "check    repository guard rails and audits",
+    "inspect  read-only structural and contract analysis",
+    "change   impact mapping and validation guidance",
+    "legacy   fragile or deprecated helper flows",
+    "Prefer `make smoke*` for runtime proof.",
+    'name = "runtime-smoke"',
+    "Prefer Makefile operational flows instead:",
+]
+for token in cli_tokens:
+    if token not in cli:
+        issues.append(f"tools/raccoon-cli/src/cli/mod.rs: missing `{token}`")
+
+doc_tokens = [
+    "raccoon-cli check <subcommand>",
+    "raccoon-cli inspect <subcommand>",
+    "raccoon-cli change <subcommand> [TARGET...]",
+    "raccoon-cli legacy runtime-smoke",
+    "The preferred model is grouped usage.",
+]
+for token in doc_tokens:
+    if token not in docs:
+        issues.append(f"docs/operations/raccoon-cli-command-reference.md: missing `{token}`")
+
+overview_tokens = [
+    "| `check` | Repository guard rails and audits |",
+    "| `inspect` | Read-only structural and contract analysis |",
+    "| `change` | Impact mapping and validation guidance |",
+    "| `legacy` | Deprecated or fragile helpers |",
+]
+for token in overview_tokens:
+    if token not in overview:
+        issues.append(f"docs/tooling/cli-overview.md: missing `{token}`")
+
+if issues:
+    print("CLI governance surface drift detected:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("CLI governance surface preserved across source and canonical docs")
+PY
+}
+
+echo "=== repository-consistency-check ==="
+
+overall_status=0
+run_check "required-documents" check_required_documents || overall_status=1
+run_check "docs-area-entrypoints" check_docs_area_entrypoints || overall_status=1
+run_check "stage-report-naming" check_stage_report_naming || overall_status=1
+run_check "stage-report-shape" check_stage_report_shape || overall_status=1
+run_check "stage-index-alignment" check_stage_index_alignment || overall_status=1
+run_check "support-doc-links" check_support_doc_links || overall_status=1
+run_check "primary-doc-make-targets" check_primary_doc_make_targets || overall_status=1
+run_check "makefile-script-wrappers" check_makefile_script_wrappers || overall_status=1
+run_check "public-scripts-self-describing" check_public_scripts_are_self_describing || overall_status=1
+run_check "bootstrap-entrypoints-alignment" check_bootstrap_entrypoints_alignment || overall_status=1
+run_check "makefile-script-catalog-alignment" check_makefile_script_catalog_alignment || overall_status=1
+run_check "cli-governance-surface" check_cli_governance_surface || overall_status=1
+
+TOTAL_COUNT=$((PASS_COUNT + FAIL_COUNT))
+
+if (( overall_status == 0 )); then
+    printf 'verdict: PASS (%d checks)\n' "${TOTAL_COUNT}"
+    exit 0
+fi
+
+printf 'verdict: FAIL (%d passed, %d failed)\n' "${PASS_COUNT}" "${FAIL_COUNT}"
+exit 1

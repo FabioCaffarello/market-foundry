@@ -814,14 +814,7 @@ fn file_dir(path: &str) -> String {
 }
 
 fn chrono_now() -> String {
-    // Use a simple UTC timestamp without external dependency.
-    let output = std::process::Command::new("date")
-        .args(["-u", "+%Y-%m-%dT%H:%M:%SZ"])
-        .output();
-    match output {
-        Ok(out) => String::from_utf8_lossy(&out.stdout).trim().to_string(),
-        Err(_) => "unknown".to_string(),
-    }
+    crate::io::utc_timestamp()
 }
 
 // ── Provenance display helpers ─────────────────────────────────────────

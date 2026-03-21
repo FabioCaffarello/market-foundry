@@ -33,14 +33,15 @@ fn shows_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Architecture guardian toolkit"))
-        .stdout(predicate::str::contains("Quick start"));
+        .stdout(predicate::str::contains("Repository support CLI"))
+        .stdout(predicate::str::contains("Canonical taxonomy"))
+        .stdout(predicate::str::contains("Compatibility:"));
 }
 
 #[test]
 fn subcommand_help_shows_examples() {
     raccoon()
-        .args(["quality-gate", "--help"])
+        .args(["check", "--help"])
         .assert()
         .success()
         .stdout(predicate::str::contains("Examples:"));
@@ -53,6 +54,17 @@ fn doctor_help_shows_examples() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Examples:"));
+}
+
+#[test]
+fn grouped_change_help_lists_canonical_subcommands() {
+    raccoon()
+        .args(["change", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("impact"))
+        .stdout(predicate::str::contains("tdd"))
+        .stdout(predicate::str::contains("rename"));
 }
 
 // ── Exit Codes ────────────────────────────────────────────────────────
@@ -291,7 +303,6 @@ fn quality_gate_human_output_shows_actionable_steps() {
 
 // ── Verbose Output ────────────────────────────────────────────────────
 
-#[test]
 // ── Runtime Bindings ──────────────────────────────────────────────────
 #[test]
 fn runtime_bindings_json_output_is_valid() {
@@ -862,7 +873,7 @@ fn briefing_help_shows_examples() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Examples:"))
-        .stdout(predicate::str::contains("[fact]"));
+        .stdout(predicate::str::contains("change briefing"));
 }
 
 #[test]

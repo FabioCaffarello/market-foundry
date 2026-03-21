@@ -844,8 +844,10 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
         for s in &report.smoke_scenarios {
             writeln!(
                 out,
-                "  [{}] raccoon-cli scenario-smoke {}",
-                s.priority, s.scenario
+                "  [{}] {} ({})",
+                s.priority,
+                scenario_validation_command(&s.scenario),
+                s.scenario
             )
             .unwrap();
             writeln!(out, "       {} — {}", s.description, s.why).unwrap();
@@ -912,6 +914,10 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
     writeln!(out, "Scope: {}", report.scope_note).unwrap();
 
     out
+}
+
+fn scenario_validation_command(_scenario_name: &str) -> &'static str {
+    "make smoke"
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

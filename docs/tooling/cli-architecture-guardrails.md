@@ -90,7 +90,7 @@ Post-S218 nuance:
 | runtime-bindings | Config-to-stream routing |
 | architecture | Layer boundary enforcement |
 | drift | Cross-layer alignment |
-| smoke-e2e | End-to-end pipeline validation (via `make smoke`) |
+| smoke-e2e | End-to-end pipeline validation through the Makefile smoke surface (`make smoke` and related targets) |
 
 ---
 
@@ -100,7 +100,7 @@ Post-S218 nuance:
 |---------|---------|-------------------|
 | `make check` | fast | doctor, topology-doctor, contract-audit, runtime-bindings, arch-guard, drift-detect |
 | `make verify` | fast + tests | Go tests + quality-gate fast |
-| `make check-deep` | deep | All checks (runtime-smoke deprecated) |
+| `make check-deep` | deep | All checks plus the legacy `runtime-smoke` compatibility helper; use `make smoke*` for operational proof-of-record |
 | CI pipeline | ci | Same as fast, but warnings become failures |
 
 ---
@@ -111,6 +111,14 @@ To add a new architectural check:
 
 1. Implement in `tools/raccoon-cli/src/analyzers/` as a function returning `Result<Report>`
 2. Add a step in `gate/mod.rs` for quality-gate inclusion
-3. Register the command in `main.rs`
-4. Document the invariant in this file
-5. Add a Makefile target if the check should be independently runnable
+3. Register the command surface in `src/cli/mod.rs`
+4. Register command execution in `src/application/mod.rs`
+5. Keep change-target heuristics in `src/application/change_targets.rs` if the command auto-detects worktree targets
+6. Document the invariant in this file
+7. Add a Makefile target if the check should be independently runnable
+
+Stage C8 note:
+
+- `main.rs` is now intentionally thin and should not regain command wiring.
+- Command taxonomy lives in `src/cli/mod.rs`.
+- Command execution policy lives in `src/application/mod.rs`.

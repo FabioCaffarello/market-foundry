@@ -4,13 +4,13 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
-pub struct CommandCapture {
-    pub status: ExitStatus,
-    pub stdout: String,
-    pub stderr: String,
+pub(crate) struct CommandCapture {
+    pub(crate) status: ExitStatus,
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
 }
 
-pub fn run_command_with_timeout(
+pub(crate) fn run_command_with_timeout(
     command: &mut Command,
     timeout: Duration,
     context: &str,

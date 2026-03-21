@@ -51,10 +51,23 @@ func (a *BinanceFuturesTestnetAdapter) WithBaseURL(baseURL string) *BinanceFutur
 	return a
 }
 
+// defaultRequestDeadline is the fallback per-request context deadline
+// when the caller does not supply one. Configurable via the HTTP client timeout,
+// but this ensures no venue call ever runs without a deadline (EC-3).
+const defaultRequestDeadline = 10 * time.Second
+
 // SubmitOrder places a market order on Binance Futures testnet.
 // No-action intents (Side=none) are returned immediately without venue interaction.
 // Invariant: kill switch and staleness checks happen in the actor layer, not here.
+// EC-3: If the incoming context has no deadline, a default deadline is enforced.
 func (a *BinanceFuturesTestnetAdapter) SubmitOrder(ctx context.Context, req ports.VenueOrderRequest) (ports.VenueOrderReceipt, *problem.Problem) {
+	// EC-3: Enforce per-request context deadline.
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultRequestDeadline)
+		defer cancel()
+	}
+
 	intent := req.Intent
 
 	// No-action intents: nothing to submit to venue.
@@ -78,6 +91,7 @@ func (a *BinanceFuturesTestnetAdapter) SubmitOrder(ctx context.Context, req port
 	params.Set("type", "MARKET")
 	params.Set("quantity", intent.Quantity)
 	params.Set("newOrderRespType", "RESULT")
+	params.Set("newClientOrderId", ClientOrderID(intent))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Set("recvWindow", "5000")
 
@@ -102,7 +116,11 @@ func (a *BinanceFuturesTestnetAdapter) SubmitOrder(ctx context.Context, req port
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
-		return ports.VenueOrderReceipt{}, problem.Wrap(err, problem.Internal, "read venue response failed")
+		// S322: Mark body-read-failure-after-200 so downstream reconciliation can detect it.
+		// Non-retryable because the venue has already accepted the order (HTTP 200 received).
+		return ports.VenueOrderReceipt{}, problem.Wrap(err, problem.Internal, "read venue response failed").
+			WithDetail("body_read_failure_after_200", true).
+			WithDetail("client_order_id", ClientOrderID(intent))
 	}
 
 	// Handle error responses.
@@ -116,15 +134,16 @@ func (a *BinanceFuturesTestnetAdapter) SubmitOrder(ctx context.Context, req port
 
 // binanceOrderResponse represents the relevant fields from Binance Futures order response.
 type binanceOrderResponse struct {
-	OrderID       int64   `json:"orderId"`
-	Symbol        string  `json:"symbol"`
-	Status        string  `json:"status"`
-	Side          string  `json:"side"`
-	Type          string  `json:"type"`
-	AvgPrice      string  `json:"avgPrice"`
-	ExecutedQty   string  `json:"executedQty"`
-	CumQuote      string  `json:"cumQuote"`
-	UpdateTime    int64   `json:"updateTime"`
+	OrderID       int64  `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	Symbol        string `json:"symbol"`
+	Status        string `json:"status"`
+	Side          string `json:"side"`
+	Type          string `json:"type"`
+	AvgPrice      string `json:"avgPrice"`
+	ExecutedQty   string `json:"executedQty"`
+	CumQuote      string `json:"cumQuote"`
+	UpdateTime    int64  `json:"updateTime"`
 }
 
 // binanceErrorResponse represents a Binance API error.
@@ -143,23 +162,53 @@ func (a *BinanceFuturesTestnetAdapter) handleErrorResponse(statusCode int, body 
 	var errResp binanceErrorResponse
 	_ = json.Unmarshal(body, &errResp)
 
+	// Structured details for observability (never contains credentials).
+	details := map[string]any{
+		"venue_http_status": statusCode,
+	}
+	if errResp.Code != 0 {
+		details["venue_error_code"] = errResp.Code
+	}
+
 	// Classify the error without leaking credentials.
+	// Classification follows S308 §2.5 C-FAIL taxonomy (8 failure classes)
+	// and S310 §6.2 retryability semantics.
 	switch {
 	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
+		// C-FAIL class 1: Authentication — non-retryable.
 		return ports.VenueOrderReceipt{}, problem.Newf(problem.InvalidArgument,
-			"venue authentication failed (HTTP %d, code %d)", statusCode, errResp.Code)
+			"venue authentication failed (HTTP %d, code %d)", statusCode, errResp.Code).
+			WithDetails(details)
 
-	case statusCode == http.StatusTooManyRequests || statusCode == http.StatusServiceUnavailable:
+	case statusCode == http.StatusTooManyRequests:
+		// C-FAIL class 3: Rate limit — retryable.
 		return ports.VenueOrderReceipt{}, problem.Newf(problem.Unavailable,
-			"venue rate limited or unavailable (HTTP %d)", statusCode).MarkRetryable()
+			"venue rate limited (HTTP %d)", statusCode).
+			WithDetails(details).MarkRetryable()
 
 	case statusCode >= 400 && statusCode < 500:
+		// C-FAIL class 2: Client error — non-retryable.
 		return ports.VenueOrderReceipt{}, problem.Newf(problem.InvalidArgument,
-			"venue rejected order (HTTP %d, code %d): %s", statusCode, errResp.Code, errResp.Message)
+			"venue rejected order (HTTP %d, code %d): %s", statusCode, errResp.Code, errResp.Message).
+			WithDetails(details)
+
+	case statusCode == http.StatusServiceUnavailable:
+		// C-FAIL class 4: Venue unavailable — retryable.
+		return ports.VenueOrderReceipt{}, problem.Newf(problem.Unavailable,
+			"venue unavailable (HTTP %d)", statusCode).
+			WithDetails(details).MarkRetryable()
+
+	case statusCode == http.StatusBadGateway:
+		// C-FAIL class 5: Server error (502 Bad Gateway) — retryable.
+		return ports.VenueOrderReceipt{}, problem.Newf(problem.Unavailable,
+			"venue bad gateway (HTTP %d)", statusCode).
+			WithDetails(details).MarkRetryable()
 
 	default:
+		// C-FAIL class 5: Server error (5xx catch-all) — retryable.
 		return ports.VenueOrderReceipt{}, problem.Newf(problem.Unavailable,
-			"venue server error (HTTP %d)", statusCode).MarkRetryable()
+			"venue server error (HTTP %d)", statusCode).
+			WithDetails(details).MarkRetryable()
 	}
 }
 
@@ -205,9 +254,10 @@ func (a *BinanceFuturesTestnetAdapter) parseOrderResponse(body []byte, intent do
 	}
 
 	return ports.VenueOrderReceipt{
-		VenueOrderID: venueOrderID,
-		Status:       status,
-		Intent:       filled,
+		VenueOrderID:  venueOrderID,
+		ClientOrderID: ClientOrderID(intent),
+		Status:        status,
+		Intent:        filled,
 	}, nil
 }
 
@@ -226,6 +276,57 @@ func mapBinanceStatus(status string) (domainexec.Status, *problem.Problem) {
 	default:
 		return "", problem.Newf(problem.Internal, "unknown venue status %q", status)
 	}
+}
+
+// QueryOrder queries the venue for an existing order by client order ID and symbol.
+// This is used for post-200 reconciliation: when SubmitOrder received HTTP 200 but
+// failed to read the response body, QueryOrder recovers the order status and fills.
+//
+// Binance API: GET /fapi/v1/order with origClientOrderId parameter.
+// Security: same credential handling as SubmitOrder, no secrets in errors.
+// EC-3: per-request deadline enforced.
+func (a *BinanceFuturesTestnetAdapter) QueryOrder(ctx context.Context, clientOrderID, symbol string) (ports.VenueOrderReceipt, *problem.Problem) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultRequestDeadline)
+		defer cancel()
+	}
+
+	params := url.Values{}
+	params.Set("symbol", mapSymbol(symbol))
+	params.Set("origClientOrderId", clientOrderID)
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	params.Set("recvWindow", "5000")
+
+	signature := a.sign(params.Encode())
+	params.Set("signature", signature)
+
+	endpoint := a.baseURL + "/fapi/v1/order"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
+	if err != nil {
+		return ports.VenueOrderReceipt{}, problem.Wrap(err, problem.Internal, "build query request failed")
+	}
+	httpReq.Header.Set("X-MBX-APIKEY", a.apiKey)
+
+	resp, err := a.httpClient.Do(httpReq)
+	if err != nil {
+		return ports.VenueOrderReceipt{}, problem.Wrap(err, problem.Unavailable, "query order request failed").MarkRetryable()
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
+	if err != nil {
+		return ports.VenueOrderReceipt{}, problem.Wrap(err, problem.Internal, "read query response failed")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return a.handleErrorResponse(resp.StatusCode, body)
+	}
+
+	// Parse the response. We build a synthetic intent with just the symbol for fill parsing.
+	// The caller is expected to supply the original intent for full context.
+	syntheticIntent := domainexec.ExecutionIntent{Symbol: symbol}
+	return a.parseOrderResponse(body, syntheticIntent)
 }
 
 // mapSymbol normalizes the internal lowercase symbol to Binance's uppercase convention.

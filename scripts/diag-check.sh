@@ -22,6 +22,7 @@ usage() {
 Usage: ./scripts/diag-check.sh [--local] [--help]
 
 Collects a lightweight diagnostic snapshot from the running stack.
+Canonical public entrypoint: `make diag`
 
 Options:
   --local   Query services directly on the host instead of through docker compose exec.

@@ -54,7 +54,7 @@ const DIMENSIONS: &[Dimension] = &[
     Dimension {
         name: "smoke-e2e",
         description: "live E2E pipeline proof: ingest -> derive -> store -> query",
-        command: "raccoon-cli smoke-e2e",
+        command: "make smoke",
         requires_infra: true,
     },
 ];
@@ -452,8 +452,8 @@ mod tests {
                 dim.name
             );
             assert!(
-                dim.command.contains("raccoon-cli"),
-                "dimension '{}' command should reference raccoon-cli",
+                dim.command.starts_with("raccoon-cli ") || dim.command.starts_with("make "),
+                "dimension '{}' command should reference a canonical support entrypoint",
                 dim.name
             );
         }

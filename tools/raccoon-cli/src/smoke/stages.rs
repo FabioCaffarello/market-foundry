@@ -43,7 +43,7 @@ pub fn smoke_config_content(config: &SmokeConfig) -> serde_json::Value {
 
 /// Stage 1: Bootstrap — verify compose services are running.
 pub fn bootstrap(config: &SmokeConfig) -> CheckResult {
-    bootstrap_required(config, compose::REQUIRED_SERVICES, "make up-dataplane")
+    bootstrap_required(config, compose::REQUIRED_SERVICES, "make up")
 }
 
 pub fn bootstrap_required(

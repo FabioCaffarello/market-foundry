@@ -38,7 +38,9 @@
 pub mod bridge;
 pub mod client;
 pub mod protocol;
+pub mod render;
 pub mod types;
 
 pub use bridge::GoplsBridge;
+pub use render::render_enriched_human;
 pub use types::EnrichedSymbol;

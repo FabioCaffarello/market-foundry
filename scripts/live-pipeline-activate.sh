@@ -31,6 +31,7 @@ Usage: ./scripts/live-pipeline-activate.sh [--multi-symbol] [--skip-build] [--ch
 
 Builds or validates the live stack, seeds configctl when needed, and runs the
 operational validation harness.
+Canonical public entrypoints: `make live`, `make live-check`, `make live-multi`, `make live-multi-check`
 
 Options:
   --multi-symbol  Use the default multi-symbol validation set (btcusdt, ethusdt).

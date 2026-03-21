@@ -51,7 +51,7 @@ impl Scenario {
     pub fn preconditions(&self) -> &'static [&'static str] {
         match self {
             Scenario::HappyPath => &[
-                "All 7 compose services running (make up-dataplane)",
+                "All required compose services running (make up)",
                 "Server responding on base-url",
                 "Emulator publishing synthetic data",
             ],
@@ -60,7 +60,7 @@ impl Scenario {
                 "Server responding on base-url",
             ],
             Scenario::InvalidPayload => &[
-                "All 7 compose services running (make up-dataplane)",
+                "All required compose services running (make up)",
                 "Emulator producing invalid samples",
             ],
             Scenario::MissingBinding => &["Server responding on base-url"],

@@ -62,30 +62,34 @@ deploy/
 # Discover available workflows first
 make help
 
-# Build, start, seed, and validate the current live stack
+# Validate local prerequisites and canonical entrypoints
+make bootstrap
+
+# Fastest official bring-up path
 make live
 
-# Or start the stack manually
-make up
-make seed
+# Choose the right proof and see common overrides
+make smoke-help
 
-# Verify health
-curl http://127.0.0.1:8080/healthz
-
-# Run E2E smoke test
+# Canonical baseline proof after bring-up
 make smoke
 
-# Prove the analytical path
-make smoke-analytical
+# Controlled manual path when you need finer runtime control
+make up
+make seed
+make smoke
 
-# Run quality checks
+# Daily validation loop
 make check
-
-# Common alias for teams that expect a lint command
-make lint
-
-# Run post-change validation
+make tdd
 make verify
+
+# Stage support for governed waves
+make stage-help
+make stage-check STAGE_ID=C15 STAGE_SLUG=stage-tooling-and-execution-governance-support
+
+# Troubleshooting entrypoint
+make diag
 
 # Show the primary workflow/tooling docs
 make docs
@@ -94,18 +98,77 @@ make docs
 ## Development Workflow
 
 ```bash
+make bootstrap   # validate local prerequisites once per machine / environment change
+make live        # fastest official bring-up path
+make smoke-help  # choose the right smoke/proof and see common overrides
+make smoke       # canonical baseline operational proof
+make diag        # first troubleshooting stop for a running stack
 make help        # Discover the supported target surface
-make check       # Pre-code guard rail
+make check       # Pre-code guard rail (repo consistency + quality gate)
+make repo-consistency-check  # Lightweight naming/docs/support-surface checks
 make tdd         # Impact-driven validation guide
-make verify      # Tests + quality gate
+make verify      # Tests + repo consistency + quality gate
 make arch-guard  # Architecture boundary check
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow reference.
+The documentation entrypoint is [`docs/README.md`](docs/README.md).
+The canonical documentation-system hardening map lives in
+[`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md).
+The canonical documentation governance, entrypoint, and taxonomy rules live in
+[`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md).
+The unified operational journey is documented in
+[`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md).
+The onboarding and troubleshooting runbook lives in
+[`docs/operations/developer-onboarding-and-troubleshooting-guide.md`](docs/operations/developer-onboarding-and-troubleshooting-guide.md).
+The smoke/proof UX guidance lives in
+[`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md),
+and the proof failure-diagnosis flow lives in
+[`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md).
 Operational conventions for the command surface live in
-[`docs/operations/makefile-targets-reference-and-conventions.md`](docs/operations/makefile-targets-reference-and-conventions.md),
-and direct `raccoon-cli` usage is summarized in
-[`docs/tooling/cli-overview.md`](docs/tooling/cli-overview.md).
+[`docs/operations/README.md`](docs/operations/README.md), and direct tooling
+references live in [`docs/tooling/README.md`](docs/tooling/README.md).
+The canonical support-surface model is documented in
+[`docs/operations/repository-support-surface-canonical-model.md`](docs/operations/repository-support-surface-canonical-model.md).
+Operational proof governance and ownership now live in
+[`docs/operations/smoke-and-operational-harness-governance.md`](docs/operations/smoke-and-operational-harness-governance.md)
+and
+[`docs/operations/operational-proof-entrypoints-and-ownership.md`](docs/operations/operational-proof-entrypoints-and-ownership.md).
+Stage-support workflow guidance now lives in
+[`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md)
+and
+[`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md).
+
+## Documentation Map
+
+- [`docs/README.md`](docs/README.md) - top-level documentation navigation
+- [`docs/operations/README.md`](docs/operations/README.md) - daily workflow,
+  command surface, scripts, and documentation conventions
+- [`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md) - smoke/proof UX model, selection guidance, and operator ergonomics
+- [`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md) - operational flows, failure interpretation, and diagnosis paths
+- [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md) - canonical documentation-system map and cross-surface links
+- [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md) - canonical taxonomy, naming, and maintenance rules
+- [`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md) - active stage-support workflow and lightweight checks
+- [`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md) - naming, placement, and minimum completeness for stage artifacts
+- [`docs/tooling/README.md`](docs/tooling/README.md) - `raccoon-cli` guardrails,
+  drift rules, and topology references
+- [`docs/architecture/README.md`](docs/architecture/README.md) - canonical
+  architecture and governance entrypoint
+- [`docs/stages/INDEX.md`](docs/stages/INDEX.md) - historical stage reports
+- [`docs/archive/README.md`](docs/archive/README.md) - archived and superseded docs
+
+## Support Surface Hierarchy
+
+- `make` is the canonical public entrypoint for repository workflows: validation, stack lifecycle, smoke flows, codegen checks, and migrations.
+- `make bootstrap` is the canonical setup check for a new machine or changed local environment.
+- `make live` is the fastest official bring-up path; `make up` + `make seed*` remains the controlled manual path when you need finer runtime control.
+- `make smoke-help` is the fastest way to choose the right proof and recall the common setup/diagnosis commands.
+- The `make smoke*` family is the canonical operational-proof surface; choose the narrowest smoke that proves the runtime behavior you changed.
+- `make diag`, `make ps`, and `make logs SERVICE=...` are the first-line troubleshooting entrypoints for a running stack.
+- `make live*` and `stack-*` targets are ergonomic wrappers around canonical runtime workflows, not competing proof-of-record surfaces.
+- `scripts/*.sh` are auxiliary harnesses behind `make`; call them directly only when you need debugging detail or flags that the public Make target intentionally hides.
+- Direct `raccoon-cli` usage is the expert tooling surface for inspection and governance; it complements `make` and should not replace runtime/operator flows that already have Makefile entrypoints.
+- Raw `docker compose`, `go`, and `cargo` commands are substrate-level interfaces for working on those layers directly, not the primary repository workflow surface.
 
 ## What Was Removed
 
@@ -118,8 +181,11 @@ This repository was originally cloned from a quality-service. The following comp
 - Quality-specific HTTP endpoints and contracts
 - All `.context/` documentation from the quality-service era
 
-See `docs/architecture/` for detailed audit and decision records.
+See [`docs/architecture/README.md`](docs/architecture/README.md) for detailed
+audit and decision records.
 
 ## Next Phase
 
-The repository is prepared for the next governed slice only after active docs, tooling, and closure evidence stay aligned. See `docs/architecture/market-foundry-evolution-playbook.md`.
+The repository is prepared for the next governed slice only after active docs,
+tooling, and closure evidence stay aligned. See
+[`docs/architecture/market-foundry-evolution-playbook.md`](docs/architecture/market-foundry-evolution-playbook.md).

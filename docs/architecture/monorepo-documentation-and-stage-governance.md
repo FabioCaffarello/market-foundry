@@ -10,9 +10,11 @@ This document defines how documentation is organized in the market-foundry monor
 
 ```
 docs/
+├── operations/         # Operational support docs and documentation-system guidance
 ├── architecture/       # Canonical architecture decisions and patterns
 ├── stages/             # Stage completion reports (evolutionary record)
-└── tooling/            # CLI and tooling documentation
+├── tooling/            # CLI and tooling documentation
+└── archive/            # Historical and superseded documents
 ```
 
 ### Root-Level Documents
@@ -24,6 +26,40 @@ docs/
 | `AGENTS.md` | AI agent operating contract | AI agents (Claude, etc.) |
 
 These three files are the **entry points** into the repository. They must stay concise and current.
+
+Directory-level entrypoints complement them:
+
+- `docs/README.md`
+- `docs/operations/README.md`
+- `docs/tooling/README.md`
+- `docs/architecture/README.md`
+- `docs/stages/INDEX.md`
+- `docs/archive/README.md`
+
+For the current operational documentation-system map and taxonomy rules, use:
+
+- `docs/operations/documentation-system-hardening.md`
+- `docs/operations/documentation-governance-entrypoints-and-taxonomy.md`
+- `docs/operations/stage-documentation-governance-and-narrative-coherence.md`
+- `docs/operations/stage-history-traceability-and-linking-model.md`
+
+### Operations Documents (`docs/operations/`)
+
+Operations docs are the canonical support surface for daily repository execution.
+
+They cover:
+
+- Makefile workflows and conventions
+- script catalogs and harness usage
+- user-facing `raccoon-cli` command guidance
+- documentation navigation and authoring conventions
+
+These docs should explain how to work in the repository without repeating the full
+architecture record.
+
+This directory also owns the repository documentation system as an operational
+concern: navigation, entrypoints, taxonomy, naming rules, and maintenance rules
+for non-architectural docs.
 
 ### Architecture Documents (`docs/architecture/`)
 
@@ -68,6 +104,11 @@ Tooling docs describe the raccoon-cli analyzers, guardrails, and drift rules:
 - `cli-{domain}-drift-rules.md` — domain-specific drift detection rules.
 
 These are updated when raccoon-cli analyzers change — they mirror the tool's capabilities.
+
+### Archive Documents (`docs/archive/`)
+
+Archive docs are historical and non-canonical. They remain versioned for
+traceability but should not be used as the current source of truth.
 
 ---
 
@@ -116,6 +157,27 @@ What the next stage should consider.
 3. **Stages reference architecture docs** — when a stage formalizes a convention, the convention goes in `docs/architecture/` and the stage report references it.
 4. **Not every change needs a stage** — routine bug fixes, dependency updates, and small improvements do not require stage governance.
 
+### Narrative Coherence And Traceability
+
+The repository now treats stage history as a navigable chain, not only as a file
+inventory.
+
+Expected reading order when a governed wave exists:
+
+1. strategic authority or charter doc
+2. opening stage report that freezes scope
+3. execution, proof, or hardening stage reports
+4. gate or closure stage report
+5. promoted operations or architecture docs that remain current after the wave
+
+The practical navigation and linking model lives in:
+
+- `docs/operations/stage-documentation-governance-and-narrative-coherence.md`
+- `docs/operations/stage-history-traceability-and-linking-model.md`
+
+This document keeps the high-level governance contract. The operations docs own
+the day-to-day reading and maintenance rules for stage-history coherence.
+
 ### Stage Numbering
 
 - Pre-numbered stages (S06–S99): Foundation hardening and consolidation.
@@ -145,9 +207,11 @@ Stage Report (historical)          Architecture Doc (canonical)
 ### Keeping Docs Current
 
 1. **AGENTS.md, DEVELOPMENT.md, README.md** — update whenever services, workflows, or structure change.
-2. **Architecture docs** — update when the convention they describe is refined or extended.
-3. **Tooling docs** — update when raccoon-cli analyzers change.
-4. **Stage reports** — never update (immutable historical record).
+2. **Operations docs** — update when developer/operator workflows or documentation
+   navigation changes.
+3. **Architecture docs** — update when the convention they describe is refined or extended.
+4. **Tooling docs** — update when raccoon-cli analyzers change.
+5. **Stage reports** — never update (immutable historical record).
 
 ### Avoiding Documentation Drift
 
@@ -167,3 +231,12 @@ Stage Report (historical)          Architecture Doc (canonical)
 - `anti-debt-checklist.md` — practical debt prevention
 - `market-foundry-evolution-playbook.md` — evolution governance playbook
 - `monorepo-structure-and-engineering-conventions.md` — structural conventions
+- `../operations/documentation-system-hardening.md` — current documentation-system map
+- `../operations/documentation-governance-entrypoints-and-taxonomy.md` —
+  current entrypoint, taxonomy, and maintenance rules
+- `../operations/stage-documentation-governance-and-narrative-coherence.md` —
+  current stage-history readability and coherence rules
+- `../operations/stage-history-traceability-and-linking-model.md` —
+  current charter/execution/gate linking model
+- `../operations/documentation-taxonomy-and-authoring-conventions.md` —
+  operational doc taxonomy and authoring rules

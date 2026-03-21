@@ -27,15 +27,22 @@ usage() {
 Usage: ./scripts/smoke-first-slice.sh [--wait <seconds>] [--help]
 
 Runs the first-slice operational smoke against a running stack.
+Canonical public entrypoint: `make smoke`
+Expected setup: `make up && make seed`
 
 Options:
   --wait <seconds>  Maximum time to wait for initial candle materialization. Default: 75
   --help            Show this help text.
+
+Environment:
+  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT        Alternate way to override --wait from make/env.
 EOF
 }
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
-WAIT_SECONDS=75
+WAIT_SECONDS="${SMOKE_WAIT:-75}"
+SETUP_HINT="make up && make seed"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -58,15 +65,17 @@ done
 require_commands curl python3
 require_positive_integer "--wait" "${WAIT_SECONDS}"
 
+smoke_banner "First-Slice Operational Smoke" "make smoke" "${SETUP_HINT}" "wait" "${WAIT_SECONDS}"
+
 # ---------- Step 1: Health check ----------
 info "Step 1: Checking gateway health..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/healthz")
-[[ "$HTTP_CODE" == "200" ]] && pass "/healthz → 200" || die "/healthz → $HTTP_CODE (expected 200)"
+HTTP_CODE=$(http_code "${BASE_URL}/healthz")
+[[ "$HTTP_CODE" == "200" ]] && pass "/healthz → 200" || smoke_die_with_hints "/healthz → ${HTTP_CODE} (expected 200)" "${SETUP_HINT}"
 
 # ---------- Step 2: Readiness check ----------
 info "Step 2: Checking gateway readiness..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/readyz")
-[[ "$HTTP_CODE" == "200" ]] && pass "/readyz → 200" || die "/readyz → $HTTP_CODE (expected 200)"
+HTTP_CODE=$(http_code "${BASE_URL}/readyz")
+[[ "$HTTP_CODE" == "200" ]] && pass "/readyz → 200" || smoke_die_with_hints "/readyz → ${HTTP_CODE} (expected 200)" "${SETUP_HINT}"
 
 # ---------- Step 3: Wait for 60s candle data ----------
 info "Step 3: Waiting ${WAIT_SECONDS}s for ingest → derive pipeline to produce data..."
@@ -104,7 +113,7 @@ else
         info "Response: $RESPONSE"
         info "This is expected if < 120s since boot (need trades to cross a 60s window boundary)"
     else
-        die "60s endpoint returned $HTTP_CODE — derive may not be running"
+        smoke_die_with_hints "60s endpoint returned ${HTTP_CODE} — derive may not be running or config may not be seeded" "${SETUP_HINT}"
     fi
 fi
 
@@ -220,10 +229,12 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles
 [[ "$HTTP_CODE" == "400" ]] && pass "No params → 400" || info "No params → $HTTP_CODE"
 
 # ---------- Summary ----------
-echo ""
-echo "======================================"
-echo "  First Slice E2E Smoke: COMPLETE"
-echo "======================================"
+phase "Summary"
+echo "Result: PASS"
+echo "Canonical target: make smoke"
+echo "Setup used: ${SETUP_HINT}"
+echo "Gateway: ${BASE_URL}"
+echo "Warm-up budget: ${WAIT_SECONDS}s"
 echo ""
 echo "Flow validated:"
 echo "  Binance WS → ingest → OBSERVATION_EVENTS"
@@ -238,3 +249,7 @@ echo "  300s  (5-minute)  — candle query endpoint reachable"
 echo "  900s  (15-minute) — candle query endpoint reachable"
 echo "  3600s (1-hour)    — candle query endpoint reachable"
 echo ""
+echo "If a later run fails unexpectedly, start with:"
+echo "  make ps"
+echo "  make logs SERVICE=gateway"
+echo "  make diag"

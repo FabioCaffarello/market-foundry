@@ -6,6 +6,7 @@
 |--------|-------------|
 | `make help` | Show grouped targets and common variables |
 | `make docs` | Show the primary workflow and tooling docs |
+| `make bootstrap` | Validate local prerequisites and repository entrypoints for the official workflow |
 | `make tidy` | Run `go mod tidy` across all workspace modules |
 | `make test` | Run `go test ./...` across all workspace modules |
 | `make lint` | Alias for `make check` |
@@ -16,22 +17,67 @@
 | `make logs` | Stream logs (optionally `SERVICE=gateway`) |
 | `make ps` | Show service status |
 | `make live` | Build, start, seed, and validate the single-symbol live stack |
+| `make smoke-help` | Show smoke/proof selection, prerequisites, and common diagnosis commands |
 | `make seed` | Seed configctl with single symbol (btcusdt) |
 | `make seed-multi` | Seed configctl with multi-symbol (btcusdt + ethusdt) |
 | `make smoke` | First-slice E2E smoke test (requires `make up` + `make seed`) |
 | `make smoke-multi` | Multi-symbol E2E smoke test (requires `make up` + `make seed-multi`) |
 | `make smoke-analytical` | Analytical path proof (NATS → writer → ClickHouse → reader → gateway) |
+| `make smoke-operational` | OS-process/container operational proof (halt/resume plus read-path checks) |
 | `make smoke-restart-recovery` | Restart/recovery smoke for durable consumers and projections |
-| `make check` | Pre-code guard rail (quality-gate fast) |
+| `make check` | Pre-code guard rail (repo consistency + quality-gate fast) |
+| `make repo-consistency-check` | Lightweight repository consistency checks for docs, naming, links, and script wrappers |
+| `make stage-help` | Show the lightweight stage tooling surface |
+| `make stage-scaffold` | Scaffold a stage report (`STAGE_ID`, `STAGE_SLUG`, `STAGE_TITLE`) |
+| `make stage-check` | Validate one active stage report and its required artifacts |
 | `make tdd` | Impact-driven testing guide for the current change set |
-| `make verify` | Post-change validation (tests + quality-gate) |
+| `make verify` | Post-change validation (tests + repo consistency + quality-gate) |
 | `make check-deep` | Full quality-gate validation |
 | `make codegen-equivalence` | Cross-artifact codegen equivalence wrapper |
 | `make migrate-up` | Apply pending ClickHouse migrations |
 | `make migrate-status` | Show migration status |
 | `make migrate-validate` | Verify migration checksums |
 
-## Development Flow
+## Official Workflow
+
+### 1. Bootstrap Or Revalidate The Machine
+
+```bash
+make bootstrap
+```
+
+Use this when onboarding a new machine, after toolchain changes, or when the
+repository starts failing in ways that look environmental rather than code-related.
+
+### 2. Choose The Runtime Bring-Up Path
+
+Fastest path:
+
+```bash
+make live
+```
+
+Selection refresher:
+
+```bash
+make smoke-help
+```
+
+Controlled manual path:
+
+```bash
+make up
+make seed       # or make seed-multi
+make smoke      # or the narrowest relevant make smoke*
+```
+
+Rule:
+
+- prefer `make live` when you want the repository to orchestrate bring-up for you;
+- prefer `make up` + `make seed*` when you need to inspect or control each step;
+- use `make smoke*` as the proof-of-record surface in both cases.
+
+## Daily Change Loop
 
 ### 1. Pre-Change Guard
 
@@ -41,6 +87,9 @@ make check
 ```
 
 Runs the raccoon-cli fast quality-gate to verify repository structure, topology, contracts, and architecture boundaries before you start coding.
+The target now starts with a lightweight repository consistency pass so broken
+support-doc links, stage index drift, naming drift, and missing script wrappers
+fail before deeper analysis runs.
 
 ### 2. TDD
 
@@ -61,6 +110,7 @@ make verify
 ```
 
 Runs all Go tests across workspace modules, then runs the quality-gate.
+The same lightweight repository consistency pass from `make check` also runs here.
 
 ### 5. Deep Check (when needed)
 
@@ -69,6 +119,34 @@ make check-deep
 ```
 
 Full validation including all quality-gate checks.
+
+## Smoke Selection
+
+| Need To Prove | Command |
+|---------|---------|
+| Baseline single-symbol runtime flow | `make smoke` |
+| Broader multi-symbol runtime flow | `make smoke-multi` |
+| Analytical writer/reader path | `make smoke-analytical` |
+| Process/container operational behavior | `make smoke-operational` |
+| Restart and recovery resilience | `make smoke-restart-recovery` |
+
+Choose the narrowest smoke that proves the behavior you changed. `make live*`
+does not replace `make smoke*` as proof-of-record.
+
+## First-Line Troubleshooting
+
+Use this order before dropping into direct scripts or raw substrate commands:
+
+```bash
+make diag
+make ps
+make logs SERVICE=gateway
+SERVICE=gateway make restart
+make down
+```
+
+Escalate to direct `scripts/*.sh`, `docker compose`, `go`, or `cargo` only when
+you are debugging below the repository workflow contract.
 
 ## Quality Gate Profiles
 
@@ -89,16 +167,57 @@ make drift-detect    # Detect cross-layer semantic drift
 
 The root `Makefile` now follows these conventions:
 
+- `make bootstrap` is the canonical setup check for a machine or changed environment.
 - `make check` remains the canonical fast guard rail; `make lint` is a discoverability alias for teams expecting lint-style naming.
-- Existing operational targets such as `make up`, `make smoke`, and `make live` remain canonical; `stack-*` aliases exist only to make the runtime surface more obvious.
+- `make live` is the fastest official bring-up path; `make up` + `make seed*` is the controlled manual path.
+- `make smoke-help` is the fastest way to choose the right proof target and recall supported wait and URL overrides.
+- `make smoke*` is the canonical operational-proof surface; choose the narrowest smoke target that proves the runtime behavior you touched.
+- `make live*` and `stack-*` remain ergonomic wrappers and aliases; they do not replace the canonical proof-of-record `make smoke*` surface.
 - Hidden but real support flows are wrapped and promoted through `make`, notably `make smoke-restart-recovery` and `make codegen-equivalence`.
 - `make docs` points to the current workflow and tooling documents instead of requiring contributors to search stage history.
 
 See:
 
-- [`docs/operations/makefile-command-ergonomics-and-hardening.md`](docs/operations/makefile-command-ergonomics-and-hardening.md)
-- [`docs/operations/makefile-targets-reference-and-conventions.md`](docs/operations/makefile-targets-reference-and-conventions.md)
-- [`docs/tooling/cli-overview.md`](docs/tooling/cli-overview.md)
+- [`docs/README.md`](docs/README.md)
+- [`docs/operations/README.md`](docs/operations/README.md)
+- [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md)
+- [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md)
+- [`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md)
+- [`docs/operations/developer-onboarding-and-troubleshooting-guide.md`](docs/operations/developer-onboarding-and-troubleshooting-guide.md)
+- [`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md)
+- [`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md)
+- [`docs/tooling/README.md`](docs/tooling/README.md)
+- [`docs/operations/repository-support-surface-canonical-model.md`](docs/operations/repository-support-surface-canonical-model.md)
+- [`docs/operations/repository-architecture-convergence.md`](docs/operations/repository-architecture-convergence.md)
+- [`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md)
+- [`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md)
+
+## Support Surface Hierarchy
+
+- `make` is the canonical public entrypoint for day-to-day repository workflows.
+- `make bootstrap` owns setup validation for the official developer workflow.
+- `make live` is the fastest official bring-up path; `make up` + `make seed*` is the controlled manual path.
+- `make smoke-help` improves proof discoverability but does not replace the proof-of-record targets.
+- `make smoke*` owns operational proof; `make live*` and `stack-*` only compose or alias that surface.
+- `make diag`, `make ps`, and `make logs SERVICE=...` are the first-line troubleshooting surface.
+- `stage-help`, `stage-scaffold`, and `stage-check` form the lightweight support surface for governed stage execution and report hygiene.
+- `scripts/*.sh` are harness implementations behind `make`, not competing public APIs.
+- Direct `raccoon-cli` usage is the expert support surface for structural inspection and governance work.
+- `make check-deep` remains a deep tooling gate, not the operational proof-of-record surface.
+- Raw `docker compose`, `go`, and `cargo` commands are substrate interfaces to use only when you are working on those layers directly or debugging below the canonical workflow surface.
+
+## Documentation Surfaces
+
+| Surface | Use For |
+|---------|---------|
+| `README.md` | Project overview and quick orientation |
+| `DEVELOPMENT.md` | Daily engineering workflow |
+| `docs/operations/` | Operational support docs, unified workflow, onboarding, troubleshooting, command surfaces |
+| `docs/operations/documentation-*.md` | Documentation-system hardening, governance, entrypoints, and taxonomy |
+| `docs/tooling/` | `raccoon-cli` guardrails and drift-rule references |
+| `docs/architecture/` | Canonical architecture and governance |
+| `docs/stages/` | Historical stage evidence |
+| `docs/archive/` | Archived or superseded material |
 
 ## Change Analysis
 
@@ -155,6 +274,8 @@ deploy/              Docker Compose, configs, Dockerfile
 scripts/             Utility and smoke-test scripts
 tests/http/          HTTP test files
 docs/architecture/   Architecture decisions and canonical patterns
+docs/archive/        Historical and superseded documentation
+docs/operations/     Operational support docs and documentation conventions
 docs/stages/         Stage completion reports
 docs/tooling/        CLI and tooling documentation
 ```

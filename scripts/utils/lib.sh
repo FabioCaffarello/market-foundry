@@ -94,6 +94,59 @@ require_positive_integer() {
     fi
 }
 
+http_code() {
+    local url="$1"
+    local code
+    code=$(curl -sS -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || true)
+    if [[ -z "$code" || "$code" == "000000" ]]; then
+        echo "000"
+    else
+        echo "$code"
+    fi
+}
+
+smoke_banner() {
+    local label="$1"
+    local canonical_target="$2"
+    local setup_hint="$3"
+    local wait_label="$4"
+    local wait_value="$5"
+
+    phase "$label"
+    info "Canonical entrypoint: ${canonical_target}"
+    info "Expected setup before running: ${setup_hint}"
+    info "Runtime context: BASE_URL=${BASE_URL} ${wait_label}=${wait_value}s"
+}
+
+print_smoke_diagnosis_hints() {
+    local setup_hint="$1"
+    cat <<EOF
+Next checks:
+  - Confirm stack/setup: ${setup_hint}
+  - Inspect runtime state: make ps
+  - Inspect gateway logs: make logs SERVICE=gateway
+  - Capture a quick snapshot: make diag
+EOF
+}
+
+smoke_die_with_hints() {
+    local message="$1"
+    local setup_hint="$2"
+    fail "$message"
+    echo ""
+    print_smoke_diagnosis_hints "$setup_hint"
+    exit 1
+}
+
+smoke_fail_summary() {
+    local label="$1"
+    local error_count="$2"
+    local setup_hint="$3"
+    fail "${label} completed with ${error_count} issue(s)"
+    echo ""
+    print_smoke_diagnosis_hints "$setup_hint"
+}
+
 # ── JSON helpers ─────────────────────────────────────────────────────
 # json_field extracts a top-level field from a JSON string.
 # Usage: value=$(echo "$json" | json_field "status")
