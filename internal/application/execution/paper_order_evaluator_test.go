@@ -10,7 +10,7 @@ import (
 
 func TestPaperOrderEvaluator_ApprovedLong_ProducesBuy(t *testing.T) {
 	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", 60, time.Now())
+	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -27,7 +27,7 @@ func TestPaperOrderEvaluator_ApprovedLong_ProducesBuy(t *testing.T) {
 
 func TestPaperOrderEvaluator_ApprovedShort_ProducesSell(t *testing.T) {
 	eval := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 300)
-	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.03", "short", "0.65", 300, time.Now())
+	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.03", "short", "0.65", "trend_following_entry", "moderate", 300, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -44,7 +44,7 @@ func TestPaperOrderEvaluator_ApprovedShort_ProducesSell(t *testing.T) {
 
 func TestPaperOrderEvaluator_Rejected_ProducesNone(t *testing.T) {
 	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	intent, ok := eval.Evaluate("position_exposure", "rejected", "0.85", "0.02", "long", "0.72", 60, time.Now())
+	intent, ok := eval.Evaluate("position_exposure", "rejected", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -58,7 +58,7 @@ func TestPaperOrderEvaluator_Rejected_ProducesNone(t *testing.T) {
 
 func TestPaperOrderEvaluator_FlatStrategy_ProducesNone(t *testing.T) {
 	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "flat", "0.50", 60, time.Now())
+	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "flat", "0.50", "mean_reversion_entry", "low", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
@@ -72,7 +72,7 @@ func TestPaperOrderEvaluator_FlatStrategy_ProducesNone(t *testing.T) {
 
 func TestPaperOrderEvaluator_IntentIsFinalAndValid(t *testing.T) {
 	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	intent, _ := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", 60, time.Now())
+	intent, _ := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !intent.Final {
 		t.Fatal("expected Final=true")
 	}
@@ -81,6 +81,63 @@ func TestPaperOrderEvaluator_IntentIsFinalAndValid(t *testing.T) {
 	}
 	if prob := intent.Validate(); prob != nil {
 		t.Fatalf("expected valid intent, got: %s", prob.Message)
+	}
+}
+
+// ---------- S265: Boundary Context Preservation ----------
+
+func TestPaperOrderEvaluator_RiskInput_PreservesStrategyTypeAndSeverity(t *testing.T) {
+	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	intent, ok := eval.Evaluate(
+		"position_exposure", "approved", "0.85", "0.02",
+		"long", "0.72",
+		"mean_reversion_entry", "high",
+		60, time.Now(),
+	)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+
+	// S265: StrategyType must survive into RiskInput.
+	if intent.Risk.StrategyType != "mean_reversion_entry" {
+		t.Fatalf("expected RiskInput.StrategyType = mean_reversion_entry, got %q", intent.Risk.StrategyType)
+	}
+
+	// S265: DecisionSeverity must survive into RiskInput.
+	if intent.Risk.DecisionSeverity != "high" {
+		t.Fatalf("expected RiskInput.DecisionSeverity = high, got %q", intent.Risk.DecisionSeverity)
+	}
+
+	// S265: Parameters must also carry the context for observability.
+	if intent.Parameters["strategy_type"] != "mean_reversion_entry" {
+		t.Fatalf("expected Parameters[strategy_type] = mean_reversion_entry, got %q", intent.Parameters["strategy_type"])
+	}
+	if intent.Parameters["decision_severity"] != "high" {
+		t.Fatalf("expected Parameters[decision_severity] = high, got %q", intent.Parameters["decision_severity"])
+	}
+}
+
+func TestPaperOrderEvaluator_DrawdownRisk_ProducesBuyWithExposureQuantity(t *testing.T) {
+	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	// S265: Drawdown risk should pass MaxExposure (e.g., "0.0500") as position constraint,
+	// not StopDistance. This test verifies the correct semantic mapping.
+	intent, ok := eval.Evaluate(
+		"drawdown_limit", "approved", "0.7650", "0.0500",
+		"long", "0.72",
+		"mean_reversion_entry", "high",
+		60, time.Now(),
+	)
+	if !ok {
+		t.Fatal("expected evaluation to succeed")
+	}
+	if intent.Side != domainexec.SideBuy {
+		t.Fatalf("expected SideBuy, got %q", intent.Side)
+	}
+	if intent.Quantity != "0.0500" {
+		t.Fatalf("expected quantity 0.0500 (drawdown MaxExposure), got %q", intent.Quantity)
+	}
+	if intent.Risk.Type != "drawdown_limit" {
+		t.Fatalf("expected risk type drawdown_limit, got %q", intent.Risk.Type)
 	}
 }
 
@@ -97,7 +154,7 @@ func TestPaperOrderEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			eval := appexec.NewPaperOrderEvaluator("binancef", sym, tf)
-			intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", tf, ts)
+			intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", tf, ts)
 			if !ok {
 				t.Fatalf("evaluation failed for %s/%d", sym, tf)
 			}
@@ -147,15 +204,15 @@ func TestPaperOrderEvaluator_MultiSymbol_DifferentDispositions(t *testing.T) {
 
 	// btcusdt: approved long → buy
 	evalBTC := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	btc, _ := evalBTC.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", 60, ts)
+	btc, _ := evalBTC.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, ts)
 
 	// ethusdt: rejected → none
 	evalETH := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 60)
-	eth, _ := evalETH.Evaluate("position_exposure", "rejected", "0.30", "0.02", "long", "0.72", 60, ts)
+	eth, _ := evalETH.Evaluate("position_exposure", "rejected", "0.30", "0.02", "long", "0.72", "mean_reversion_entry", "low", 60, ts)
 
 	// solusdt: approved short → sell
 	evalSOL := appexec.NewPaperOrderEvaluator("binancef", "solusdt", 60)
-	sol, _ := evalSOL.Evaluate("position_exposure", "approved", "0.90", "0.05", "short", "0.80", 60, ts)
+	sol, _ := evalSOL.Evaluate("position_exposure", "approved", "0.90", "0.05", "short", "0.80", "trend_following_entry", "high", 60, ts)
 
 	if btc.Side != domainexec.SideBuy {
 		t.Fatalf("btcusdt: expected SideBuy, got %q", btc.Side)
@@ -182,7 +239,7 @@ func TestPaperOrderEvaluator_MultiSymbol_DifferentDispositions(t *testing.T) {
 func TestPaperOrderEvaluator_MultiSymbol_ModifiedDisposition(t *testing.T) {
 	ts := time.Now()
 	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
-	intent, ok := eval.Evaluate("position_exposure", "modified", "0.60", "0.01", "long", "0.72", 60, ts)
+	intent, ok := eval.Evaluate("position_exposure", "modified", "0.60", "0.01", "long", "0.72", "mean_reversion_entry", "moderate", 60, ts)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}

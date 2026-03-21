@@ -87,13 +87,14 @@ func (a *RSISignalSamplerActor) onCandleFinalized(c *actor.Context, msg candleFi
 	// Notify scope for decision fan-out (same pattern as candle→signal).
 	if a.cfg.ScopePID != nil {
 		c.Send(a.cfg.ScopePID, signalGeneratedMessage{
-			Symbol:        sig.Symbol,
-			SignalType:    sig.Type,
-			SignalValue:   sig.Value,
-			Timeframe:     sig.Timeframe,
-			Timestamp:     sig.Timestamp,
-			CorrelationID: msg.CorrelationID,
-			CausationID:   meta.ID,
+			Symbol:         sig.Symbol,
+			SignalType:     sig.Type,
+			SignalValue:    sig.Value,
+			SignalMetadata: sig.Metadata,
+			Timeframe:      sig.Timeframe,
+			Timestamp:      sig.Timestamp,
+			CorrelationID:  msg.CorrelationID,
+			CausationID:    meta.ID,
 		})
 	}
 

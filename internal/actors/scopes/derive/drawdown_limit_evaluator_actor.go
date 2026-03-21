@@ -77,13 +77,17 @@ func (a *DrawdownLimitEvaluatorActor) onStrategyResolved(c *actor.Context, msg s
 	c.Send(a.cfg.RiskPublisherPID, publishRiskMessage{Event: event})
 
 	// Fan out to execution evaluators via scope.
+	// S265: Use MaxExposure (drawdown tolerance %) as position constraint — not StopDistance,
+	// which represents stop-loss distance and is semantically distinct from position sizing.
 	if a.cfg.ScopePID != nil {
 		stratDirection := ""
 		stratConfidence := ""
+		stratType := ""
 		decSeverity := ""
 		if len(assessment.Strategies) > 0 {
 			stratDirection = assessment.Strategies[0].Direction
 			stratConfidence = assessment.Strategies[0].Confidence
+			stratType = assessment.Strategies[0].Type
 			decSeverity = assessment.Strategies[0].DecisionSeverity
 		}
 		c.Send(a.cfg.ScopePID, riskAssessedMessage{
@@ -91,9 +95,10 @@ func (a *DrawdownLimitEvaluatorActor) onStrategyResolved(c *actor.Context, msg s
 			RiskType:           assessment.Type,
 			RiskDisposition:    string(assessment.Disposition),
 			RiskConfidence:     assessment.Confidence,
-			MaxPositionPct:     assessment.Constraints.StopDistance,
+			MaxPositionPct:     assessment.Constraints.MaxExposure,
 			StrategyDirection:  stratDirection,
 			StrategyConfidence: stratConfidence,
+			StrategyType:       stratType,
 			DecisionSeverity:   decSeverity,
 			Timeframe:          assessment.Timeframe,
 			Timestamp:          assessment.Timestamp,

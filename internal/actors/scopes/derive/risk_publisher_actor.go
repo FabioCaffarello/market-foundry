@@ -79,6 +79,7 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
 			a.cfg.Tracker.Counter("published:" + msg.Event.RiskAssessment.Symbol).Add(1)
+			a.cfg.Tracker.Counter("risk:" + msg.Event.RiskAssessment.Type + ":" + string(msg.Event.RiskAssessment.Disposition)).Add(1)
 		}
 
 	default:

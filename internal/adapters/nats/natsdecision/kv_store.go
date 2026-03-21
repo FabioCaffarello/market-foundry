@@ -15,6 +15,7 @@ import (
 
 const RSIOversoldLatestBucket = "DECISION_RSI_OVERSOLD_LATEST"
 const EMACrossoverLatestBucket = "DECISION_EMA_CROSSOVER_LATEST"
+const BollingerSqueezeLatestBucket = "DECISION_BOLLINGER_SQUEEZE_LATEST"
 
 // KVStore persists the latest finalized decision per source/symbol/timeframe.
 // One instance per decision type; the bucket name is injected at construction.

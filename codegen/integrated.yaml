@@ -9,6 +9,26 @@
 # Direct manual edits to marked regions trigger a CI violation.
 
 slices:
+  # ── Evidence ────────────────────────────────────────────────────
+  - family: candle
+    artifact: consumer_spec
+    spec: codegen/families/candle.yaml
+    golden: codegen/golden-snapshots/candle/consumer_spec.go.golden
+    target: internal/adapters/nats/natsevidence/registry.go
+    marker: "codegen:begin consumer_spec family=candle"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: candle
+    artifact: pipeline_entry
+    spec: codegen/families/candle.yaml
+    golden: codegen/golden-snapshots/candle/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=candle"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  # ── Signal ──────────────────────────────────────────────────────
   - family: rsi
     artifact: consumer_spec
     spec: codegen/families/rsi.yaml
@@ -44,3 +64,205 @@ slices:
     marker: "codegen:begin pipeline_entry family=ema"
     integrated_at: "2026-03-20"
     stage: S203
+
+  - family: bollinger
+    artifact: consumer_spec
+    spec: codegen/families/bollinger.yaml
+    golden: codegen/golden-snapshots/bollinger/consumer_spec.go.golden
+    target: internal/adapters/nats/natssignal/registry.go
+    marker: "codegen:begin consumer_spec family=bollinger"
+    integrated_at: "2026-03-21"
+    stage: S262
+
+  - family: bollinger
+    artifact: pipeline_entry
+    spec: codegen/families/bollinger.yaml
+    golden: codegen/golden-snapshots/bollinger/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=bollinger"
+    integrated_at: "2026-03-21"
+    stage: S262
+
+  - family: macd
+    artifact: consumer_spec
+    spec: codegen/families/macd.yaml
+    golden: codegen/golden-snapshots/macd/consumer_spec.go.golden
+    target: internal/adapters/nats/natssignal/registry.go
+    marker: "codegen:begin consumer_spec family=macd"
+    integrated_at: "2026-03-21"
+    stage: S284
+
+  - family: macd
+    artifact: pipeline_entry
+    spec: codegen/families/macd.yaml
+    golden: codegen/golden-snapshots/macd/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=macd"
+    integrated_at: "2026-03-21"
+    stage: S284
+
+  - family: vwap
+    artifact: consumer_spec
+    spec: codegen/families/vwap.yaml
+    golden: codegen/golden-snapshots/vwap/consumer_spec.go.golden
+    target: internal/adapters/nats/natssignal/registry.go
+    marker: "codegen:begin consumer_spec family=vwap"
+    integrated_at: "2026-03-21"
+    stage: S285
+
+  - family: vwap
+    artifact: pipeline_entry
+    spec: codegen/families/vwap.yaml
+    golden: codegen/golden-snapshots/vwap/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=vwap"
+    integrated_at: "2026-03-21"
+    stage: S285
+
+  - family: atr
+    artifact: consumer_spec
+    spec: codegen/families/atr.yaml
+    golden: codegen/golden-snapshots/atr/consumer_spec.go.golden
+    target: internal/adapters/nats/natssignal/registry.go
+    marker: "codegen:begin consumer_spec family=atr"
+    integrated_at: "2026-03-21"
+    stage: S286
+
+  - family: atr
+    artifact: pipeline_entry
+    spec: codegen/families/atr.yaml
+    golden: codegen/golden-snapshots/atr/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=atr"
+    integrated_at: "2026-03-21"
+    stage: S286
+
+  # ── Decision ────────────────────────────────────────────────────
+  - family: rsi_oversold
+    artifact: consumer_spec
+    spec: codegen/families/rsi_oversold.yaml
+    golden: codegen/golden-snapshots/rsi_oversold/consumer_spec.go.golden
+    target: internal/adapters/nats/natsdecision/registry.go
+    marker: "codegen:begin consumer_spec family=rsi_oversold"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: rsi_oversold
+    artifact: pipeline_entry
+    spec: codegen/families/rsi_oversold.yaml
+    golden: codegen/golden-snapshots/rsi_oversold/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=rsi_oversold"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: ema_crossover
+    artifact: consumer_spec
+    spec: codegen/families/ema_crossover.yaml
+    golden: codegen/golden-snapshots/ema_crossover/consumer_spec.go.golden
+    target: internal/adapters/nats/natsdecision/registry.go
+    marker: "codegen:begin consumer_spec family=ema_crossover"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: ema_crossover
+    artifact: pipeline_entry
+    spec: codegen/families/ema_crossover.yaml
+    golden: codegen/golden-snapshots/ema_crossover/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=ema_crossover"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  # ── Strategy ────────────────────────────────────────────────────
+  - family: mean_reversion_entry
+    artifact: consumer_spec
+    spec: codegen/families/mean_reversion_entry.yaml
+    golden: codegen/golden-snapshots/mean_reversion_entry/consumer_spec.go.golden
+    target: internal/adapters/nats/natsstrategy/registry.go
+    marker: "codegen:begin consumer_spec family=mean_reversion_entry"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: mean_reversion_entry
+    artifact: pipeline_entry
+    spec: codegen/families/mean_reversion_entry.yaml
+    golden: codegen/golden-snapshots/mean_reversion_entry/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=mean_reversion_entry"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: trend_following_entry
+    artifact: consumer_spec
+    spec: codegen/families/trend_following_entry.yaml
+    golden: codegen/golden-snapshots/trend_following_entry/consumer_spec.go.golden
+    target: internal/adapters/nats/natsstrategy/registry.go
+    marker: "codegen:begin consumer_spec family=trend_following_entry"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: trend_following_entry
+    artifact: pipeline_entry
+    spec: codegen/families/trend_following_entry.yaml
+    golden: codegen/golden-snapshots/trend_following_entry/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=trend_following_entry"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  # ── Risk ────────────────────────────────────────────────────────
+  - family: position_exposure
+    artifact: consumer_spec
+    spec: codegen/families/position_exposure.yaml
+    golden: codegen/golden-snapshots/position_exposure/consumer_spec.go.golden
+    target: internal/adapters/nats/natsrisk/registry.go
+    marker: "codegen:begin consumer_spec family=position_exposure"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: position_exposure
+    artifact: pipeline_entry
+    spec: codegen/families/position_exposure.yaml
+    golden: codegen/golden-snapshots/position_exposure/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=position_exposure"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: drawdown_limit
+    artifact: consumer_spec
+    spec: codegen/families/drawdown_limit.yaml
+    golden: codegen/golden-snapshots/drawdown_limit/consumer_spec.go.golden
+    target: internal/adapters/nats/natsrisk/registry.go
+    marker: "codegen:begin consumer_spec family=drawdown_limit"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: drawdown_limit
+    artifact: pipeline_entry
+    spec: codegen/families/drawdown_limit.yaml
+    golden: codegen/golden-snapshots/drawdown_limit/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=drawdown_limit"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  # ── Execution ───────────────────────────────────────────────────
+  - family: paper_order
+    artifact: consumer_spec
+    spec: codegen/families/paper_order.yaml
+    golden: codegen/golden-snapshots/paper_order/consumer_spec.go.golden
+    target: internal/adapters/nats/natsexecution/registry.go
+    marker: "codegen:begin consumer_spec family=paper_order"
+    integrated_at: "2026-03-21"
+    stage: S260
+
+  - family: paper_order
+    artifact: pipeline_entry
+    spec: codegen/families/paper_order.yaml
+    golden: codegen/golden-snapshots/paper_order/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=paper_order"
+    integrated_at: "2026-03-21"
+    stage: S260

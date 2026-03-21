@@ -14,28 +14,76 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/utils/lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/seed-configctl.sh [--multi-symbol] [--help]
+
+Seeds configctl through the full lifecycle: draft -> validate -> compile -> activate.
+
+Options:
+  --multi-symbol  Seed the default multi-symbol configuration (btcusdt,ethusdt).
+  --help          Show this help text.
+
+Environment:
+  BASE_URL        Gateway base URL. Default: http://127.0.0.1:8080
+  SOURCE          Source name used for bindings. Default: binancef
+  SYMBOLS         Comma-separated symbol list. Overrides the default symbol set.
+EOF
+}
+
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="${SOURCE:-binancef}"
 CORRELATION_ID="seed-$(date +%s)"
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+MULTI_SYMBOL=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --multi-symbol)
+            MULTI_SYMBOL=true
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
+    esac
+    shift
+done
 
-pass() { echo -e "${GREEN}[PASS]${NC} $1"; }
-fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
-info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
+require_commands curl python3
 
 # ---------- Determine symbols ----------
-if [[ "${1:-}" == "--multi-symbol" ]]; then
+if $MULTI_SYMBOL; then
     SYMBOLS="${SYMBOLS:-btcusdt,ethusdt}"
 elif [[ -z "${SYMBOLS:-}" ]]; then
     SYMBOLS="btcusdt"
 fi
 
-IFS=',' read -ra SYMBOL_LIST <<< "$SYMBOLS"
+IFS=',' read -ra RAW_SYMBOL_LIST <<< "$SYMBOLS"
+SYMBOL_LIST=()
+for sym in "${RAW_SYMBOL_LIST[@]}"; do
+    sym="${sym//[[:space:]]/}"
+    [[ -n "$sym" ]] || continue
+    SYMBOL_LIST+=("$sym")
+done
+
+if [[ ${#SYMBOL_LIST[@]} -eq 0 ]]; then
+    die "no symbols resolved from SYMBOLS=${SYMBOLS}"
+fi
+
+SYMBOLS="$(IFS=,; echo "${SYMBOL_LIST[*]}")"
 info "Seeding configctl with source=${SOURCE} symbols=[${SYMBOLS}]"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/readyz" 2>/dev/null || echo "000")
+if [[ "$HTTP_CODE" != "200" ]]; then
+    die "gateway not ready at ${BASE_URL}/readyz (HTTP ${HTTP_CODE})"
+fi
 
 # ---------- Build bindings JSON ----------
 BINDINGS_JSON="["
@@ -83,13 +131,13 @@ BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [[ "$HTTP_CODE" != "201" && "$HTTP_CODE" != "200" ]]; then
     echo "$BODY"
-    fail "Create draft failed with HTTP ${HTTP_CODE}"
+    die "Create draft failed with HTTP ${HTTP_CODE}"
 fi
 
 VERSION_ID=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); cfg=d['config']; print(cfg.get('version_id') or cfg.get('id') or '')" 2>/dev/null)
 if [[ -z "$VERSION_ID" ]]; then
     echo "$BODY"
-    fail "Could not extract version_id from response"
+    die "Could not extract version_id from response"
 fi
 pass "Draft created: version_id=${VERSION_ID}"
 
@@ -100,7 +148,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "Accept: application/json" \
     -H "X-Correlation-ID: ${CORRELATION_ID}")
 
-[[ "$HTTP_CODE" == "200" ]] && pass "Config validated" || fail "Validate failed: HTTP ${HTTP_CODE}"
+[[ "$HTTP_CODE" == "200" ]] && pass "Config validated" || die "Validate failed: HTTP ${HTTP_CODE}"
 
 # ---------- Step 3: Compile ----------
 info "Step 3: Compiling config..."
@@ -111,7 +159,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "X-Correlation-ID: ${CORRELATION_ID}" \
     -d "{}")
 
-[[ "$HTTP_CODE" == "200" ]] && pass "Config compiled" || fail "Compile failed: HTTP ${HTTP_CODE}"
+[[ "$HTTP_CODE" == "200" ]] && pass "Config compiled" || die "Compile failed: HTTP ${HTTP_CODE}"
 
 # ---------- Step 4: Activate ----------
 info "Step 4: Activating config..."
@@ -122,7 +170,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "X-Correlation-ID: ${CORRELATION_ID}" \
     -d "{\"scope_kind\":\"global\",\"scope_key\":\"default\"}")
 
-[[ "$HTTP_CODE" == "200" ]] && pass "Config activated" || fail "Activate failed: HTTP ${HTTP_CODE}"
+[[ "$HTTP_CODE" == "200" ]] && pass "Config activated" || die "Activate failed: HTTP ${HTTP_CODE}"
 
 # ---------- Step 5: Confirm ----------
 info "Step 5: Confirming active config..."
@@ -138,7 +186,7 @@ print(f'  Version: {config.get(\"version\", \"?\")}')
 print(f'  Bindings: {len(bindings)}')
 for b in bindings:
     print(f'    - {b.get(\"name\", \"?\")} → {b.get(\"topic\", \"?\")}')
-" 2>/dev/null && pass "Active config confirmed" || fail "Could not confirm active config"
+" 2>/dev/null && pass "Active config confirmed" || die "Could not confirm active config"
 
 echo ""
 echo "======================================"

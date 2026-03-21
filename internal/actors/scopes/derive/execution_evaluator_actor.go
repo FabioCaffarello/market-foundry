@@ -70,6 +70,7 @@ func (a *PaperOrderEvaluatorActor) onRiskAssessed(c *actor.Context, msg riskAsse
 	intent, ok := a.evaluator.Evaluate(
 		msg.RiskType, msg.RiskDisposition, msg.RiskConfidence, msg.MaxPositionPct,
 		msg.StrategyDirection, msg.StrategyConfidence,
+		msg.StrategyType, msg.DecisionSeverity,
 		msg.Timeframe, msg.Timestamp,
 	)
 	if !ok {

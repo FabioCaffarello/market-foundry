@@ -1,0 +1,21 @@
+family:
+  name: atr
+  layer: signal
+  tier: 1
+
+nats:
+  subject: "signal.events.atr.generated.>"
+  event_type: "signal.events.v1.atr_generated"
+  stream: SIGNAL_EVENTS
+  durable: writer-signal-atr
+
+writer:
+  table: signals
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp"
+  mapper: mapSignalRow
+  pipeline_family_key: atr
+  config_array: signal_families
+
+domain:
+  event_package: signal
+  event_type: SignalGeneratedEvent

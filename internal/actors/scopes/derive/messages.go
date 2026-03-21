@@ -59,13 +59,14 @@ type publishSignalMessage struct {
 // which fans it out to decision evaluator actors for the matching symbol.
 // Contains primitive data per DBI-9 (no signal.Signal struct).
 type signalGeneratedMessage struct {
-	Symbol        string
-	SignalType    string
-	SignalValue   string
-	Timeframe     int
-	Timestamp     time.Time
-	CorrelationID string
-	CausationID   string // event ID of the signal that caused this fan-out
+	Symbol         string
+	SignalType     string
+	SignalValue    string
+	SignalMetadata map[string]string // signal-specific metadata (e.g., bandwidth, sma for bollinger)
+	Timeframe      int
+	Timestamp      time.Time
+	CorrelationID  string
+	CausationID    string // event ID of the signal that caused this fan-out
 }
 
 // publishDecisionMessage is sent from decision evaluator actors to the decision publisher actor.
@@ -118,6 +119,7 @@ type publishRiskMessage struct {
 // riskAssessedMessage is sent from risk evaluator actors to the SourceScopeActor,
 // which fans it out to execution evaluator actors for the matching symbol.
 // Contains primitive data per domain isolation (no risk.RiskAssessment struct).
+// S265: StrategyType added to preserve strategy family identity across the boundary.
 // DecisionSeverity carries the originating decision's severity for downstream traceability.
 type riskAssessedMessage struct {
 	Symbol             string
@@ -127,6 +129,7 @@ type riskAssessedMessage struct {
 	MaxPositionPct     string
 	StrategyDirection  string
 	StrategyConfidence string
+	StrategyType       string
 	DecisionSeverity   string
 	Timeframe          int
 	Timestamp          time.Time

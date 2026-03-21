@@ -64,22 +64,52 @@ func (r Registry) LatestSpecByType(riskType string) (natskit.ControlSpec, bool) 
 	}
 }
 
-// ── Writer Consumer Specs (manual:owned) ─────────────────────────
-// Ownership: human-maintained. Not codegen-governed.
+// ── Writer Consumer Specs ─────────────────────────────────────────
+// Position exposure and drawdown limit are codegen-governed (markers below).
+// Store consumer specs remain manual:owned.
 
+// codegen:begin consumer_spec family=position_exposure source=codegen/families/position_exposure.yaml
 // WriterPositionExposureRiskConsumer defines the durable consumer spec for writer consuming position exposure risk events.
 func WriterPositionExposureRiskConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-risk-position-exposure", "risk.events.position_exposure.assessed.>", "risk.events.v1.position_exposure_assessed", "RISK_EVENTS")
+	return natskit.ConsumerSpec{
+		Durable: "writer-risk-position-exposure",
+		Event: natskit.EventSpec{
+			Subject: "risk.events.position_exposure.assessed.>",
+			Type:    "risk.events.v1.position_exposure_assessed",
+			Stream: natskit.StreamSpec{
+				Name: "RISK_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
 }
+
+// codegen:end consumer_spec family=position_exposure
+
+// codegen:begin consumer_spec family=drawdown_limit source=codegen/families/drawdown_limit.yaml
+// WriterDrawdownLimitRiskConsumer defines the durable consumer spec for writer consuming
+// drawdown_limit risk events.
+func WriterDrawdownLimitRiskConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-risk-drawdown-limit",
+		Event: natskit.EventSpec{
+			Subject: "risk.events.drawdown_limit.assessed.>",
+			Type:    "risk.events.v1.drawdown_limit_assessed",
+			Stream: natskit.StreamSpec{
+				Name: "RISK_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// codegen:end consumer_spec family=drawdown_limit
 
 // StorePositionExposureRiskConsumer defines the durable consumer spec for store consuming position exposure risk events.
 func StorePositionExposureRiskConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-risk-position-exposure", "risk.events.position_exposure.assessed.>", "risk.events.v1.position_exposure_assessed", "RISK_EVENTS")
-}
-
-// WriterDrawdownLimitRiskConsumer defines the durable consumer spec for writer consuming drawdown limit risk events.
-func WriterDrawdownLimitRiskConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-risk-drawdown-limit", "risk.events.drawdown_limit.assessed.>", "risk.events.v1.drawdown_limit_assessed", "RISK_EVENTS")
 }
 
 // StoreDrawdownLimitRiskConsumer defines the durable consumer spec for store consuming drawdown limit risk events.

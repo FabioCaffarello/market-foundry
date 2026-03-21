@@ -1,7 +1,6 @@
 package execution
 
 import (
-	"fmt"
 	"time"
 
 	domainexec "internal/domain/execution"
@@ -28,10 +27,13 @@ func NewPaperOrderEvaluator(source, symbol string, timeframe int) *PaperOrderEva
 // riskDisposition is "approved", "modified", or "rejected".
 // strategyDirection is "long", "short", or "flat".
 // maxPositionPct is the risk-constrained position size (decimal string).
+// strategyType identifies the originating strategy family for traceability.
+// decisionSeverity carries the originating decision's severity for behavioral context.
 // Returns an ExecutionIntent and true if evaluation succeeded.
 func (e *PaperOrderEvaluator) Evaluate(
 	riskType, riskDisposition, riskConfidence, maxPositionPct string,
 	strategyDirection, strategyConfidence string,
+	strategyType, decisionSeverity string,
 	riskTimeframe int,
 	ts time.Time,
 ) (domainexec.ExecutionIntent, bool) {
@@ -71,17 +73,21 @@ func (e *PaperOrderEvaluator) Evaluate(
 		Quantity:  quantity,
 		Status:    domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
-			Type:        riskType,
-			Disposition: riskDisposition,
-			Confidence:  riskConfidence,
-			Timeframe:   riskTimeframe,
+			Type:             riskType,
+			Disposition:      riskDisposition,
+			Confidence:       riskConfidence,
+			Timeframe:        riskTimeframe,
+			StrategyType:     strategyType,
+			DecisionSeverity: decisionSeverity,
 		},
 		Parameters: map[string]string{
 			"risk_type":           riskType,
 			"risk_disposition":    riskDisposition,
 			"strategy_direction":  strategyDirection,
 			"strategy_confidence": strategyConfidence,
-			"max_position_pct":    fmt.Sprintf("%s", maxPositionPct),
+			"strategy_type":       strategyType,
+			"decision_severity":   decisionSeverity,
+			"max_position_pct":    maxPositionPct,
 		},
 		Final:     true,
 		Timestamp: ts,

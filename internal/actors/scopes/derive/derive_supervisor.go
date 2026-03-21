@@ -156,6 +156,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
+		{
+			Family:      "bollinger",
+			ActorPrefix: "signal-bollinger",
+			NewActor: func(source, symbol string, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
+				return NewBollingerSignalSamplerActor(SignalSamplerConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
+				})
+			},
+		},
 	}, func(p SignalFamilyProcessor) string { return p.Family },
 		s.cfg.Pipeline.IsSignalFamilyEnabled, s.logger, "signal")
 
@@ -179,6 +188,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
+		{
+			Family:      "bollinger_squeeze",
+			ActorPrefix: "decision-bollinger-squeeze",
+			NewActor: func(source, symbol string, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
+				return NewBollingerSqueezeEvaluatorActor(DecisionEvaluatorConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
+				})
+			},
+		},
 	}, func(p DecisionFamilyProcessor) string { return p.Family },
 		s.cfg.Pipeline.IsDecisionFamilyEnabled, s.logger, "decision")
 
@@ -198,6 +216,15 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 			ActorPrefix: "strategy-trend-following-entry",
 			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
 				return NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
+					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
+				})
+			},
+		},
+		{
+			Family:      "squeeze_breakout_entry",
+			ActorPrefix: "strategy-squeeze-breakout-entry",
+			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
+				return NewSqueezeBreakoutEntryResolverActor(StrategyResolverConfig{
 					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
 				})
 			},

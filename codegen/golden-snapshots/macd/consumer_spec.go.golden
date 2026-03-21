@@ -1,0 +1,16 @@
+// WriterMACDSignalConsumer defines the durable consumer spec for writer consuming
+// macd signal events.
+func WriterMACDSignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-macd",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.macd.generated.>",
+			Type:    "signal.events.v1.macd_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

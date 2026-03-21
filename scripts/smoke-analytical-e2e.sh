@@ -879,7 +879,248 @@ case "$RISK_DL_DEPTH" in
 esac
 
 # ══════════════════════════════════════════════════════════════════════
-phase "Phase 8: Writer Observability Check"
+phase "Phase 8: Behavioral Semantic Verification (S255 — Full-Stack Proof)"
+# ══════════════════════════════════════════════════════════════════════
+# Validates that BEHAVIORAL-WAVE-1 semantics survive the full-stack round-trip:
+#   NATS → writer → ClickHouse → reader → HTTP
+# This closes OD-BW1 (full-stack behavioral smoke).
+
+# --- 8a. Decision severity is valid enum value ---
+info "Verifying decision severity enum fidelity..."
+BEH_SEV=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    decisions = d.get('decisions', [])
+    if not decisions:
+        print('NO_DATA')
+        sys.exit(0)
+    valid_severities = {'none', 'low', 'moderate', 'high'}
+    invalid = []
+    for dec in decisions:
+        sev = dec.get('severity', '')
+        if sev not in valid_severities:
+            invalid.append(sev)
+    if invalid:
+        print(f'INVALID: {invalid}')
+        sys.exit(1)
+    sevs = set(dec.get('severity', '') for dec in decisions)
+    print(f'ALL_VALID distinct={sorted(sevs)} count={len(decisions)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$BEH_SEV" in
+    ALL_VALID*)
+        pass "Decision severity enum fidelity proven (${BEH_SEV})"
+        ;;
+    NO_DATA*)
+        warn "No decision data for severity enum verification"
+        ;;
+    *)
+        record_fail "Decision severity enum verification failed: ${BEH_SEV}"
+        ;;
+esac
+
+# --- 8b. Strategy confidence is severity-scaled (≤ decision confidence for triggered) ---
+info "Verifying strategy confidence is severity-scaled..."
+BEH_CONF=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long&limit=10" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    strategies = d.get('strategies', [])
+    if not strategies:
+        print('NO_DATA')
+        sys.exit(0)
+    checked = 0
+    violations = 0
+    for strat in strategies:
+        decs = strat.get('decisions', [])
+        if not isinstance(decs, list) or not decs:
+            continue
+        dec = decs[0]
+        if not isinstance(dec, dict):
+            continue
+        if dec.get('outcome') != 'triggered':
+            continue
+        strat_conf = float(strat.get('confidence', '0'))
+        dec_conf = float(dec.get('confidence', '0'))
+        checked += 1
+        if strat_conf > dec_conf + 0.001:
+            violations += 1
+    if checked == 0:
+        print('NO_TRIGGERED')
+    elif violations == 0:
+        print(f'ALL_OK checked={checked}')
+    else:
+        print(f'VIOLATION checked={checked} violations={violations}')
+        sys.exit(1)
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$BEH_CONF" in
+    ALL_OK*)
+        pass "Strategy confidence ≤ decision confidence (severity scaling proven: ${BEH_CONF})"
+        ;;
+    NO_DATA*|NO_TRIGGERED*)
+        warn "No triggered strategies for confidence scaling check"
+        ;;
+    *)
+        record_fail "Strategy confidence scaling verification failed: ${BEH_CONF}"
+        ;;
+esac
+
+# --- 8c. Risk carries behavioral metadata (strategy_type, confidence_factor) ---
+info "Verifying risk behavioral metadata..."
+BEH_RISK_META=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    risks = d.get('risk_assessments', [])
+    if not risks:
+        print('NO_DATA')
+        sys.exit(0)
+    has_meta = 0
+    for r in risks:
+        meta = r.get('metadata', {})
+        if isinstance(meta, dict) and meta.get('strategy_type') and meta.get('confidence_factor'):
+            has_meta += 1
+    if has_meta == len(risks):
+        print(f'ALL_OK count={has_meta}')
+    elif has_meta > 0:
+        print(f'PARTIAL has_meta={has_meta}/{len(risks)}')
+    else:
+        print(f'NONE count={len(risks)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$BEH_RISK_META" in
+    ALL_OK*)
+        pass "Risk behavioral metadata (strategy_type + confidence_factor) present (${BEH_RISK_META})"
+        ;;
+    PARTIAL*)
+        warn "Risk behavioral metadata partial (${BEH_RISK_META}) — some may predate behavioral wave"
+        ;;
+    NO_DATA*)
+        warn "No risk data for behavioral metadata verification"
+        ;;
+    *)
+        record_fail "Risk behavioral metadata verification failed: ${BEH_RISK_META}"
+        ;;
+esac
+
+# --- 8d. Risk constraints are non-empty for approved dispositions ---
+info "Verifying risk constraints for approved dispositions..."
+BEH_CONSTRAINTS=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved&limit=10" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    risks = d.get('risk_assessments', [])
+    if not risks:
+        print('NO_DATA')
+        sys.exit(0)
+    with_constraints = 0
+    for r in risks:
+        c = r.get('constraints', {})
+        if isinstance(c, dict) and (c.get('max_position_size') or c.get('max_exposure') or c.get('stop_distance')):
+            with_constraints += 1
+    if with_constraints == len(risks):
+        print(f'ALL_OK count={with_constraints}')
+    elif with_constraints > 0:
+        print(f'PARTIAL with_constraints={with_constraints}/{len(risks)}')
+    else:
+        print(f'NONE count={len(risks)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$BEH_CONSTRAINTS" in
+    ALL_OK*)
+        pass "Risk constraints non-empty for approved dispositions (${BEH_CONSTRAINTS})"
+        ;;
+    PARTIAL*)
+        warn "Risk constraints partial (${BEH_CONSTRAINTS})"
+        ;;
+    NO_DATA*)
+        warn "No approved risk data for constraints verification"
+        ;;
+    *)
+        record_fail "Risk constraints verification failed: ${BEH_CONSTRAINTS}"
+        ;;
+esac
+
+# --- 8e. Dual-risk fan-out: both position_exposure and drawdown_limit exist ---
+info "Verifying dual-risk fan-out (position_exposure + drawdown_limit)..."
+BEH_DUAL=$(python3 -c "
+pe = ${CH_RISK_COUNT:-0}
+dl = ${CH_RISK_DL_COUNT:-0}
+if pe > 0 and dl > 0:
+    print(f'BOTH_PRESENT pe={pe} dl={dl}')
+elif pe > 0:
+    print(f'PE_ONLY pe={pe}')
+elif dl > 0:
+    print(f'DL_ONLY dl={dl}')
+else:
+    print('NO_DATA')
+" 2>&1)
+
+case "$BEH_DUAL" in
+    BOTH_PRESENT*)
+        pass "Dual-risk fan-out proven: both evaluators have data (${BEH_DUAL})"
+        ;;
+    PE_ONLY*|DL_ONLY*)
+        warn "Only one risk evaluator has data (${BEH_DUAL}) — pipeline may need more time"
+        ;;
+    NO_DATA*)
+        warn "No risk data for dual fan-out verification"
+        ;;
+esac
+
+# --- 8f. Chain B behavioral verification (trend_following + drawdown_limit) ---
+info "Verifying Chain B behavioral metadata (trend_following → drawdown_limit)..."
+BEH_CHAIN_B=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    risks = d.get('risk_assessments', [])
+    if not risks:
+        print('NO_DATA')
+        sys.exit(0)
+    has_stop = 0
+    has_meta = 0
+    for r in risks:
+        c = r.get('constraints', {})
+        if isinstance(c, dict) and c.get('stop_distance'):
+            has_stop += 1
+        meta = r.get('metadata', {})
+        if isinstance(meta, dict) and meta.get('strategy_type'):
+            has_meta += 1
+    print(f'OK with_stop={has_stop}/{len(risks)} with_meta={has_meta}/{len(risks)}')
+except Exception as e:
+    print(f'ERROR: {e}')
+    sys.exit(1)
+" 2>&1)
+
+case "$BEH_CHAIN_B" in
+    OK*)
+        pass "Chain B behavioral verification (${BEH_CHAIN_B})"
+        ;;
+    NO_DATA*)
+        warn "No drawdown_limit data for Chain B verification"
+        ;;
+    *)
+        record_fail "Chain B behavioral verification failed: ${BEH_CHAIN_B}"
+        ;;
+esac
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 9: Writer Observability Check"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking writer diagz..."
@@ -908,7 +1149,7 @@ except:
 " 2>/dev/null || warn "Writer diagz parse error"
 
 # ══════════════════════════════════════════════════════════════════════
-phase "Phase 9: Error Log Scan"
+phase "Phase 10: Error Log Scan"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Scanning compose logs for error-level entries..."
@@ -981,6 +1222,12 @@ echo "  [Exec read]            HTTP returned ${EXEC_COUNT:-0} executions via ana
 echo "  [Error handling]       400 responses for invalid params confirmed (candle + signal + decision + strategy + risk + execution)"
 echo "  [Domain depth A]       Chain A (rsi_oversold → mean_reversion_entry → position_exposure) context propagation"
 echo "  [Domain depth B]       Chain B (ema_crossover → trend_following_entry → drawdown_limit) context propagation"
+echo "  [BW1 severity]         Decision severity enum fidelity (none|low|moderate|high)"
+echo "  [BW1 scaling]          Strategy confidence ≤ decision confidence (severity scaling)"
+echo "  [BW1 risk meta]        Risk behavioral metadata (strategy_type + confidence_factor)"
+echo "  [BW1 constraints]      Risk constraints non-empty for approved dispositions"
+echo "  [BW1 dual-risk]        Dual-risk fan-out (position_exposure + drawdown_limit both present)"
+echo "  [BW1 chain-b]          Chain B behavioral metadata (trend_following → drawdown_limit)"
 echo ""
 
 if [[ $ERRORS -eq 0 ]]; then

@@ -15,31 +15,41 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-COMPOSE_FILE="${PROJECT_ROOT}/deploy/compose/docker-compose.yaml"
-compose() {
-    docker compose -f "${COMPOSE_FILE}" "$@"
+source "${SCRIPT_DIR}/utils/lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/diag-check.sh [--local] [--help]
+
+Collects a lightweight diagnostic snapshot from the running stack.
+
+Options:
+  --local   Query services directly on the host instead of through docker compose exec.
+  --help    Show this help text.
+EOF
 }
 
 LOCAL=false
-for arg in "$@"; do
-    case "$arg" in
-        --local) LOCAL=true ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --local)
+            LOCAL=true
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
     esac
+    shift
 done
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-pass() { echo -e "${GREEN}[OK]${NC}   $1"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-fail() { echo -e "${RED}[FAIL]${NC} $1"; }
-phase() { echo -e "\n${CYAN}${BOLD}═══ $1 ═══${NC}"; }
-
-ERRORS=0
+require_commands curl python3
+if ! $LOCAL; then
+    require_commands docker
+fi
 
 fetch() {
     local svc="$1"
@@ -48,7 +58,7 @@ fetch() {
     if $LOCAL; then
         curl -s "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
     else
-        compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
+        docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}${endpoint}" 2>/dev/null || echo ""
     fi
 }
 
@@ -62,16 +72,14 @@ for svc_port in "${RUNTIME_PORTS[@]}"; do
     port="${svc_port##*:}"
     result=$(fetch "$svc" "$port" "/readyz")
     if [[ -z "$result" ]]; then
-        fail "${svc} /readyz → unreachable"
-        ERRORS=$((ERRORS + 1))
+        record_fail "${svc} /readyz → unreachable"
         continue
     fi
     status=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','error'))" 2>/dev/null || echo "error")
     if [[ "$status" == "ready" ]]; then
         pass "${svc} /readyz → ready"
     else
-        fail "${svc} /readyz → ${status}"
-        ERRORS=$((ERRORS + 1))
+        record_fail "${svc} /readyz → ${status}"
     fi
 done
 
@@ -83,8 +91,7 @@ for svc_port in "${RUNTIME_PORTS[@]}"; do
     port="${svc_port##*:}"
     statusz=$(fetch "$svc" "$port" "/statusz")
     if [[ -z "$statusz" ]]; then
-        fail "${svc}: /statusz unreachable"
-        ERRORS=$((ERRORS + 1))
+        record_fail "${svc}: /statusz unreachable"
         continue
     fi
     echo "$statusz" | python3 -c "
@@ -114,8 +121,7 @@ for svc_port in "${RUNTIME_PORTS[@]}"; do
     port="${svc_port##*:}"
     diagz=$(fetch "$svc" "$port" "/diagz")
     if [[ -z "$diagz" ]]; then
-        fail "${svc}: /diagz unreachable"
-        ERRORS=$((ERRORS + 1))
+        record_fail "${svc}: /diagz unreachable"
         continue
     fi
     echo "$diagz" | python3 -c "
@@ -152,11 +158,11 @@ done
 phase "Error Log Scan"
 
 if ! $LOCAL; then
-    ERROR_COUNT=$(compose logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
+    ERROR_COUNT=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
     ERROR_COUNT="${ERROR_COUNT:-0}"
     if [[ "$ERROR_COUNT" -gt 0 ]]; then
         warn "Found ${ERROR_COUNT} error-level log entries"
-        compose logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
+        docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -5
     else
         pass "No error-level log entries"
     fi

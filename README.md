@@ -59,6 +59,9 @@ deploy/
 ## Quick Start
 
 ```bash
+# Discover available workflows first
+make help
+
 # Build, start, seed, and validate the current live stack
 make live
 
@@ -78,13 +81,20 @@ make smoke-analytical
 # Run quality checks
 make check
 
+# Common alias for teams that expect a lint command
+make lint
+
 # Run post-change validation
 make verify
+
+# Show the primary workflow/tooling docs
+make docs
 ```
 
 ## Development Workflow
 
 ```bash
+make help        # Discover the supported target surface
 make check       # Pre-code guard rail
 make tdd         # Impact-driven validation guide
 make verify      # Tests + quality gate
@@ -92,6 +102,10 @@ make arch-guard  # Architecture boundary check
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow reference.
+Operational conventions for the command surface live in
+[`docs/operations/makefile-targets-reference-and-conventions.md`](docs/operations/makefile-targets-reference-and-conventions.md),
+and direct `raccoon-cli` usage is summarized in
+[`docs/tooling/cli-overview.md`](docs/tooling/cli-overview.md).
 
 ## What Was Removed
 

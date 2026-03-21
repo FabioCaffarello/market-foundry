@@ -1,0 +1,16 @@
+// WriterVWAPSignalConsumer defines the durable consumer spec for writer consuming
+// vwap signal events.
+func WriterVWAPSignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-vwap",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.vwap.generated.>",
+			Type:    "signal.events.v1.vwap_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

@@ -62,11 +62,14 @@ type DerivedFields struct {
 
 // knownAbbreviations maps lowercase tokens to their Go-idiomatic uppercase forms.
 var knownAbbreviations = map[string]string{
-	"rsi": "RSI",
-	"ema": "EMA",
-	"id":  "ID",
-	"url": "URL",
-	"api": "API",
+	"rsi":  "RSI",
+	"ema":  "EMA",
+	"macd": "MACD",
+	"vwap": "VWAP",
+	"atr":  "ATR",
+	"id":   "ID",
+	"url":  "URL",
+	"api":  "API",
 }
 
 // LoadAllSpecs reads all family specs from the given directory.

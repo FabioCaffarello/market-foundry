@@ -66,12 +66,8 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 	}
 
 	return []writerPipeline{
-		// ── manual:owned — Evidence families ─────────────────────
-		// Ownership: human-maintained. Not codegen-governed.
-		// Reason: evidence layer has unique naming conventions and
-		// event type variations that require architectural decisions.
-
-		// ── Evidence: candle → evidence_candles ──────────────────
+		// codegen:begin pipeline_entry family=candle source=codegen/families/candle.yaml
+		// ── Evidence: candle → evidence_candles ──
 		{
 			family:        "candle",
 			consumerName:  "writer-candle-consumer",
@@ -82,6 +78,7 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsFamilyEnabled("candle") },
 			startConsumer: writerpipeline.NewCandleStarter(reg.evidence),
 		},
+		// codegen:end pipeline_entry family=candle
 
 		// codegen:begin pipeline_entry family=rsi source=codegen/families/rsi.yaml
 		// ── Signal: rsi → signals ───────────────────────────────
@@ -111,13 +108,64 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 		},
 		// codegen:end pipeline_entry family=ema
 
-		// ── manual:owned — Decision, Strategy, Risk, Execution families ──
-		// Ownership: human-maintained. Not codegen-governed.
-		// Reason: these families have codegen specs and golden snapshots
-		// but integration has not been authorized. They remain manual
-		// until a future stage explicitly migrates them.
+		// codegen:begin pipeline_entry family=bollinger source=codegen/families/bollinger.yaml
+		// ── Signal: bollinger → signals ──
+		{
+			family:        "bollinger",
+			consumerName:  "writer-signal-bollinger-consumer",
+			inserterName:  "writer-signal-bollinger-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterBollingerSignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("bollinger") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+		},
+		// codegen:end pipeline_entry family=bollinger
 
-		// ── Decision: rsi_oversold → decisions ──────────────────
+		// codegen:begin pipeline_entry family=macd source=codegen/families/macd.yaml
+		// ── Signal: macd → signals ──
+		{
+			family:        "macd",
+			consumerName:  "writer-signal-macd-consumer",
+			inserterName:  "writer-signal-macd-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterMACDSignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("macd") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+		},
+		// codegen:end pipeline_entry family=macd
+
+		// codegen:begin pipeline_entry family=vwap source=codegen/families/vwap.yaml
+		// ── Signal: vwap → signals ──
+		{
+			family:        "vwap",
+			consumerName:  "writer-signal-vwap-consumer",
+			inserterName:  "writer-signal-vwap-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterVWAPSignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("vwap") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+		},
+		// codegen:end pipeline_entry family=vwap
+
+		// codegen:begin pipeline_entry family=atr source=codegen/families/atr.yaml
+		// ── Signal: atr → signals ──
+		{
+			family:        "atr",
+			consumerName:  "writer-signal-atr-consumer",
+			inserterName:  "writer-signal-atr-inserter",
+			table:         "signals",
+			insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+			consumerSpec:  natssignal.WriterATRSignalConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("atr") },
+			startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+		},
+		// codegen:end pipeline_entry family=atr
+
+		// codegen:begin pipeline_entry family=rsi_oversold source=codegen/families/rsi_oversold.yaml
+		// ── Decision: rsi_oversold → decisions ──
 		{
 			family:        "rsi_oversold",
 			consumerName:  "writer-decision-rsi-oversold-consumer",
@@ -128,8 +176,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("rsi_oversold") },
 			startConsumer: writerpipeline.NewDecisionStarter(reg.decision),
 		},
+		// codegen:end pipeline_entry family=rsi_oversold
 
-		// ── Decision: ema_crossover → decisions ─────────────────
+		// codegen:begin pipeline_entry family=ema_crossover source=codegen/families/ema_crossover.yaml
+		// ── Decision: ema_crossover → decisions ──
 		{
 			family:        "ema_crossover",
 			consumerName:  "writer-decision-ema-crossover-consumer",
@@ -140,8 +190,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("ema_crossover") },
 			startConsumer: writerpipeline.NewDecisionStarter(reg.decision),
 		},
+		// codegen:end pipeline_entry family=ema_crossover
 
-		// ── Strategy: mean_reversion_entry → strategies ─────────
+		// codegen:begin pipeline_entry family=mean_reversion_entry source=codegen/families/mean_reversion_entry.yaml
+		// ── Strategy: mean_reversion_entry → strategies ──
 		{
 			family:        "mean_reversion_entry",
 			consumerName:  "writer-strategy-mean-reversion-entry-consumer",
@@ -152,8 +204,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
 			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
 		},
+		// codegen:end pipeline_entry family=mean_reversion_entry
 
-		// ── Strategy: trend_following_entry → strategies ─────────
+		// codegen:begin pipeline_entry family=trend_following_entry source=codegen/families/trend_following_entry.yaml
+		// ── Strategy: trend_following_entry → strategies ──
 		{
 			family:        "trend_following_entry",
 			consumerName:  "writer-strategy-trend-following-entry-consumer",
@@ -164,8 +218,22 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("trend_following_entry") },
 			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
 		},
+		// codegen:end pipeline_entry family=trend_following_entry
 
-		// ── Risk: position_exposure → risk_assessments ──────────
+		// ── Strategy: squeeze_breakout_entry → strategies ──
+		{
+			family:        "squeeze_breakout_entry",
+			consumerName:  "writer-strategy-squeeze-breakout-entry-consumer",
+			inserterName:  "writer-strategy-squeeze-breakout-entry-inserter",
+			table:         "strategies",
+			insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+			consumerSpec:  natsstrategy.WriterSqueezeBreakoutEntryStrategyConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("squeeze_breakout_entry") },
+			startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),
+		},
+
+		// codegen:begin pipeline_entry family=position_exposure source=codegen/families/position_exposure.yaml
+		// ── Risk: position_exposure → risk_assessments ──
 		{
 			family:        "position_exposure",
 			consumerName:  "writer-risk-position-exposure-consumer",
@@ -176,8 +244,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("position_exposure") },
 			startConsumer: writerpipeline.NewRiskStarter(reg.risk),
 		},
+		// codegen:end pipeline_entry family=position_exposure
 
-		// ── Risk: drawdown_limit → risk_assessments ─────────────
+		// codegen:begin pipeline_entry family=drawdown_limit source=codegen/families/drawdown_limit.yaml
+		// ── Risk: drawdown_limit → risk_assessments ──
 		{
 			family:        "drawdown_limit",
 			consumerName:  "writer-risk-drawdown-limit-consumer",
@@ -188,8 +258,10 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("drawdown_limit") },
 			startConsumer: writerpipeline.NewRiskStarter(reg.risk),
 		},
+		// codegen:end pipeline_entry family=drawdown_limit
 
-		// ── Execution: paper_order → executions ─────────────────
+		// codegen:begin pipeline_entry family=paper_order source=codegen/families/paper_order.yaml
+		// ── Execution: paper_order → executions ──
 		{
 			family:        "paper_order",
 			consumerName:  "writer-execution-paper-order-consumer",
@@ -200,5 +272,6 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("paper_order") },
 			startConsumer: writerpipeline.NewExecutionStarter(reg.execution),
 		},
+		// codegen:end pipeline_entry family=paper_order
 	}
 }

@@ -35,6 +35,10 @@ func TestPositionExposureEvaluator_LongApproved(t *testing.T) {
 	if r.Strategies[0].Type != "mean_reversion_entry" || r.Strategies[0].Direction != "long" {
 		t.Fatalf("unexpected strategy input: %+v", r.Strategies[0])
 	}
+	// S251: confidence = 0.85 × 0.90 (mean_reversion factor)
+	if r.Confidence != "0.7650" {
+		t.Errorf("expected risk confidence 0.7650 (mean_reversion ×0.90), got %s", r.Confidence)
+	}
 }
 
 func TestPositionExposureEvaluator_ShortApproved(t *testing.T) {
@@ -50,6 +54,10 @@ func TestPositionExposureEvaluator_ShortApproved(t *testing.T) {
 	}
 	if r.Strategies[0].Direction != "short" {
 		t.Fatalf("expected short direction, got %s", r.Strategies[0].Direction)
+	}
+	// S251: confidence = 0.75 × 0.90 (mean_reversion factor)
+	if r.Confidence != "0.6750" {
+		t.Errorf("expected risk confidence 0.6750, got %s", r.Confidence)
 	}
 }
 
@@ -176,6 +184,16 @@ func TestPositionExposureEvaluator_ParametersPresent(t *testing.T) {
 	}
 	if r.Parameters["max_portfolio_exposure_pct"] == "" {
 		t.Error("expected max_portfolio_exposure_pct parameter")
+	}
+	// S251: effective parameters present.
+	if r.Parameters["effective_max_position_pct"] == "" {
+		t.Error("expected effective_max_position_pct parameter")
+	}
+	if r.Parameters["confidence_factor"] == "" {
+		t.Error("expected confidence_factor parameter")
+	}
+	if r.Parameters["severity_limit_factor"] == "" {
+		t.Error("expected severity_limit_factor parameter")
 	}
 }
 
@@ -315,6 +333,10 @@ func TestPositionExposureEvaluator_DecisionContextInMetadata(t *testing.T) {
 	if r.Metadata["decision_rationale"] != "RSI 20.00 below threshold" {
 		t.Errorf("expected decision_rationale in metadata, got %q", r.Metadata["decision_rationale"])
 	}
+	// S251: strategy_type in metadata.
+	if r.Metadata["strategy_type"] != "mean_reversion_entry" {
+		t.Errorf("expected strategy_type=mean_reversion_entry in metadata, got %q", r.Metadata["strategy_type"])
+	}
 }
 
 func TestPositionExposureEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
@@ -325,8 +347,9 @@ func TestPositionExposureEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
-	if r.Metadata != nil {
-		t.Errorf("expected nil metadata when no decision context, got %v", r.Metadata)
+	// S251: strategy_type is always present, so metadata is no longer nil.
+	if r.Metadata["strategy_type"] != "mean_reversion_entry" {
+		t.Errorf("expected strategy_type in metadata even without decision context, got %v", r.Metadata)
 	}
 }
 

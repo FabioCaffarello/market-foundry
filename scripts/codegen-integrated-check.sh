@@ -15,6 +15,31 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "${SCRIPT_DIR}/utils/lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/codegen-integrated-check.sh [--help]
+
+Validates integrated codegen-governed slices against their golden snapshots.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
+    esac
+    shift
+done
+
+require_commands awk diff grep sed
+
 MANIFEST="$PROJECT_ROOT/codegen/integrated.yaml"
 
 PASS=0
@@ -32,14 +57,23 @@ normalize() {
 }
 
 # Extract region between codegen:begin and codegen:end markers.
+# Uses exact substring matching (not regex) to prevent family=rsi matching
+# family=rsi_oversold. Verifies the marker is followed by space/tab/EOL.
 extract_region() {
     local file="$1"
     local begin_marker="$2"
-    # Extract lines between begin and end markers (exclusive of marker lines).
-    # Use awk instead of head -n -1 for macOS compatibility.
-    sed -n "/${begin_marker}/,/codegen:end/p" "$file" \
-        | tail -n +2 \
-        | awk 'NR>1{print prev} {prev=$0}'
+    local end_marker="$3"
+    awk -v begin="$begin_marker" -v end="$end_marker" '
+    function exact_match(line, marker) {
+        p = index(line, marker)
+        if (p == 0) return 0
+        rest = substr(line, p + length(marker))
+        return (rest == "" || substr(rest, 1, 1) == " " || substr(rest, 1, 1) == "\t")
+    }
+    !found && exact_match($0, begin) { found = 1; next }
+    found && exact_match($0, end)    { found = 0; next }
+    found { print }
+    ' "$file"
 }
 
 check_slice() {
@@ -85,7 +119,7 @@ check_slice() {
 
     # Extract the marked region from target.
     local extracted
-    extracted=$(extract_region "$target_path" "$marker")
+    extracted=$(extract_region "$target_path" "$marker" "$end_marker")
 
     if [[ -z "$extracted" ]]; then
         echo "FAIL $family/$artifact: empty region between markers in $target"
@@ -95,10 +129,10 @@ check_slice() {
 
     # Normalize both golden and extracted for structural comparison.
     local golden_norm
-    golden_norm=$(cat "$golden_path" | normalize)
+    golden_norm=$(normalize < "$golden_path")
 
     local extracted_norm
-    extracted_norm=$(echo "$extracted" | normalize)
+    extracted_norm=$(printf '%s\n' "$extracted" | normalize)
 
     if [[ "$golden_norm" == "$extracted_norm" ]]; then
         echo "PASS $family/$artifact"

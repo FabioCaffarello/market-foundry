@@ -19,7 +19,9 @@ const (
 // StrategyInput records which strategy contributed to this risk assessment.
 // This is a risk-owned type — it does not import from the strategy domain.
 // DecisionSeverity and DecisionRationale carry the originating decision's semantic
-// depth forward for traceability. They do not alter risk assessment logic directly.
+// depth forward for traceability. As of S251, strategy Type and DecisionSeverity
+// actively influence risk confidence multipliers, position limits, and drawdown
+// tolerance via strategy-type-aware and severity-aware scaling in the evaluators.
 type StrategyInput struct {
 	Type              string `json:"type"`
 	Direction         string `json:"direction"`

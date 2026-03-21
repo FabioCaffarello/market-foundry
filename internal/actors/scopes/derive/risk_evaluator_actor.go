@@ -89,10 +89,12 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 	if a.cfg.ScopePID != nil {
 		stratDirection := ""
 		stratConfidence := ""
+		stratType := ""
 		decSeverity := ""
 		if len(assessment.Strategies) > 0 {
 			stratDirection = assessment.Strategies[0].Direction
 			stratConfidence = assessment.Strategies[0].Confidence
+			stratType = assessment.Strategies[0].Type
 			decSeverity = assessment.Strategies[0].DecisionSeverity
 		}
 		c.Send(a.cfg.ScopePID, riskAssessedMessage{
@@ -103,6 +105,7 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 			MaxPositionPct:     assessment.Constraints.MaxPositionSize,
 			StrategyDirection:  stratDirection,
 			StrategyConfidence: stratConfidence,
+			StrategyType:       stratType,
 			DecisionSeverity:   decSeverity,
 			Timeframe:          assessment.Timeframe,
 			Timestamp:          assessment.Timestamp,

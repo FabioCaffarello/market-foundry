@@ -84,11 +84,15 @@ type FillRecord struct {
 
 // RiskInput records which risk assessment contributed to this execution intent.
 // This is an execution-owned type — it does not import from the risk domain.
+// S265: StrategyType and DecisionSeverity added to preserve full causal context
+// across the risk→execution boundary for traceability and behavioral analysis.
 type RiskInput struct {
-	Type        string `json:"type"`
-	Disposition string `json:"disposition"`
-	Confidence  string `json:"confidence"`
-	Timeframe   int    `json:"timeframe"`
+	Type             string `json:"type"`
+	Disposition      string `json:"disposition"`
+	Confidence       string `json:"confidence"`
+	Timeframe        int    `json:"timeframe"`
+	StrategyType     string `json:"strategy_type,omitempty"`
+	DecisionSeverity string `json:"decision_severity,omitempty"`
 }
 
 // ExecutionIntent represents a discrete, typed execution intent derived from a risk assessment.

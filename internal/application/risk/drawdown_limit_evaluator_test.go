@@ -35,6 +35,10 @@ func TestDrawdownLimitEvaluator_LongApproved(t *testing.T) {
 	if r.Strategies[0].Type != "mean_reversion_entry" || r.Strategies[0].Direction != "long" {
 		t.Fatalf("unexpected strategy input: %+v", r.Strategies[0])
 	}
+	// S251: confidence = 0.85 × 0.85 (mean_reversion factor)
+	if r.Confidence != "0.7225" {
+		t.Errorf("expected risk confidence 0.7225 (mean_reversion ×0.85), got %s", r.Confidence)
+	}
 }
 
 func TestDrawdownLimitEvaluator_ShortApproved(t *testing.T) {
@@ -50,6 +54,10 @@ func TestDrawdownLimitEvaluator_ShortApproved(t *testing.T) {
 	}
 	if r.Strategies[0].Direction != "short" {
 		t.Fatalf("expected short direction, got %s", r.Strategies[0].Direction)
+	}
+	// S251: confidence = 0.75 × 0.85 (mean_reversion factor)
+	if r.Confidence != "0.6375" {
+		t.Errorf("expected risk confidence 0.6375, got %s", r.Confidence)
 	}
 }
 
@@ -176,6 +184,22 @@ func TestDrawdownLimitEvaluator_ParametersPresent(t *testing.T) {
 	}
 	if r.Parameters["stop_distance_pct"] == "" {
 		t.Error("expected stop_distance_pct parameter")
+	}
+	// S251: effective parameters present.
+	if r.Parameters["effective_stop_distance_pct"] == "" {
+		t.Error("expected effective_stop_distance_pct parameter")
+	}
+	if r.Parameters["effective_max_drawdown_pct"] == "" {
+		t.Error("expected effective_max_drawdown_pct parameter")
+	}
+	if r.Parameters["confidence_factor"] == "" {
+		t.Error("expected confidence_factor parameter")
+	}
+	if r.Parameters["stop_type_factor"] == "" {
+		t.Error("expected stop_type_factor parameter")
+	}
+	if r.Parameters["severity_tolerance_factor"] == "" {
+		t.Error("expected severity_tolerance_factor parameter")
 	}
 }
 
@@ -304,6 +328,10 @@ func TestDrawdownLimitEvaluator_DecisionContextInMetadata(t *testing.T) {
 	if r.Metadata["decision_rationale"] != "RSI 20.00 below threshold" {
 		t.Errorf("expected decision_rationale in metadata, got %q", r.Metadata["decision_rationale"])
 	}
+	// S251: strategy_type in metadata.
+	if r.Metadata["strategy_type"] != "mean_reversion_entry" {
+		t.Errorf("expected strategy_type=mean_reversion_entry in metadata, got %q", r.Metadata["strategy_type"])
+	}
 }
 
 func TestDrawdownLimitEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
@@ -314,8 +342,9 @@ func TestDrawdownLimitEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
 	}
-	if r.Metadata != nil {
-		t.Errorf("expected nil metadata when no decision context, got %v", r.Metadata)
+	// S251: strategy_type is always present, so metadata is no longer nil.
+	if r.Metadata["strategy_type"] != "mean_reversion_entry" {
+		t.Errorf("expected strategy_type in metadata even without decision context, got %v", r.Metadata)
 	}
 }
 
@@ -340,6 +369,8 @@ func TestDrawdownLimitEvaluator_StopDistanceFloor(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Very low confidence should hit the stop distance floor of 0.0050.
+	// S251: effectiveStopBase for mean_reversion = 0.03 × 0.85 = 0.0255
+	// stopDistance = 0.0255 × 0.10 = 0.00255 → floor to 0.0050
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.1000", "", "", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")

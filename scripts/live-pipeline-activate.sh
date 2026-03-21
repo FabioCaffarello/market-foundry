@@ -23,22 +23,52 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-COMPOSE_FILE="${PROJECT_ROOT}/deploy/compose/docker-compose.yaml"
-compose() {
-    docker compose -f "${COMPOSE_FILE}" "$@"
+source "${SCRIPT_DIR}/utils/lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/live-pipeline-activate.sh [--multi-symbol] [--skip-build] [--check-only] [--help]
+
+Builds or validates the live stack, seeds configctl when needed, and runs the
+operational validation harness.
+
+Options:
+  --multi-symbol  Use the default multi-symbol validation set (btcusdt, ethusdt).
+  --skip-build    Reuse existing images when starting the stack.
+  --check-only    Skip build/start/seed and validate the running stack only.
+  --help          Show this help text.
+EOF
 }
-BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 
 SKIP_BUILD=false
 CHECK_ONLY=false
 MULTI_SYMBOL=false
-for arg in "$@"; do
-    case "$arg" in
-        --skip-build) SKIP_BUILD=true ;;
-        --check-only) CHECK_ONLY=true ;;
-        --multi-symbol) MULTI_SYMBOL=true ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-build)
+            SKIP_BUILD=true
+            ;;
+        --check-only)
+            CHECK_ONLY=true
+            ;;
+        --multi-symbol)
+            MULTI_SYMBOL=true
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
     esac
+    shift
 done
+
+require_commands docker curl python3
+if ! $CHECK_ONLY; then
+    require_commands make
+fi
 
 # Determine symbols to validate based on mode.
 if $MULTI_SYMBOL; then
@@ -47,30 +77,15 @@ else
     SYMBOLS=("btcusdt")
 fi
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-pass() { echo -e "${GREEN}[PASS]${NC} $1"; }
-fail() { echo -e "${RED}[FAIL]${NC} $1"; }
-info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
-phase() { echo -e "\n${CYAN}${BOLD}═══ $1 ═══${NC}"; }
-
-ERRORS=0
-record_fail() { ERRORS=$((ERRORS + 1)); fail "$1"; }
-
 # ---------- Phase 1: Start Stack ----------
 if ! $CHECK_ONLY; then
     phase "Phase 1: Starting Compose Stack"
     if $SKIP_BUILD; then
         info "Starting stack (reusing existing images)..."
-        compose up -d
+        docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" up -d
     else
         info "Building and starting stack..."
-        compose up -d --build
+        docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" up -d --build
     fi
     pass "Compose stack started"
 fi
@@ -79,14 +94,14 @@ fi
 phase "Phase 2: Waiting for Service Health"
 
 SERVICES=("nats" "configctl" "gateway" "ingest" "derive" "store" "execute" "writer")
-MAX_WAIT=120
-POLL_INTERVAL=5
+MAX_WAIT="${HEALTH_WAIT_MAX}"
+POLL_INTERVAL="${HEALTH_POLL_INTERVAL}"
 
 for svc in "${SERVICES[@]}"; do
     info "Waiting for ${svc} to become healthy..."
     elapsed=0
     while [[ $elapsed -lt $MAX_WAIT ]]; do
-        status=$(compose ps --format json "${svc}" 2>/dev/null | python3 -c "
+        status=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" ps --format json "${svc}" 2>/dev/null | python3 -c "
 import sys, json
 for line in sys.stdin:
     data = json.loads(line)
@@ -131,7 +146,7 @@ check_readiness "configctl" "http://127.0.0.1:8080/readyz"  # behind gateway por
 for svc_port in "configctl:8080" "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
-    result=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/readyz" 2>/dev/null || echo '{"status":"error"}')
+    result=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/readyz" 2>/dev/null || echo '{"status":"error"}')
     status=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','error'))" 2>/dev/null || echo "error")
     if [[ "$status" == "ready" ]]; then
         pass "${svc} internal /readyz → ready"
@@ -170,7 +185,7 @@ check_diagnostics() {
     local port="$2"
 
     # /statusz
-    statusz=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null || echo "")
+    statusz=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null || echo "")
     if [[ -n "$statusz" ]]; then
         runtime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('runtime',''))" 2>/dev/null || echo "")
         uptime=$(echo "$statusz" | python3 -c "import sys,json; print(json.load(sys.stdin).get('uptime',''))" 2>/dev/null || echo "")
@@ -182,7 +197,7 @@ check_diagnostics() {
     fi
 
     # /diagz
-    diagz=$(compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/diagz" 2>/dev/null || echo "")
+    diagz=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/diagz" 2>/dev/null || echo "")
     if [[ -n "$diagz" ]]; then
         checks=$(echo "$diagz" | python3 -c "
 import sys,json
@@ -311,7 +326,7 @@ done
 phase "Phase 9: Tracker Activity Summary"
 
 # CF-04: Automated error-level log scanning.
-ERROR_COUNT=$(compose logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
+ERROR_COUNT=$(docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || true)
 ERROR_COUNT="${ERROR_COUNT:-0}"
 if [[ "$ERROR_COUNT" -gt 0 ]]; then
     record_fail "Found ${ERROR_COUNT} error-level log entries across all services"
@@ -322,14 +337,14 @@ fi
 
 # CF-05: Memory usage snapshot for regression detection.
 info "Container memory usage:"
-compose ps -q 2>/dev/null | while read -r cid; do
+docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" ps -q 2>/dev/null | while read -r cid; do
     docker stats --no-stream --format '  {{.Name}}\t{{.MemUsage}}' "$cid" 2>/dev/null
 done || info "docker stats unavailable"
 
 for svc_port in "ingest:8082" "derive:8083" "store:8081" "execute:8084" "writer:8085"; do
     svc="${svc_port%%:*}"
     port="${svc_port##*:}"
-    compose exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null | python3 -c "
+    docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" exec -T "${svc}" wget -q -O - "http://127.0.0.1:${port}/statusz" 2>/dev/null | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 name=d.get('runtime','${svc}')
@@ -368,7 +383,7 @@ fi
 
 echo ""
 echo "Services running:"
-compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || compose ps
+docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose -f "${PROJECT_ROOT}/deploy/compose/docker-compose.yaml" ps
 
 echo ""
 echo "Mode: $(if $MULTI_SYMBOL; then echo "multi-symbol (${SYMBOLS[*]})"; else echo "single-symbol (btcusdt)"; fi)"

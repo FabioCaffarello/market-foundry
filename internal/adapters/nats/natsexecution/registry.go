@@ -133,14 +133,28 @@ func (r Registry) LatestSpecByType(execType string) (natskit.ControlSpec, bool) 
 	}
 }
 
-// ── Writer Consumer Specs (manual:owned) ─────────────────────────
-// Ownership: human-maintained. Not codegen-governed.
+// ── Writer Consumer Specs ─────────────────────────────────────────
+// Paper order is codegen-governed (markers below).
 
+// codegen:begin consumer_spec family=paper_order source=codegen/families/paper_order.yaml
 // WriterPaperOrderExecutionConsumer defines the durable consumer spec for writer consuming
 // paper order execution events from EXECUTION_EVENTS.
 func WriterPaperOrderExecutionConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-execution-paper-order", "execution.events.paper_order.submitted.>", "execution.events.v1.paper_order_submitted", "EXECUTION_EVENTS")
+	return natskit.ConsumerSpec{
+		Durable: "writer-execution-paper-order",
+		Event: natskit.EventSpec{
+			Subject: "execution.events.paper_order.submitted.>",
+			Type:    "execution.events.v1.paper_order_submitted",
+			Stream: natskit.StreamSpec{
+				Name: "EXECUTION_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
 }
+
+// codegen:end consumer_spec family=paper_order
 
 // ── Paper Family Consumer ─────────────────────────────────────────
 

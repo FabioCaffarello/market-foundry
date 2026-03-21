@@ -1,0 +1,16 @@
+// WriterBollingerSignalConsumer defines the durable consumer spec for writer consuming
+// bollinger signal events.
+func WriterBollingerSignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-bollinger",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.bollinger.generated.>",
+			Type:    "signal.events.v1.bollinger_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

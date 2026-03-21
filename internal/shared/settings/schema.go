@@ -162,18 +162,26 @@ var knownSignalFamilies = map[string]bool{
 	"rsi":           true,
 	"ema":           true,
 	"ema_crossover": true,
+	"bollinger":     true,
+	"macd":          true,
+	"vwap":          true,
+	"atr":           true,
 }
 
 var knownDecisionFamilies = map[string]bool{
-	"rsi_oversold": true,
+	"rsi_oversold":     true,
+	"bollinger_squeeze": true,
 }
 
 var knownStrategyFamilies = map[string]bool{
-	"mean_reversion_entry": true,
+	"mean_reversion_entry":    true,
+	"trend_following_entry":   true,
+	"squeeze_breakout_entry":  true,
 }
 
 var knownRiskFamilies = map[string]bool{
 	"position_exposure": true,
+	"drawdown_limit":    true,
 }
 
 // knownExecutionFamilies lists the two execution families with distinct ownership:
@@ -200,23 +208,30 @@ var signalDependsOnEvidence = map[string][]string{
 	"rsi":           {"candle"},
 	"ema":           {"candle"},
 	"ema_crossover": {"candle"},
+	"bollinger":     {"candle"},
+	"vwap":          {"candle"},
+	"atr":           {"candle"},
 }
 
 var decisionDependsOnSignal = map[string][]string{
-	"rsi_oversold": {"rsi"},
+	"rsi_oversold":      {"rsi"},
+	"bollinger_squeeze": {"bollinger"},
 }
 
 var strategyDependsOnDecision = map[string][]string{
-	"mean_reversion_entry": {"rsi_oversold"},
+	"mean_reversion_entry":   {"rsi_oversold"},
+	"trend_following_entry":  {"ema_crossover"},
+	"squeeze_breakout_entry": {"bollinger_squeeze"},
 }
 
 var riskDependsOnStrategy = map[string][]string{
-	"position_exposure": {"mean_reversion_entry"},
+	"position_exposure": {"mean_reversion_entry", "trend_following_entry", "squeeze_breakout_entry"},
+	"drawdown_limit":    {"mean_reversion_entry", "trend_following_entry", "squeeze_breakout_entry"},
 }
 
 var executionDependsOnRisk = map[string][]string{
-	"paper_order":        {"position_exposure"},
-	"venue_market_order": {"position_exposure"},
+	"paper_order":        {"position_exposure", "drawdown_limit"},
+	"venue_market_order": {"position_exposure", "drawdown_limit"},
 }
 
 // ── Venue adapter types ───────────────────────────────────────────
@@ -621,21 +636,28 @@ func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 		}
 	}
 
-	// 9. Risk → strategy dependency: each enabled risk must have its
-	//    required strategy families enabled.
+	// 9. Risk → strategy dependency: each enabled risk must have at least
+	//    one of its compatible strategy families enabled. Risk evaluators
+	//    accept any strategy type (via default scaling factors), so the
+	//    constraint is "at least one feeds input", not "all required".
 	for _, rsk := range p.RiskFamilies {
 		deps, ok := riskDependsOnStrategy[rsk]
 		if !ok {
 			continue
 		}
+		hasAny := false
 		for _, strat := range deps {
-			if !p.IsStrategyFamilyEnabled(strat) {
-				issues = append(issues, problem.ValidationIssue{
-					Field:   "pipeline.risk_families",
-					Message: fmt.Sprintf("risk family %q requires strategy family %q to be enabled", rsk, strat),
-					Value:   rsk,
-				})
+			if p.IsStrategyFamilyEnabled(strat) {
+				hasAny = true
+				break
 			}
+		}
+		if !hasAny {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.risk_families",
+				Message: fmt.Sprintf("risk family %q requires at least one strategy family to be enabled (%s)", rsk, strings.Join(deps, ", ")),
+				Value:   rsk,
+			})
 		}
 	}
 
@@ -650,21 +672,28 @@ func (p PipelineConfig) ValidatePipeline() *problem.Problem {
 		}
 	}
 
-	// 11. Execution → risk dependency: each enabled execution must have its
-	//     required risk families enabled.
+	// 11. Execution → risk dependency: each enabled execution must have at
+	//     least one of its compatible risk families enabled. Execution
+	//     evaluators process any risk assessment, so the constraint is
+	//     "at least one feeds input", not "all required".
 	for _, exec := range p.ExecutionFamilies {
 		deps, ok := executionDependsOnRisk[exec]
 		if !ok {
 			continue
 		}
+		hasAny := false
 		for _, rsk := range deps {
-			if !p.IsRiskFamilyEnabled(rsk) {
-				issues = append(issues, problem.ValidationIssue{
-					Field:   "pipeline.execution_families",
-					Message: fmt.Sprintf("execution family %q requires risk family %q to be enabled", exec, rsk),
-					Value:   exec,
-				})
+			if p.IsRiskFamilyEnabled(rsk) {
+				hasAny = true
+				break
 			}
+		}
+		if !hasAny {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "pipeline.execution_families",
+				Message: fmt.Sprintf("execution family %q requires at least one risk family to be enabled (%s)", exec, strings.Join(deps, ", ")),
+				Value:   exec,
+			})
 		}
 	}
 

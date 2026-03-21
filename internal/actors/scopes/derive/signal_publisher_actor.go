@@ -79,6 +79,7 @@ func (a *SignalPublisherActor) Receive(c *actor.Context) {
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
 			a.cfg.Tracker.Counter("published:" + msg.Event.Signal.Symbol).Add(1)
+			a.cfg.Tracker.Counter("signal:" + msg.Event.Signal.Type).Add(1)
 		}
 
 	default:

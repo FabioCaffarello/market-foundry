@@ -78,9 +78,24 @@ func DefaultRegistry() Registry {
 	}
 }
 
+// codegen:begin consumer_spec family=candle source=codegen/families/candle.yaml
+// WriterCandleConsumer defines the durable consumer spec for writer consuming candle events.
 func WriterCandleConsumer() natskit.ConsumerSpec {
-	return natskit.NewConsumerSpec("writer-candle", "evidence.events.candle.sampled.>", "evidence.events.v1.candle_sampled", "EVIDENCE_EVENTS")
+	return natskit.ConsumerSpec{
+		Durable: "writer-candle",
+		Event: natskit.EventSpec{
+			Subject: "evidence.events.candle.sampled.>",
+			Type:    "evidence.events.v1.candle_sampled",
+			Stream: natskit.StreamSpec{
+				Name: "EVIDENCE_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
 }
+
+// codegen:end consumer_spec family=candle
 
 func StoreVolumeConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-volume", "evidence.events.volume.sampled.>", "evidence.events.v1.volume_sampled", "EVIDENCE_EVENTS")

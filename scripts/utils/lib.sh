@@ -10,12 +10,21 @@
 #   source "${SCRIPT_DIR}/lib.sh"          # from scripts/utils/
 
 # ── Color codes ──────────────────────────────────────────────────────
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    BOLD='\033[1m'
+    NC='\033[0m'
+else
+    RED=''
+    GREEN=''
+    YELLOW=''
+    CYAN=''
+    BOLD=''
+    NC=''
+fi
 
 # ── Standard logging ─────────────────────────────────────────────────
 pass()  { echo -e "${GREEN}[PASS]${NC} $1"; }
@@ -23,12 +32,23 @@ fail()  { echo -e "${RED}[FAIL]${NC} $1"; }
 info()  { echo -e "${YELLOW}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 phase() { echo -e "\n${CYAN}${BOLD}═══ $1 ═══${NC}"; }
+die()   { fail "$1"; exit 1; }
 
 # ── Error tracking ───────────────────────────────────────────────────
 # Initialize ERRORS counter. Scripts can use record_fail() to both log
 # and increment, then exit $ERRORS at the end.
 ERRORS=0
 record_fail() { ERRORS=$((ERRORS + 1)); fail "$1"; }
+
+usage_error() {
+    if [[ $# -gt 0 ]]; then
+        printf '%s\n' "$*" >&2
+    fi
+    if declare -F usage >/dev/null 2>&1; then
+        usage >&2
+    fi
+    exit 1
+}
 
 # ── Common defaults ──────────────────────────────────────────────────
 # Override any of these via environment variables before sourcing.
@@ -49,6 +69,30 @@ CANDLE_POLL_INTERVAL="${CANDLE_POLL_INTERVAL:-5}"
 # Default symbols and timeframes.
 DEFAULT_SYMBOL="btcusdt"
 ALL_TIMEFRAMES=(60 300 900 3600)
+
+# ── Common validations ───────────────────────────────────────────────
+require_commands() {
+    local missing=()
+    local cmd
+    for cmd in "$@"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        die "missing required command(s): ${missing[*]}"
+    fi
+}
+
+require_positive_integer() {
+    local label="$1"
+    local value="$2"
+
+    if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
+        die "${label} must be a positive integer (got: ${value})"
+    fi
+}
 
 # ── JSON helpers ─────────────────────────────────────────────────────
 # json_field extracts a top-level field from a JSON string.

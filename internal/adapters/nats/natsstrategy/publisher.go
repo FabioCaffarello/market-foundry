@@ -95,6 +95,9 @@ func (p *Publisher) specForType(strategyType string) *natskit.EventSpec {
 	case "trend_following_entry":
 		spec := p.registry.TrendFollowingEntryResolved
 		return &spec
+	case "squeeze_breakout_entry":
+		spec := p.registry.SqueezeBreakoutEntryResolved
+		return &spec
 	default:
 		return nil
 	}

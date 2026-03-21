@@ -1,0 +1,11 @@
+// ── Signal: vwap → signals ──
+{
+	family:        "vwap",
+	consumerName:  "writer-signal-vwap-consumer",
+	inserterName:  "writer-signal-vwap-inserter",
+	table:         "signals",
+	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+	consumerSpec:  natssignal.WriterVWAPSignalConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("vwap") },
+	startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+},

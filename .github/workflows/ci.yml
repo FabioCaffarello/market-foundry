@@ -45,8 +45,8 @@ jobs:
       - name: Verify integrated slices match golden snapshots
         run: make codegen-integrated
 
-  integration-tests:
-    name: Integration Tests
+  behavioral-scenarios:
+    name: Behavioral Scenarios
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,8 +55,37 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run integration tests (embedded NATS)
+      - name: Run behavioral scenario tests (charter-protected surface)
+        run: make test-behavioral
+
+      - name: Run behavioral round-trip serialization tests (S255)
+        run: make test-behavioral-roundtrip
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:2.10.18-alpine
+        options: >-
+          --health-cmd "wget -qO- http://127.0.0.1:8222/healthz || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        ports:
+          - 4222:4222
+          - 8222:8222
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run integration tests (NATS service container)
         run: make test-integration
+        env:
+          NATS_URL: nats://localhost:4222
 
   smoke-analytical:
     name: Smoke Analytical E2E

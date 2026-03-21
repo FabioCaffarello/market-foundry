@@ -148,8 +148,8 @@ func TestEnabledFamiliesReturnsCopy(t *testing.T) {
 func TestValidatePipelineAcceptsKnownFamilies(t *testing.T) {
 	p := PipelineConfig{
 		Families:         []string{"candle", "tradeburst", "volume"},
-		SignalFamilies:   []string{"rsi"},
-		DecisionFamilies: []string{"rsi_oversold"},
+		SignalFamilies:   []string{"rsi", "bollinger"},
+		DecisionFamilies: []string{"rsi_oversold", "bollinger_squeeze"},
 	}
 	if prob := p.ValidatePipeline(); prob != nil {
 		t.Fatalf("expected valid pipeline, got %v", prob)
@@ -169,7 +169,7 @@ func TestValidatePipelineRejectsUnknownEvidenceFamily(t *testing.T) {
 }
 
 func TestValidatePipelineRejectsUnknownSignalFamily(t *testing.T) {
-	p := PipelineConfig{SignalFamilies: []string{"macd"}}
+	p := PipelineConfig{SignalFamilies: []string{"moonbeam"}}
 	prob := p.ValidatePipeline()
 	if prob == nil {
 		t.Fatal("expected validation error for unknown signal family")
@@ -237,6 +237,27 @@ func TestValidatePipelineAcceptsDecisionWithSignal(t *testing.T) {
 	}
 }
 
+func TestValidatePipelineRejectsBollingerSqueezeWithoutBollingerSignal(t *testing.T) {
+	p := PipelineConfig{
+		DecisionFamilies: []string{"bollinger_squeeze"},
+		// no signal_families → bollinger not enabled
+	}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected validation error: bollinger_squeeze needs bollinger")
+	}
+}
+
+func TestValidatePipelineAcceptsBollingerSqueezeWithBollingerSignal(t *testing.T) {
+	p := PipelineConfig{
+		SignalFamilies:   []string{"bollinger"},
+		DecisionFamilies: []string{"bollinger_squeeze"},
+	}
+	if prob := p.ValidatePipeline(); prob != nil {
+		t.Fatalf("expected valid pipeline, got %v", prob)
+	}
+}
+
 func TestValidatePipelineRejectsUnknownStrategyFamily(t *testing.T) {
 	p := PipelineConfig{StrategyFamilies: []string{"yolo_entry"}}
 	prob := p.ValidatePipeline()
@@ -287,6 +308,61 @@ func TestValidatePipelineAcceptsFullChain(t *testing.T) {
 	}
 	if prob := p.ValidatePipeline(); prob != nil {
 		t.Fatalf("expected full chain to be valid, got %v", prob)
+	}
+}
+
+// S290: Full squeeze breakout chain through risk and execution.
+func TestValidatePipelineAcceptsSqueezeBreakoutFullChain(t *testing.T) {
+	p := PipelineConfig{
+		Families:          []string{"candle"},
+		SignalFamilies:    []string{"bollinger"},
+		DecisionFamilies:  []string{"bollinger_squeeze"},
+		StrategyFamilies:  []string{"squeeze_breakout_entry"},
+		RiskFamilies:      []string{"position_exposure"},
+		ExecutionFamilies: []string{"paper_order"},
+	}
+	if prob := p.ValidatePipeline(); prob != nil {
+		t.Fatalf("expected squeeze breakout full chain to be valid, got %v", prob)
+	}
+}
+
+// S290: Both risk families with only squeeze breakout strategy.
+func TestValidatePipelineAcceptsDualRiskWithSingleStrategy(t *testing.T) {
+	p := PipelineConfig{
+		Families:          []string{"candle"},
+		SignalFamilies:    []string{"bollinger"},
+		DecisionFamilies:  []string{"bollinger_squeeze"},
+		StrategyFamilies:  []string{"squeeze_breakout_entry"},
+		RiskFamilies:      []string{"position_exposure", "drawdown_limit"},
+		ExecutionFamilies: []string{"paper_order"},
+	}
+	if prob := p.ValidatePipeline(); prob != nil {
+		t.Fatalf("expected dual risk with single strategy to be valid, got %v", prob)
+	}
+}
+
+// S290: Risk without any strategy should fail.
+func TestValidatePipelineRejectsRiskWithoutAnyStrategy(t *testing.T) {
+	p := PipelineConfig{
+		RiskFamilies: []string{"position_exposure"},
+	}
+	prob := p.ValidatePipeline()
+	if prob == nil {
+		t.Fatal("expected validation error: risk needs at least one strategy")
+	}
+}
+
+// S290: drawdown_limit is now a known risk family.
+func TestValidatePipelineAcceptsDrawdownLimit(t *testing.T) {
+	p := PipelineConfig{
+		Families:         []string{"candle"},
+		SignalFamilies:   []string{"rsi"},
+		DecisionFamilies: []string{"rsi_oversold"},
+		StrategyFamilies: []string{"mean_reversion_entry"},
+		RiskFamilies:     []string{"drawdown_limit"},
+	}
+	if prob := p.ValidatePipeline(); prob != nil {
+		t.Fatalf("expected drawdown_limit to be accepted, got %v", prob)
 	}
 }
 
@@ -373,8 +449,8 @@ func TestKnownFamiliesReturnsRegisteredNames(t *testing.T) {
 	}
 
 	signals := KnownFamilies(DomainSignal)
-	if len(signals) != 3 {
-		t.Fatalf("expected 3 signal families, got %d: %v", len(signals), signals)
+	if len(signals) != 7 {
+		t.Fatalf("expected 7 signal families, got %d: %v", len(signals), signals)
 	}
 }
 
@@ -402,6 +478,7 @@ func TestDependencyGraphCoversAllNonEvidenceFamilies(t *testing.T) {
 	expected := []string{
 		"signal/rsi",
 		"decision/rsi_oversold",
+		"decision/bollinger_squeeze",
 		"strategy/mean_reversion_entry",
 		"risk/position_exposure",
 		"execution/paper_order",

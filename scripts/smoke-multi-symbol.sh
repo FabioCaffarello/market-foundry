@@ -48,30 +48,63 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/utils/lib.sh"
+
+usage() {
+    cat <<'EOF'
+Usage: ./scripts/smoke-multi-symbol.sh [--wait <seconds>] [--help]
+
+Runs the multi-symbol operational smoke against a running stack.
+
+Options:
+  --wait <seconds>  Maximum time to wait for initial candle materialization. Default: 90
+  --help            Show this help text.
+
+Environment:
+  SMOKE_SYMBOLS     Space-separated symbol list. Default: "btcusdt ethusdt"
+  SMOKE_TIMEFRAMES  Space-separated timeframe list. Default: "60 300 900 3600"
+  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
+EOF
+}
+
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
-SOURCE="binancef"
+SOURCE="${SOURCE:-binancef}"
 SYMBOLS=(${SMOKE_SYMBOLS:-btcusdt ethusdt})
 TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300 900 3600})
-WAIT_SECONDS="${1:-90}"
-if [[ "${1:-}" == "--wait" ]]; then
-    WAIT_SECONDS="${2:-90}"
-fi
+WAIT_SECONDS=90
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --wait)
+            [[ $# -ge 2 ]] || usage_error "--wait requires a value"
+            WAIT_SECONDS="$2"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage_error "unknown argument: $1"
+            ;;
+    esac
+    shift
+done
+
+require_commands curl python3
+require_positive_integer "--wait" "${WAIT_SECONDS}"
 
 PASS_COUNT=0
 FAIL_COUNT=0
 WARN_COUNT=0
-
 pass() { echo -e "${GREEN}[PASS]${NC} $1"; PASS_COUNT=$((PASS_COUNT + 1)); }
 fail() { echo -e "${RED}[FAIL]${NC} $1"; FAIL_COUNT=$((FAIL_COUNT + 1)); }
-hard_fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; WARN_COUNT=$((WARN_COUNT + 1)); }
 info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 section() { echo -e "\n${CYAN}--- $1 ---${NC}"; }
+hard_fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
 
 # ---------- Step 1: Health + Readiness ----------
 section "Step 1: Gateway checks"

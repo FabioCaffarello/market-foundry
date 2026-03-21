@@ -1,0 +1,97 @@
+package derive
+
+import (
+	"fmt"
+	"log/slog"
+	"time"
+
+	actorcommon "internal/actors/common"
+	appsignal "internal/application/signal"
+	domainsignal "internal/domain/signal"
+	"internal/shared/events"
+
+	"github.com/anthdm/hollywood/actor"
+)
+
+// BollingerSignalSamplerActor owns a BollingerSampler and publishes finalized signals.
+// It receives candleFinalizedMessage from the candle sampler via local fan-out.
+type BollingerSignalSamplerActor struct {
+	cfg     SignalSamplerConfig
+	logger  *slog.Logger
+	sampler *appsignal.BollingerSampler
+}
+
+func NewBollingerSignalSamplerActor(cfg SignalSamplerConfig) actor.Producer {
+	return func() actor.Receiver {
+		return &BollingerSignalSamplerActor{cfg: cfg}
+	}
+}
+
+func (a *BollingerSignalSamplerActor) Receive(c *actor.Context) {
+	if a.logger == nil {
+		a.logger = slog.Default().With(
+			"actor", "bollinger-signal-sampler",
+			"source", a.cfg.Source,
+			"symbol", a.cfg.Symbol,
+			"timeframe_s", int(a.cfg.Timeframe.Seconds()),
+		)
+	}
+
+	switch msg := c.Message().(type) {
+	case actor.Started:
+		a.sampler = appsignal.NewBollingerSampler(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.logger.Info("bollinger signal sampler started")
+
+	case actor.Stopped:
+		a.logger.Info("bollinger signal sampler stopped")
+
+	case candleFinalizedMessage:
+		a.onCandleFinalized(c, msg)
+
+	default:
+		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {
+			return
+		}
+		a.logger.Warn("unknown message", "type", fmt.Sprintf("%T", msg))
+	}
+}
+
+func (a *BollingerSignalSamplerActor) onCandleFinalized(c *actor.Context, msg candleFinalizedMessage) {
+	sig, ok := a.sampler.AddClose(msg.ClosePrice, msg.Timestamp)
+	if !ok {
+		return
+	}
+
+	if prob := sig.Validate(); prob != nil {
+		a.logger.Error("signal validation failed", "error", prob.Message)
+		return
+	}
+
+	meta := events.NewMetadata().WithCorrelationID(msg.CorrelationID)
+	event := domainsignal.SignalGeneratedEvent{
+		Metadata: meta,
+		Signal:   sig,
+	}
+
+	c.Send(a.cfg.SignalPublisherPID, publishSignalMessage{Event: event})
+
+	// Notify scope for decision fan-out (same pattern as candle→signal).
+	if a.cfg.ScopePID != nil {
+		c.Send(a.cfg.ScopePID, signalGeneratedMessage{
+			Symbol:         sig.Symbol,
+			SignalType:     sig.Type,
+			SignalValue:    sig.Value,
+			SignalMetadata: sig.Metadata,
+			Timeframe:      sig.Timeframe,
+			Timestamp:      sig.Timestamp,
+			CorrelationID:  msg.CorrelationID,
+			CausationID:    meta.ID,
+		})
+	}
+
+	a.logger.Info("bollinger signal generated",
+		"value", sig.Value,
+		"timestamp", sig.Timestamp.Format(time.RFC3339),
+		"correlation_id", msg.CorrelationID,
+	)
+}

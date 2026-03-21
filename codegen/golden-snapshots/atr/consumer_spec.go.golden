@@ -1,0 +1,16 @@
+// WriterATRSignalConsumer defines the durable consumer spec for writer consuming
+// atr signal events.
+func WriterATRSignalConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-signal-atr",
+		Event: natskit.EventSpec{
+			Subject: "signal.events.atr.generated.>",
+			Type:    "signal.events.v1.atr_generated",
+			Stream: natskit.StreamSpec{
+				Name: "SIGNAL_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

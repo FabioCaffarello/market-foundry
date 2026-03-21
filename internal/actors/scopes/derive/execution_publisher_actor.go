@@ -109,6 +109,9 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 		cancel()
 		if halted {
 			a.halted.Add(1)
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.Counter("execution:gate_halted").Add(1)
+			}
 			a.logger.Warn("execution publish blocked by control gate",
 				"gate_status", "halted",
 				"type", msg.Event.ExecutionIntent.Type,
@@ -131,6 +134,8 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 			a.published.Add(1)
 			if a.cfg.Tracker != nil {
 				a.cfg.Tracker.RecordEvent()
+				a.cfg.Tracker.Counter("execution:" + intent.Type + ":" + string(intent.Side)).Add(1)
+				a.cfg.Tracker.Counter("execution:" + intent.Type + ":" + string(intent.Status)).Add(1)
 			}
 			return
 		}

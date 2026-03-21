@@ -1,9 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<'EOF'
+Usage: ./scripts/utils/for-each-module.sh <command...>
+
+Runs a command in each Go workspace module resolved from go.work, or only in
+MODULE=... when that environment variable is set.
+EOF
+}
+
 if [[ $# -eq 0 ]]; then
-  echo "usage: $0 <command...>" >&2
+  usage >&2
   exit 1
+fi
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

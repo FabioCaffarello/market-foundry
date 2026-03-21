@@ -1,0 +1,11 @@
+// ── Signal: bollinger → signals ──
+{
+	family:        "bollinger",
+	consumerName:  "writer-signal-bollinger-consumer",
+	inserterName:  "writer-signal-bollinger-inserter",
+	table:         "signals",
+	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+	consumerSpec:  natssignal.WriterBollingerSignalConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("bollinger") },
+	startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+},

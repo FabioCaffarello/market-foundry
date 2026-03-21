@@ -1,0 +1,11 @@
+// ── Signal: atr → signals ──
+{
+	family:        "atr",
+	consumerName:  "writer-signal-atr-consumer",
+	inserterName:  "writer-signal-atr-inserter",
+	table:         "signals",
+	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+	consumerSpec:  natssignal.WriterATRSignalConsumer(),
+	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("atr") },
+	startConsumer: writerpipeline.NewSignalStarter(reg.signal),
+},

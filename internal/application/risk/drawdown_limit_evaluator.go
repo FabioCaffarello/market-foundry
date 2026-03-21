@@ -9,14 +9,19 @@ import (
 )
 
 const (
-	defaultMaxDrawdownPct = 0.05
+	defaultMaxDrawdownPct  = 0.05
 	defaultStopDistancePct = 0.03
 )
 
 // DrawdownLimitEvaluator assesses strategy intent against configurable drawdown and stop-loss limits.
 // Pure application logic — no I/O, no actor references, no NATS dependency.
 // Receives strategy values as primitive data (not strategy.Strategy structs) per domain isolation.
-// Decision severity and rationale flow through for traceability and richer rationale generation.
+//
+// S251 behavioral activation:
+//   - Risk confidence multiplier varies by strategy type (counter-trend vs pro-trend).
+//   - Base stop distance ceiling adjusts by strategy type (tighter for counter-trend).
+//   - Max drawdown tolerance scales by decision severity (strong signal → more room).
+//   - Strategy type is recorded in metadata for observability.
 type DrawdownLimitEvaluator struct {
 	source          string
 	symbol          string
@@ -36,6 +41,7 @@ func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLi
 }
 
 // Evaluate processes a strategy resolution and produces a drawdown risk assessment.
+// strategyType identifies the strategy family (e.g., "mean_reversion_entry", "trend_following_entry").
 // strategyDirection is "long", "short", or "flat".
 // strategyConfidence is a decimal string from the strategy event.
 // decisionSeverity and decisionRationale carry the originating decision's semantic depth
@@ -56,9 +62,27 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 		DecisionRationale: decisionRationale,
 	}
 
+	// S251: Look up strategy-type-specific factors.
+	confidenceFactor := lookupFactor(strategyType, drawdownConfidenceFactor, drawdownConfidenceDefault)
+	stopFactor := lookupFactor(strategyType, drawdownStopFactor, 1.0)
+
+	// S251: Look up severity-based drawdown tolerance factor.
+	sevFactor := lookupSeverityFactor(decisionSeverity, drawdownSeverityFactor)
+
+	// Effective stop distance base adjusted by strategy type.
+	effectiveStopBase := e.stopDistancePct * stopFactor
+
+	// Effective max drawdown adjusted by severity.
+	effectiveMaxDrawdown := e.maxDrawdownPct * sevFactor
+
 	baseParams := map[string]string{
-		"max_drawdown_pct":  fmt.Sprintf("%.4f", e.maxDrawdownPct),
-		"stop_distance_pct": fmt.Sprintf("%.4f", e.stopDistancePct),
+		"max_drawdown_pct":           fmt.Sprintf("%.4f", e.maxDrawdownPct),
+		"stop_distance_pct":          fmt.Sprintf("%.4f", e.stopDistancePct),
+		"effective_stop_distance_pct": fmt.Sprintf("%.4f", effectiveStopBase),
+		"effective_max_drawdown_pct":  fmt.Sprintf("%.4f", effectiveMaxDrawdown),
+		"confidence_factor":           fmt.Sprintf("%.2f", confidenceFactor),
+		"stop_type_factor":            fmt.Sprintf("%.2f", stopFactor),
+		"severity_tolerance_factor":   fmt.Sprintf("%.2f", sevFactor),
 	}
 
 	// Flat strategies are always approved — no drawdown risk.
@@ -73,7 +97,7 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 			Strategies:  []domainrisk.StrategyInput{strategyInput},
 			Rationale:   "Flat strategy has no drawdown risk",
 			Parameters:  baseParams,
-			Metadata:    e.buildMetadata(decisionSeverity, decisionRationale),
+			Metadata:    e.buildMetadata(strategyType, decisionSeverity, decisionRationale),
 			Final:       true,
 			Timestamp:   ts,
 		}, true
@@ -90,41 +114,59 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 		return domainrisk.RiskAssessment{}, false
 	}
 
-	// Stop distance: scale inversely with confidence — lower confidence → tighter stop.
-	// High-confidence trades get wider stops; low-confidence trades get tighter stops.
-	stopDistance := e.stopDistancePct * confidence
+	// S256: Reject zero or negative confidence — degenerate input should not produce an assessment.
+	if confidence <= 0 {
+		return domainrisk.RiskAssessment{
+			Type:        "drawdown_limit",
+			Source:      e.source,
+			Symbol:      e.symbol,
+			Timeframe:   e.timeframe,
+			Disposition: domainrisk.DispositionRejected,
+			Confidence:  "0.0000",
+			Strategies:  []domainrisk.StrategyInput{strategyInput},
+			Rationale:   fmt.Sprintf("Rejected: non-positive confidence %s for %s", strategyConfidence, strategyDirection),
+			Parameters:  baseParams,
+			Metadata:    e.buildMetadata(strategyType, decisionSeverity, decisionRationale),
+			Final:       true,
+			Timestamp:   ts,
+		}, true
+	}
+
+	// S251: Stop distance uses strategy-type-adjusted base, scaled by confidence.
+	// Lower confidence → smaller stop (tighter risk control).
+	stopDistance := effectiveStopBase * confidence
 	if stopDistance < 0.0050 {
 		stopDistance = 0.0050 // floor at 0.5% to avoid unrealistic stops
 	}
-	if stopDistance > e.stopDistancePct {
-		stopDistance = e.stopDistancePct
+	if stopDistance > effectiveStopBase {
+		stopDistance = effectiveStopBase
 	}
 
-	// Determine disposition based on drawdown limits.
+	// S251: Disposition checks against severity-adjusted max drawdown.
 	var disposition domainrisk.Disposition
 	var rationale string
 	var constraints domainrisk.Constraints
 
-	if stopDistance <= e.maxDrawdownPct {
+	if stopDistance <= effectiveMaxDrawdown {
 		disposition = domainrisk.DispositionApproved
-		rationale = e.buildRationale("approved", strategyDirection, stopDistance, decisionSeverity)
+		rationale = e.buildRationale("approved", strategyType, strategyDirection, stopDistance, confidenceFactor, stopFactor, decisionSeverity, sevFactor)
 		constraints = domainrisk.Constraints{
 			StopDistance: fmt.Sprintf("%.4f", stopDistance),
-			MaxExposure:  fmt.Sprintf("%.4f", e.maxDrawdownPct),
+			MaxExposure:  fmt.Sprintf("%.4f", effectiveMaxDrawdown),
 		}
 	} else {
-		// Cap stop distance to max drawdown — modified disposition.
-		cappedStop := e.maxDrawdownPct
+		// Cap stop distance to effective max drawdown — modified disposition.
+		cappedStop := effectiveMaxDrawdown
 		disposition = domainrisk.DispositionModified
-		rationale = e.buildRationale("modified", strategyDirection, cappedStop, decisionSeverity)
+		rationale = e.buildRationale("modified", strategyType, strategyDirection, cappedStop, confidenceFactor, stopFactor, decisionSeverity, sevFactor)
 		constraints = domainrisk.Constraints{
 			StopDistance: fmt.Sprintf("%.4f", cappedStop),
-			MaxExposure:  fmt.Sprintf("%.4f", e.maxDrawdownPct),
+			MaxExposure:  fmt.Sprintf("%.4f", effectiveMaxDrawdown),
 		}
 	}
 
-	// Risk confidence: higher strategy confidence → higher risk confidence.
-	riskConfidence := fmt.Sprintf("%.4f", confidence*0.90)
+	// S251: Risk confidence scales by strategy-type-specific factor (was fixed ×0.90).
+	riskConfidence := fmt.Sprintf("%.4f", confidence*confidenceFactor)
 
 	return domainrisk.RiskAssessment{
 		Type:        "drawdown_limit",
@@ -137,14 +179,18 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 		Constraints: constraints,
 		Rationale:   rationale,
 		Parameters:  baseParams,
-		Metadata:    e.buildMetadata(decisionSeverity, decisionRationale),
+		Metadata:    e.buildMetadata(strategyType, decisionSeverity, decisionRationale),
 		Final:       true,
 		Timestamp:   ts,
 	}, true
 }
 
-// buildRationale generates a context-rich rationale incorporating decision severity.
-func (e *DrawdownLimitEvaluator) buildRationale(outcome, direction string, stopDistance float64, decisionSeverity string) string {
+// buildRationale generates a context-rich rationale incorporating strategy type and decision severity.
+func (e *DrawdownLimitEvaluator) buildRationale(
+	outcome, strategyType, direction string,
+	stopDistance, confidenceFactor, stopFactor float64,
+	decisionSeverity string, sevFactor float64,
+) string {
 	var base string
 	switch outcome {
 	case "approved":
@@ -154,15 +200,23 @@ func (e *DrawdownLimitEvaluator) buildRationale(outcome, direction string, stopD
 	default:
 		base = fmt.Sprintf("%s %s stop distance %.4f", direction, outcome, stopDistance)
 	}
+
+	// Strategy type context.
+	base += fmt.Sprintf("; %s (confidence ×%.2f, stop ×%.2f)", strategyType, confidenceFactor, stopFactor)
+
+	// Severity context.
 	if decisionSeverity != "" && decisionSeverity != "none" {
-		base += fmt.Sprintf("; decision severity %s", decisionSeverity)
+		base += fmt.Sprintf("; decision severity %s (tolerance ×%.2f)", decisionSeverity, sevFactor)
 	}
 	return base
 }
 
-// buildMetadata populates risk metadata with decision context for observability.
-func (e *DrawdownLimitEvaluator) buildMetadata(decisionSeverity, decisionRationale string) map[string]string {
+// buildMetadata populates risk metadata with strategy type and decision context for observability.
+func (e *DrawdownLimitEvaluator) buildMetadata(strategyType, decisionSeverity, decisionRationale string) map[string]string {
 	meta := map[string]string{}
+	if strategyType != "" {
+		meta["strategy_type"] = strategyType
+	}
 	if decisionSeverity != "" {
 		meta["decision_severity"] = decisionSeverity
 	}

@@ -29,6 +29,7 @@ func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		timeframe, ts,
 	)
 	if !ok {
@@ -152,6 +153,7 @@ func TestPipeline_EvaluateSimulateEmit_RejectedRisk_NoFill(t *testing.T) {
 	intent, ok := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		300, ts,
 	)
 	if !ok {
@@ -214,6 +216,7 @@ func TestPipeline_MultiSymbol_FullIsolation(t *testing.T) {
 			intent, ok := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.02",
 				tc.direction, "0.72",
+				"mean_reversion_entry", "high",
 				tf, ts,
 			)
 			if !ok {
@@ -300,6 +303,7 @@ func TestPipeline_VenueAdapter_FullChain_DeriveToFill(t *testing.T) {
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		timeframe, ts,
 	)
 	if !ok {
@@ -409,6 +413,7 @@ func TestPipeline_VenueAdapter_NoAction_NoFillRecord(t *testing.T) {
 	intent, ok := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		300, ts,
 	)
 	if !ok {
@@ -448,6 +453,7 @@ func TestPipeline_StalenessGuard_Integration(t *testing.T) {
 	freshIntent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		60, now.Add(-30*time.Second),
 	)
 	if !ok {
@@ -462,6 +468,7 @@ func TestPipeline_StalenessGuard_Integration(t *testing.T) {
 	staleIntent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
+		"mean_reversion_entry", "high",
 		60, now.Add(-5*time.Minute),
 	)
 	if !ok {
@@ -579,6 +586,7 @@ func TestPipeline_MultiSymbol_FillIsolation(t *testing.T) {
 			intent, ok := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.02",
 				tc.direction, "0.72",
+				"mean_reversion_entry", "high",
 				tf, ts,
 			)
 			if !ok {

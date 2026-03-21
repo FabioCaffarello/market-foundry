@@ -79,6 +79,7 @@ func (a *DecisionPublisherActor) Receive(c *actor.Context) {
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
 			a.cfg.Tracker.Counter("published:" + msg.Event.Decision.Symbol).Add(1)
+			a.cfg.Tracker.Counter("decision:" + msg.Event.Decision.Type + ":" + string(msg.Event.Decision.Outcome)).Add(1)
 		}
 
 	default:
