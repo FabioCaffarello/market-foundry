@@ -34,6 +34,11 @@ architecture governance, or future specialized tooling.
 | Local links in primary support docs must resolve | error | Broken local references directly damage usability of operational documentation |
 | Canonical workflow docs must reference real Makefile targets | error | Workflow docs are entrypoints and should never publish dead commands |
 | Every Makefile wrapper to `./scripts/*.sh` must resolve to an executable file | error | Wrapper drift is a real operational failure, not a style issue |
+| When `.opencode/` exists, its core wiring and local references must resolve | error | Broken OpenCode entrypoints create a parallel navigation surface that immediately drifts from the real repository |
+| When `.opencode/` exists, its context files must stay reachable and thin | error | Orphaned or oversized context files stop being navigation and start becoming stale owner-doc copies |
+| When `.opencode/` exists, it must keep the approved minimal topology | error | The OpenCode layer should stay native to Foundry instead of growing extra command, agent, or multi-domain surfaces |
+| When `.opencode/` exists, each context area must keep canonical owner anchors and complete local navigation | error | This catches ownership confusion and inconsistent routing before the layer stops pointing back to the real repository |
+| When `.opencode/` exists, O-reports must stay reports rather than active owner indexes | error | This prevents opportunistic growth of a second normative or ownership surface under the OpenCode root |
 
 ## Severity Policy
 
@@ -57,6 +62,7 @@ The following concerns are out of scope for this check:
 - full-doc corpus broken-link scanning
 - archive cleanup
 - historical terminology normalization
+- full semantic review of `.opencode` prose beyond thin-surface invariants
 - domain or architecture policy enforcement already covered by `raccoon-cli`
 - review-only judgments such as whether a document is persuasive or complete in
   a business sense

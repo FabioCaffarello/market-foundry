@@ -1,0 +1,13 @@
+{
+  "name": "essential",
+  "description": "Minimal canonical navigation for market-foundry.",
+  "agent": "foundry-agent",
+  "includes": [
+    "context/navigation.md",
+    "context/repo/navigation.md",
+    "context/repo/development-workflow.md",
+    "context/runtime/navigation.md",
+    "context/change/navigation.md",
+    "context/intelligence/navigation.md"
+  ]
+}

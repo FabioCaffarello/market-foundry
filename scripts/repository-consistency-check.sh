@@ -8,6 +8,7 @@
 # - stage reports follow the repository naming/layout convention
 # - stage reports remain indexed in docs/stages/INDEX.md
 # - local links in primary support docs resolve
+# - .opencode stays wired as a thin navigation layer when present
 # - canonical docs only reference real Makefile targets
 # - Makefile script wrappers point to real executable scripts
 # - public script wrappers remain discoverable and self-describing
@@ -28,7 +29,7 @@ Usage: ./scripts/repository-consistency-check.sh [--help]
 
 Runs lightweight repository consistency checks for naming, documentation
 entrypoints, stage indexing, support-doc links, workflow/Make/CLI convergence,
-and Makefile script hygiene.
+Makefile script hygiene, and .opencode alignment.
 EOF
 }
 
@@ -520,6 +521,10 @@ print(f"local markdown links resolved across {len(files)} primary support docs")
 PY
 }
 
+check_opencode_surface() {
+    ./scripts/opencode-consistency-check.sh
+}
+
 check_primary_doc_make_targets() {
     python3 - <<'PY'
 from pathlib import Path
@@ -535,12 +540,14 @@ docs = [
     Path("docs/operations/makefile-targets-reference-and-conventions.md"),
 ]
 
-pattern = re.compile(r"`make\s+([A-Za-z0-9_.-]+)")
+pattern = re.compile(r"`make\s+([A-Za-z0-9_.*-]+)")
 unknown = []
 
 for path in docs:
     text = path.read_text()
     for target in sorted(set(pattern.findall(text))):
+        if "*" in target:
+            continue
         if target not in targets:
             unknown.append(f"{path.as_posix()}: make {target}")
 
@@ -1040,6 +1047,7 @@ run_check "stage-report-naming" check_stage_report_naming || overall_status=1
 run_check "stage-report-shape" check_stage_report_shape || overall_status=1
 run_check "stage-index-alignment" check_stage_index_alignment || overall_status=1
 run_check "support-doc-links" check_support_doc_links || overall_status=1
+run_check "opencode-surface" check_opencode_surface || overall_status=1
 run_check "primary-doc-make-targets" check_primary_doc_make_targets || overall_status=1
 run_check "makefile-script-wrappers" check_makefile_script_wrappers || overall_status=1
 run_check "public-scripts-self-describing" check_public_scripts_are_self_describing || overall_status=1

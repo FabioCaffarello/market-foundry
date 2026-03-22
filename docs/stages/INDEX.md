@@ -50,7 +50,8 @@ Recent wave entrypoints:
 | Venue activation wave | [S337](stage-s337-venue-activation-charter-report.md) | [S346](stage-s346-venue-activation-evidence-gate-report.md) |
 | Production readiness assessment wave | [S347](stage-s347-production-readiness-assessment-charter-report.md) | [S352](stage-s352-production-readiness-assessment-gate-report.md) |
 | Operational foundation wave | [S353](stage-s353-operational-foundation-charter-report.md) | [S357](stage-s357-operational-foundation-evidence-gate-report.md) |
-| Strategy/signal integration wave | [S358](stage-s358-strategy-signal-integration-charter-report.md) | S363 (pending) |
+| Strategy/signal integration wave | [S358](stage-s358-strategy-signal-integration-charter-report.md) | [S363](stage-s363-strategy-signal-integration-evidence-gate-report.md) |
+| Derive integration wave | [S364](stage-s364-derive-integration-charter-report.md) | S369 (planned) |
 
 Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
 for the expected linking model between charter, execution, promoted docs, and
@@ -662,3 +663,15 @@ gate decisions.
 | [S360](stage-s360-controlled-source-to-execution-wiring-report.md) | Controlled source-to-execution wiring (SSI-2) |
 | [S361](stage-s361-explainability-and-runtime-controls-report.md) | Explainability and runtime controls for source-driven execution (SSI-3) |
 | [S362](stage-s362-end-to-end-domain-to-venue-slice-report.md) | End-to-end domain-to-venue vertical slice proof (SSI-4) |
+| [S363](stage-s363-strategy-signal-integration-evidence-gate-report.md) | Strategy/signal integration evidence gate |
+
+## Phase 37: Derive Integration Wave (S364–S369)
+
+| Stage | Description |
+|---|---|
+| [S364](stage-s364-derive-integration-charter-report.md) | Derive integration wave charter and scope freeze |
+| [S365](stage-s365-strategy-resolved-event-producer-spec-report.md) | StrategyResolvedEvent producer spec and derive ownership (DI-1) |
+| [S366](stage-s366-canonical-derive-producer-wiring-report.md) | Canonical derive producer wiring and invariant tests (DI-2) |
+| [S367](stage-s367-store-gateway-read-path-verification-report.md) | Store/gateway read-path verification for derive-produced events (DI-3) |
+| [S368](stage-s368-end-to-end-analytical-to-execution-report.md) | End-to-end analytical-to-execution proof (DI-4) |
+| [S369](stage-s369-derive-integration-evidence-gate-report.md) | Derive integration evidence gate (DI-5) |

@@ -1,0 +1,15 @@
+{
+  "name": "developer",
+  "description": "Developer navigation bundle for repository, runtime, and tooling contracts.",
+  "agent": "foundry-agent",
+  "includes": [
+    "context/navigation.md",
+    "context/repo/navigation.md",
+    "context/repo/development-workflow.md",
+    "context/repo/architecture-boundaries.md",
+    "context/repo/tooling-contracts.md",
+    "context/runtime/navigation.md",
+    "context/change/navigation.md",
+    "context/intelligence/navigation.md"
+  ]
+}

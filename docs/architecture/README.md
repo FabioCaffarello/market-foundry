@@ -90,6 +90,21 @@ runtime behavior, and governed expansion.
 - [`source-driven-queryability-audit-fields-and-operational-limits.md`](source-driven-queryability-audit-fields-and-operational-limits.md)
 - [`end-to-end-domain-to-venue-slice-proof.md`](end-to-end-domain-to-venue-slice-proof.md)
 - [`canonical-source-driven-vertical-slice-evidence-and-limitations.md`](canonical-source-driven-vertical-slice-evidence-and-limitations.md)
+- [`strategy-signal-integration-evidence-gate.md`](strategy-signal-integration-evidence-gate.md)
+- [`strategy-signal-integration-evidence-matrix-residual-gaps-and-next-ceremony.md`](strategy-signal-integration-evidence-matrix-residual-gaps-and-next-ceremony.md)
+
+### Derive Integration (Phase 37)
+
+- [`derive-integration-wave-charter-and-scope-freeze.md`](derive-integration-wave-charter-and-scope-freeze.md)
+- [`derive-integration-capabilities-questions-and-non-goals.md`](derive-integration-capabilities-questions-and-non-goals.md)
+- [`canonical-derive-producer-wiring.md`](canonical-derive-producer-wiring.md)
+- [`derive-to-strategy-event-wiring-order-controls-and-limitations.md`](derive-to-strategy-event-wiring-order-controls-and-limitations.md)
+- [`store-gateway-and-read-path-verification-for-derive-produced-strategy-events.md`](store-gateway-and-read-path-verification-for-derive-produced-strategy-events.md)
+- [`derive-produced-strategy-event-read-path-findings-and-limitations.md`](derive-produced-strategy-event-read-path-findings-and-limitations.md)
+- [`end-to-end-analytical-to-execution-proof.md`](end-to-end-analytical-to-execution-proof.md)
+- [`derive-to-venue-canonical-pipeline-evidence-and-limitations.md`](derive-to-venue-canonical-pipeline-evidence-and-limitations.md)
+- [`derive-integration-evidence-gate.md`](derive-integration-evidence-gate.md)
+- [`derive-integration-evidence-matrix-residual-gaps-and-next-ceremony.md`](derive-integration-evidence-matrix-residual-gaps-and-next-ceremony.md)
 
 ### Analytical and ClickHouse
 

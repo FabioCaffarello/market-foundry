@@ -38,6 +38,11 @@ make check-deep
 | Local links in primary support docs resolve | error | Broken links in workflow docs create immediate operational friction |
 | Canonical workflow docs reference real Makefile targets | error | Repository entrypoints must not tell contributors to run commands that do not exist |
 | Makefile script wrappers point to real executable scripts | error | Broken wrappers create false confidence in the supported command surface |
+| `.opencode` core wiring and local references resolve when that surface exists | error | The thin OpenCode layer should fail fast if it points to dead entrypoints |
+| `.opencode` context files stay reachable and thin | error | The navigation layer should not accumulate orphan context or duplicate owner docs |
+| `.opencode` keeps the approved minimal native topology | error | The Foundry OpenCode layer should stay bounded to one root agent and the four concern areas: `repo`, `runtime`, `change`, and `intelligence` |
+| `.opencode` navigation keeps canonical owner anchors and complete per-area routing | error | The layer should keep pointing back to the real owners instead of inventing new local authorities |
+| `.opencode` O-reports remain reports instead of owner indexes | error | Change reports should record rationale, not accumulate a second active governance surface |
 
 All automated checks are intentionally high-signal and blocking. Lower-value
 style concerns were left out on purpose.
@@ -59,6 +64,14 @@ surfaces:
 The check does not scan the full architecture or archive corpus. That would turn
 this guard rail into a noisy documentation migration project instead of a fast
 consistency pass.
+
+The `.opencode` validation is equally narrow. It checks only the thin
+navigation-layer invariants: wiring, reachable local references, explicit
+`make` target mentions, prohibited carryovers, the approved minimal topology,
+owner-doc anchors, per-area navigation completeness, report-vs-owner-surface
+separation, orphaned context, and basic anti-duplication size limits. It does
+not attempt to score prose quality or turn `.opencode` into another governance
+system.
 
 ## Integration With Existing Tooling
 
