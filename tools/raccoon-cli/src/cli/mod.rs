@@ -13,11 +13,21 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
           check    repository guard rails and audits\n  \
           inspect  read-only structural and contract analysis\n  \
           change   impact mapping and validation guidance\n  \
-          snapshot baseline and drift utilities\n  \
-          legacy   fragile or deprecated helper flows",
+          snapshot stable utility baseline and drift commands\n  \
+          legacy   fragile or deprecated helper flows\n\n\
+        Lifecycle states:\n  \
+          stable       default supported command surface for everyday use\n  \
+          utility      narrower but durable support surface for focused tasks\n  \
+          experimental limited-scope proving surface; promote only after repeated use\n  \
+          legacy       retained only for compatibility, migration, or bounded fallback",
     version,
     propagate_version = true,
-    after_help = "Canonical usage:\n  \
+    after_help = "Surface maturity:\n  \
+        stable core     `check`, `inspect`, `change`\n  \
+        stable utility  `snapshot`, `snapshot-diff`, `baseline-drift`\n  \
+        legacy          `legacy runtime-smoke` and hidden flat compatibility aliases\n  \
+        experimental    none currently promoted in the public help surface\n\n\
+        Canonical usage:\n  \
         raccoon-cli check repo\n  \
         raccoon-cli check gate --profile ci --json\n  \
         raccoon-cli inspect symbol ConfigSet --lsp\n  \

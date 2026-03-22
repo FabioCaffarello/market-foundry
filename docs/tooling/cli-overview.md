@@ -23,6 +23,22 @@ It exists to help contributors validate architecture, inspect structural relatio
 | `snapshot` family | Baselines, diffs, and drift | `raccoon-cli snapshot -o baseline.json`, `raccoon-cli snapshot-diff before.json after.json` |
 | `legacy` | Deprecated or fragile helpers | `raccoon-cli legacy runtime-smoke` |
 
+## Command Lifecycle
+
+The taxonomy answers "what kind of task is this?". The lifecycle answers "how
+durable and promotable is this command surface?".
+
+| Lifecycle state | Meaning | Current Raccoon CLI surface |
+|---|---|---|
+| `stable core` | Default, documented surface for recurring repository workflows | `check`, `inspect`, `change` |
+| `stable utility` | Durable but narrower support surface for focused expert work | `snapshot`, `snapshot-diff`, `baseline-drift` |
+| `experimental` | Proving-only surface with bounded scope and explicit promotion criteria | none currently promoted |
+| `legacy` | Compatibility-only or deprecated surface retained to avoid abrupt breaks | `legacy runtime-smoke`, hidden flat aliases |
+
+The public help surface should make these distinctions visible enough that
+contributors can tell which commands are normal, which are specialist tools,
+and which are only tolerated for compatibility.
+
 ## Compatibility
 
 Historic flat commands such as `doctor`, `quality-gate`, `symbol-trace`, `impact-map`, `tdd`, and `runtime-smoke` remain supported as hidden compatibility aliases. New documentation and examples should prefer the canonical grouped taxonomy, and should not present those aliases as the canonical operational-proof surface.
@@ -43,6 +59,8 @@ This keeps the CLI sustainable as an internal product without turning it into a 
 
 - [`docs/operations/raccoon-cli-ux-taxonomy-and-guard-rails.md`](../operations/raccoon-cli-ux-taxonomy-and-guard-rails.md)
 - [`docs/operations/raccoon-cli-command-reference.md`](../operations/raccoon-cli-command-reference.md)
+- [`raccoon-cli-command-lifecycle-and-deprecation-strategy.md`](raccoon-cli-command-lifecycle-and-deprecation-strategy.md)
+- [`raccoon-cli-command-catalog-maturity-model-and-governance.md`](raccoon-cli-command-catalog-maturity-model-and-governance.md)
 - [`docs/tooling/development-cli-reliability-and-command-testing-strategy.md`](development-cli-reliability-and-command-testing-strategy.md)
 - [`docs/tooling/raccoon-cli-command-trustworthiness-and-error-semantics.md`](raccoon-cli-command-trustworthiness-and-error-semantics.md)
 - [`docs/tooling/raccoon-cli-internal-modularity-and-command-architecture.md`](raccoon-cli-internal-modularity-and-command-architecture.md)

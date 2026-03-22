@@ -56,6 +56,12 @@ The root `Makefile` now follows these conventions:
 These aliases are additive. Existing docs and scripts may continue using the canonical names.
 They must not be documented as replacing the canonical `up`/`down`/`logs` or `smoke*` targets.
 
+Lifecycle rule:
+aliases remain justified only while they improve discovery more than they add
+maintenance cost. If an alias stops improving discovery or starts splitting
+examples, it becomes a consolidation or retirement candidate rather than a
+permanent public contract.
+
 ## Primary Targets
 
 ### Help And Docs
@@ -63,7 +69,7 @@ They must not be documented as replacing the canonical `up`/`down`/`logs` or `sm
 | Target | Purpose |
 |---|---|
 | `make help` | Show grouped targets and common variables |
-| `make docs` | Print the primary workflow and tooling docs |
+| `make docs` | Print the curated primary entrypoints for workflow, navigation, and tooling |
 | `make bootstrap` | Validate local prerequisites and canonical repository entrypoints |
 
 ### Core Workflow
@@ -75,12 +81,17 @@ They must not be documented as replacing the canonical `up`/`down`/`logs` or `sm
 | `make repo-consistency-check` | Lightweight repository consistency checks |
 | `make stage-help` | Show the stage helper usage and supported inputs |
 | `make stage-scaffold` | Scaffold a stage report for a governed stage |
+| `make stage-status` | Show continuity status and next actions for one active stage |
 | `make stage-check` | Validate one active stage and optional required artifacts |
 | `make tdd` | Impact-driven validation guide |
 | `make verify` | Post-change Go tests plus repo consistency and fast quality gate |
 | `make check-deep` | Repo consistency plus deep validation profile |
 
 `make check-deep` is a deeper tooling gate, not a replacement for `make smoke*`.
+
+`make docs` is intentionally a shortlist, not an exhaustive catalog. The
+full support-document inventory lives in [`../../docs/README.md`](../../docs/README.md)
+and [`README.md`](README.md).
 
 ### Go And Test
 
@@ -178,10 +189,10 @@ delegate into those proofs, but it is not the canonical proof-of-record surface.
 | `TARGETS=a,b` | `briefing`, `recommend` | Pass explicit paths or targets to raccoon |
 | `SNAP1=file SNAP2=file` | `snapshot-diff` | Snapshot diff inputs |
 | `BASELINE=file` | `baseline-drift` | Baseline snapshot input |
-| `STAGE_ID=C15` | `stage-scaffold`, `stage-check` | Stage identifier |
-| `STAGE_SLUG=name` | `stage-scaffold`, `stage-check` | Kebab-case report slug |
+| `STAGE_ID=C15` | `stage-scaffold`, `stage-status`, `stage-check` | Stage identifier |
+| `STAGE_SLUG=name` | `stage-scaffold`, `stage-status`, `stage-check` | Kebab-case report slug |
 | `STAGE_TITLE=Title` | `stage-scaffold` | Report title for scaffolded stage report |
-| `STAGE_REQUIRE=path1,path2` | `stage-check` | Extra artifacts that must exist for the stage |
+| `STAGE_REQUIRE=path1,path2` | `stage-status`, `stage-check` | Extra artifacts that must exist for the stage |
 | `BASE_URL=http://...` | `smoke-help`, `smoke*` | Override the gateway base URL used by smoke scripts |
 | `SMOKE_WAIT=180` | `smoke*` | Override smoke wait/flush timeout without direct script invocation |
 | `FLUSH_WAIT=180` | `smoke-restart-recovery` | Override post-restart flush wait |

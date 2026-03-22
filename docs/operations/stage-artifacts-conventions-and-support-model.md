@@ -158,6 +158,14 @@ make stage-check \
   STAGE_REQUIRE=docs/operations/stage-tooling-and-execution-governance-support.md,docs/operations/stage-artifacts-conventions-and-support-model.md
 ```
 
+### `make stage-status`
+
+Use when:
+
+- you are resuming a stage and need a quick continuity snapshot;
+- you want to confirm report/index/artifact state before the stricter check;
+- the work spans more than one session and memory is no longer reliable.
+
 ## Support Boundaries
 
 The support model intentionally does not enforce:

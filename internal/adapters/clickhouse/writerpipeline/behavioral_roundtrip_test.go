@@ -1333,3 +1333,196 @@ func TestBehavioralRoundTrip_Execution_RejectedOrder(t *testing.T) {
 		t.Errorf("rejected order should have 0 fills, got %d", len(fills))
 	}
 }
+
+// --- Scenario 18: S334 — Venue fill round-trip with real fill data ---
+
+func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
+	fillTime := rtTime.Add(5 * time.Second)
+	event := execution.VenueOrderFilledEvent{
+		Metadata: events.Metadata{
+			ID:            "s334-fill-rt-001",
+			OccurredAt:    fillTime,
+			CorrelationID: "corr-s334-fill",
+			CausationID:   "caus-s334-intake",
+		},
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0.001",
+			Status: execution.StatusFilled,
+			Risk: execution.RiskInput{
+				Type: "position_exposure", Disposition: "approved",
+				Confidence: "0.85", Timeframe: 60,
+				StrategyType: "mean_reversion_entry", DecisionSeverity: "high",
+			},
+			Fills: []execution.FillRecord{
+				{Price: "98500.50", Quantity: "0.001", Fee: "0.039", Simulated: false, Timestamp: fillTime},
+			},
+			Parameters:    map[string]string{"max_position_pct": "0.05"},
+			Metadata:      map[string]string{"venue_order_id": "1234567890"},
+			CorrelationID: "corr-s334-fill",
+			CausationID:   "caus-s334-risk",
+			Final:         true,
+			Timestamp:     fillTime,
+		},
+		VenueOrderID: "1234567890",
+	}
+
+	row := mapVenueFillRow(event)
+
+	// Row layout: [0]event_id [1]occurred_at [2]correlation_id [3]causation_id
+	//   [4]type [5]source [6]symbol [7]timeframe [8]side [9]quantity [10]filled_quantity
+	//   [11]status [12]risk [13]fills [14]parameters [15]metadata
+	//   [16]exec_correlation_id [17]exec_causation_id [18]final [19]timestamp
+
+	if len(row) != 20 {
+		t.Fatalf("venue fill row: got %d columns, want 20", len(row))
+	}
+
+	// Event metadata preservation.
+	if row[0].(string) != "s334-fill-rt-001" {
+		t.Errorf("event_id: got %q", row[0])
+	}
+	if row[2].(string) != "corr-s334-fill" {
+		t.Errorf("correlation_id: got %q", row[2])
+	}
+	if row[3].(string) != "caus-s334-intake" {
+		t.Errorf("causation_id: got %q", row[3])
+	}
+
+	// Type is venue_market_order (not paper_order).
+	if row[4].(string) != "venue_market_order" {
+		t.Errorf("type: got %q, want venue_market_order", row[4])
+	}
+
+	// Status is filled.
+	if row[11].(string) != "filled" {
+		t.Errorf("status: got %q, want filled", row[11])
+	}
+
+	// Filled quantity matches quantity (full fill).
+	qty := row[9].(float64)
+	filledQty := row[10].(float64)
+	if qty != 0.001 {
+		t.Errorf("quantity: got %f, want 0.001", qty)
+	}
+	if filledQty != 0.001 {
+		t.Errorf("filled_quantity: got %f, want 0.001", filledQty)
+	}
+
+	// Fills JSON round-trip: real fill data with simulated=false.
+	fills := ch.ParseFillsJSON(row[13].(string))
+	if len(fills) != 1 {
+		t.Fatalf("fills count: got %d, want 1", len(fills))
+	}
+	if fills[0].Price != "98500.50" {
+		t.Errorf("fill.price: got %q, want 98500.50", fills[0].Price)
+	}
+	if fills[0].Quantity != "0.001" {
+		t.Errorf("fill.quantity: got %q, want 0.001", fills[0].Quantity)
+	}
+	if fills[0].Fee != "0.039" {
+		t.Errorf("fill.fee: got %q, want 0.039", fills[0].Fee)
+	}
+	if fills[0].Simulated {
+		t.Error("fill.simulated: got true, want false (real venue fill)")
+	}
+
+	// Risk input preservation with strategy context.
+	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	if riskInput.Disposition != "approved" {
+		t.Errorf("risk.disposition: got %q, want approved", riskInput.Disposition)
+	}
+	if riskInput.StrategyType != "mean_reversion_entry" {
+		t.Errorf("risk.strategy_type: got %q", riskInput.StrategyType)
+	}
+	if riskInput.DecisionSeverity != "high" {
+		t.Errorf("risk.decision_severity: got %q", riskInput.DecisionSeverity)
+	}
+
+	// Exec-level correlation preserved.
+	if row[16].(string) != "corr-s334-fill" {
+		t.Errorf("exec_correlation_id: got %q", row[16])
+	}
+	if row[17].(string) != "caus-s334-risk" {
+		t.Errorf("exec_causation_id: got %q", row[17])
+	}
+
+	// Final flag.
+	if row[18].(bool) != true {
+		t.Error("final: got false, want true")
+	}
+}
+
+// --- Scenario 19: S334 — Venue fill vs paper order column alignment ---
+
+func TestBehavioralRoundTrip_VenueFill_PaperOrderColumnAlignment(t *testing.T) {
+	// Both mapExecutionRow and mapVenueFillRow must produce identical column layouts.
+	// This test ensures a paper_order and venue_fill for the same correlation_id
+	// can coexist in the same executions table.
+	paperEvent := execution.PaperOrderSubmittedEvent{
+		Metadata: events.Metadata{
+			ID: "s334-paper-001", OccurredAt: rtTime,
+			CorrelationID: "corr-s334-align", CausationID: "caus-s334-risk",
+		},
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "paper_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0",
+			Status: execution.StatusSubmitted,
+			Risk: execution.RiskInput{
+				Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60,
+			},
+			Fills:         []execution.FillRecord{},
+			CorrelationID: "corr-s334-align", CausationID: "caus-s334-risk",
+			Final: true, Timestamp: rtTime,
+		},
+	}
+
+	fillEvent := execution.VenueOrderFilledEvent{
+		Metadata: events.Metadata{
+			ID: "s334-fill-001", OccurredAt: rtTime.Add(2 * time.Second),
+			CorrelationID: "corr-s334-align", CausationID: "caus-s334-paper",
+		},
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0.001",
+			Status: execution.StatusFilled,
+			Risk: execution.RiskInput{
+				Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60,
+			},
+			Fills: []execution.FillRecord{
+				{Price: "98500.00", Quantity: "0.001", Fee: "0.039", Simulated: false, Timestamp: rtTime.Add(2 * time.Second)},
+			},
+			CorrelationID: "corr-s334-align", CausationID: "caus-s334-risk",
+			Final: true, Timestamp: rtTime.Add(2 * time.Second),
+		},
+		VenueOrderID: "9876543210",
+	}
+
+	paperRow := mapExecutionRow(paperEvent)
+	fillRow := mapVenueFillRow(fillEvent)
+
+	if len(paperRow) != len(fillRow) {
+		t.Fatalf("column count mismatch: paper=%d, fill=%d", len(paperRow), len(fillRow))
+	}
+
+	// Type column differs (paper_order vs venue_market_order).
+	if paperRow[4].(string) != "paper_order" {
+		t.Errorf("paper type: got %q", paperRow[4])
+	}
+	if fillRow[4].(string) != "venue_market_order" {
+		t.Errorf("fill type: got %q", fillRow[4])
+	}
+
+	// Status column differs (submitted vs filled).
+	if paperRow[11].(string) != "submitted" {
+		t.Errorf("paper status: got %q", paperRow[11])
+	}
+	if fillRow[11].(string) != "filled" {
+		t.Errorf("fill status: got %q", fillRow[11])
+	}
+
+	// Both share the same correlation_id at exec level.
+	if paperRow[16].(string) != fillRow[16].(string) {
+		t.Errorf("exec_correlation_id diverged: paper=%q, fill=%q", paperRow[16], fillRow[16])
+	}
+}

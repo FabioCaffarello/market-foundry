@@ -12,6 +12,7 @@ usage() {
 Usage:
   ./scripts/stage-tooling.sh help
   ./scripts/stage-tooling.sh scaffold [--stage-id C15] [--slug stage-tooling] [--title "Stage Tooling"]
+  ./scripts/stage-tooling.sh status [--stage-id C15] [--slug stage-tooling] [--report docs/stages/stage-c15-...-report.md] [--require path1,path2]
   ./scripts/stage-tooling.sh check [--stage-id C15] [--slug stage-tooling] [--report docs/stages/stage-c15-...-report.md] [--require path1,path2]
 
 Environment fallbacks:
@@ -23,6 +24,7 @@ Environment fallbacks:
 
 This helper is intentionally lightweight:
   - scaffold creates only a stage report template
+  - status shows the current continuity state and next actions for one stage
   - check validates naming, index presence, minimum section completeness,
     local links, and optional required artifacts
 EOF
@@ -292,6 +294,151 @@ else:
 PY
 }
 
+run_status() {
+    [[ -n "${stage_id}" || -n "${stage_report}" ]] || die "status requires STAGE_ID or STAGE_REPORT"
+
+    local id_lower=""
+    if [[ -n "${stage_id}" ]]; then
+        id_lower="$(normalize_stage_id "${stage_id}")"
+    fi
+
+    local report_path
+    report_path="$(resolve_report_path "${id_lower}" "${stage_slug}")"
+
+    cd "${PROJECT_ROOT}"
+
+    python3 - "${report_path}" "${stage_require}" "${stage_id}" "${stage_slug}" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+report_path = Path(sys.argv[1])
+required_raw = sys.argv[2].strip()
+stage_id = sys.argv[3].strip() or report_path.name.split("-")[1].upper()
+stage_slug = sys.argv[4].strip()
+required_paths = [item.strip() for item in required_raw.split(",") if item.strip()]
+index_path = Path("docs/stages/INDEX.md")
+index_text = index_path.read_text() if index_path.is_file() else ""
+
+def yes_no(value: bool) -> str:
+    return "yes" if value else "no"
+
+print("stage-status")
+print(f"  - stage: {stage_id.upper()}")
+print(f"  - report path: {report_path.as_posix()}")
+if stage_slug:
+    print(f"  - slug: {stage_slug}")
+
+if not report_path.exists():
+    print("  - report exists: no")
+    print("  - index entry present: no")
+    print("  - continuity state: bootstrap needed")
+    print("next actions")
+    if not stage_slug:
+        print("  - pass STAGE_SLUG=... or --slug so the report path can be scaffolded predictably next time")
+    print(f"  - run make stage-scaffold STAGE_ID={stage_id.upper()} STAGE_SLUG=<slug> STAGE_TITLE=\"<title>\"")
+    print(f"  - add {report_path.as_posix()} to docs/stages/INDEX.md after the report exists")
+    print("  - run make stage-status again to inspect continuity gaps before closing the stage")
+    sys.exit(0)
+
+text = report_path.read_text()
+h2_count = len(re.findall(r"^## ", text, re.M))
+section_patterns = {
+    "summary": r"^## (?:\d+\.\s+)?(Summary|Executive Summary)\b",
+    "changes": r"^## (?:\d+\.\s+)?(Changes Applied|Delivered Changes|Improvements Applied|Main Changes|Tooling Changes)\b",
+    "validation": r"^## (?:\d+\.\s+)?Validation\b",
+    "next-stage": r"^## (?:\d+\.\s+)?(Preparation For Next Stage|Preparation For C\d+|Preparation For S\d+|Next Stage|Recommended Preparation|Outcome|Final Operating Model)\b",
+}
+missing_sections = [name for name, pattern in section_patterns.items() if not re.search(pattern, text, re.M)]
+scope_signals = [
+    r"^## (?:\d+\.\s+)?Scope Boundaries\b",
+    r"^### (?:\d+\.\s+)?In scope\b",
+    r"^### (?:\d+\.\s+)?Out of scope\b",
+    r"^### (?:\d+\.\s+)?Not changed\b",
+    r"\bout of scope\b",
+    r"\bnot changed\b",
+]
+has_scope_signals = any(re.search(pattern, text, re.M | re.I) for pattern in scope_signals)
+indexed = report_path.name in index_text
+
+link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+broken_links = []
+ops_links = set()
+arch_links = set()
+for target in link_pattern.findall(text):
+    if target.startswith(("http://", "https://", "mailto:", "#")):
+        continue
+    clean = target.split("#", 1)[0]
+    if not clean:
+        continue
+    resolved = (report_path.parent / clean).resolve()
+    if not resolved.exists():
+        broken_links.append(clean)
+        continue
+    if "/docs/operations/" in resolved.as_posix():
+        ops_links.add(resolved.as_posix())
+    if "/docs/architecture/" in resolved.as_posix():
+        arch_links.add(resolved.as_posix())
+
+missing_required = [rel for rel in required_paths if not Path(rel).exists()]
+present_required = [rel for rel in required_paths if Path(rel).exists()]
+
+continuity_gaps = []
+if not indexed:
+    continuity_gaps.append("report not indexed")
+if h2_count < 4:
+    continuity_gaps.append("report shape too thin")
+if missing_sections:
+    continuity_gaps.append("missing core sections")
+if not has_scope_signals:
+    continuity_gaps.append("scope boundaries not explicit")
+if broken_links:
+    continuity_gaps.append("broken local links")
+if missing_required:
+    continuity_gaps.append("required artifacts missing")
+
+state = "ready for stage-check" if not continuity_gaps else "needs follow-up"
+
+print(f"  - report exists: yes")
+print(f"  - index entry present: {yes_no(indexed)}")
+print(f"  - level-2 sections: {h2_count}")
+print(f"  - scope boundaries explicit: {yes_no(has_scope_signals)}")
+print(f"  - operations docs linked: {len(ops_links)}")
+print(f"  - architecture docs linked: {len(arch_links)}")
+print(f"  - broken local links: {len(broken_links)}")
+if required_paths:
+    print(f"  - required artifacts present: {len(present_required)}/{len(required_paths)}")
+else:
+    print("  - required artifacts declared: none")
+print(f"  - continuity state: {state}")
+
+if continuity_gaps:
+    print("continuity gaps")
+    if not indexed:
+        print(f"  - add {report_path.name} to docs/stages/INDEX.md")
+    if h2_count < 4:
+        print("  - expand the report to at least four level-2 sections")
+    if missing_sections:
+        print(f"  - add missing section families: {', '.join(missing_sections)}")
+    if not has_scope_signals:
+        print("  - add explicit in-scope, out-of-scope, and not-changed signals")
+    for item in broken_links:
+        print(f"  - fix broken local link: {item}")
+    for item in missing_required:
+        print(f"  - create or update required artifact: {item}")
+else:
+    print("continuity gaps")
+    print("  - none")
+
+print("next actions")
+print(f"  - run make stage-check STAGE_ID={stage_id.upper()}" + (f" STAGE_SLUG={stage_slug}" if stage_slug else ""))
+if required_paths:
+    print("  - keep STAGE_REQUIRE aligned with the actual durable artifacts produced by the stage")
+print("  - run make repo-consistency-check after updating stage docs or support surfaces")
+print("  - run the narrowest validation path that proves the change, usually make verify for support-only changes")
+PY
+}
+
 case "${command}" in
     --help|-h)
         usage
@@ -301,6 +448,9 @@ case "${command}" in
         ;;
     scaffold)
         run_scaffold
+        ;;
+    status)
+        run_status
         ;;
     check)
         run_check

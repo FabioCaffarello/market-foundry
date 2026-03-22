@@ -86,6 +86,7 @@ make verify
 
 # Stage support for governed waves
 make stage-help
+make stage-status STAGE_ID=C20 STAGE_SLUG=automation-support-for-waves-execution-continuity-and-repo-sustainability
 make stage-check STAGE_ID=C15 STAGE_SLUG=stage-tooling-and-execution-governance-support
 
 # Troubleshooting entrypoint
@@ -106,6 +107,7 @@ make diag        # first troubleshooting stop for a running stack
 make help        # Discover the supported target surface
 make check       # Pre-code guard rail (repo consistency + quality gate)
 make repo-consistency-check  # Lightweight naming/docs/support-surface checks
+make stage-status STAGE_ID=C20 STAGE_SLUG=automation-support-for-waves-execution-continuity-and-repo-sustainability
 make tdd         # Impact-driven validation guide
 make verify      # Tests + repo consistency + quality gate
 make arch-guard  # Architecture boundary check
@@ -113,49 +115,38 @@ make arch-guard  # Architecture boundary check
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow reference.
 The documentation entrypoint is [`docs/README.md`](docs/README.md).
-The canonical documentation-system hardening map lives in
-[`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md).
-The canonical documentation governance, entrypoint, and taxonomy rules live in
-[`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md).
-The unified operational journey is documented in
-[`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md).
-The canonical developer-environment architecture and lifecycle now live in
-[`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md)
+The operational support index is [`docs/operations/README.md`](docs/operations/README.md).
+The repository-shape navigation entrypoints are
+[`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
 and
-[`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md).
-The onboarding and troubleshooting runbook lives in
-[`docs/operations/developer-onboarding-and-troubleshooting-guide.md`](docs/operations/developer-onboarding-and-troubleshooting-guide.md).
-The smoke/proof UX guidance lives in
-[`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md),
-and the proof failure-diagnosis flow lives in
-[`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md).
-Operational conventions for the command surface live in
-[`docs/operations/README.md`](docs/operations/README.md), and direct tooling
-references live in [`docs/tooling/README.md`](docs/tooling/README.md).
-The canonical support-surface model is documented in
-[`docs/operations/repository-support-surface-canonical-model.md`](docs/operations/repository-support-surface-canonical-model.md).
-Operational proof governance and ownership now live in
-[`docs/operations/smoke-and-operational-harness-governance.md`](docs/operations/smoke-and-operational-harness-governance.md)
+[`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md).
+The C21 structural-cost model lives in
+[`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md)
 and
-[`docs/operations/operational-proof-entrypoints-and-ownership.md`](docs/operations/operational-proof-entrypoints-and-ownership.md).
-Stage-support workflow guidance now lives in
-[`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md)
-and
-[`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md).
+[`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md).
+Direct tooling references live in [`docs/tooling/README.md`](docs/tooling/README.md).
+
+## Repository Navigation
+
+Use these entrypoints when you need to navigate the physical repository shape
+rather than the documentation taxonomy:
+
+- [`cmd/README.md`](cmd/README.md) - service and binary entrypoints
+- [`internal/README.md`](internal/README.md) - architecture layers and implementation map
+- [`deploy/README.md`](deploy/README.md) - runtime assets, configs, compose, and migrations
+- [`scripts/README.md`](scripts/README.md) - script catalog and wrapper rules
+- [`tests/README.md`](tests/README.md) - test surfaces and when to use them
+- [`tools/raccoon-cli/README.md`](tools/raccoon-cli/README.md) - tooling workspace entrypoint
+- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md) - cross-repository map that connects these areas
 
 ## Documentation Map
 
 - [`docs/README.md`](docs/README.md) - top-level documentation navigation
-- [`docs/operations/README.md`](docs/operations/README.md) - daily workflow,
-  command surface, scripts, and documentation conventions
-- [`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md) - canonical developer environment architecture and lifecycle model
-- [`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md) - canonical entrypoints and flow-by-flow operating paths
-- [`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md) - smoke/proof UX model, selection guidance, and operator ergonomics
-- [`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md) - operational flows, failure interpretation, and diagnosis paths
-- [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md) - canonical documentation-system map and cross-surface links
-- [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md) - canonical taxonomy, naming, and maintenance rules
-- [`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md) - active stage-support workflow and lightweight checks
-- [`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md) - naming, placement, and minimum completeness for stage artifacts
+- [`docs/operations/README.md`](docs/operations/README.md) - canonical operations/support index
+- [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md) - repository-shape navigation model
+- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md) - task-to-directory navigation rules
+- [`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md) - canonical structural-cost model for support surfaces
+- [`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md) - hotspot inventory and reduction principles
 - [`docs/tooling/README.md`](docs/tooling/README.md) - `raccoon-cli` guardrails,
   drift rules, and topology references
 - [`docs/architecture/README.md`](docs/architecture/README.md) - canonical

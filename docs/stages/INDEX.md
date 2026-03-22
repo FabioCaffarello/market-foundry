@@ -45,6 +45,9 @@ Recent wave entrypoints:
 | Breadth wave | [S240](stage-s240-breadth-charter-and-scope-freeze-report.md) | [S244](stage-s244-breadth-integration-and-gate-report.md) |
 | Behavioral wave | [S249](stage-s249-behavioral-feature-charter-and-scope-freeze-report.md) | [S254](stage-s254-post-behavioral-wave-gate-report.md) |
 | Venue closure tranche | [S321](stage-s321-venue-closure-tranche-charter-report.md) | [S326](stage-s326-venue-progression-evidence-gate-report.md) |
+| Production wiring tranche | [S327](stage-s327-production-wiring-tranche-charter-report.md) | [S331](stage-s331-production-wiring-evidence-gate-report.md) |
+| Live stack integration wave | [S332](stage-s332-live-stack-integration-charter-report.md) | [S336](stage-s336-live-stack-evidence-gate-report.md) |
+| Venue activation wave | [S337](stage-s337-venue-activation-charter-report.md) | S342 (planned) |
 
 Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
 for the expected linking model between charter, execution, promoted docs, and
@@ -89,6 +92,16 @@ gate decisions.
 | [C16](stage-c16-stage-documentation-governance-and-narrative-coherence-report.md) | Stage documentation governance and narrative coherence |
 | [C17](stage-c17-development-environment-architecture-and-lifecycle-unification-report.md) | Development environment architecture and lifecycle unification |
 | [C18](stage-c18-development-cli-reliability-command-testing-and-trustworthiness-report.md) | Development CLI reliability, command testing, and trustworthiness |
+| [C19](stage-c19-repository-metadata-indexes-and-developer-navigation-system-report.md) | Repository metadata, indexes, and developer navigation system |
+| [C20](stage-c20-automation-support-for-waves-execution-continuity-and-repo-sustainability-report.md) | Automation support for waves, execution continuity, and repo sustainability |
+| [C21](stage-c21-repository-maintainability-economics-and-structural-cost-control-report.md) | Repository maintainability economics and structural cost control |
+| [C22](stage-c22-tooling-evolution-patterns-and-repository-extension-discipline-report.md) | Tooling evolution patterns and repository extension discipline |
+| [C23](stage-c23-raccoon-cli-command-lifecycle-and-deprecation-strategy-report.md) | Raccoon CLI command lifecycle and deprecation strategy |
+| [C24](stage-c24-long-term-documentation-and-operational-sustainability-model-report.md) | Long-term documentation and operational sustainability model |
+| [C25](stage-c25-developer-environment-strategic-health-model-report.md) | Developer-environment strategic health model |
+| [C26](stage-c26-periodic-review-model-for-repository-development-environment-report.md) | Periodic review model for repository development environment |
+| [C27](stage-c27-support-surface-sunset-consolidation-and-retirement-strategy-report.md) | Support-surface sunset, consolidation, and retirement strategy |
+| [C28](stage-c28-strategic-operating-model-for-the-repository-as-a-development-platform-report.md) | Strategic operating model for the repository as a development platform |
 
 ## Phase 1: Foundation (S06–S10)
 
@@ -581,3 +594,24 @@ gate decisions.
 | [S329](stage-s329-actor-pipeline-venue-path-verification-report.md) | Actor pipeline venue path verification — operational proof of composed pipeline |
 | [S330](stage-s330-live-smoke-after-production-wiring-report.md) | Live smoke after production wiring — composed pipeline operational verification |
 | [S331](stage-s331-production-wiring-evidence-gate-report.md) | Production wiring tranche evidence gate — formal closure after S327 tranche |
+
+## Phase 32: Live Stack Integration Wave (S332–S336)
+
+| Stage | Description |
+|-------|-------------|
+| [S332](stage-s332-live-stack-integration-charter-report.md) | Live stack integration wave charter and scope freeze |
+| [S333](stage-s333-nats-consumer-to-actor-live-flow-report.md) | LSI-1: NATS consumer to actor live flow proof |
+| [S334](stage-s334-fill-event-round-trip-and-composite-visibility-report.md) | LSI-2: Fill event round-trip and composite visibility |
+| [S335](stage-s335-kill-switch-live-and-canonical-smoke-report.md) | LSI-3: Kill-switch live and canonical smoke |
+| [S336](stage-s336-live-stack-evidence-gate-report.md) | LSI-4: Live stack evidence gate — formal wave closure |
+
+## Phase 33: Venue Activation Wave (S337–S342)
+
+| Stage | Description |
+|---|---|
+| [S337](stage-s337-venue-activation-charter-report.md) | Venue activation wave charter and scope freeze |
+| [S338](stage-s338-activation-policy-rollout-and-rollback-report.md) | VA-1: Activation policy, rollout, and rollback model |
+| [S339](stage-s339-canonical-activation-surface-report.md) | VA-2: Canonical activation surface and runtime controls |
+| [S340](stage-s340-venue-active-smoke-report.md) | VA-3: Venue-active smoke and acceptance scenarios |
+| [S341](stage-s341-controlled-activation-verification-report.md) | VA-4: Controlled activation verification with live venue path |
+| S342 (planned) | VA-5: Evidence gate final |

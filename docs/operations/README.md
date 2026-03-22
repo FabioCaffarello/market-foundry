@@ -20,6 +20,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 |---|---|
 | Documentation system map and cross-surface ownership | [`documentation-system-hardening.md`](documentation-system-hardening.md) |
 | Documentation governance, entrypoints, and taxonomy | [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md) |
+| Repository metadata and navigation system | [`repository-metadata-indexes-and-developer-navigation-system.md`](repository-metadata-indexes-and-developer-navigation-system.md) |
+| Repository area maps and maintenance rules | [`repository-navigation-maps-entrypoints-and-maintenance-rules.md`](repository-navigation-maps-entrypoints-and-maintenance-rules.md) |
 | Developer environment architecture and lifecycle | [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md) |
 | Canonical lifecycle entrypoints and flows | [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md) |
 | Unified official developer workflow | [`developer-workflow-unification.md`](developer-workflow-unification.md) |
@@ -40,10 +42,30 @@ It is not the place for deep architecture history or immutable stage evidence.
 | Stage artifact naming and completeness conventions | [`stage-artifacts-conventions-and-support-model.md`](stage-artifacts-conventions-and-support-model.md) |
 | Stage documentation governance and narrative coherence | [`stage-documentation-governance-and-narrative-coherence.md`](stage-documentation-governance-and-narrative-coherence.md) |
 | Stage history traceability and linking model | [`stage-history-traceability-and-linking-model.md`](stage-history-traceability-and-linking-model.md) |
+| Automation support model for waves/stages and continuity | [`automation-support-for-waves-execution-continuity-and-repo-sustainability.md`](automation-support-for-waves-execution-continuity-and-repo-sustainability.md) |
+| Automation boundaries and sustainability rules | [`repository-automation-boundaries-high-value-routines-and-sustainability-rules.md`](repository-automation-boundaries-high-value-routines-and-sustainability-rules.md) |
+| Repository maintainability economics and structural cost control | [`repository-maintainability-economics-and-structural-cost-control.md`](repository-maintainability-economics-and-structural-cost-control.md) |
+| Repository maintenance hotspots and reduction principles | [`repository-maintenance-hotspots-and-cost-reduction-principles.md`](repository-maintenance-hotspots-and-cost-reduction-principles.md) |
+| Strategic operating model for the repository as a development platform | [`strategic-operating-model-for-the-repository-as-a-development-platform.md`](strategic-operating-model-for-the-repository-as-a-development-platform.md) |
+| Repository-platform governance, health, review, and sustainability model | [`repository-platform-governance-health-review-and-sustainability-model.md`](repository-platform-governance-health-review-and-sustainability-model.md) |
+| Long-term documentation and operational sustainability model | [`long-term-documentation-and-operational-sustainability-model.md`](long-term-documentation-and-operational-sustainability-model.md) |
+| Strategic health model for the developer environment | [`developer-environment-strategic-health-model.md`](developer-environment-strategic-health-model.md) |
+| Repository health dimensions, signals, and decision usage | [`repository-health-dimensions-signals-and-decision-usage.md`](repository-health-dimensions-signals-and-decision-usage.md) |
+| Sustainability review routines and entropy control | [`repository-sustainability-review-routines-and-entropy-control.md`](repository-sustainability-review-routines-and-entropy-control.md) |
+| Periodic review model for the repository development environment | [`periodic-review-model-for-repository-development-environment.md`](periodic-review-model-for-repository-development-environment.md) |
+| Review cadence triggers and proportional follow-through rules | [`repository-review-cadence-triggers-and-follow-through-rules.md`](repository-review-cadence-triggers-and-follow-through-rules.md) |
+| Support-surface sunset, consolidation, and retirement strategy | [`support-surface-sunset-consolidation-and-retirement-strategy.md`](support-surface-sunset-consolidation-and-retirement-strategy.md) |
+| Support-surface lifecycle signals and consolidation criteria | [`support-surface-lifecycle-signals-and-consolidation-criteria.md`](support-surface-lifecycle-signals-and-consolidation-criteria.md) |
+| Tooling evolution patterns and repository extension discipline | [`tooling-evolution-patterns-and-repository-extension-discipline.md`](tooling-evolution-patterns-and-repository-extension-discipline.md) |
+| Tooling inclusion, deprecation, and consolidation rules | [`tooling-inclusion-deprecation-and-consolidation-rules.md`](tooling-inclusion-deprecation-and-consolidation-rules.md) |
 | Script entrypoints | [`scripts-catalog-and-usage-guide.md`](scripts-catalog-and-usage-guide.md) |
 | `raccoon-cli` user-facing command reference | [`raccoon-cli-command-reference.md`](raccoon-cli-command-reference.md) |
 | Documentation navigation changes introduced in C5 | [`documentation-reorganization-and-operational-navigation.md`](documentation-reorganization-and-operational-navigation.md) |
 | Taxonomy and authoring rules for new docs | [`documentation-taxonomy-and-authoring-conventions.md`](documentation-taxonomy-and-authoring-conventions.md) |
+
+Structural-cost rule:
+keep detailed support-doc catalogs here, while `README.md`, `DEVELOPMENT.md`,
+and `make docs` stay curated and entrypoint-oriented.
 
 ## Canonical Documentation System Entrypoints
 
@@ -53,6 +75,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 | Daily workflow | [`../../DEVELOPMENT.md`](../../DEVELOPMENT.md) | Operational loop, not taxonomy |
 | Documentation system map | [`documentation-system-hardening.md`](documentation-system-hardening.md) | Canonical map between operations, architecture, tooling, stages, and archive |
 | Documentation governance and taxonomy | [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md) | Canonical rules for placement, naming, and maintenance |
+| Repository-shape navigation system | [`repository-metadata-indexes-and-developer-navigation-system.md`](repository-metadata-indexes-and-developer-navigation-system.md) | Canonical lightweight metadata and navigation model |
+| Repository area maps and maintenance rules | [`repository-navigation-maps-entrypoints-and-maintenance-rules.md`](repository-navigation-maps-entrypoints-and-maintenance-rules.md) | Practical map from task to physical repository area |
 | Developer environment architecture and lifecycle | [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md) | Canonical lifecycle model and support-surface hierarchy |
 | Canonical lifecycle flows and entrypoints | [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md) | Flow-by-flow commands for bootstrap, dev loop, smoke, troubleshooting, and reset |
 | Operations support docs | [`README.md`](README.md) | User-facing support surface index |
@@ -67,6 +91,8 @@ It is not the place for deep architecture history or immutable stage evidence.
 
 - [`documentation-system-hardening.md`](documentation-system-hardening.md)
 - [`documentation-governance-entrypoints-and-taxonomy.md`](documentation-governance-entrypoints-and-taxonomy.md)
+- [`repository-metadata-indexes-and-developer-navigation-system.md`](repository-metadata-indexes-and-developer-navigation-system.md)
+- [`repository-navigation-maps-entrypoints-and-maintenance-rules.md`](repository-navigation-maps-entrypoints-and-maintenance-rules.md)
 - [`development-environment-architecture-and-lifecycle.md`](development-environment-architecture-and-lifecycle.md)
 - [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md)
 - [`developer-workflow-unification.md`](developer-workflow-unification.md)
@@ -87,6 +113,22 @@ It is not the place for deep architecture history or immutable stage evidence.
 - [`stage-artifacts-conventions-and-support-model.md`](stage-artifacts-conventions-and-support-model.md)
 - [`stage-documentation-governance-and-narrative-coherence.md`](stage-documentation-governance-and-narrative-coherence.md)
 - [`stage-history-traceability-and-linking-model.md`](stage-history-traceability-and-linking-model.md)
+- [`automation-support-for-waves-execution-continuity-and-repo-sustainability.md`](automation-support-for-waves-execution-continuity-and-repo-sustainability.md)
+- [`repository-automation-boundaries-high-value-routines-and-sustainability-rules.md`](repository-automation-boundaries-high-value-routines-and-sustainability-rules.md)
+- [`repository-maintainability-economics-and-structural-cost-control.md`](repository-maintainability-economics-and-structural-cost-control.md)
+- [`repository-maintenance-hotspots-and-cost-reduction-principles.md`](repository-maintenance-hotspots-and-cost-reduction-principles.md)
+- [`strategic-operating-model-for-the-repository-as-a-development-platform.md`](strategic-operating-model-for-the-repository-as-a-development-platform.md)
+- [`repository-platform-governance-health-review-and-sustainability-model.md`](repository-platform-governance-health-review-and-sustainability-model.md)
+- [`long-term-documentation-and-operational-sustainability-model.md`](long-term-documentation-and-operational-sustainability-model.md)
+- [`developer-environment-strategic-health-model.md`](developer-environment-strategic-health-model.md)
+- [`repository-health-dimensions-signals-and-decision-usage.md`](repository-health-dimensions-signals-and-decision-usage.md)
+- [`repository-sustainability-review-routines-and-entropy-control.md`](repository-sustainability-review-routines-and-entropy-control.md)
+- [`periodic-review-model-for-repository-development-environment.md`](periodic-review-model-for-repository-development-environment.md)
+- [`repository-review-cadence-triggers-and-follow-through-rules.md`](repository-review-cadence-triggers-and-follow-through-rules.md)
+- [`support-surface-sunset-consolidation-and-retirement-strategy.md`](support-surface-sunset-consolidation-and-retirement-strategy.md)
+- [`support-surface-lifecycle-signals-and-consolidation-criteria.md`](support-surface-lifecycle-signals-and-consolidation-criteria.md)
+- [`tooling-evolution-patterns-and-repository-extension-discipline.md`](tooling-evolution-patterns-and-repository-extension-discipline.md)
+- [`tooling-inclusion-deprecation-and-consolidation-rules.md`](tooling-inclusion-deprecation-and-consolidation-rules.md)
 - [`makefile-command-ergonomics-and-hardening.md`](makefile-command-ergonomics-and-hardening.md)
 
 ### Scripts and harnesses
@@ -112,6 +154,16 @@ It is not the place for deep architecture history or immutable stage evidence.
 - [`repo-support-prioritized-improvement-matrix.md`](repo-support-prioritized-improvement-matrix.md)
 - [`documentation-reorganization-and-operational-navigation.md`](documentation-reorganization-and-operational-navigation.md)
 - [`documentation-taxonomy-and-authoring-conventions.md`](documentation-taxonomy-and-authoring-conventions.md)
+
+## Support-Surface Lifecycle Rule
+
+Treat support surfaces as lifecycle-managed assets, not permanent accumulation.
+
+- keep one canonical public answer per recurring repository question;
+- tolerate additive redundancy only when it improves discovery without splitting ownership;
+- mark wrappers, aliases, and compatibility paths clearly when they are not canonical;
+- use sunset and consolidation to reduce maintenance fan-out before considering removal;
+- retire only when the replacement path is clear and current support surfaces no longer depend on the older one.
 
 ## Canonical Runbooks That Remain In Architecture
 

@@ -14,10 +14,11 @@ cargo test
 
 ```sh
 # From the project root:
-raccoon-cli check repo                           # project structure check
-raccoon-cli check gate                           # fast static checks (default)
-raccoon-cli check gate --profile ci --json       # CI pipeline
-raccoon-cli check gate --profile deep            # full validation
+raccoon-cli check repo                           # stable core: repository structure check
+raccoon-cli check gate                           # stable core: fast static checks (default)
+raccoon-cli inspect symbol ConfigSet --lsp       # stable core: expert inspection
+raccoon-cli change tdd                           # stable core: change-planning guidance
+raccoon-cli snapshot --output baseline.json      # stable utility: baseline capture
 ```
 
 Prefer `make check`, `make tdd`, `make verify`, and `make smoke*` for the
@@ -42,51 +43,68 @@ See:
 - `docs/tooling/raccoon-cli-internal-modularity-and-command-architecture.md`
 - `docs/tooling/raccoon-cli-module-boundaries-and-evolution-rules.md`
 
-## Commands
+## Command Lifecycle
 
-### Architecture Enforcement
+The CLI is governed as a development tool, not as an ever-growing product
+surface.
 
-| Command | Purpose |
-|---------|---------|
-| `doctor` | Validate project structure (go.work, modules, configs, compose) |
-| `topology-doctor` | Validate service topology (configs, compose, streams, subjects) |
-| `contract-audit` | Audit messaging contracts (NATS subjects, event types, envelope) |
-| `runtime-bindings` | Validate runtime binding alignment |
-| `arch-guard` | Enforce architecture layer boundaries (11 rules) |
-| `drift-detect` | Detect cross-layer semantic drift (naming, docs, config, compose) |
+| Lifecycle state | Meaning | Current surface |
+|---------|---------|---------|
+| `stable core` | Default supported commands for recurring repository work | `check`, `inspect`, `change` |
+| `stable utility` | Narrow but durable support flows used for focused analysis | `snapshot`, `snapshot-diff`, `baseline-drift` |
+| `experimental` | Proving-only commands not yet ready for broad promotion | none currently promoted |
+| `legacy` | Compatibility-only or deprecated helper flows | `legacy runtime-smoke`, hidden flat aliases |
 
-### Coverage and Planning
+Prefer the grouped taxonomy. Hidden flat commands remain only as compatibility
+aliases and should not be used in new docs or examples.
 
-| Command | Purpose |
-|---------|---------|
-| `coverage-map` | Show quality coverage map and gaps |
-| `tdd` | TDD guide for current changes |
-| `impact-map` | Map change impact across modules |
-| `recommend` | Smart recommendations from diff/baseline |
-| `briefing` | Generate briefing for targets |
+## Canonical Commands
 
-### Code Intelligence
+### `check` — stable core guard rails
 
 | Command | Purpose |
 |---------|---------|
-| `symbol-trace` | Trace symbol definitions, references, contracts |
-| `contract-usage-map` | Map contract definition, propagation, consumption |
-| `rename-safety` | Assess rename risk before executing |
-| `lsp-enrich` | Semantic enrichment via gopls |
+| `raccoon-cli check repo` | Validate project structure (go.work, modules, configs, compose) |
+| `raccoon-cli check topology` | Validate service topology (configs, compose, streams, subjects) |
+| `raccoon-cli check contracts` | Audit messaging contracts (NATS subjects, event types, envelope) |
+| `raccoon-cli check bindings` | Validate runtime binding alignment |
+| `raccoon-cli check arch` | Enforce architecture layer boundaries (11 rules) |
+| `raccoon-cli check drift` | Detect cross-layer semantic drift (naming, docs, config, compose) |
+| `raccoon-cli check gate` | Run the consolidated guard-rail profile |
 
-### Change Analysis
-
-| Command | Purpose |
-|---------|---------|
-| `snapshot` | Generate code intelligence snapshot (JSON) |
-| `snapshot-diff` | Compare two snapshots |
-| `baseline-drift` | Detect drift from baseline snapshot |
-
-### Quality Orchestration
+### `inspect` — stable core expert inspection
 
 | Command | Purpose |
 |---------|---------|
-| `quality-gate` | Run quality checks (profiles: fast, ci, deep) |
+| `raccoon-cli inspect symbol <SYMBOL>` | Trace symbol definitions, references, and contracts |
+| `raccoon-cli inspect lsp <SYMBOL>` | Semantic enrichment via `gopls` |
+| `raccoon-cli inspect contract-usage` | Map contract definition, propagation, and consumption |
+| `raccoon-cli inspect coverage` | Show quality coverage map and gaps |
+
+### `change` — stable core change guidance
+
+| Command | Purpose |
+|---------|---------|
+| `raccoon-cli change impact [TARGET...]` | Map change impact across modules |
+| `raccoon-cli change tdd [TARGET...]` | TDD guide for current changes |
+| `raccoon-cli change briefing [TARGET...]` | Generate briefing for targets |
+| `raccoon-cli change recommend [TARGET...]` | Recommend validation after a change |
+| `raccoon-cli change rename <SYMBOL>` | Assess rename risk before editing |
+
+### Stable utility commands
+
+| Command | Purpose |
+|---------|---------|
+| `raccoon-cli snapshot` | Generate code intelligence snapshot (JSON) |
+| `raccoon-cli snapshot-diff` | Compare two snapshots |
+| `raccoon-cli baseline-drift` | Detect drift from baseline snapshot |
+
+### Legacy compatibility
+
+| Command | Purpose |
+|---------|---------|
+| `raccoon-cli legacy runtime-smoke` | Deprecated helper retained only for compatibility |
+| flat aliases such as `doctor`, `quality-gate`, `symbol-trace` | Hidden compatibility entrypoints for existing consumers |
 
 ## Architecture Guardrails
 
@@ -111,10 +129,9 @@ The current checks are aligned to the post-S218/S219/S220 repository shape:
 
 All commands support `--json` for machine-readable output and `-v` for verbose mode.
 
-## Deprecated Commands
+## Deprecation Notes
 
-The following commands are legacy quality-service artifacts kept only for compatibility:
-- `runtime-smoke` — replaced by the canonical `make smoke*` surface
-- `scenario-smoke` — replaced by `make smoke` / `make smoke-multi`
-- `results-inspect` — no longer applicable (validator removed)
-- `trace-pack` — no longer applicable
+- `raccoon-cli legacy runtime-smoke` is retained only as a bounded compatibility
+  helper and must not be promoted as the runtime proof-of-record surface.
+- Flat aliases remain hidden compatibility entrypoints and should not appear in
+  new guidance except when documenting migration or compatibility behavior.

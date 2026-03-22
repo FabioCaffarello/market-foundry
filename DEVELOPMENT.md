@@ -25,12 +25,14 @@
 | `make smoke-analytical` | Analytical path proof (NATS → writer → ClickHouse → reader → gateway) |
 | `make smoke-round-trip` | Full persistence round-trip proof (adapter → NATS → ClickHouse → HTTP) |
 | `make smoke-live-stack` | Live stack smoke and gateway verification |
+| `make smoke-composed` | Composed pipeline smoke without the full stack |
 | `make smoke-operational` | OS-process/container operational proof (halt/resume plus read-path checks) |
 | `make smoke-restart-recovery` | Restart/recovery smoke for durable consumers and projections |
 | `make check` | Pre-code guard rail (repo consistency + quality-gate fast) |
 | `make repo-consistency-check` | Lightweight repository consistency checks for docs, naming, links, and script wrappers |
 | `make stage-help` | Show the lightweight stage tooling surface |
 | `make stage-scaffold` | Scaffold a stage report (`STAGE_ID`, `STAGE_SLUG`, `STAGE_TITLE`) |
+| `make stage-status` | Show continuity status and next actions for one active stage |
 | `make stage-check` | Validate one active stage report and its required artifacts |
 | `make tdd` | Impact-driven testing guide for the current change set |
 | `make verify` | Post-change validation (tests + repo consistency + quality-gate) |
@@ -93,6 +95,12 @@ The target now starts with a lightweight repository consistency pass so broken
 support-doc links, stage index drift, naming drift, and missing script wrappers
 fail before deeper analysis runs.
 
+When you are resuming or closing a governed stage, inspect continuity first:
+
+```bash
+make stage-status STAGE_ID=C20 STAGE_SLUG=automation-support-for-waves-execution-continuity-and-repo-sustainability
+```
+
 ### 2. TDD
 
 ```bash
@@ -131,6 +139,7 @@ Full validation including all quality-gate checks.
 | Analytical writer/reader path | `make smoke-analytical` |
 | Full persistence round-trip path | `make smoke-round-trip` |
 | Live stack plus gateway verification | `make smoke-live-stack` |
+| Composed pipeline proof without the full stack | `make smoke-composed` |
 | Process/container operational behavior | `make smoke-operational` |
 | Restart and recovery resilience | `make smoke-restart-recovery` |
 
@@ -178,25 +187,31 @@ The root `Makefile` now follows these conventions:
 - `make smoke*` is the canonical operational-proof surface; choose the narrowest smoke target that proves the runtime behavior you touched.
 - `make live*` and `stack-*` remain ergonomic wrappers and aliases; they do not replace the canonical proof-of-record `make smoke*` surface.
 - Hidden but real support flows are wrapped and promoted through `make`, notably `make smoke-restart-recovery` and `make codegen-equivalence`.
+- `make stage-status` is the continuity helper for governed stages; it shows missing report/index/artifact signals before `make stage-check`.
 - `make docs` points to the current workflow and tooling documents instead of requiring contributors to search stage history.
+
+Repository navigation now also has physical-area entrypoints:
+
+- `cmd/README.md` for runtime and binary ownership
+- `internal/README.md` for implementation layers and placement
+- `deploy/README.md` for compose/config/env/migration assets
+- `scripts/README.md` for harness ownership behind `make`
+- `tests/README.md` for shared repository-level test assets
+- `docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md` for task-to-directory navigation
 
 See:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/operations/README.md`](docs/operations/README.md)
-- [`docs/operations/development-environment-architecture-and-lifecycle.md`](docs/operations/development-environment-architecture-and-lifecycle.md)
-- [`docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`](docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md)
-- [`docs/operations/documentation-system-hardening.md`](docs/operations/documentation-system-hardening.md)
-- [`docs/operations/documentation-governance-entrypoints-and-taxonomy.md`](docs/operations/documentation-governance-entrypoints-and-taxonomy.md)
-- [`docs/operations/developer-workflow-unification.md`](docs/operations/developer-workflow-unification.md)
-- [`docs/operations/developer-onboarding-and-troubleshooting-guide.md`](docs/operations/developer-onboarding-and-troubleshooting-guide.md)
-- [`docs/operations/smoke-ux-and-proof-execution-ergonomics.md`](docs/operations/smoke-ux-and-proof-execution-ergonomics.md)
-- [`docs/operations/proof-execution-user-flows-and-failure-diagnosis.md`](docs/operations/proof-execution-user-flows-and-failure-diagnosis.md)
+- [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
+- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md)
+- [`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md)
+- [`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md)
 - [`docs/tooling/README.md`](docs/tooling/README.md)
-- [`docs/operations/repository-support-surface-canonical-model.md`](docs/operations/repository-support-surface-canonical-model.md)
-- [`docs/operations/repository-architecture-convergence.md`](docs/operations/repository-architecture-convergence.md)
-- [`docs/operations/stage-tooling-and-execution-governance-support.md`](docs/operations/stage-tooling-and-execution-governance-support.md)
-- [`docs/operations/stage-artifacts-conventions-and-support-model.md`](docs/operations/stage-artifacts-conventions-and-support-model.md)
+
+Keep this file intentionally shallow. The detailed support-document catalog lives
+in [`docs/operations/README.md`](docs/operations/README.md) so root workflow docs
+do not need to be edited every time the repository adds another support guide.
 
 ## Support Surface Hierarchy
 
@@ -206,7 +221,7 @@ See:
 - `make smoke-help` improves proof discoverability but does not replace the proof-of-record targets.
 - `make smoke*` owns operational proof; `make live*` and `stack-*` only compose or alias that surface.
 - `make diag`, `make ps`, and `make logs SERVICE=...` are the first-line troubleshooting surface.
-- `stage-help`, `stage-scaffold`, and `stage-check` form the lightweight support surface for governed stage execution and report hygiene.
+- `stage-help`, `stage-scaffold`, `stage-status`, and `stage-check` form the lightweight support surface for governed stage execution and report hygiene.
 - `scripts/*.sh` are harness implementations behind `make`, not competing public APIs.
 - Direct `raccoon-cli` usage is the expert support surface for structural inspection and governance work.
 - `make check-deep` remains a deep tooling gate, not the operational proof-of-record surface.

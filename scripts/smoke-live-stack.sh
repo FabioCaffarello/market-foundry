@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# smoke-live-stack.sh — S318: Live stack smoke and gateway verification.
+# smoke-live-stack.sh — Canonical live stack smoke for the Live Stack Integration Wave.
 #
 # Unified operational smoke that validates the full venue path with a live stack:
 #   1. Stack readiness (NATS, ClickHouse, writer, gateway)
@@ -8,9 +8,11 @@
 #   4. Gateway HTTP composite surface queries
 #   5. Disposition and funnel aggregation surface
 #   6. Structural Go test regression gate
+#   7. Kill-switch control path validation (S335)
 #
-# This smoke is the reproducible, single-command proof that the live stack
-# exercises venue path → persistence → gateway read in a single flow.
+# This smoke is the canonical, single-command proof for the Live Stack
+# Integration Wave (S332–S336). It exercises:
+#   venue path → persistence → gateway read → control path
 #
 # Prerequisites:
 #   make up && make seed   # full stack running with configctl seeded
@@ -20,11 +22,12 @@
 #   ./scripts/smoke-live-stack.sh --wait 120   # override flush wait
 #   SMOKE_WAIT=180 make smoke-live-stack       # via Makefile
 #
-# Guard rails (S318):
+# Guard rails:
 #   - No pipeline expansion; verifies existing paths only.
 #   - No dashboard or alerting; stdout PASS/FAIL only.
 #   - No manual steps beyond `make up && make seed`.
 #   - Single script, single exit code.
+#   - Kill-switch test restores active state on exit (safe for pipelines).
 
 set -euo pipefail
 
@@ -75,7 +78,7 @@ require_commands docker curl python3
 
 ERRORS=0
 
-smoke_banner "S318 Live Stack Smoke" "make smoke-live-stack" "make up && make seed" "flush-wait" "${FLUSH_WAIT}"
+smoke_banner "Live Stack Smoke (S335 canonical)" "make smoke-live-stack" "make up && make seed" "flush-wait" "${FLUSH_WAIT}"
 
 # ══════════════════════════════════════════════════════════════════════
 phase "Phase 1: Stack Readiness"
@@ -311,15 +314,122 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════
+phase "Phase 7: Kill-Switch Control Path (S335)"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Validates the execution control gate (kill-switch) via the gateway HTTP
+# surface against live NATS KV. Tests the halt → query → resume cycle.
+#
+# Safety: always restores the gate to "active" on exit, even on failure.
+
+CONTROL_URL="${BASE_URL}/execution/control"
+KS_ERRORS=0
+
+# Trap to ensure gate is restored to active if script exits mid-phase.
+ks_restore_active() {
+    curl -s -X PUT "${CONTROL_URL}" \
+        -H "Content-Type: application/json" \
+        -d '{"status":"active","reason":"smoke-cleanup","updated_by":"smoke-live-stack"}' \
+        >/dev/null 2>&1 || true
+}
+trap ks_restore_active EXIT
+
+# 7a. Query current gate state — must succeed.
+info "Querying execution control gate..."
+KS_GET_CODE=$(curl -s -o /tmp/ks_get.json -w "%{http_code}" "${CONTROL_URL}")
+if [[ "$KS_GET_CODE" == "200" ]]; then
+    KS_CURRENT=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_get.json')).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+    pass "GET /execution/control → 200 (status=${KS_CURRENT})"
+else
+    record_fail "GET /execution/control → HTTP ${KS_GET_CODE} (control surface unreachable)"
+    KS_ERRORS=1
+fi
+
+if [[ $KS_ERRORS -eq 0 ]]; then
+    # 7b. Halt gate — set to halted.
+    info "Setting gate to halted..."
+    KS_HALT_CODE=$(curl -s -o /tmp/ks_halt.json -w "%{http_code}" -X PUT "${CONTROL_URL}" \
+        -H "Content-Type: application/json" \
+        -d '{"status":"halted","reason":"smoke-s335-kill-switch-proof","updated_by":"smoke-live-stack"}')
+    if [[ "$KS_HALT_CODE" == "200" ]]; then
+        KS_HALT_STATUS=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_halt.json')).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+        if [[ "$KS_HALT_STATUS" == "halted" ]]; then
+            pass "PUT /execution/control → halted (kill-switch engaged)"
+        else
+            record_fail "PUT halted returned 200 but status=${KS_HALT_STATUS} (expected halted)"
+        fi
+    else
+        record_fail "PUT /execution/control (halt) → HTTP ${KS_HALT_CODE}"
+    fi
+
+    # 7c. Confirm gate reads as halted.
+    info "Confirming gate reads halted..."
+    KS_CONFIRM_CODE=$(curl -s -o /tmp/ks_confirm.json -w "%{http_code}" "${CONTROL_URL}")
+    if [[ "$KS_CONFIRM_CODE" == "200" ]]; then
+        KS_CONFIRM_STATUS=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_confirm.json')).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+        KS_CONFIRM_REASON=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_confirm.json')).get('gate',{}).get('reason',''))" 2>/dev/null || echo "")
+        if [[ "$KS_CONFIRM_STATUS" == "halted" ]]; then
+            pass "Gate confirmed halted (reason=${KS_CONFIRM_REASON})"
+        else
+            record_fail "Gate read-after-halt returned status=${KS_CONFIRM_STATUS} (expected halted)"
+        fi
+    else
+        record_fail "GET /execution/control (confirm halt) → HTTP ${KS_CONFIRM_CODE}"
+    fi
+
+    # 7d. Resume gate — set to active.
+    info "Resuming gate to active..."
+    KS_RESUME_CODE=$(curl -s -o /tmp/ks_resume.json -w "%{http_code}" -X PUT "${CONTROL_URL}" \
+        -H "Content-Type: application/json" \
+        -d '{"status":"active","reason":"smoke-s335-resume-after-proof","updated_by":"smoke-live-stack"}')
+    if [[ "$KS_RESUME_CODE" == "200" ]]; then
+        KS_RESUME_STATUS=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_resume.json')).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+        if [[ "$KS_RESUME_STATUS" == "active" ]]; then
+            pass "PUT /execution/control → active (kill-switch disengaged)"
+        else
+            record_fail "PUT active returned 200 but status=${KS_RESUME_STATUS} (expected active)"
+        fi
+    else
+        record_fail "PUT /execution/control (resume) → HTTP ${KS_RESUME_CODE}"
+    fi
+
+    # 7e. Confirm gate reads as active after resume.
+    info "Confirming gate reads active..."
+    KS_FINAL_CODE=$(curl -s -o /tmp/ks_final.json -w "%{http_code}" "${CONTROL_URL}")
+    if [[ "$KS_FINAL_CODE" == "200" ]]; then
+        KS_FINAL_STATUS=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_final.json')).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+        if [[ "$KS_FINAL_STATUS" == "active" ]]; then
+            pass "Gate confirmed active after resume cycle"
+        else
+            record_fail "Gate read-after-resume returned status=${KS_FINAL_STATUS} (expected active)"
+        fi
+    else
+        record_fail "GET /execution/control (confirm resume) → HTTP ${KS_FINAL_CODE}"
+    fi
+
+    # 7f. Verify audit fields survive round-trip.
+    KS_UPDATED_BY=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_resume.json')).get('gate',{}).get('updated_by',''))" 2>/dev/null || echo "")
+    KS_UPDATED_AT=$(python3 -c "import sys,json; print(json.load(open('/tmp/ks_resume.json')).get('gate',{}).get('updated_at',''))" 2>/dev/null || echo "")
+    if [[ -n "$KS_UPDATED_BY" && -n "$KS_UPDATED_AT" ]]; then
+        pass "Audit fields preserved (updated_by=${KS_UPDATED_BY})"
+    else
+        record_fail "Audit fields missing after round-trip"
+    fi
+fi
+
+# Clean up temp files.
+rm -f /tmp/ks_get.json /tmp/ks_halt.json /tmp/ks_confirm.json /tmp/ks_resume.json /tmp/ks_final.json
+
+# ══════════════════════════════════════════════════════════════════════
 # Summary
 # ══════════════════════════════════════════════════════════════════════
 
 echo ""
 if [[ $ERRORS -gt 0 ]]; then
-    smoke_fail_summary "S318 live stack smoke" "$ERRORS" "make up && make seed"
+    smoke_fail_summary "Live stack smoke" "$ERRORS" "make up && make seed"
     exit 1
 fi
 
-pass "S318 live stack smoke and gateway verification completed"
-info "Stack validated: NATS streams ✓ | ClickHouse tables ✓ | Gateway composite surface ✓ | Analytical endpoints ✓"
-info "Full path: venue adapter → NATS → writer → ClickHouse → gateway HTTP"
+pass "Live stack smoke completed (S335 canonical surface)"
+info "Stack validated: NATS streams | ClickHouse tables | Gateway composite | Analytical endpoints | Kill-switch control path"
+info "Full path: venue adapter → NATS → writer → ClickHouse → gateway HTTP → control gate"

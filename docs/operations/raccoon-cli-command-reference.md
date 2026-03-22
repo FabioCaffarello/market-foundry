@@ -6,6 +6,15 @@ This reference describes the canonical command surface for the repository suppor
 
 The preferred model is grouped usage. Historic flat commands remain available as compatibility aliases.
 
+## Lifecycle At A Glance
+
+| Lifecycle state | Meaning | Current surface |
+|---|---|---|
+| `stable core` | Default supported surface for recurring repository work | `check`, `inspect`, `change` |
+| `stable utility` | Narrow but durable support flows | `snapshot`, `snapshot-diff`, `baseline-drift` |
+| `experimental` | Bounded proving surface not yet promoted in public help | none currently promoted |
+| `legacy` | Deprecated or compatibility-only surface | `legacy runtime-smoke`, hidden flat aliases |
+
 ## Global Usage
 
 ```bash
@@ -124,6 +133,18 @@ Prefer:
 - `make smoke`
 - `make smoke-multi`
 - `make smoke-restart-recovery`
+
+## Compatibility Aliases
+
+Hidden flat aliases such as `doctor`, `quality-gate`, `symbol-trace`,
+`impact-map`, and `tdd` remain supported so existing local scripts and operator
+habits do not break abruptly.
+
+Governance rule:
+
+- new docs and examples should use the grouped canonical commands;
+- aliases should remain behaviorally identical to their canonical command;
+- aliases are compatibility surfaces, not a second taxonomy.
 
 ## Recommended Operator Flows
 

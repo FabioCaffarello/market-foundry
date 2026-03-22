@@ -10,6 +10,7 @@ import (
 	executeactor "internal/actors/scopes/execute"
 	appexec "internal/application/execution"
 	"internal/application/ports"
+	domainexec "internal/domain/execution"
 	"internal/shared/bootstrap"
 	"internal/shared/healthz"
 	"internal/shared/settings"
@@ -38,6 +39,24 @@ func Run(config settings.AppConfig) {
 		"query_capable", venueResult.query != nil,
 	)
 
+	// S339: Log canonical activation surface at startup.
+	// This is the single authoritative log line that shows the composite activation state.
+	// Gate state is logged as "unknown" at startup because KV is not yet connected;
+	// the adapter actor will log the resolved gate state after connecting.
+	adapterState := domainexec.AdapterPaper
+	if venueResult.credentialState == domainexec.CredentialPresent {
+		adapterState = domainexec.AdapterVenue
+	}
+	if config.Venue.Type == settings.VenueTypePaperSimulator || config.Venue.Type == "" {
+		adapterState = domainexec.AdapterPaper
+	}
+	logger.Info("activation surface at startup",
+		"adapter", string(adapterState),
+		"credentials", string(venueResult.credentialState),
+		"effective_without_gate", string(domainexec.ComputeEffectiveMode(adapterState, domainexec.GateActive, venueResult.credentialState)),
+		"note", "gate state resolves after NATS KV connect",
+	)
+
 	// Build health trackers.
 	trackers := map[string]*healthz.Tracker{
 		"venue-adapter":  healthz.NewTracker("venue-adapter"),
@@ -45,7 +64,9 @@ func Run(config settings.AppConfig) {
 	}
 
 	pid := engine.Spawn(
-		executeactor.NewExecuteSupervisor(config, venueResult.submit, venueResult.query, trackers),
+		executeactor.NewExecuteSupervisor(config, venueResult.submit, venueResult.query, trackers,
+			executeactor.WithActivationState(adapterState, venueResult.credentialState),
+		),
 		"execute",
 	)
 
@@ -71,18 +92,20 @@ func Run(config settings.AppConfig) {
 
 // venueAdapterResult holds both the submit and optional query ports for a venue.
 // The query port is used by Post200Reconciler (S322) for body-read-failure recovery.
+// S339: credentialState tracks whether venue credentials were loaded at startup.
 type venueAdapterResult struct {
-	submit ports.VenuePort
-	query  ports.VenueQueryPort // nil for adapters without query capability (e.g. paper)
+	submit          ports.VenuePort
+	query           ports.VenueQueryPort         // nil for adapters without query capability (e.g. paper)
+	credentialState domainexec.CredentialState
 }
 
 func buildVenueAdapter(config settings.AppConfig) (venueAdapterResult, error) {
 	switch config.Venue.Type {
 	case settings.VenueTypePaperSimulator:
-		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0)}, nil
+		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0), credentialState: domainexec.CredentialAbsent}, nil
 	case "":
 		// Default to paper_simulator when venue config is absent (backward compatible).
-		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0)}, nil
+		return venueAdapterResult{submit: appexec.NewPaperVenueAdapter(0), credentialState: domainexec.CredentialAbsent}, nil
 
 	case settings.VenueTypeBinanceFuturesTestnet:
 		creds, prob := appexec.LoadCredentials(string(config.Venue.Type), []string{"API_KEY", "API_SECRET"})
@@ -91,7 +114,7 @@ func buildVenueAdapter(config settings.AppConfig) (venueAdapterResult, error) {
 		}
 		submitTimeout := config.Venue.SubmitTimeoutDuration()
 		adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, submitTimeout)
-		return venueAdapterResult{submit: adapter, query: adapter}, nil
+		return venueAdapterResult{submit: adapter, query: adapter, credentialState: domainexec.CredentialPresent}, nil
 
 	default:
 		// Unknown venue types require credential loading and activation gate ceremony.

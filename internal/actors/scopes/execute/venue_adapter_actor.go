@@ -30,6 +30,9 @@ type VenueAdapterConfig struct {
 	// When set, the Post200Reconciler is composed around the submit pipeline.
 	// When nil, reconciliation is skipped (e.g. paper adapter has no query path).
 	VenueQuery       ports.VenueQueryPort
+	// S339: Activation surface dimensions for canonical state reporting.
+	AdapterState     domainexec.AdapterState
+	CredentialState  domainexec.CredentialState
 }
 
 // VenueAdapterActor consumes execution intents, checks kill switch + staleness,
@@ -148,6 +151,24 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 		return
 	}
 	a.fillPublisher = fillPub
+
+	// S339: Log canonical activation surface with resolved gate state.
+	gateState := domainexec.DefaultControlGate()
+	if a.controlStore != nil {
+		ctx, gateCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		if g, prob := a.controlStore.Get(ctx); prob == nil {
+			gateState = g
+		}
+		gateCancel()
+	}
+	surface := domainexec.NewActivationSurface(a.cfg.AdapterState, gateState, a.cfg.CredentialState)
+	a.logger.Info("activation surface resolved",
+		"adapter", string(surface.Adapter),
+		"gate_status", string(surface.Gate.Status),
+		"credentials", string(surface.Credentials),
+		"effective", string(surface.Effective),
+		"is_live", surface.IsLive(),
+	)
 
 	a.logger.Info("venue adapter started",
 		"staleness_max_age", a.cfg.StalenessMaxAge.String(),

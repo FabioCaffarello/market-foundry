@@ -1085,3 +1085,312 @@ func TestCompositeReader_S302_SC4_BatchCountPerSymbol(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// S334: Fill Event Round-Trip and Composite Visibility Tests
+// ---------------------------------------------------------------------------
+
+// insertVenueFillFixture inserts a full 5-stage chain where the execution stage
+// is a venue fill (status=filled) with real fill data (simulated=false).
+func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, symbol string, ts time.Time) {
+	t.Helper()
+	ctx := context.Background()
+
+	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+		"sig-" + corrID, ts, corrID, "",
+		"rsi", "binancef", symbol, uint32(60),
+		42.5, `{"period":"14"}`, true, ts,
+	}})
+	if err != nil {
+		t.Fatalf("insert signal (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
+		"rsi_oversold", "binancef", symbol, uint32(60),
+		"triggered", 0.85, "high", "RSI below 30",
+		`[{"type":"rsi","value":"42.5"}]`, `{}`, true, ts.Add(time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert decision (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
+		"mean_reversion_entry", "binancef", symbol, uint32(60),
+		"long", 0.80,
+		`[{"type":"rsi_oversold","outcome":"triggered"}]`, `{"take_profit":"0.02"}`, `{}`, true, ts.Add(2 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert strategy (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
+		"position_exposure", "binancef", symbol, uint32(60),
+		"approved", 0.75,
+		`[{"type":"mean_reversion_entry","direction":"long"}]`,
+		`{"max_position_pct":"0.05","current_exposure":"0.02"}`,
+		"within limits",
+		`{}`, `{}`, true, ts.Add(3 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert risk (%s): %v", symbol, err)
+	}
+	// Venue fill: status=filled, real fill data with simulated=false.
+	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+		"exc-" + corrID, ts.Add(5 * time.Millisecond), corrID, "rsk-" + corrID,
+		"venue_market_order", "binancef", symbol, uint32(60),
+		"buy", 0.001, 0.001, "filled",
+		`{"type":"position_exposure","disposition":"approved","confidence":"0.75","timeframe":60,"strategy_type":"mean_reversion_entry","decision_severity":"high"}`,
+		`[{"price":"98500.50","quantity":"0.001","fee":"0.039","simulated":false,"timestamp":"` + ts.Add(5*time.Millisecond).Format(time.RFC3339Nano) + `"}]`,
+		`{"max_position_pct":"0.05"}`, `{"venue_order_id":"1234567890"}`,
+		corrID, "rsk-" + corrID,
+		true, ts.Add(5 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert venue fill execution (%s): %v", symbol, err)
+	}
+}
+
+// insertDualExecutionFixture inserts a 5-stage chain with BOTH a paper_order
+// (status=submitted) and a venue_fill (status=filled) for the same correlation_id.
+// The venue fill has a later timestamp to simulate the real pipeline ordering.
+func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID, symbol string, ts time.Time) {
+	t.Helper()
+	ctx := context.Background()
+
+	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+		"sig-" + corrID, ts, corrID, "",
+		"rsi", "binancef", symbol, uint32(60),
+		42.5, `{"period":"14"}`, true, ts,
+	}})
+	if err != nil {
+		t.Fatalf("insert signal (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
+		"rsi_oversold", "binancef", symbol, uint32(60),
+		"triggered", 0.85, "high", "RSI below 30",
+		`[{"type":"rsi","value":"42.5"}]`, `{}`, true, ts.Add(time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert decision (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
+		"mean_reversion_entry", "binancef", symbol, uint32(60),
+		"long", 0.80,
+		`[{"type":"rsi_oversold","outcome":"triggered"}]`, `{"take_profit":"0.02"}`, `{}`, true, ts.Add(2 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert strategy (%s): %v", symbol, err)
+	}
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
+		"position_exposure", "binancef", symbol, uint32(60),
+		"approved", 0.75,
+		`[{"type":"mean_reversion_entry","direction":"long"}]`,
+		`{"max_position_pct":"0.05","current_exposure":"0.02"}`,
+		"within limits",
+		`{}`, `{}`, true, ts.Add(3 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert risk (%s): %v", symbol, err)
+	}
+	// Paper order (submitted, earlier timestamp).
+	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+		"exc-paper-" + corrID, ts.Add(4 * time.Millisecond), corrID, "rsk-" + corrID,
+		"paper_order", "binancef", symbol, uint32(60),
+		"buy", 0.001, 0.0, "submitted",
+		`{"type":"position_exposure","disposition":"approved"}`, `[]`,
+		`{}`, `{}`,
+		corrID, "rsk-" + corrID,
+		true, ts.Add(4 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert paper execution (%s): %v", symbol, err)
+	}
+	// Venue fill (filled, later timestamp).
+	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+		"exc-fill-" + corrID, ts.Add(6 * time.Millisecond), corrID, "rsk-" + corrID,
+		"venue_market_order", "binancef", symbol, uint32(60),
+		"buy", 0.001, 0.001, "filled",
+		`{"type":"position_exposure","disposition":"approved","confidence":"0.75","strategy_type":"mean_reversion_entry","decision_severity":"high"}`,
+		`[{"price":"97500.00","quantity":"0.001","fee":"0.038","simulated":false,"timestamp":"` + ts.Add(6*time.Millisecond).Format(time.RFC3339Nano) + `"}]`,
+		`{}`, `{"venue_order_id":"dual-test-venue-id"}`,
+		corrID, "rsk-" + corrID,
+		true, ts.Add(6 * time.Millisecond),
+	}})
+	if err != nil {
+		t.Fatalf("insert venue fill execution (%s): %v", symbol, err)
+	}
+}
+
+// CRI-7: S334 — Full chain with venue fill shows real fill data in composite surface.
+func TestCompositeReader_S334_VenueFillChain(t *testing.T) {
+	client := skipUnlessClickHouse(t)
+	defer client.Close()
+	setupAllTables(t, client)
+
+	corrID := "s334-venue-fill-001"
+	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
+	insertVenueFillFixture(t, client, corrID, "btcusdt", ts)
+
+	reader := clickhouse.NewCompositeReader(client, slog.Default())
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	if err != nil {
+		t.Fatalf("query chain: %v", err)
+	}
+
+	// Full chain present.
+	if chain.StageCount != 5 {
+		t.Errorf("stage_count: got %d, want 5", chain.StageCount)
+	}
+	if !chain.ChainComplete {
+		t.Error("expected chain_complete=true")
+	}
+
+	// Execution stage is venue fill with status=filled.
+	exec := chain.Execution
+	if exec == nil {
+		t.Fatal("expected execution stage to be present")
+	}
+	if exec.Type != "venue_market_order" {
+		t.Errorf("execution.type: got %q, want venue_market_order", exec.Type)
+	}
+	if exec.Status != "filled" {
+		t.Errorf("execution.status: got %q, want filled", exec.Status)
+	}
+	if exec.FilledQuantity != "0.001" {
+		t.Errorf("execution.filled_quantity: got %q, want 0.001", exec.FilledQuantity)
+	}
+
+	// Real fill data visible in composite surface.
+	if len(exec.Fills) != 1 {
+		t.Fatalf("execution.fills count: got %d, want 1", len(exec.Fills))
+	}
+	fill := exec.Fills[0]
+	if fill.Price != "98500.50" {
+		t.Errorf("fill.price: got %q, want 98500.50", fill.Price)
+	}
+	if fill.Quantity != "0.001" {
+		t.Errorf("fill.quantity: got %q, want 0.001", fill.Quantity)
+	}
+	if fill.Fee != "0.039" {
+		t.Errorf("fill.fee: got %q, want 0.039", fill.Fee)
+	}
+	if fill.Simulated {
+		t.Error("fill.simulated: got true, want false (real venue fill)")
+	}
+
+	// Risk input preserved.
+	if exec.Risk.Disposition != "approved" {
+		t.Errorf("execution.risk.disposition: got %q, want approved", exec.Risk.Disposition)
+	}
+	if exec.Risk.StrategyType != "mean_reversion_entry" {
+		t.Errorf("execution.risk.strategy_type: got %q", exec.Risk.StrategyType)
+	}
+
+	// Causal chain intact.
+	if exec.EventCorrelationID != corrID {
+		t.Errorf("event_correlation_id: got %q, want %q", exec.EventCorrelationID, corrID)
+	}
+	if exec.EventCausationID != "rsk-"+corrID {
+		t.Errorf("event_causation_id: got %q, want rsk-%s", exec.EventCausationID, corrID)
+	}
+	if chain.Decision.CausationID != "sig-"+corrID {
+		t.Errorf("decision.causation_id: got %q, want sig-%s", chain.Decision.CausationID, corrID)
+	}
+}
+
+// CRI-8: S334 — When both paper_order and venue_fill exist for the same correlation_id,
+// composite reader returns the venue fill (latest by timestamp).
+func TestCompositeReader_S334_VenueFillWinsOverPaperOrder(t *testing.T) {
+	client := skipUnlessClickHouse(t)
+	defer client.Close()
+	setupAllTables(t, client)
+
+	corrID := "s334-dual-exec-001"
+	ts := time.Date(2026, 3, 21, 11, 0, 0, 0, time.UTC)
+	insertDualExecutionFixture(t, client, corrID, "btcusdt", ts)
+
+	reader := clickhouse.NewCompositeReader(client, slog.Default())
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	if err != nil {
+		t.Fatalf("query chain: %v", err)
+	}
+
+	if chain.StageCount != 5 {
+		t.Errorf("stage_count: got %d, want 5", chain.StageCount)
+	}
+
+	exec := chain.Execution
+	if exec == nil {
+		t.Fatal("expected execution stage")
+	}
+
+	// The venue fill (later timestamp) must win over the paper order.
+	if exec.Type != "venue_market_order" {
+		t.Errorf("expected venue_market_order (latest), got %q", exec.Type)
+	}
+	if exec.Status != "filled" {
+		t.Errorf("expected status=filled (latest), got %q", exec.Status)
+	}
+	if exec.EventID != "exc-fill-"+corrID {
+		t.Errorf("expected venue fill event_id, got %q", exec.EventID)
+	}
+
+	// Fill data must be present (not the empty paper fills).
+	if len(exec.Fills) != 1 {
+		t.Fatalf("fills count: got %d, want 1 (venue fill)", len(exec.Fills))
+	}
+	if exec.Fills[0].Price != "97500.00" {
+		t.Errorf("fill.price: got %q, want 97500.00", exec.Fills[0].Price)
+	}
+	if exec.Fills[0].Simulated {
+		t.Error("fill.simulated: got true, want false")
+	}
+	if exec.FilledQuantity != "0.001" {
+		t.Errorf("filled_quantity: got %q, want 0.001", exec.FilledQuantity)
+	}
+}
+
+// CRI-9: S334 — Batch lookup returns chains with venue fill data in composite surface.
+func TestCompositeReader_S334_BatchWithVenueFills(t *testing.T) {
+	client := skipUnlessClickHouse(t)
+	defer client.Close()
+	setupAllTables(t, client)
+
+	ts := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
+	// Insert one paper-only chain and one venue-fill chain.
+	insertCompositeFixtureForSymbol(t, client, "s334-batch-paper", "btcusdt", ts)
+	insertVenueFillFixture(t, client, "s334-batch-fill", "btcusdt", ts.Add(time.Minute))
+
+	reader := clickhouse.NewCompositeReader(client, slog.Default())
+	chains, err := reader.QueryChainsBatch(context.Background(), "binancef", "btcusdt", 60, 0, 0, 10)
+	if err != nil {
+		t.Fatalf("batch query: %v", err)
+	}
+
+	if len(chains) < 1 {
+		t.Fatalf("expected at least 1 chain, got %d", len(chains))
+	}
+
+	// Find the venue fill chain and verify fill data is visible.
+	var foundVenueFill bool
+	for _, ch := range chains {
+		if ch.Execution != nil && ch.Execution.Status == "filled" {
+			foundVenueFill = true
+			if len(ch.Execution.Fills) == 0 {
+				t.Error("venue fill chain has no fill records in batch result")
+			}
+			if ch.Execution.Fills[0].Simulated {
+				t.Error("venue fill in batch has simulated=true")
+			}
+			if ch.Execution.Type != "venue_market_order" {
+				t.Errorf("venue fill type: got %q", ch.Execution.Type)
+			}
+		}
+	}
+	if !foundVenueFill {
+		t.Error("batch result does not contain a venue fill chain")
+	}
+}

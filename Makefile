@@ -20,7 +20,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
-	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-composed smoke-operational smoke-restart-recovery \
+	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-status stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery \
 	ci-analytical seed seed-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
 	migrate-up migrate-status migrate-validate \
@@ -78,9 +78,9 @@ help: ## Show grouped help and common variables.
 	@printf "  %-24s %s\n" "SNAP1=before SNAP2=after" "Inputs for snapshot-diff."
 	@printf "  %-24s %s\n" "BASELINE=baseline.json" "Input for baseline-drift."
 	@printf "  %-24s %s\n" "STAGE_ID=C15" "Stage id used by stage-scaffold/stage-check."
-	@printf "  %-24s %s\n" "STAGE_SLUG=stage-tooling" "Stage report slug used by stage-scaffold/stage-check."
+	@printf "  %-24s %s\n" "STAGE_SLUG=stage-tooling" "Stage report slug used by stage-scaffold/stage-status/stage-check."
 	@printf "  %-24s %s\n" "STAGE_TITLE=Title" "Stage report title used by stage-scaffold."
-	@printf "  %-24s %s\n" "STAGE_REQUIRE=path1,path2" "Extra artifact paths required by stage-check."
+	@printf "  %-24s %s\n" "STAGE_REQUIRE=path1,path2" "Extra artifact paths used by stage-status/stage-check."
 	@printf "  %-24s %s\n" "BASE_URL=http://127.0.0.1:8080" "Override the gateway base URL used by smoke scripts."
 	@printf "  %-24s %s\n" "SMOKE_WAIT=180" "Override wait/flush time for smoke scripts."
 	@printf "  %-24s %s\n" "FLUSH_WAIT=180" "Legacy wait override for analytical/operational/restart smokes."
@@ -91,24 +91,23 @@ docs: ## Show primary docs for workflows, targets, and tooling.
 	@printf "  DEVELOPMENT.md\n"
 	@printf "  docs/README.md\n"
 	@printf "  docs/operations/README.md\n"
-	@printf "  docs/operations/development-environment-architecture-and-lifecycle.md\n"
-	@printf "  docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md\n"
-	@printf "  docs/operations/documentation-system-hardening.md\n"
-	@printf "  docs/operations/documentation-governance-entrypoints-and-taxonomy.md\n"
-	@printf "  docs/operations/repository-policy-and-lightweight-enforcement-2.md\n"
-	@printf "  docs/operations/repository-invariants-check-matrix-and-enforcement-policy.md\n"
-	@printf "  docs/operations/developer-workflow-unification.md\n"
-	@printf "  docs/operations/developer-onboarding-and-troubleshooting-guide.md\n"
-	@printf "  docs/operations/smoke-and-operational-harness-governance.md\n"
-	@printf "  docs/operations/operational-proof-entrypoints-and-ownership.md\n"
-	@printf "  docs/operations/smoke-ux-and-proof-execution-ergonomics.md\n"
-	@printf "  docs/operations/proof-execution-user-flows-and-failure-diagnosis.md\n"
-	@printf "  docs/operations/repository-support-surface-canonical-model.md\n"
-	@printf "  docs/operations/repository-architecture-convergence.md\n"
-	@printf "  docs/operations/stage-tooling-and-execution-governance-support.md\n"
-	@printf "  docs/operations/stage-artifacts-conventions-and-support-model.md\n"
-	@printf "  docs/operations/stage-documentation-governance-and-narrative-coherence.md\n"
-	@printf "  docs/operations/stage-history-traceability-and-linking-model.md\n"
+	@printf "  docs/operations/repository-metadata-indexes-and-developer-navigation-system.md\n"
+	@printf "  docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md\n"
+	@printf "  docs/operations/makefile-targets-reference-and-conventions.md\n"
+	@printf "  docs/operations/scripts-catalog-and-usage-guide.md\n"
+	@printf "  docs/operations/repository-maintainability-economics-and-structural-cost-control.md\n"
+	@printf "  docs/operations/tooling-evolution-patterns-and-repository-extension-discipline.md\n"
+	@printf "  docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md\n"
+	@printf "  docs/operations/repository-platform-governance-health-review-and-sustainability-model.md\n"
+	@printf "  docs/operations/long-term-documentation-and-operational-sustainability-model.md\n"
+	@printf "  docs/operations/developer-environment-strategic-health-model.md\n"
+	@printf "  docs/operations/repository-health-dimensions-signals-and-decision-usage.md\n"
+	@printf "  docs/operations/repository-sustainability-review-routines-and-entropy-control.md\n"
+	@printf "  docs/operations/periodic-review-model-for-repository-development-environment.md\n"
+	@printf "  docs/operations/repository-review-cadence-triggers-and-follow-through-rules.md\n"
+	@printf "  docs/operations/support-surface-sunset-consolidation-and-retirement-strategy.md\n"
+	@printf "  docs/operations/support-surface-lifecycle-signals-and-consolidation-criteria.md\n"
+	@printf "  docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md\n"
 	@printf "  docs/tooling/README.md\n"
 	@printf "  docs/architecture/README.md\n"
 	@printf "  docs/stages/INDEX.md\n"
@@ -127,6 +126,8 @@ stage-help: ## Show the stage tooling helper usage and supported inputs.
 	@./scripts/stage-tooling.sh help
 stage-scaffold: ## Create a lightweight stage report scaffold (`STAGE_ID`, `STAGE_SLUG`, `STAGE_TITLE`).
 	@./scripts/stage-tooling.sh scaffold
+stage-status: ## Show continuity status and next actions for one active stage.
+	@./scripts/stage-tooling.sh status
 stage-check: ## Validate one active stage (`STAGE_ID` and optional `STAGE_SLUG`/`STAGE_REPORT`/`STAGE_REQUIRE`).
 	@./scripts/stage-tooling.sh check
 tdd: $(RACCOON_BIN) ## Show impact-driven validation guidance for current changes.
@@ -281,6 +282,7 @@ smoke-help: ## Show smoke/proof selection, prerequisites, and common troubleshoo
 	@printf "  %-24s %s\n" "make smoke-analytical" "ClickHouse writer/reader proof. Requires: make up && make seed*"
 	@printf "  %-24s %s\n" "make smoke-round-trip" "Full persistence round-trip proof (S317). Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-live-stack" "Live stack smoke + gateway verification (S318). Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-activation" "Activation acceptance smoke (S340). Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-composed" "Composed pipeline smoke (S330). No stack needed"
 	@printf "  %-24s %s\n" "make smoke-operational" "Process isolation + halt/resume proof. Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-restart-recovery" "Restart/recovery resilience proof. Requires: make up && make seed"
@@ -309,9 +311,13 @@ smoke-round-trip: ## S317: Full persistence round-trip proof (adapter → NATS �
 	@echo "Running full persistence round-trip smoke (S317)..."
 	@./scripts/smoke-round-trip.sh
 
-smoke-live-stack: ## S318: Live stack smoke and gateway verification (venue path + persistence + composite surface).
-	@echo "Running live stack smoke and gateway verification (S318)..."
+smoke-live-stack: ## Canonical live stack smoke: venue path + persistence + composite + kill-switch (S335).
+	@echo "Running canonical live stack smoke (S335)..."
 	@./scripts/smoke-live-stack.sh
+
+smoke-activation: ## S340+S341: Activation smoke — acceptance transitions + controlled live path verification.
+	@echo "Running activation smoke (S340+S341)..."
+	@./scripts/smoke-activation.sh
 
 smoke-operational: ## Canonical specialized proof for OS-process/container operational behavior.
 	@echo "Running OS-process operational smoke (S279)..."

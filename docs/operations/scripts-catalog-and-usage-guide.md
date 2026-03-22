@@ -15,6 +15,12 @@ Rule of thumb:
 - treat `scripts/utils/*` as support utilities, not user-facing workflows
 - use [`repository-support-surface-canonical-model.md`](repository-support-surface-canonical-model.md) when deciding whether a new workflow belongs in `make`, a direct script, or `raccoon-cli`
 
+Support-surface lifecycle rule:
+scripts are expected to stay implementation-facing unless a recurring workflow
+clearly needs a stable public wrapper. Near-duplicate harnesses, wrappers that
+hide the same behavior, and script-first guidance for already-canonical Make
+flows are all sunset or consolidation signals.
+
 ## Canonicality Rules
 
 - If a workflow already exists in `make`, that Make target is the canonical entrypoint.
@@ -38,16 +44,27 @@ Rule of thumb:
 | smoke/integration | `make smoke-analytical` | `scripts/smoke-analytical-e2e.sh` | Prove analytical writer/reader path | Large harness; active domain-adjacent surface |
 | smoke/integration | `make smoke-round-trip` | `scripts/smoke-round-trip.sh` | Prove full persistence round-trip behavior | Adapter to ClickHouse to HTTP specialized proof |
 | smoke/integration | `make smoke-live-stack` | `scripts/smoke-live-stack.sh` | Prove live stack and gateway verification path | Specialized live-stack proof surface |
+| smoke/integration | `make smoke-activation` | `scripts/smoke-activation.sh` | Prove activation acceptance transitions against the live control surface | Activation lifecycle proof surface |
+| smoke/integration | `make smoke-composed` | `scripts/smoke-composed-pipeline.sh` | Prove the composed pipeline without the full stack | Narrower composed-runtime proof |
 | smoke/integration | `make smoke-operational` | `scripts/smoke-os-process-operational.sh` | Prove isolated-process operational behavior | OS-process/container operational proof |
 | smoke/integration | `make smoke-restart-recovery` | `scripts/smoke-restart-recovery.sh` | Prove restart/recovery resilience | Durable consumer and gate recovery proof |
 | local dev | `make diag` | `scripts/diag-check.sh` | Capture a quick runtime health snapshot | Supports `--local` |
 | docs/tooling | `make repo-consistency-check` | `scripts/repository-consistency-check.sh` | Run lightweight repository-policy and support-surface checks | Canonical repository-policy guard rail |
-| docs/tooling | `make stage-help`, `make stage-scaffold`, `make stage-check` | `scripts/stage-tooling.sh` | Scaffold or validate one governed stage | Lightweight stage-support helper, not a workflow engine |
+| docs/tooling | `make stage-help`, `make stage-scaffold`, `make stage-status`, `make stage-check` | `scripts/stage-tooling.sh` | Scaffold, inspect continuity, or validate one governed stage | Lightweight stage-support helper, not a workflow engine |
 | docs/tooling | `make codegen-integrated` | `scripts/codegen-integrated-check.sh` | Verify governed integrated slices | Golden-to-target check |
 | docs/tooling | `make codegen-equivalence` | `scripts/codegen-equivalence-check.sh` | Run cross-artifact codegen equivalence validation | Wider consistency harness |
 | local dev | none | `scripts/utils/list-modules.sh` | Print Go workspace modules | Helper for repo tooling |
 | local dev | none | `scripts/utils/for-each-module.sh <cmd...>` | Run a command in each Go workspace module | Honors `MODULE=...` |
 | shared harness support | none | `scripts/utils/lib.sh` | Source-only helper library | Not an entrypoint |
+
+Healthy redundancy rule:
+`make` wrappers plus direct scripts are healthy redundancy only when they serve
+different jobs:
+
+- `make` gives the stable public contract;
+- direct scripts preserve expert flags, debugging, or harness maintenance;
+- both become costly redundancy when docs teach them as interchangeable normal
+  paths.
 
 ## Recommended Usage Paths
 
@@ -57,6 +74,7 @@ Use:
 
 - `make bootstrap` when the machine or local environment changed
 - `make check`
+- `make stage-status STAGE_ID=...` when resuming or closing a governed stage
 - `make stage-check STAGE_ID=...` when closing a governed stage
 - `make tdd`
 - `make test`
@@ -83,6 +101,8 @@ Use:
 - `make smoke-analytical`
 - `make smoke-round-trip`
 - `make smoke-live-stack`
+- `make smoke-activation`
+- `make smoke-composed`
 - `make smoke-operational`
 - `make smoke-restart-recovery`
 
@@ -134,12 +154,14 @@ Common forms:
 
 - `./scripts/stage-tooling.sh help`
 - `STAGE_ID=C15 STAGE_SLUG=stage-tooling STAGE_TITLE="Stage Tooling" ./scripts/stage-tooling.sh scaffold`
+- `STAGE_ID=C20 STAGE_SLUG=automation-support-for-waves-execution-continuity-and-repo-sustainability ./scripts/stage-tooling.sh status`
 - `STAGE_ID=C15 STAGE_SLUG=stage-tooling ./scripts/stage-tooling.sh check`
 
 Use directly when:
 
 - you are debugging the stage helper itself
 - you need stage support without routing through `make`
+- you want to see continuity gaps and next actions before running the stricter check
 
 ### `scripts/diag-check.sh`
 
@@ -164,6 +186,7 @@ Common forms:
 - `./scripts/smoke-analytical-e2e.sh --wait 180`
 - `./scripts/smoke-round-trip.sh --wait 180`
 - `./scripts/smoke-live-stack.sh --wait 180`
+- `./scripts/smoke-composed-pipeline.sh`
 
 Use direct invocation when:
 

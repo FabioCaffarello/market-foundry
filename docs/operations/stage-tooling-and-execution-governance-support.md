@@ -36,6 +36,7 @@ Use this surface when executing a stage:
 | Understand stage support model | `docs/operations/stage-tooling-and-execution-governance-support.md` |
 | Understand artifact naming and minimum completeness | `docs/operations/stage-artifacts-conventions-and-support-model.md` |
 | Scaffold a new stage report | `make stage-scaffold STAGE_ID=... STAGE_SLUG=... STAGE_TITLE=...` |
+| Inspect continuity for one active stage | `make stage-status STAGE_ID=... STAGE_SLUG=...` |
 | Validate one active stage | `make stage-check STAGE_ID=... STAGE_SLUG=...` |
 | Get usage help for the stage helper | `make stage-help` |
 | Validate repository-wide lightweight governance | `make repo-consistency-check` |
@@ -48,7 +49,8 @@ Use this surface when executing a stage:
 It provides two supported actions:
 
 1. `scaffold`
-2. `check`
+2. `status`
+3. `check`
 
 ### Scaffold
 
@@ -80,6 +82,21 @@ This is a stage-local guard rail. It is not a replacement for:
 - `make smoke*`
 - architecture reviews
 
+### Status
+
+`make stage-status` is the continuity-oriented companion to `make stage-check`.
+
+It answers the lightweight questions that commonly stall resumed stage work:
+
+- does the report already exist in the expected place;
+- is it already indexed in `docs/stages/INDEX.md`;
+- are the minimum report signals present or obviously incomplete;
+- are the declared durable artifacts already present;
+- what are the next recommended commands.
+
+`status` is intentionally advisory. It should help contributors recover context
+quickly without promoting a heavyweight stage tracker.
+
 ## Operational Flow For A Governed Stage
 
 Use this order:
@@ -89,9 +106,10 @@ Use this order:
 3. Deliver the minimal tooling/docs/code changes that the stage actually requires.
 4. Update canonical docs when a lasting convention or support surface changes.
 5. Add the report to `docs/stages/INDEX.md`.
-6. Run `make stage-check` for the active stage.
-7. Run the narrowest repository validation needed for the change, usually `make repo-consistency-check` and then the normal `make verify` or narrower proof path.
-8. Close the report with explicit limits, validation, and next-stage preparation.
+6. Run `make stage-status` when you are resuming work, validating continuity, or preparing to close the stage.
+7. Run `make stage-check` for the active stage.
+8. Run the narrowest repository validation needed for the change, usually `make repo-consistency-check` and then the normal `make verify` or narrower proof path.
+9. Close the report with explicit limits, validation, and next-stage preparation.
 
 ## Relationship To Existing Governance
 
@@ -103,6 +121,7 @@ them:
 | `docs/architecture/stage-definition-of-done.md` | Defines what a complete stage means |
 | `docs/architecture/monorepo-documentation-and-stage-governance.md` | Defines the high-level governance model |
 | `docs/stages/INDEX.md` | Historical evidence navigation |
+| `make stage-status` | Advisory continuity snapshot for an active stage |
 | `make repo-consistency-check` | Repository-wide lightweight support-surface guard rail |
 | `make stage-check` | Active-stage completeness and traceability check |
 
@@ -126,6 +145,7 @@ The helper removes repeated mechanical work, not judgment.
 - Every governed stage should leave one obvious current support path behind it.
 - Use `STAGE_REQUIRE` only for concrete artifacts the stage is expected to
   produce; do not turn it into a generic checklist dump.
+- Prefer `make stage-status` when context recovery is the problem and `make stage-check` when closure discipline is the problem.
 - If `make stage-check` passes but the stage still feels unclear, the stage is
   not operationally complete yet. The check is a floor, not a substitute for
   clarity.

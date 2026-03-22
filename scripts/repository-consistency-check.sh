@@ -76,8 +76,12 @@ check_required_documents() {
         "docs/operations/README.md"
         "docs/operations/documentation-system-hardening.md"
         "docs/operations/documentation-governance-entrypoints-and-taxonomy.md"
+        "docs/operations/repository-metadata-indexes-and-developer-navigation-system.md"
+        "docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md"
         "docs/operations/developer-workflow-unification.md"
         "docs/operations/developer-onboarding-and-troubleshooting-guide.md"
+        "docs/operations/makefile-targets-reference-and-conventions.md"
+        "docs/operations/scripts-catalog-and-usage-guide.md"
         "docs/operations/smoke-and-operational-harness-governance.md"
         "docs/operations/operational-proof-entrypoints-and-ownership.md"
         "docs/operations/repository-support-surface-canonical-model.md"
@@ -90,17 +94,30 @@ check_required_documents() {
         "docs/operations/stage-artifacts-conventions-and-support-model.md"
         "docs/operations/stage-documentation-governance-and-narrative-coherence.md"
         "docs/operations/stage-history-traceability-and-linking-model.md"
+        "docs/operations/automation-support-for-waves-execution-continuity-and-repo-sustainability.md"
+        "docs/operations/repository-automation-boundaries-high-value-routines-and-sustainability-rules.md"
+        "docs/operations/repository-maintainability-economics-and-structural-cost-control.md"
+        "docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md"
+        "docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md"
+        "docs/operations/repository-platform-governance-health-review-and-sustainability-model.md"
+        "docs/operations/long-term-documentation-and-operational-sustainability-model.md"
+        "docs/operations/developer-environment-strategic-health-model.md"
+        "docs/operations/repository-health-dimensions-signals-and-decision-usage.md"
+        "docs/operations/repository-sustainability-review-routines-and-entropy-control.md"
+        "docs/operations/periodic-review-model-for-repository-development-environment.md"
+        "docs/operations/repository-review-cadence-triggers-and-follow-through-rules.md"
+        "docs/operations/support-surface-sunset-consolidation-and-retirement-strategy.md"
+        "docs/operations/support-surface-lifecycle-signals-and-consolidation-criteria.md"
+        "docs/operations/tooling-evolution-patterns-and-repository-extension-discipline.md"
+        "docs/operations/tooling-inclusion-deprecation-and-consolidation-rules.md"
         "docs/tooling/README.md"
         "docs/architecture/README.md"
         "docs/stages/INDEX.md"
-        "docs/stages/stage-c6-lightweight-repository-guard-rails-and-consistency-checks-report.md"
-        "docs/stages/stage-c7-repository-architecture-convergence-report.md"
-        "docs/stages/stage-c9-smoke-and-operational-harness-governance-report.md"
-        "docs/stages/stage-c10-developer-workflow-unification-report.md"
-        "docs/stages/stage-c11-documentation-system-hardening-report.md"
-        "docs/stages/stage-c12-repository-policy-and-lightweight-enforcement-2-report.md"
-        "docs/stages/stage-c15-stage-tooling-and-execution-governance-support-report.md"
-        "docs/stages/stage-c16-stage-documentation-governance-and-narrative-coherence-report.md"
+        "cmd/README.md"
+        "internal/README.md"
+        "deploy/README.md"
+        "scripts/README.md"
+        "tests/README.md"
         "docs/archive/README.md"
     )
     local missing=()
@@ -117,6 +134,130 @@ check_required_documents() {
     fi
 
     printf 'required repository documents present (%d files)' "${#required_docs[@]}"
+}
+
+check_active_doc_indexes() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+checks = [
+    ("docs/operations", Path("docs/operations/README.md")),
+    ("docs/tooling", Path("docs/tooling/README.md")),
+]
+
+issues = []
+count = 0
+for directory, index_path in checks:
+    index_text = index_path.read_text()
+    referenced = set(Path(ref).name for ref in re.findall(r"\(([^)]+\.md)\)", index_text))
+    files = sorted(
+        path.name
+        for path in Path(directory).glob("*.md")
+        if path.name != "README.md"
+    )
+    count += len(files)
+    missing = [name for name in files if name not in referenced]
+    if missing:
+        issues.append(f"{directory}: missing from {index_path.as_posix()}")
+        issues.extend(f"  - {name}" for name in missing)
+
+if issues:
+    print("active support docs missing from canonical area indexes:")
+    for item in issues:
+        print(item)
+    sys.exit(1)
+
+print(f"active operations/tooling docs are indexed in their canonical area READMEs ({count} docs)")
+PY
+}
+
+check_health_model_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "model": Path("docs/operations/developer-environment-strategic-health-model.md"),
+    "signals": Path("docs/operations/repository-health-dimensions-signals-and-decision-usage.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "repository-health-dimensions-signals-and-decision-usage.md" not in text["model"]:
+    issues.append("strategic health model does not link to the signals/decision document")
+if "developer-environment-strategic-health-model.md" not in text["signals"]:
+    issues.append("signals/decision document does not link back to the strategic health model")
+
+if issues:
+    print("health-model canonical docs are not cross-linked:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("health-model canonical docs cross-link correctly")
+PY
+}
+
+check_support_surface_lifecycle_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "strategy": Path("docs/operations/support-surface-sunset-consolidation-and-retirement-strategy.md"),
+    "criteria": Path("docs/operations/support-surface-lifecycle-signals-and-consolidation-criteria.md"),
+    "cadence": Path("docs/operations/repository-review-cadence-triggers-and-follow-through-rules.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "support-surface-lifecycle-signals-and-consolidation-criteria.md" not in text["strategy"]:
+    issues.append("strategy doc does not link to the lifecycle-signals/criteria doc")
+if "support-surface-sunset-consolidation-and-retirement-strategy.md" not in text["criteria"]:
+    issues.append("criteria doc does not link back to the sunset/consolidation strategy doc")
+if "repository-review-cadence-triggers-and-follow-through-rules.md" not in text["strategy"]:
+    issues.append("strategy doc does not link to the cadence/trigger rules")
+
+if issues:
+    print("support-surface lifecycle docs are not cross-linked:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("support-surface lifecycle docs cross-link correctly")
+PY
+}
+
+check_repository_platform_model_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "strategic": Path("docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md"),
+    "applied": Path("docs/operations/repository-platform-governance-health-review-and-sustainability-model.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "repository-platform-governance-health-review-and-sustainability-model.md" not in text["strategic"]:
+    issues.append("strategic repository-platform model does not link to the applied governance model")
+if "strategic-operating-model-for-the-repository-as-a-development-platform.md" not in text["applied"]:
+    issues.append("applied repository-platform model does not link back to the strategic operating model")
+
+if issues:
+    print("repository-platform model docs are not cross-linked:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("repository-platform model docs cross-link correctly")
+PY
 }
 
 check_docs_area_entrypoints() {
@@ -519,6 +660,10 @@ echo "=== repository-consistency-check ==="
 overall_status=0
 run_check "required-documents" check_required_documents || overall_status=1
 run_check "docs-area-entrypoints" check_docs_area_entrypoints || overall_status=1
+run_check "active-doc-indexes" check_active_doc_indexes || overall_status=1
+run_check "health-model-cross-links" check_health_model_cross_links || overall_status=1
+run_check "support-surface-lifecycle-cross-links" check_support_surface_lifecycle_cross_links || overall_status=1
+run_check "repository-platform-model-cross-links" check_repository_platform_model_cross_links || overall_status=1
 run_check "stage-report-naming" check_stage_report_naming || overall_status=1
 run_check "stage-report-shape" check_stage_report_shape || overall_status=1
 run_check "stage-index-alignment" check_stage_index_alignment || overall_status=1
