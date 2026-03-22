@@ -18,6 +18,10 @@ const ControlBucket = "EXECUTION_CONTROL"
 // ControlKey is the KV key for the global execution gate.
 const ControlKey = "global"
 
+// DimensionsKey is the KV key for process-local activation dimensions
+// published by the execute binary at startup.
+const DimensionsKey = "dimensions"
+
 // ControlKVStore reads and writes the execution control gate from a NATS KV bucket.
 // Used by:
 //   - store query responder (read + write — serves gateway queries)
@@ -102,6 +106,48 @@ func (s *ControlKVStore) Put(ctx context.Context, gate execution.ControlGate) *p
 
 	if _, err := s.bucket.Put(ctx, ControlKey, data); err != nil {
 		return problem.Wrap(err, problem.Unavailable, "put execution control to KV")
+	}
+
+	return nil
+}
+
+// GetDimensions retrieves the process-local activation dimensions from KV.
+// Returns nil if no dimensions have been published yet.
+func (s *ControlKVStore) GetDimensions(ctx context.Context) (*execution.ActivationDimensions, *problem.Problem) {
+	if s == nil || s.bucket == nil {
+		return nil, problem.New(problem.Unavailable, "execution control KV store is unavailable")
+	}
+
+	entry, err := s.bucket.Get(ctx, DimensionsKey)
+	if err != nil {
+		if err == jetstream.ErrKeyNotFound {
+			return nil, nil
+		}
+		return nil, problem.Wrap(err, problem.Unavailable, "get activation dimensions from KV")
+	}
+
+	var dims execution.ActivationDimensions
+	if err := json.Unmarshal(entry.Value(), &dims); err != nil {
+		return nil, problem.Wrap(err, problem.Internal, "unmarshal activation dimensions from KV")
+	}
+
+	return &dims, nil
+}
+
+// PutDimensions stores the process-local activation dimensions.
+// Called once by the execute binary at startup.
+func (s *ControlKVStore) PutDimensions(ctx context.Context, dims execution.ActivationDimensions) *problem.Problem {
+	if s == nil || s.bucket == nil {
+		return problem.New(problem.Unavailable, "execution control KV store is unavailable")
+	}
+
+	data, err := json.Marshal(dims)
+	if err != nil {
+		return problem.Wrap(err, problem.Internal, "marshal activation dimensions for KV")
+	}
+
+	if _, err := s.bucket.Put(ctx, DimensionsKey, data); err != nil {
+		return problem.Wrap(err, problem.Unavailable, "put activation dimensions to KV")
 	}
 
 	return nil

@@ -20,6 +20,7 @@ use serde::Serialize;
 
 use crate::analyzers::impact_map;
 use crate::codeintel;
+use crate::command_refs;
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -243,12 +244,12 @@ const AREA_DEFS: &[AreaDef] = &[
 /// Map dimension name to the raccoon-cli command that validates it.
 fn dimension_command(dim: &str) -> Option<&'static str> {
     match dim {
-        "project-structure" => Some("raccoon-cli doctor"),
-        "topology" => Some("raccoon-cli topology-doctor"),
-        "contracts" => Some("raccoon-cli contract-audit"),
-        "runtime-bindings" => Some("raccoon-cli runtime-bindings"),
-        "architecture" => Some("raccoon-cli arch-guard"),
-        "drift" => Some("raccoon-cli drift-detect"),
+        "project-structure" => Some(command_refs::CHECK_REPO),
+        "topology" => Some(command_refs::CHECK_TOPOLOGY),
+        "contracts" => Some(command_refs::CHECK_CONTRACTS),
+        "runtime-bindings" => Some(command_refs::CHECK_BINDINGS),
+        "architecture" => Some(command_refs::CHECK_ARCH),
+        "drift" => Some(command_refs::CHECK_DRIFT),
         _ => None,
     }
 }
@@ -579,21 +580,37 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
         writeln!(out, "No changed files detected.\n").unwrap();
         writeln!(out, "Reason: {}", report.scope_note).unwrap();
         writeln!(out).unwrap();
-        writeln!(out, "Usage: raccoon-cli tdd <file1> [file2] ...").unwrap();
         writeln!(
             out,
-            "   or: make changes first, then run `raccoon-cli tdd` to auto-detect.\n"
+            "Usage: {} <file1> [file2] ...",
+            command_refs::CHANGE_TDD
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "   or: make changes first, then run `{}` to auto-detect.\n",
+            command_refs::CHANGE_TDD
         )
         .unwrap();
         writeln!(out, "Generic TDD cycle:").unwrap();
-        writeln!(out, "  1. Run `make check` to confirm known-good baseline").unwrap();
+        writeln!(
+            out,
+            "  1. Run `{}` to confirm known-good baseline",
+            command_refs::MAKE_CHECK
+        )
+        .unwrap();
         writeln!(
             out,
             "  2. Write/update test or scenario for your intended change"
         )
         .unwrap();
         writeln!(out, "  3. Implement the change").unwrap();
-        writeln!(out, "  4. Run `make verify` to prove safety").unwrap();
+        writeln!(
+            out,
+            "  4. Run `{}` to prove safety",
+            command_refs::MAKE_VERIFY
+        )
+        .unwrap();
         return out;
     }
 
@@ -700,7 +717,7 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
             "No sensitive areas affected — standard TDD cycle applies:"
         )
         .unwrap();
-        writeln!(out, "  1. Run `make check` before coding").unwrap();
+        writeln!(out, "  1. Run `{}` before coding", command_refs::MAKE_CHECK).unwrap();
         writeln!(out, "  2. Write/update tests").unwrap();
         writeln!(out, "  3. Implement changes").unwrap();
         writeln!(out, "  4. Run `make verify` after changes").unwrap();
@@ -781,8 +798,8 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
         writeln!(out, "  Start with: make up").unwrap();
         writeln!(
             out,
-            "  Recommended gate: raccoon-cli quality-gate --profile {}",
-            report.recommended_profile
+            "  Recommended gate: {}",
+            command_refs::check_gate(&report.recommended_profile)
         )
         .unwrap();
         writeln!(out).unwrap();
@@ -800,7 +817,12 @@ pub fn render_human(report: &TddReport, verbose: bool) -> String {
         "  - Without a test for the new behavior, success is a guess"
     )
     .unwrap();
-    writeln!(out, "  - `make verify` is the canonical proof command").unwrap();
+    writeln!(
+        out,
+        "  - `{}` is the canonical post-change proof command",
+        command_refs::MAKE_VERIFY
+    )
+    .unwrap();
 
     out
 }
@@ -1216,16 +1238,16 @@ func HandleConfig() {}
             report
                 .before_commands
                 .iter()
-                .any(|c| c.contains("arch-guard")),
-            "should include arch-guard, got: {:?}",
+                .any(|c| c.contains("check arch")),
+            "should include check arch, got: {:?}",
             report.before_commands
         );
         assert!(
             report
                 .before_commands
                 .iter()
-                .any(|c| c.contains("contract-audit")),
-            "should include contract-audit"
+                .any(|c| c.contains("check contracts")),
+            "should include check contracts"
         );
     }
 
@@ -1446,15 +1468,15 @@ func HandleConfig() {}
             report
                 .before_commands
                 .iter()
-                .any(|c| c.contains("arch-guard")),
-            "domain changes require arch-guard"
+                .any(|c| c.contains("check arch")),
+            "domain changes require check arch"
         );
         assert!(
             report
                 .before_commands
                 .iter()
-                .any(|c| c.contains("contract-audit")),
-            "domain changes require contract-audit"
+                .any(|c| c.contains("check contracts")),
+            "domain changes require check contracts"
         );
     }
 }

@@ -1,3 +1,4 @@
+use crate::command_refs;
 use crate::error::Result;
 use crate::models::{CheckResult, Finding, Report};
 use std::collections::BTreeMap;
@@ -18,43 +19,43 @@ const DIMENSIONS: &[Dimension] = &[
     Dimension {
         name: "project-structure",
         description: "go.work, directories, compose, config files",
-        command: "raccoon-cli doctor",
+        command: "raccoon-cli check repo",
         requires_infra: false,
     },
     Dimension {
         name: "topology",
         description: "config/compose/source wiring consistency across binaries",
-        command: "raccoon-cli topology-doctor",
+        command: command_refs::CHECK_TOPOLOGY,
         requires_infra: false,
     },
     Dimension {
         name: "contracts",
         description: "messaging contracts, envelope, codec invariants (NATS streams)",
-        command: "raccoon-cli contract-audit",
+        command: command_refs::CHECK_CONTRACTS,
         requires_infra: false,
     },
     Dimension {
         name: "runtime-bindings",
         description: "config -> NATS stream -> actor scope binding chain",
-        command: "raccoon-cli runtime-bindings",
+        command: command_refs::CHECK_BINDINGS,
         requires_infra: false,
     },
     Dimension {
         name: "architecture",
         description: "clean architecture layer boundaries and purity rules",
-        command: "raccoon-cli arch-guard",
+        command: command_refs::CHECK_ARCH,
         requires_infra: false,
     },
     Dimension {
         name: "drift",
         description: "cross-layer declaration/config/source/docs alignment",
-        command: "raccoon-cli drift-detect",
+        command: command_refs::CHECK_DRIFT,
         requires_infra: false,
     },
     Dimension {
         name: "smoke-e2e",
         description: "live E2E pipeline proof: ingest -> derive -> store -> query",
-        command: "make smoke",
+        command: command_refs::MAKE_SMOKE,
         requires_infra: true,
     },
 ];

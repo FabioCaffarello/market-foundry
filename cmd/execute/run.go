@@ -22,6 +22,12 @@ func Run(config settings.AppConfig) {
 
 	logger.Info("execute starting")
 
+	// ── Phase 0: Preflight — fail fast on missing preconditions ────
+	bootstrap.RunPreflight("execute", logger, []bootstrap.PreflightCheck{
+		bootstrap.NATSEnabledCheck(config),
+		bootstrap.NATSURLFormatCheck(config),
+	})
+
 	engine, err := actorcommon.NewDefaultEngine()
 	if err != nil {
 		logger.Error("create actor engine", "error", err)
@@ -59,8 +65,9 @@ func Run(config settings.AppConfig) {
 
 	// Build health trackers.
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":  healthz.NewTracker("venue-adapter"),
-		"venue-consumer": healthz.NewTracker("venue-consumer"),
+		"venue-adapter":     healthz.NewTracker("venue-adapter"),
+		"venue-consumer":    healthz.NewTracker("venue-consumer"),
+		"strategy-consumer": healthz.NewTracker("strategy-consumer"), // S360
 	}
 
 	pid := engine.Spawn(

@@ -61,6 +61,43 @@ Apply three review layers:
 | periodic hotspot review | recurring triggers or support-heavy wave changes | consolidation, guard, or scoped follow-up |
 | strategic platform review | multiple recurring signals at once | next-wave recommendation for highest-value hotspot |
 
+### Strategic checkpoints
+
+Use C29 strategic checkpoints when the repository needs a light executive
+decision about the platform itself:
+
+- at support-heavy wave closure;
+- before support-surface expansion;
+- when recurring friction clusters around one hotspot;
+- before the next wave would add more load to the development platform.
+
+Strategic checkpoints should stay trigger-based, short, and decision-oriented.
+Use:
+
+- [`strategic-checkpoints-for-the-development-platform.md`](strategic-checkpoints-for-the-development-platform.md)
+  for the checkpoint model itself;
+- [`development-platform-checkpoint-triggers-scope-and-decision-model.md`](development-platform-checkpoint-triggers-scope-and-decision-model.md)
+  for trigger interpretation, scope, and proportional outputs.
+- [`development-platform-readiness-model-for-future-foundry-waves.md`](development-platform-readiness-model-for-future-foundry-waves.md)
+  for development-platform readiness classification before opening a new wave;
+- [`readiness-signals-saturation-signals-and-wave-opening-rules.md`](readiness-signals-saturation-signals-and-wave-opening-rules.md)
+  for practical open/delay rules and saturation interpretation.
+- [`continuous-prioritization-model-for-the-development-platform.md`](continuous-prioritization-model-for-the-development-platform.md)
+  for comparing and ordering future repository-platform improvements;
+- [`prioritization-criteria-buckets-and-decision-examples-for-repo-evolution.md`](prioritization-criteria-buckets-and-decision-examples-for-repo-evolution.md)
+  for practical prioritization criteria usage, bucket assignment, and decision
+  examples.
+
+When a checkpoint concludes that the next move should be a short applied wave,
+prefer producing one hotspot-selection artifact before opening that wave:
+
+- identify the real recurring hotspot in the live repository surface;
+- compare at least the main competing hotspots qualitatively under the C32
+  criteria;
+- select one primary hotspot and at most one reserve;
+- then open the smallest structural follow-up that improves the platform
+  concretely.
+
 ### 4. Follow-through ladder
 
 Use the smallest durable response:
@@ -218,6 +255,16 @@ Typical validation set:
 - `make stage-check` for the active stage;
 - `make check` or `make verify` when the change touches public workflow or
   tooling behavior.
+
+## Related Documents
+
+- [`strategic-operating-model-for-the-repository-as-a-development-platform.md`](strategic-operating-model-for-the-repository-as-a-development-platform.md)
+- [`strategic-checkpoints-for-the-development-platform.md`](strategic-checkpoints-for-the-development-platform.md)
+- [`development-platform-checkpoint-triggers-scope-and-decision-model.md`](development-platform-checkpoint-triggers-scope-and-decision-model.md)
+- [`development-platform-readiness-model-for-future-foundry-waves.md`](development-platform-readiness-model-for-future-foundry-waves.md)
+- [`readiness-signals-saturation-signals-and-wave-opening-rules.md`](readiness-signals-saturation-signals-and-wave-opening-rules.md)
+- [`developer-environment-strategic-health-model.md`](developer-environment-strategic-health-model.md)
+- [`periodic-review-model-for-repository-development-environment.md`](periodic-review-model-for-repository-development-environment.md)
 
 ## Long-Term Sustainability Outcome
 

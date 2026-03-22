@@ -1,6 +1,6 @@
 # raccoon-cli
 
-Architecture guardian toolkit for `market-foundry`. Fully isolated from the Go runtime — reads files, configs, and source; executes subprocesses only for compose status checks.
+Strategic repository-intelligence toolkit for `market-foundry`. Fully isolated from the Go runtime — reads files, configs, and source; executes subprocesses only for bounded support checks.
 
 ## Build & Test
 
@@ -27,6 +27,12 @@ expert inspection depth or when working on the tooling layer itself.
 The deep quality-gate profile and `runtime-smoke` compatibility helper are not
 the canonical operational-proof surface; the proof-of-record runtime entrypoints
 remain the `make smoke*` targets.
+
+Contract summary:
+
+- `make` owns the stable public workflow and runtime/proof entrypoints.
+- `raccoon-cli` owns expert inspection, impact analysis, TDD guidance, drift detection, and architecture safety.
+- `scripts/*.sh` stay behind `make` unless you are debugging harness behavior.
 
 ## Internal Structure
 
@@ -70,7 +76,7 @@ aliases and should not be used in new docs or examples.
 | `raccoon-cli check bindings` | Validate runtime binding alignment |
 | `raccoon-cli check arch` | Enforce architecture layer boundaries (11 rules) |
 | `raccoon-cli check drift` | Detect cross-layer semantic drift (naming, docs, config, compose) |
-| `raccoon-cli check gate` | Run the consolidated guard-rail profile |
+| `raccoon-cli check gate` | Run the consolidated guard-rail profile behind `make check*` |
 
 ### `inspect` — stable core expert inspection
 
@@ -86,8 +92,8 @@ aliases and should not be used in new docs or examples.
 | Command | Purpose |
 |---------|---------|
 | `raccoon-cli change impact [TARGET...]` | Map change impact across modules |
-| `raccoon-cli change tdd [TARGET...]` | TDD guide for current changes |
-| `raccoon-cli change briefing [TARGET...]` | Generate briefing for targets |
+| `raccoon-cli change tdd [TARGET...]` | TDD guide for current changes and validation sequence |
+| `raccoon-cli change briefing [TARGET...]` | Generate briefing for targets or active diff |
 | `raccoon-cli change recommend [TARGET...]` | Recommend validation after a change |
 | `raccoon-cli change rename <SYMBOL>` | Assess rename risk before editing |
 

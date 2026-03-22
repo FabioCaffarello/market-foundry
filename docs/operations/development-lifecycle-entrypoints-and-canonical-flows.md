@@ -18,7 +18,7 @@ Use it when the question is operational:
 |---|---|---|---|
 | bootstrap/setup | validate machine and repo readiness | `make help`, `make bootstrap`, `make docs` | `README.md`, `DEVELOPMENT.md`, `scripts/bootstrap-check.sh` |
 | local dev loop | bring up a usable stack and execute day-to-day work | `make live` or `make up` + `make seed*`; then `make check`, `make tdd`, `make verify` | `scripts/live-pipeline-activate.sh`, `scripts/seed-configctl.sh`, `raccoon-cli` wrappers |
-| validation/checks | validate code and repository integrity | `make check`, `make verify`, `make check-deep`, `make test*`, `make arch-guard` | direct `raccoon-cli`, direct `go test` |
+| validation/checks | validate code and repository integrity | `make check`, `make tdd`, `make verify`, `make check-deep`, `make test*`, `make arch-guard` | direct `raccoon-cli`, direct `go test` |
 | smoke/proofs | prove runtime behavior | `make smoke-help`, `make smoke*` | `scripts/smoke-*.sh` |
 | troubleshooting | inspect health, logs, and narrow recovery | `make diag`, `make ps`, `make logs`, `make restart` | `scripts/diag-check.sh`, raw compose commands |
 | cleanup/reset | stop, clean, and reconstruct confidence | `make down`, `make clean`, then canonical bring-up again | raw compose cleanup, Go cache cleanup |
@@ -68,6 +68,8 @@ Use it when the question is operational:
 | `make smoke-analytical` | analytical path proof | writer/ClickHouse/read path |
 | `make smoke-round-trip` | persistence round-trip proof | specialized path |
 | `make smoke-live-stack` | live stack plus gateway verification | specialized path |
+| `make smoke-activation` | activation control-surface proof | specialized path |
+| `make smoke-composed` | composed pipeline proof without the full stack | specialized path |
 | `make smoke-operational` | OS-process operational proof | lifecycle and isolation |
 | `make smoke-restart-recovery` | restart and recovery proof | durability and recovery |
 
@@ -195,6 +197,8 @@ own the whole recovery path.
   fallback.
 - `raccoon-cli` is explicitly mapped to validation and analysis, preventing it
   from being mistaken for the repository's primary runtime operator surface.
+- the grouped CLI taxonomy now reads as the expert intelligence layer behind
+  `make`, instead of as a second competing workflow taxonomy.
 
 ## When To Escalate Beyond Canonical Flows
 

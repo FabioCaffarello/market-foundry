@@ -15,6 +15,12 @@ func Run(config settings.AppConfig) {
 	logger := bootstrap.BuildLogger(config.Log, "gateway")
 	slog.SetDefault(logger)
 
+	// ── Phase 0: Preflight — fail fast on missing preconditions ────
+	bootstrap.RunPreflight("gateway", logger, []bootstrap.PreflightCheck{
+		bootstrap.NATSEnabledCheck(config),
+		bootstrap.NATSURLFormatCheck(config),
+	})
+
 	logger.Info("gateway starting", "addr", config.HTTP.Addr)
 	engine, err := actorcommon.NewDefaultEngine()
 	if err != nil {

@@ -46,6 +46,25 @@ func (g *ControlGateway) GetExecutionControl(ctx context.Context, query executio
 	return natskit.DecodeControlReply[executionclient.ExecutionControlReply](spec, replyBytes)
 }
 
+func (g *ControlGateway) GetActivationSurface(ctx context.Context, query executionclient.ActivationSurfaceQuery) (executionclient.ActivationSurfaceReply, *problem.Problem) {
+	if g == nil || g.client == nil {
+		return executionclient.ActivationSurfaceReply{}, problem.New(problem.Unavailable, "execution control gateway is unavailable")
+	}
+
+	spec := g.registry.ActivationSurfaceGet
+	requestBytes, prob := natskit.EncodeControlRequest(ctx, spec, g.source, query)
+	if prob != nil {
+		return executionclient.ActivationSurfaceReply{}, prob
+	}
+
+	replyBytes, err := g.client.Request(ctx, spec.Subject, requestBytes)
+	if err != nil {
+		return executionclient.ActivationSurfaceReply{}, problem.Wrap(err, problem.Unavailable, "request activation surface get failed")
+	}
+
+	return natskit.DecodeControlReply[executionclient.ActivationSurfaceReply](spec, replyBytes)
+}
+
 func (g *ControlGateway) SetExecutionControl(ctx context.Context, cmd executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem) {
 	if g == nil || g.client == nil {
 		return executionclient.ExecutionControlReply{}, problem.New(problem.Unavailable, "execution control gateway is unavailable")

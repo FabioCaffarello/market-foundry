@@ -129,7 +129,7 @@ Os checkpoints passam a revisar sempre seis dimensões executivas:
 3. coerência de entrypoints;
 4. governança de docs e stages;
 5. custo estrutural;
-6. sustainabilidade do workflow.
+6. sustentabilidade do workflow.
 
 O stage explicitou que essas dimensões não devem virar scoring. Elas servem
 para localizar a pressão real e orientar a decisão seguinte.
@@ -227,7 +227,7 @@ Preparação recomendada:
 2. privilegiar um follow-up pequeno, orientado a decisão, em vez de abrir uma
    nova camada abstrata de governança;
 3. validar se o próximo ganho está em confiabilidade do CLI, coerência de
-   entrypoints, docs/stage governance, custo estrutural ou sustainabilidade do
+   entrypoints, docs/stage governance, custo estrutural ou sustentabilidade do
    workflow;
 4. usar o checkpoint de readiness para evitar que a próxima wave amplie uma
    superfície que já esteja perto de sobrecarga.

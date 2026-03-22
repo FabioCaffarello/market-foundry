@@ -4,14 +4,20 @@
 
 `raccoon-cli` is the repository support CLI for `market-foundry`.
 
-It exists to help contributors validate architecture, inspect structural relationships, and plan safe repository changes. It is not a product-facing surface and must not become a parallel operational platform for the live tranche.
+It exists to help contributors validate architecture, inspect structural relationships, and plan safe repository changes. It is the repository's strategic intelligence layer, not a product-facing surface, and must not become a parallel operational platform for the live tranche.
 
 ## Support-Surface Boundary
 
 - `make` remains the canonical public entrypoint for repository workflows such as `make check`, `make tdd`, `make verify`, `make smoke`, and `make up`.
-- Direct `raccoon-cli` usage is the expert support surface when you need narrower inspection, JSON output, or tooling-specific work.
+- Direct `raccoon-cli` usage is the expert support surface when you need narrower inspection, JSON output, tooling-specific work, or explicit impact/drift/architecture intelligence.
 - Direct CLI usage should complement, not replace, Makefile-backed runtime and operational flows.
 - The operational proof-of-record surface is `make smoke*`; `quality-gate --profile deep` and `legacy runtime-smoke` remain tolerated compatibility helpers only.
+
+Operational contract:
+
+- `make` owns public workflow and proof entrypoints.
+- `raccoon-cli` owns inspection, impact analysis, TDD guidance, drift detection, and architecture safety.
+- `scripts/*.sh` stay as execution detail behind `make`.
 
 ## Canonical Taxonomy
 
@@ -43,6 +49,21 @@ and which are only tolerated for compatibility.
 
 Historic flat commands such as `doctor`, `quality-gate`, `symbol-trace`, `impact-map`, `tdd`, and `runtime-smoke` remain supported as hidden compatibility aliases. New documentation and examples should prefer the canonical grouped taxonomy, and should not present those aliases as the canonical operational-proof surface.
 
+## Protected Taxonomy Contract
+
+The taxonomy is protected only at the level that materially affects workflow
+convergence:
+
+- top-level user-facing groups remain `check`, `inspect`, `change`, and
+  `legacy`;
+- Make-backed public wrappers should keep pointing to grouped commands instead
+  of compatibility aliases;
+- runtime proof remains documented through `make smoke*`, not through
+  `quality-gate --profile deep` or `legacy runtime-smoke`.
+
+This is a convergence guard, not a freeze on internal CLI implementation or on
+specialized analyzer text.
+
 ## Internal Architecture
 
 After Stage C8, the internal CLI shape is explicitly layered:
@@ -59,6 +80,7 @@ This keeps the CLI sustainable as an internal product without turning it into a 
 
 - [`docs/operations/raccoon-cli-ux-taxonomy-and-guard-rails.md`](../operations/raccoon-cli-ux-taxonomy-and-guard-rails.md)
 - [`docs/operations/raccoon-cli-command-reference.md`](../operations/raccoon-cli-command-reference.md)
+- [`docs/operations/make-and-raccoon-cli-contract.md`](../operations/make-and-raccoon-cli-contract.md)
 - [`raccoon-cli-command-lifecycle-and-deprecation-strategy.md`](raccoon-cli-command-lifecycle-and-deprecation-strategy.md)
 - [`raccoon-cli-command-catalog-maturity-model-and-governance.md`](raccoon-cli-command-catalog-maturity-model-and-governance.md)
 - [`docs/tooling/development-cli-reliability-and-command-testing-strategy.md`](development-cli-reliability-and-command-testing-strategy.md)

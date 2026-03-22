@@ -6,6 +6,12 @@ This reference describes the canonical command surface for the repository suppor
 
 The preferred model is grouped usage. Historic flat commands remain available as compatibility aliases.
 
+Boundary rule:
+
+- `make` is the public workflow contract.
+- `raccoon-cli` is the expert strategic-intelligence surface behind and beside that workflow.
+- Runtime proof still belongs to `make smoke*`, not to CLI deep/legacy helpers.
+
 ## Lifecycle At A Glance
 
 | Lifecycle state | Meaning | Current surface |
@@ -151,7 +157,7 @@ Governance rule:
 ### Fast Pre-Change Guard Rail
 
 ```bash
-raccoon-cli check repo
+make check
 raccoon-cli check gate
 ```
 
@@ -160,13 +166,15 @@ raccoon-cli check gate
 ```bash
 raccoon-cli inspect symbol ConfigSet --lsp
 raccoon-cli inspect contract-usage
+raccoon-cli inspect coverage
 ```
 
 ### Safe Change Planning
 
 ```bash
+make tdd
 raccoon-cli change impact
-raccoon-cli change tdd
+raccoon-cli change briefing
 raccoon-cli change recommend
 ```
 
@@ -176,3 +184,9 @@ raccoon-cli change recommend
 raccoon-cli snapshot -o baseline.json
 raccoon-cli baseline-drift baseline.json
 ```
+
+## Related Governance
+
+- [`make-and-raccoon-cli-contract.md`](make-and-raccoon-cli-contract.md)
+- [`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md)
+- [`operational-proof-entrypoints-and-ownership.md`](operational-proof-entrypoints-and-ownership.md)

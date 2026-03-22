@@ -11,6 +11,9 @@
 # - canonical docs only reference real Makefile targets
 # - Makefile script wrappers point to real executable scripts
 # - public script wrappers remain discoverable and self-describing
+# - workflow owner docs keep the same minimal public loop and surface boundary
+# - Make wrappers stay aligned with the grouped raccoon-cli taxonomy they promote
+# - scripts catalog rows stay aligned with the real Make target to script mapping
 # - bootstrap, Makefile, script catalog, and CLI docs stay aligned on the
 #   governed support surface
 
@@ -24,7 +27,8 @@ usage() {
 Usage: ./scripts/repository-consistency-check.sh [--help]
 
 Runs lightweight repository consistency checks for naming, documentation
-entrypoints, stage indexing, support-doc links, and Makefile script hygiene.
+entrypoints, stage indexing, support-doc links, workflow/Make/CLI convergence,
+and Makefile script hygiene.
 EOF
 }
 
@@ -74,6 +78,8 @@ check_required_documents() {
         "DEVELOPMENT.md"
         "docs/README.md"
         "docs/operations/README.md"
+        "docs/operations/documentary-ownership-and-canonical-navigation.md"
+        "docs/operations/make-and-raccoon-cli-contract.md"
         "docs/operations/documentation-system-hardening.md"
         "docs/operations/documentation-governance-entrypoints-and-taxonomy.md"
         "docs/operations/repository-metadata-indexes-and-developer-navigation-system.md"
@@ -100,6 +106,14 @@ check_required_documents() {
         "docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md"
         "docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md"
         "docs/operations/repository-platform-governance-health-review-and-sustainability-model.md"
+        "docs/operations/strategic-checkpoints-for-the-development-platform.md"
+        "docs/operations/development-platform-checkpoint-triggers-scope-and-decision-model.md"
+        "docs/operations/development-platform-readiness-model-for-future-foundry-waves.md"
+        "docs/operations/readiness-signals-saturation-signals-and-wave-opening-rules.md"
+        "docs/operations/criteria-for-opening-containing-or-rejecting-new-support-surfaces.md"
+        "docs/operations/support-surface-expansion-decision-rules-and-examples.md"
+        "docs/operations/continuous-prioritization-model-for-the-development-platform.md"
+        "docs/operations/prioritization-criteria-buckets-and-decision-examples-for-repo-evolution.md"
         "docs/operations/long-term-documentation-and-operational-sustainability-model.md"
         "docs/operations/developer-environment-strategic-health-model.md"
         "docs/operations/repository-health-dimensions-signals-and-decision-usage.md"
@@ -257,6 +271,96 @@ if issues:
     sys.exit(1)
 
 print("repository-platform model docs cross-link correctly")
+PY
+}
+
+check_prioritization_model_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "model": Path("docs/operations/continuous-prioritization-model-for-the-development-platform.md"),
+    "examples": Path("docs/operations/prioritization-criteria-buckets-and-decision-examples-for-repo-evolution.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "prioritization-criteria-buckets-and-decision-examples-for-repo-evolution.md" not in text["model"]:
+    issues.append("continuous prioritization model does not link to the criteria/examples document")
+if "continuous-prioritization-model-for-the-development-platform.md" not in text["examples"]:
+    issues.append("criteria/examples document does not link back to the continuous prioritization model")
+
+if issues:
+    print("prioritization-model docs are not cross-linked:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("prioritization-model docs cross-link correctly")
+PY
+}
+
+check_strategic_checkpoint_model_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "model": Path("docs/operations/strategic-checkpoints-for-the-development-platform.md"),
+    "companion": Path("docs/operations/development-platform-checkpoint-triggers-scope-and-decision-model.md"),
+    "applied": Path("docs/operations/repository-platform-governance-health-review-and-sustainability-model.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "development-platform-checkpoint-triggers-scope-and-decision-model.md" not in text["model"]:
+    issues.append("strategic checkpoint model does not link to the companion trigger/scope/decision doc")
+if "strategic-checkpoints-for-the-development-platform.md" not in text["companion"]:
+    issues.append("checkpoint companion doc does not link back to the strategic checkpoint model")
+if "strategic-checkpoints-for-the-development-platform.md" not in text["applied"]:
+    issues.append("applied governance model does not link to the strategic checkpoint model")
+
+if issues:
+    print("strategic checkpoint docs are not cross-linked correctly:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("strategic checkpoint docs cross-link correctly")
+PY
+}
+
+check_support_surface_expansion_model_cross_links() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+paths = {
+    "criteria": Path("docs/operations/criteria-for-opening-containing-or-rejecting-new-support-surfaces.md"),
+    "examples": Path("docs/operations/support-surface-expansion-decision-rules-and-examples.md"),
+    "discipline": Path("docs/operations/tooling-evolution-patterns-and-repository-extension-discipline.md"),
+}
+
+text = {name: path.read_text() for name, path in paths.items()}
+issues = []
+
+if "support-surface-expansion-decision-rules-and-examples.md" not in text["criteria"]:
+    issues.append("criteria doc does not link to the examples/decision-rules doc")
+if "criteria-for-opening-containing-or-rejecting-new-support-surfaces.md" not in text["examples"]:
+    issues.append("examples/decision-rules doc does not link back to the criteria doc")
+if "criteria-for-opening-containing-or-rejecting-new-support-surfaces.md" not in text["discipline"]:
+    issues.append("extension-discipline doc does not link to the C31 criteria doc")
+
+if issues:
+    print("support-surface expansion model docs are not cross-linked correctly:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("support-surface expansion model docs cross-link correctly")
 PY
 }
 
@@ -495,6 +599,7 @@ scripts = [
     "scripts/smoke-analytical-e2e.sh",
     "scripts/smoke-os-process-operational.sh",
     "scripts/smoke-restart-recovery.sh",
+    "scripts/ci-wait-ready.sh",
     "scripts/codegen-integrated-check.sh",
     "scripts/codegen-equivalence-check.sh",
     "scripts/repository-consistency-check.sh",
@@ -549,6 +654,7 @@ required = {
     "DEVELOPMENT.md",
     "docs/README.md",
     "docs/operations/README.md",
+    "docs/operations/documentary-ownership-and-canonical-navigation.md",
     "docs/operations/documentation-system-hardening.md",
     "docs/operations/documentation-governance-entrypoints-and-taxonomy.md",
     "docs/operations/repository-policy-and-lightweight-enforcement-2.md",
@@ -594,6 +700,269 @@ if missing:
     sys.exit(1)
 
 print(f"scripts catalog covers all Makefile script wrappers ({len(scripts)} scripts)")
+PY
+}
+
+check_workflow_owner_loop_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import sys
+
+docs = {
+    "DEVELOPMENT.md": [
+        "`make bootstrap`",
+        "`make check`",
+        "`make tdd`",
+        "`make verify`",
+        "`make smoke*`",
+        "`raccoon-cli`",
+        "`scripts/*.sh`",
+    ],
+    "docs/operations/developer-workflow-unification.md": [
+        "`make bootstrap`",
+        "`make check`",
+        "`make tdd`",
+        "`make verify`",
+        "`make smoke*`",
+        "`raccoon-cli`",
+        "`scripts/*.sh`",
+    ],
+    "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md": [
+        "`make bootstrap`",
+        "`make check`",
+        "`make tdd`",
+        "`make verify`",
+        "`make smoke*`",
+        "direct `raccoon-cli`",
+        "`scripts/*.sh`",
+    ],
+    "docs/operations/make-and-raccoon-cli-contract.md": [
+        "`make check`",
+        "`make tdd`",
+        "`make verify`",
+        "`make smoke*`",
+        "`raccoon-cli`",
+        "`scripts/*.sh`",
+    ],
+}
+
+issues = []
+for rel, tokens in docs.items():
+    text = Path(rel).read_text()
+    for token in tokens:
+        if token not in text:
+            issues.append(f"{rel}: missing {token}")
+
+if issues:
+    print("workflow owner docs drifted from the minimal public loop/boundary contract:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"workflow owner docs preserve the minimal public loop and boundary ({len(docs)} docs)")
+PY
+}
+
+check_makefile_raccoon_wrapper_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+doc = Path("docs/operations/makefile-targets-reference-and-conventions.md").read_text()
+refs = Path("tools/raccoon-cli/src/command_refs.rs").read_text()
+
+consts = dict(re.findall(r'pub\(crate\) const ([A-Z_]+): &str = "([^"]+)";', refs))
+required_consts = {
+    "CHECK_ARCH": "arch-guard",
+    "CHECK_DRIFT": "drift-detect",
+    "INSPECT_COVERAGE": "coverage-map",
+    "CHANGE_TDD": "tdd",
+    "CHANGE_BRIEFING": "briefing",
+    "CHANGE_RECOMMEND": "recommend",
+}
+
+issues = []
+for const_name, target in required_consts.items():
+    command = consts.get(const_name)
+    if command is None:
+        issues.append(f"tools/raccoon-cli/src/command_refs.rs: missing {const_name}")
+        continue
+    suffix = command.removeprefix("raccoon-cli ")
+    expected_recipe = f"$(RACCOON_BIN) --project-root . {suffix}"
+    block_match = re.search(rf"(?ms)^{re.escape(target)}:.*?\n((?:\t.*\n)+)", makefile)
+    if not block_match:
+        issues.append(f"Makefile: could not locate recipe for `{target}`")
+        continue
+    if expected_recipe not in block_match.group(1):
+        issues.append(f"Makefile: `{target}` no longer wraps `{command}`")
+    if f"`{command}`" not in doc:
+        issues.append(f"docs/operations/makefile-targets-reference-and-conventions.md: missing `{command}`")
+
+quality_gate_expectations = {
+    "quality-gate": "$(RACCOON_BIN) --project-root . check gate",
+    "quality-gate-ci": "$(RACCOON_BIN) --project-root . check gate --profile ci --json",
+    "quality-gate-deep": "$(RACCOON_BIN) --project-root . check gate --profile deep",
+}
+for target, expected_recipe in quality_gate_expectations.items():
+    block_match = re.search(rf"(?ms)^{re.escape(target)}:.*?\n((?:\t.*\n)+)", makefile)
+    if not block_match:
+        issues.append(f"Makefile: could not locate recipe for `{target}`")
+        continue
+    if expected_recipe not in block_match.group(1):
+        issues.append(f"Makefile: `{target}` no longer wraps the grouped `check gate` taxonomy")
+
+if "`raccoon-cli check gate`" not in doc:
+    issues.append("docs/operations/makefile-targets-reference-and-conventions.md: missing `raccoon-cli check gate`")
+
+if issues:
+    print("Makefile to raccoon-cli wrapper contract drift detected:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("Makefile raccoon wrappers stay aligned with grouped command refs and public docs")
+PY
+}
+
+check_scripts_catalog_contract_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+catalog = Path("docs/operations/scripts-catalog-and-usage-guide.md").read_text()
+
+targets = set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, re.M))
+wrapper_pairs = set(
+    (
+        target,
+        script,
+    )
+    for target, script in re.findall(
+        r"(?ms)^([A-Za-z0-9_.-]+):.*?\n(?:\t.*\n)*?\t@\./(scripts/[^\s\\]+?\.sh)",
+        makefile,
+    )
+    if not target.startswith(".")
+)
+
+documented_pairs = set()
+documented_targets = set()
+documented_scripts = set()
+
+for line in catalog.splitlines():
+    if not line.startswith("|"):
+        continue
+    cols = [part.strip() for part in line.split("|")[1:-1]]
+    if len(cols) < 3:
+        continue
+    canonical_cell = cols[1]
+    script_cell = cols[2]
+    row_targets = set(re.findall(r"make ([A-Za-z0-9_.-]+)", canonical_cell))
+    row_scripts = set(re.findall(r"(scripts/[A-Za-z0-9_./-]+\.sh)", script_cell))
+    if row_targets:
+        documented_targets |= row_targets
+    if row_scripts:
+        documented_scripts |= row_scripts
+    for target in row_targets:
+        for script in row_scripts:
+            documented_pairs.add((target, script))
+
+issues = []
+for target, script in sorted(wrapper_pairs):
+    if (target, script) not in documented_pairs:
+        issues.append(
+            f"docs/operations/scripts-catalog-and-usage-guide.md: missing row for `make {target}` -> `{script}`"
+        )
+
+for target in sorted(documented_targets):
+    if target not in targets:
+        issues.append(
+            f"docs/operations/scripts-catalog-and-usage-guide.md: references nonexistent `make {target}`"
+        )
+
+for script in sorted(documented_scripts):
+    path = Path(script)
+    if not path.exists():
+        issues.append(f"docs/operations/scripts-catalog-and-usage-guide.md: references missing `{script}`")
+    elif not path.is_file() or not path.stat().st_mode & 0o111:
+        issues.append(f"docs/operations/scripts-catalog-and-usage-guide.md: `{script}` is not executable")
+
+if issues:
+    print("scripts catalog drift detected against the real Make/script contract:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print("scripts catalog preserves the real Make target to script mapping")
+PY
+}
+
+check_canonical_smoke_taxonomy_alignment() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+targets = sorted(
+    target
+    for target in set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, re.M))
+    if target == "smoke" or target.startswith("smoke-")
+)
+
+required = [target for target in targets if target != "smoke-help"]
+docs = {
+    "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md": required,
+    "docs/operations/makefile-targets-reference-and-conventions.md": required,
+    "docs/operations/operational-proof-entrypoints-and-ownership.md": required,
+    "docs/operations/smoke-and-operational-harness-governance.md": required,
+}
+
+issues = []
+for rel, expected_targets in docs.items():
+    text = Path(rel).read_text()
+    for target in expected_targets:
+        token = f"`make {target}`"
+        if token not in text:
+            issues.append(f"{rel}: missing {token}")
+
+if issues:
+    print("canonical smoke-taxonomy docs are not aligned with Makefile:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"canonical smoke-taxonomy docs aligned with Makefile ({len(required)} targets across {len(docs)} docs)")
+PY
+}
+
+check_direct_smoke_script_claims() {
+    python3 - <<'PY'
+from pathlib import Path
+import re
+import sys
+
+makefile = Path("Makefile").read_text()
+targets = set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, re.M))
+scripts = sorted(Path("scripts").glob("smoke*.sh"))
+issues = []
+
+for path in scripts:
+    text = path.read_text()
+    for target in sorted(set(re.findall(r"`make\s+([A-Za-z0-9_.-]+)`", text))):
+        if target not in targets:
+            issues.append(f"{path.as_posix()}: claims nonexistent `make {target}`")
+
+if issues:
+    print("smoke scripts claim nonexistent Makefile entrypoints:")
+    for item in issues:
+        print(f"  - {item}")
+    sys.exit(1)
+
+print(f"smoke scripts only claim real Makefile entrypoints ({len(scripts)} scripts)")
 PY
 }
 
@@ -664,6 +1033,9 @@ run_check "active-doc-indexes" check_active_doc_indexes || overall_status=1
 run_check "health-model-cross-links" check_health_model_cross_links || overall_status=1
 run_check "support-surface-lifecycle-cross-links" check_support_surface_lifecycle_cross_links || overall_status=1
 run_check "repository-platform-model-cross-links" check_repository_platform_model_cross_links || overall_status=1
+run_check "prioritization-model-cross-links" check_prioritization_model_cross_links || overall_status=1
+run_check "strategic-checkpoint-model-cross-links" check_strategic_checkpoint_model_cross_links || overall_status=1
+run_check "support-surface-expansion-model-cross-links" check_support_surface_expansion_model_cross_links || overall_status=1
 run_check "stage-report-naming" check_stage_report_naming || overall_status=1
 run_check "stage-report-shape" check_stage_report_shape || overall_status=1
 run_check "stage-index-alignment" check_stage_index_alignment || overall_status=1
@@ -673,6 +1045,11 @@ run_check "makefile-script-wrappers" check_makefile_script_wrappers || overall_s
 run_check "public-scripts-self-describing" check_public_scripts_are_self_describing || overall_status=1
 run_check "bootstrap-entrypoints-alignment" check_bootstrap_entrypoints_alignment || overall_status=1
 run_check "makefile-script-catalog-alignment" check_makefile_script_catalog_alignment || overall_status=1
+run_check "workflow-owner-loop-alignment" check_workflow_owner_loop_alignment || overall_status=1
+run_check "makefile-raccoon-wrapper-alignment" check_makefile_raccoon_wrapper_alignment || overall_status=1
+run_check "scripts-catalog-contract-alignment" check_scripts_catalog_contract_alignment || overall_status=1
+run_check "canonical-smoke-taxonomy-alignment" check_canonical_smoke_taxonomy_alignment || overall_status=1
+run_check "direct-smoke-script-claims" check_direct_smoke_script_claims || overall_status=1
 run_check "cli-governance-surface" check_cli_governance_surface || overall_status=1
 
 TOTAL_COUNT=$((PASS_COUNT + FAIL_COUNT))

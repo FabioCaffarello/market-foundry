@@ -2,6 +2,7 @@ mod analyzers;
 mod application;
 mod cli;
 mod codeintel;
+mod command_refs;
 mod error;
 mod gate;
 mod io;

@@ -21,4 +21,5 @@ type ExecutionGateway interface {
 type ExecutionControlGateway interface {
 	GetExecutionControl(context.Context, executionclient.ExecutionControlQuery) (executionclient.ExecutionControlReply, *problem.Problem)
 	SetExecutionControl(context.Context, executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem)
+	GetActivationSurface(context.Context, executionclient.ActivationSurfaceQuery) (executionclient.ActivationSurfaceReply, *problem.Problem)
 }

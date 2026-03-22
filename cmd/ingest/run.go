@@ -20,6 +20,12 @@ func Run(config settings.AppConfig) {
 
 	logger.Info("ingest starting")
 
+	// ── Phase 0: Preflight — fail fast on missing preconditions ────
+	bootstrap.RunPreflight("ingest", logger, []bootstrap.PreflightCheck{
+		bootstrap.NATSEnabledCheck(config),
+		bootstrap.NATSURLFormatCheck(config),
+	})
+
 	engine, err := actorcommon.NewDefaultEngine()
 	if err != nil {
 		logger.Error("create actor engine", "error", err)

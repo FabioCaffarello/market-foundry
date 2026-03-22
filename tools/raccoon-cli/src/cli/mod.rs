@@ -6,9 +6,14 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     name = "raccoon-cli",
     about = "Repository support CLI for market-foundry",
     long_about = "Repository support CLI for market-foundry.\n\n\
-        Raccoon CLI is an operational tool for repository maintenance, validation,\n\
-        and change analysis. It is not a product control plane and should remain\n\
-        isolated from the live Go runtime.\n\n\
+        Raccoon CLI is the repository intelligence layer for maintenance, validation,\n\
+        inspection, and safe-change analysis. It is not a product control plane,\n\
+        should remain isolated from the live Go runtime, and must not become a\n\
+        parallel runtime orchestrator.\n\n\
+        Contract with `make`:\n  \
+          `make` owns the canonical public workflow and runtime/proof entrypoints\n  \
+          `raccoon-cli` owns expert inspection, impact analysis, tdd guidance,\n  \
+          drift detection, and architecture safety\n\n\
         Canonical taxonomy:\n  \
           check    repository guard rails and audits\n  \
           inspect  read-only structural and contract analysis\n  \
@@ -36,7 +41,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
         raccoon-cli legacy runtime-smoke\n\n\
         Compatibility:\n  \
         Existing flat commands such as `doctor`, `quality-gate`, `symbol-trace`,\n  \
-        `tdd`, and `runtime-smoke` remain supported as hidden compatibility aliases.\n\n\
+        `tdd`, and `runtime-smoke` remain supported as hidden compatibility aliases.\n\
+        New guidance should prefer grouped commands and Makefile wrappers.\n\n\
         Operational proof rule:\n  \
         Prefer `make smoke*` for runtime proof. The CLI deep profile and runtime-smoke\n  \
         helper are compatibility surfaces, not the proof-of-record operator entrypoint."
@@ -240,7 +246,7 @@ pub(crate) enum CheckCommands {
         visible_alias = "topology-doctor",
         after_help = "Examples:\n  \
             raccoon-cli check topology\n  \
-            raccoon-cli topology-doctor"
+            raccoon-cli check topology"
     )]
     Topology,
     /// Audit messaging contracts and transport invariants
@@ -249,7 +255,7 @@ pub(crate) enum CheckCommands {
         visible_alias = "contract-audit",
         after_help = "Examples:\n  \
             raccoon-cli check contracts\n  \
-            raccoon-cli contract-audit"
+            raccoon-cli check contracts"
     )]
     Contracts,
     /// Validate runtime binding declarations and routing alignment
@@ -258,7 +264,7 @@ pub(crate) enum CheckCommands {
         visible_alias = "runtime-bindings",
         after_help = "Examples:\n  \
             raccoon-cli check bindings\n  \
-            raccoon-cli runtime-bindings"
+            raccoon-cli check bindings"
     )]
     Bindings,
     /// Enforce clean-architecture layer boundaries
@@ -282,7 +288,7 @@ pub(crate) enum CheckCommands {
               11. Exported signature leaks (domain/application funcs must not expose infra types)",
         after_help = "Examples:\n  \
             raccoon-cli check arch\n  \
-            raccoon-cli arch-guard"
+            raccoon-cli check arch"
     )]
     Arch,
     /// Detect drift between docs, configs, compose, and source wiring
@@ -300,7 +306,7 @@ pub(crate) enum CheckCommands {
               6. Compose ↔ Profiles: profile assignments vs Makefile up-* targets",
         after_help = "Examples:\n  \
             raccoon-cli check drift\n  \
-            raccoon-cli drift-detect"
+            raccoon-cli check drift"
     )]
     Drift,
     /// Run the consolidated repository guard-rail profile
@@ -316,7 +322,7 @@ pub(crate) enum CheckCommands {
         after_help = "Examples:\n  \
             raccoon-cli check gate\n  \
             raccoon-cli check gate --profile ci --json\n  \
-            raccoon-cli quality-gate --profile deep"
+            raccoon-cli check gate --profile deep"
     )]
     Gate(QualityGateArgs),
 }
@@ -339,7 +345,7 @@ pub(crate) enum InspectCommands {
         after_help = "Examples:\n  \
             raccoon-cli inspect symbol ConfigSet\n  \
             raccoon-cli inspect symbol ConfigSet --lsp\n  \
-            raccoon-cli symbol-trace ConfigSet"
+            raccoon-cli inspect symbol ConfigSet"
     )]
     Symbol(SymbolTraceArgs),
     /// Show gopls-backed enrichment for a symbol
@@ -353,7 +359,7 @@ pub(crate) enum InspectCommands {
             LSP enrichment was unavailable.",
         after_help = "Examples:\n  \
             raccoon-cli inspect lsp ConfigSet\n  \
-            raccoon-cli lsp-enrich ConfigSet"
+            raccoon-cli inspect lsp ConfigSet"
     )]
     Lsp(LspEnrichArgs),
     /// Map where contracts are defined, propagated, consumed, and validated
@@ -385,7 +391,7 @@ pub(crate) enum InspectCommands {
               - Coverage gaps that need attention",
         after_help = "Examples:\n  \
             raccoon-cli inspect coverage\n  \
-            raccoon-cli coverage-map"
+            raccoon-cli inspect coverage"
     )]
     Coverage,
 }
@@ -403,7 +409,7 @@ pub(crate) enum ChangeCommands {
         after_help = "Examples:\n  \
             raccoon-cli change impact internal/domain/configctl/config.go\n  \
             raccoon-cli change impact ConfigSet --lsp\n  \
-            raccoon-cli impact-map"
+            raccoon-cli change impact"
     )]
     Impact(ImpactMapArgs),
     /// Generate impact-driven validation guidance for a change set
@@ -420,7 +426,7 @@ pub(crate) enum ChangeCommands {
         after_help = "Examples:\n  \
             raccoon-cli change tdd internal/adapters/nats/codec.go\n  \
             raccoon-cli change tdd\n  \
-            raccoon-cli tdd"
+            raccoon-cli change tdd"
     )]
     Tdd(TddArgs),
     /// Generate a concise, auditable briefing for an area or change set
@@ -433,7 +439,7 @@ pub(crate) enum ChangeCommands {
         after_help = "Examples:\n  \
             raccoon-cli change briefing internal/domain/configctl/config.go\n  \
             raccoon-cli change briefing\n  \
-            raccoon-cli briefing"
+            raccoon-cli change briefing"
     )]
     Briefing(BriefingArgs),
     /// Recommend what to validate after a change
@@ -445,7 +451,7 @@ pub(crate) enum ChangeCommands {
         after_help = "Examples:\n  \
             raccoon-cli change recommend\n  \
             raccoon-cli change recommend --baseline snapshot.json\n  \
-            raccoon-cli recommend"
+            raccoon-cli change recommend"
     )]
     Recommend(RecommendArgs),
     /// Evaluate rename safety before touching shared contracts or symbols
@@ -458,7 +464,7 @@ pub(crate) enum ChangeCommands {
         after_help = "Examples:\n  \
             raccoon-cli change rename ConfigSet\n  \
             raccoon-cli change rename ConfigSet --to QualityConfigSet --lsp\n  \
-            raccoon-cli rename-safety ConfigSet"
+            raccoon-cli change rename ConfigSet"
     )]
     Rename(RenameSafetyArgs),
 }

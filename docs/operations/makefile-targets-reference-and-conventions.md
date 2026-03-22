@@ -23,8 +23,15 @@ Use `make live` for the fastest official bring-up path and `make up` +
 - `make` owns the stable public workflow contract for repository support.
 - `scripts/*.sh` are lower-level harnesses that sit behind `make`; invoke them directly only for debugging, custom waits, or harness work.
 - Direct `raccoon-cli` usage is canonical for expert inspection and tooling governance, but it is not the primary runtime/operator surface.
+- Promoted Make wrappers should call the grouped `raccoon-cli` taxonomy, not the flat compatibility aliases.
 - Raw `docker compose`, `go`, and `cargo` commands remain substrate interfaces and should not be documented as competing first-choice repository workflows when a Make target already exists.
 - Module-aware Go targets now fail the Make invocation on the first failing module instead of allowing a later successful module to mask the failure.
+
+Contract shorthand:
+
+- `make` = public workflow contract
+- `raccoon-cli` = strategic intelligence layer
+- `scripts/*.sh` = execution detail
 
 ## Naming Conventions
 
@@ -130,13 +137,21 @@ and [`README.md`](README.md).
 | `make smoke-analytical` | Analytical path proof |
 | `make smoke-round-trip` | Full persistence round-trip proof |
 | `make smoke-live-stack` | Live stack and gateway verification proof |
+| `make smoke-activation` | Activation control-surface proof |
+| `make smoke-composed` | Composed pipeline proof without the full stack |
 | `make smoke-operational` | OS-process operational smoke |
 | `make smoke-restart-recovery` | Compose-level restart and recovery smoke |
 | `make diag` | Diagnostic snapshot |
 
+| `make ci-smoke` | CI-safe stackless smoke suite |
+| `make ci-preflight` | Local pre-push gate: tests + consistency + quality gate + stackless smoke |
+| `make ci-analytical` | CI analytical gate: unit tests + smoke-analytical |
+| `make ci-wait-ready` | Infrastructure readiness polling for stack-dependent smokes |
+
 Operational proof rule:
 `make smoke*` owns runtime proof. `make live*` may orchestrate startup and then
 delegate into those proofs, but it is not the canonical proof-of-record surface.
+`make ci-*` composes canonical surfaces for CI integration and local preflight.
 
 ### Architecture And Analysis
 
@@ -151,6 +166,15 @@ delegate into those proofs, but it is not the canonical proof-of-record surface.
 | `make briefing` | Generate raccoon briefing |
 | `make recommend` | Generate recommendations from current diff or supplied targets |
 
+These targets are intentionally thin wrappers over the grouped CLI taxonomy:
+
+- `make arch-guard` -> `raccoon-cli check arch`
+- `make drift-detect` -> `raccoon-cli check drift`
+- `make coverage-map` -> `raccoon-cli inspect coverage`
+- `make tdd` -> `raccoon-cli change tdd`
+- `make briefing` -> `raccoon-cli change briefing`
+- `make recommend` -> `raccoon-cli change recommend`
+
 ### Raccoon CLI
 
 | Target | Purpose |
@@ -160,6 +184,9 @@ delegate into those proofs, but it is not the canonical proof-of-record surface.
 | `make quality-gate` | Run fast quality gate profile |
 | `make quality-gate-ci` | Run CI profile with JSON output |
 | `make quality-gate-deep` | Run deep profile |
+
+These remain Makefile entrypoints even though they delegate to `raccoon-cli check gate`.
+That preserves one public workflow answer while still exposing expert direct CLI usage when needed.
 
 ### Codegen
 

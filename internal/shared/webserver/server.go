@@ -3,6 +3,7 @@ package webserver
 import (
 	"context"
 	"errors"
+	"internal/shared/metrics"
 	"internal/shared/settings"
 	"net/http"
 
@@ -49,7 +50,13 @@ func (w *WebServer) RegisterRoutes(routes []Route) {
 			continue
 		}
 
-		w.router.HandlerFunc(route.Method, route.Path, route.Handler)
+		handler := route.Handler
+		// Instrument all handlers except /metrics to avoid self-observation noise.
+		if route.Path != "/metrics" {
+			handler = metrics.InstrumentHTTPHandler(route.Method, route.Path, handler)
+		}
+
+		w.router.HandlerFunc(route.Method, route.Path, handler)
 	}
 }
 

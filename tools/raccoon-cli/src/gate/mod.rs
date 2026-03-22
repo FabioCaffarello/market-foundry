@@ -1,4 +1,5 @@
 use crate::analyzers;
+use crate::command_refs;
 use crate::error::Result;
 use crate::models::{CheckResult, CheckStatus, Finding, Report, Severity};
 use crate::output::OutputFormat;
@@ -551,26 +552,40 @@ fn compute_verdict(steps: &[StepResult]) -> Verdict {
 fn step_remediation_hint(step_name: &str) -> String {
     match step_name {
         "doctor" => {
-            "run `raccoon-cli doctor` — check go.work, dirs, compose, and config files".to_string()
+            format!(
+                "run `{}` — check go.work, dirs, compose, and config files",
+                command_refs::CHECK_REPO
+            )
         }
         "topology-doctor" => {
-            "run `raccoon-cli topology-doctor` — check configs, compose, and source wiring"
-                .to_string()
+            format!(
+                "run `{}` — check configs, compose, and source wiring",
+                command_refs::CHECK_TOPOLOGY
+            )
         }
         "contract-audit" => {
-            "run `raccoon-cli contract-audit` — check messaging contracts and invariants"
-                .to_string()
+            format!(
+                "run `{}` — check messaging contracts and invariants",
+                command_refs::CHECK_CONTRACTS
+            )
         }
         "runtime-bindings" => {
-            "run `raccoon-cli runtime-bindings` — check config → NATS JetStream → observation/evidence routing"
-                .to_string()
+            format!(
+                "run `{}` — check config → NATS JetStream → observation/evidence routing",
+                command_refs::CHECK_BINDINGS
+            )
         }
         "arch-guard" => {
-            "run `raccoon-cli arch-guard` — check clean architecture layer boundaries".to_string()
+            format!(
+                "run `{}` — check clean architecture layer boundaries",
+                command_refs::CHECK_ARCH
+            )
         }
         "drift-detect" => {
-            "run `raccoon-cli drift-detect` — check cross-layer declaration/config/source alignment"
-                .to_string()
+            format!(
+                "run `{}` — check cross-layer declaration/config/source alignment",
+                command_refs::CHECK_DRIFT
+            )
         }
         "runtime-smoke" => {
             "[legacy helper] use the canonical `make smoke*` surface (`make smoke`, `make smoke-multi`, `make smoke-analytical`, `make smoke-operational`, or `make smoke-restart-recovery`)".to_string()
@@ -1397,13 +1412,13 @@ mod tests {
     #[test]
     fn remediation_hints_are_specific() {
         let doctor = step_remediation_hint("doctor");
-        assert!(doctor.contains("raccoon-cli doctor"));
+        assert!(doctor.contains("raccoon-cli check repo"));
 
         let topo = step_remediation_hint("topology-doctor");
-        assert!(topo.contains("raccoon-cli topology-doctor"));
+        assert!(topo.contains("raccoon-cli check topology"));
 
         let contract = step_remediation_hint("contract-audit");
-        assert!(contract.contains("raccoon-cli contract-audit"));
+        assert!(contract.contains("raccoon-cli check contracts"));
 
         let smoke = step_remediation_hint("runtime-smoke");
         assert!(smoke.contains("make smoke"));
@@ -1720,7 +1735,7 @@ mod tests {
     #[test]
     fn runtime_bindings_remediation_hint_is_specific() {
         let hint = step_remediation_hint("runtime-bindings");
-        assert!(hint.contains("raccoon-cli runtime-bindings"));
+        assert!(hint.contains("raccoon-cli check bindings"));
     }
 
     // ── Fail-fast behavior ────────────────────────────────────────────

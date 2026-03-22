@@ -15,6 +15,10 @@ where to land changes without creating another parallel route.
 | `make smoke` | canonical | baseline single-symbol operational proof | operational tooling owner | first proof to reach for after `make up` + `make seed` |
 | `make smoke-multi` | canonical | broad multi-symbol operational proof | operational tooling owner | default broader proof for governed multi-symbol behavior |
 | `make smoke-analytical` | canonical | analytical writer/reader proof | operational tooling owner | proves ClickHouse-backed analytical path |
+| `make smoke-round-trip` | canonical | persistence round-trip proof | operational tooling owner | proves adapter → NATS → ClickHouse → HTTP continuity |
+| `make smoke-live-stack` | canonical | live-stack verification proof | operational tooling owner | proves the specialized live-stack and gateway verification path |
+| `make smoke-activation` | canonical | activation control-surface proof | operational tooling owner | proves activation transitions against the live control surface |
+| `make smoke-composed` | canonical | composed pipeline proof without the full stack | operational tooling owner | proves the composed execution pipeline via Go-test-backed smoke |
 | `make smoke-operational` | canonical | process-isolation and halt/resume operational proof | operational tooling owner | proves container/process-level operational behavior |
 | `make smoke-restart-recovery` | canonical | restart/recovery proof | operational tooling owner | proves restart resilience and durable recovery |
 | `make smoke-help` | supporting | proof selection and operator guidance | operational tooling owner | discoverability surface only; does not replace proof-of-record targets |
@@ -86,12 +90,13 @@ Do not own:
 
 Owns:
 
-- analysis, guard rails, and compatibility helper behavior.
+- analysis, guard rails, strategic inspection, and compatibility helper behavior.
 
 Does not own:
 
 - the canonical runtime proof contract;
 - live-stack orchestration as a primary operator surface.
+- any new proof-of-record surface that competes with `make smoke*`.
 
 ### `docs/operations/`
 
@@ -108,6 +113,10 @@ Owns:
 | prove the baseline runtime flow | `make smoke` |
 | prove governed multi-symbol runtime behavior | `make smoke-multi` |
 | prove analytical write/read behavior | `make smoke-analytical` |
+| prove adapter → NATS → ClickHouse → HTTP continuity | `make smoke-round-trip` |
+| prove the specialized live-stack verification path | `make smoke-live-stack` |
+| prove activation transitions and control-surface behavior | `make smoke-activation` |
+| prove the composed execution pipeline without the full stack | `make smoke-composed` |
 | prove halt/resume and process isolation behavior | `make smoke-operational` |
 | prove restart/recovery resilience | `make smoke-restart-recovery` |
 | bring up a stack before proving behavior | `make up` + `make seed*` or `make live*` |

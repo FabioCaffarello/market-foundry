@@ -49,6 +49,7 @@ flows are all sunset or consolidation signals.
 | smoke/integration | `make smoke-operational` | `scripts/smoke-os-process-operational.sh` | Prove isolated-process operational behavior | OS-process/container operational proof |
 | smoke/integration | `make smoke-restart-recovery` | `scripts/smoke-restart-recovery.sh` | Prove restart/recovery resilience | Durable consumer and gate recovery proof |
 | local dev | `make diag` | `scripts/diag-check.sh` | Capture a quick runtime health snapshot | Supports `--local` |
+| local dev | `make ci-wait-ready` | `scripts/ci-wait-ready.sh` | Poll ClickHouse and gateway readiness before stack-dependent smokes | Shared readiness helper for CI and local pre-smoke setup |
 | docs/tooling | `make repo-consistency-check` | `scripts/repository-consistency-check.sh` | Run lightweight repository-policy and support-surface checks | Canonical repository-policy guard rail |
 | docs/tooling | `make stage-help`, `make stage-scaffold`, `make stage-status`, `make stage-check` | `scripts/stage-tooling.sh` | Scaffold, inspect continuity, or validate one governed stage | Lightweight stage-support helper, not a workflow engine |
 | docs/tooling | `make codegen-integrated` | `scripts/codegen-integrated-check.sh` | Verify governed integrated slices | Golden-to-target check |
@@ -174,6 +175,19 @@ Use directly when:
 
 - you want a quick health snapshot
 - services are running on the host rather than through compose exec
+
+### `scripts/ci-wait-ready.sh`
+
+Common forms:
+
+- `./scripts/ci-wait-ready.sh`
+- `./scripts/ci-wait-ready.sh --timeout 180`
+- `./scripts/ci-wait-ready.sh --skip-clickhouse`
+
+Use directly when:
+
+- you need pre-smoke readiness polling outside the higher-level Make flow
+- you want to tune readiness waiting without editing CI or smoke harnesses
 
 ### Smoke scripts
 

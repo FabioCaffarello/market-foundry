@@ -37,11 +37,26 @@ family:
 - `make smoke`
 - `make smoke-multi`
 - `make smoke-analytical`
+- `make smoke-round-trip`
+- `make smoke-live-stack`
+- `make smoke-activation`
+- `make smoke-composed`
 - `make smoke-operational`
 - `make smoke-restart-recovery`
 
 Each target proves a distinct runtime property and is the authoritative
 repository entrypoint for that proof.
+
+### 1b. `make ci-*` owns CI integration and preflight
+
+The CI integration surface is:
+
+- `make ci-smoke` — stackless smoke suite safe to run in any CI environment
+- `make ci-preflight` — local pre-push gate: tests + consistency + quality + stackless smoke
+- `make ci-analytical` — full analytical gate: unit tests + compose-backed smoke-analytical
+- `make ci-wait-ready` — infrastructure readiness polling before stack-dependent smokes
+
+These targets compose canonical surfaces; they do not define new proof semantics.
 
 ### 2. `make live*` is orchestration, not proof-of-record
 
@@ -87,7 +102,7 @@ belongs to `make smoke*`.
 
 | Class | Definition | Current surfaces |
 |---|---|---|
-| canonical surface | proof-of-record or public repository entrypoint | `make smoke*`, `make up`, `make seed*`, `make diag` |
+| canonical surface | proof-of-record or public repository entrypoint | `make smoke*`, `make ci-*`, `make up`, `make seed*`, `make diag` |
 | ergonomic wrapper | convenience layer that composes canonical surfaces | `make live*`, `stack-*` |
 | tolerated legacy | retained for compatibility or narrow expert use | direct `scripts/*.sh`, `raccoon-cli legacy runtime-smoke`, flat `runtime-smoke` alias, `quality-gate --profile deep` runtime helper |
 | route to discontinue | surface that should not receive new first-choice documentation or expanded ownership | direct script usage as primary docs, `make check-deep` as runtime proof, direct CLI runtime helper as operational proof, new parallel runtime front doors |

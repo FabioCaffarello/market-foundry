@@ -97,6 +97,16 @@ func NewActivationSurface(adapter AdapterState, gate ControlGate, creds Credenti
 	}
 }
 
+// ActivationDimensions holds the process-local activation dimensions (adapter + credentials)
+// that the execute binary publishes to KV at startup. These are immutable per process lifetime.
+// The store query responder reads these to compose the full ActivationSurface.
+type ActivationDimensions struct {
+	Adapter     AdapterState    `json:"adapter"`
+	Credentials CredentialState `json:"credentials"`
+	ReportedAt  time.Time       `json:"reported_at"`
+	ReportedBy  string          `json:"reported_by"`
+}
+
 // IsLive reports whether this surface allows real venue execution.
 func (s ActivationSurface) IsLive() bool {
 	return s.Effective == ModeVenueLive

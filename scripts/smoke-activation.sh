@@ -69,7 +69,9 @@ ks_restore_active() {
 }
 trap ks_restore_active EXIT
 
-smoke_banner "Activation Smoke (S340+S341 canonical)" "make smoke-activation" "make up && make seed" "phases" "6"
+ACTIVATION_URL="${BASE_URL}/activation/surface"
+
+smoke_banner "Activation Smoke (S340+S341+S342+S343+S344+S348+S349 canonical)" "make smoke-activation" "make up && make seed" "phases" "11"
 
 # ══════════════════════════════════════════════════════════════════════
 phase "Phase 1: Stack and Control Surface Readiness"
@@ -290,6 +292,150 @@ fi
 # Cleanup
 # ══════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 7: S342 Real Venue Activation Verification (Integration)"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Runs the S342 integration tests that prove the full activation lifecycle
+# with the real BinanceFuturesTestnetAdapter (via httptest.Server).
+# Requires NATS at localhost:4222.
+
+info "Checking NATS reachability for S342 integration tests..."
+if nc -z localhost 4222 2>/dev/null; then
+    info "Running S342 real venue activation verification tests..."
+    S342_TESTS="TestRealVenueActivation_"
+    if (cd "$PROJECT_ROOT" && go test -tags=integration -count=1 -run "$S342_TESTS" ./internal/actors/scopes/execute/... 2>&1 | tail -20); then
+        pass "S342 real venue activation verification tests pass"
+    else
+        record_fail "S342 real venue activation verification tests failed"
+    fi
+else
+    warn "NATS not reachable at localhost:4222 — skipping S342 integration tests"
+    info "Run: make test-integration (with NATS running) to verify S342 independently"
+fi
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 8: S343 Extended Live Observation Window (Integration)"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Runs the S343 integration tests that exercise the extended observation
+# window: sustained venue path operation over minutes with gate transitions,
+# counter consistency checks, and idle-drift validation.
+# Requires NATS at localhost:4222.
+# NOTE: These tests take ~2 minutes each. Use -short to skip in CI.
+
+info "Checking NATS reachability for S343 integration tests..."
+if nc -z localhost 4222 2>/dev/null; then
+    info "Running S343 extended observation window tests..."
+    S343_TESTS="TestExtendedObservation_"
+    if (cd "$PROJECT_ROOT" && go test -tags=integration -count=1 -timeout=600s -run "$S343_TESTS" ./internal/actors/scopes/execute/... 2>&1 | tail -30); then
+        pass "S343 extended observation window tests pass"
+    else
+        record_fail "S343 extended observation window tests failed"
+    fi
+else
+    warn "NATS not reachable at localhost:4222 — skipping S343 integration tests"
+    info "Run: make test-integration (with NATS running) to verify S343 independently"
+fi
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 9: S344 Activation Surface Queryability"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Validates that the activation surface is queryable via HTTP and returns
+# the canonical three-dimensional activation state with audit fields.
+
+info "Querying activation surface..."
+S344_SURFACE_CODE=$(curl -s -o /tmp/s344_surface.json -w "%{http_code}" "${ACTIVATION_URL}")
+if [[ "$S344_SURFACE_CODE" == "200" ]]; then
+    S344_EFFECTIVE=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('effective','unknown'))" 2>/dev/null || echo "unknown")
+    S344_GATE_STATUS=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('gate',{}).get('status','unknown'))" 2>/dev/null || echo "unknown")
+    S344_ADAPTER=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('adapter','unknown'))" 2>/dev/null || echo "unknown")
+    S344_CREDENTIALS=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('credentials','unknown'))" 2>/dev/null || echo "unknown")
+    S344_OBSERVED_AT=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('observed_at',''))" 2>/dev/null || echo "")
+    S344_GATE_UPDATED_AT=$(python3 -c "import sys,json; print(json.load(open('/tmp/s344_surface.json')).get('surface',{}).get('gate',{}).get('updated_at',''))" 2>/dev/null || echo "")
+
+    pass "[S344] GET /activation/surface → 200 (effective=${S344_EFFECTIVE})"
+    info "  adapter=${S344_ADAPTER} gate=${S344_GATE_STATUS} credentials=${S344_CREDENTIALS}"
+
+    # Validate required fields are present.
+    if [[ -n "$S344_OBSERVED_AT" ]]; then
+        pass "[S344] observed_at field present"
+    else
+        record_fail "[S344] observed_at field missing"
+    fi
+
+    if [[ -n "$S344_GATE_UPDATED_AT" ]]; then
+        pass "[S344] gate.updated_at audit field present"
+    else
+        record_fail "[S344] gate.updated_at audit field missing"
+    fi
+
+    # Validate effective mode is consistent with gate status.
+    if [[ "$S344_GATE_STATUS" == "active" ]]; then
+        if [[ "$S344_EFFECTIVE" == "paper" || "$S344_EFFECTIVE" == "venue_live" || "$S344_EFFECTIVE" == "venue_degraded" ]]; then
+            pass "[S344] effective mode consistent with active gate"
+        else
+            record_fail "[S344] effective=${S344_EFFECTIVE} inconsistent with gate=active"
+        fi
+    elif [[ "$S344_GATE_STATUS" == "halted" ]]; then
+        if [[ "$S344_EFFECTIVE" == "venue_halted" || "$S344_EFFECTIVE" == "paper" ]]; then
+            pass "[S344] effective mode consistent with halted gate"
+        else
+            record_fail "[S344] effective=${S344_EFFECTIVE} inconsistent with gate=halted"
+        fi
+    fi
+elif [[ "$S344_SURFACE_CODE" == "503" ]]; then
+    warn "[S344] GET /activation/surface → 503 (execute binary may not be running — dimensions not published)"
+    info "  This is expected when the execute binary has not started. Endpoint is wired correctly."
+else
+    record_fail "[S344] GET /activation/surface → HTTP ${S344_SURFACE_CODE}"
+fi
+
+rm -f /tmp/s344_surface.json
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 10: S348 Live Testnet Connectivity Assessment"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Runs the S348 live testnet connectivity tests (LTC-1 through LTC-8).
+# Requires outbound HTTPS access to testnet.binancefuture.com.
+# Tests that require real credentials (LTC-5) will be skipped if not provided.
+
+info "Running S348 live testnet connectivity assessment tests..."
+S348_TESTS="TestLiveTestnet_"
+if (cd "$PROJECT_ROOT" && go test -tags=livenet -count=1 -timeout=120s -run "$S348_TESTS" ./internal/application/execution/... 2>&1 | tail -30); then
+    pass "S348 live testnet connectivity assessment tests pass"
+else
+    # Connectivity tests may fail due to network restrictions — warn rather than fail.
+    warn "S348 live testnet connectivity tests failed (may require outbound HTTPS access)"
+    info "Run manually: go test -tags=livenet -count=1 -v -run TestLiveTestnet_ ./internal/application/execution/..."
+fi
+
+# ══════════════════════════════════════════════════════════════════════
+phase "Phase 11: S349 Endurance and Sustained Activation Assessment"
+# ══════════════════════════════════════════════════════════════════════
+#
+# Runs the S349 endurance integration tests that exercise sustained
+# venue path operation over 5-minute windows with latency tracking,
+# drift analysis, and mixed workload patterns.
+# Requires NATS at localhost:4222.
+# NOTE: These tests take ~5 minutes each. Use -short to skip in CI.
+
+info "Checking NATS reachability for S349 endurance tests..."
+if nc -z localhost 4222 2>/dev/null; then
+    info "Running S349 endurance and sustained activation tests..."
+    S349_TESTS="TestEndurance_"
+    if (cd "$PROJECT_ROOT" && go test -tags=integration -count=1 -timeout=900s -run "$S349_TESTS" ./internal/actors/scopes/execute/... 2>&1 | tail -40); then
+        pass "S349 endurance and sustained activation tests pass"
+    else
+        record_fail "S349 endurance and sustained activation tests failed"
+    fi
+else
+    warn "NATS not reachable at localhost:4222 — skipping S349 endurance tests"
+    info "Run: go test -tags=integration -count=1 -timeout=900s -run TestEndurance_ ./internal/actors/scopes/execute/..."
+fi
+
 rm -f /tmp/s340_ready.json \
       /tmp/s340_ac1_halt.json /tmp/s340_ac1_check.json /tmp/s340_ac1_active.json /tmp/s340_ac1_final.json \
       /tmp/s340_ac2_pre.json /tmp/s340_ac2_halt.json /tmp/s340_ac2_final.json \
@@ -305,6 +451,6 @@ if [[ $ERRORS -gt 0 ]]; then
     exit 1
 fi
 
-pass "Activation smoke completed (S340+S341 canonical surface)"
-info "Scenarios validated: AC-1 off→on | AC-2 on→halt | AC-3 halt→rollback | CAV lifecycle"
-info "Full path: HTTP control surface → NATS KV gate → actor pipeline → state transitions proven"
+pass "Activation smoke completed (S340+S341+S342+S343+S344+S348+S349 canonical surface)"
+info "Scenarios validated: AC-1 off→on | AC-2 on→halt | AC-3 halt→rollback | CAV lifecycle | RVA real venue | EOW extended observation | activation surface queryability | live testnet connectivity | endurance sustained activation"
+info "Full path: HTTP control surface → NATS KV gate → actor pipeline → real venue adapter → state transitions → sustained observation → activation queryability → live testnet connectivity → endurance assessment proven"

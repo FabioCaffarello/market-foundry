@@ -13,6 +13,7 @@ import (
 	domainexec "internal/domain/execution"
 	"internal/shared/events"
 	"internal/shared/healthz"
+	"internal/shared/metrics"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -160,6 +161,19 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 			gateState = g
 		}
 		gateCancel()
+
+		// S344: Publish process-local activation dimensions to KV for gateway queryability.
+		dims := domainexec.ActivationDimensions{
+			Adapter:     a.cfg.AdapterState,
+			Credentials: a.cfg.CredentialState,
+			ReportedAt:  time.Now().UTC(),
+			ReportedBy:  "execute",
+		}
+		dimCtx, dimCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		if prob := a.controlStore.PutDimensions(dimCtx, dims); prob != nil {
+			a.logger.Warn("failed to publish activation dimensions", "error", prob.Message)
+		}
+		dimCancel()
 	}
 	surface := domainexec.NewActivationSurface(a.cfg.AdapterState, gateState, a.cfg.CredentialState)
 	a.logger.Info("activation surface resolved",
@@ -193,8 +207,11 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	// Gates 1+2: Kill switch and staleness guard.
 	verdict := a.safetyGate.Check(intent.Timestamp, time.Now().UTC())
 	if !verdict.Allowed {
+		// S361: Record gate verdict in Prometheus.
+		metrics.IncGateCheck(verdict.Reason, "blocked")
 		switch verdict.Reason {
 		case "kill_switch":
+			metrics.SetGateActive(false)
 			if tracker != nil {
 				tracker.Counter("skipped_halt").Add(1)
 			}
@@ -228,6 +245,9 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		}
 		return
 	}
+	// S361: Record allowed gate check.
+	metrics.IncGateCheck("all", "allowed")
+	metrics.SetGateActive(true)
 
 	// Gate 3: Submit to venue adapter with configurable timeout.
 	submitTimeout := a.cfg.SubmitTimeout

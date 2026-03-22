@@ -60,7 +60,7 @@ done
 # ── Phase 1: Credential check ────────────────────────────────────────
 
 phase "S316 Venue Integration Proof"
-info "Canonical entrypoint: make smoke-venue"
+info "Entrypoint class: direct expert script (no canonical Make wrapper)"
 
 if [[ "$DRY_RUN" == "true" ]]; then
     info "DRY RUN mode — skipping real venue tests"

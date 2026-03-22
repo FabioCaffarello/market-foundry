@@ -62,6 +62,8 @@ required_paths=(
     "DEVELOPMENT.md"
     "docs/README.md"
     "docs/operations/README.md"
+    "docs/operations/documentary-ownership-and-canonical-navigation.md"
+    "docs/operations/make-and-raccoon-cli-contract.md"
     "docs/operations/development-environment-architecture-and-lifecycle.md"
     "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md"
     "docs/operations/documentation-system-hardening.md"

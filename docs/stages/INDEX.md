@@ -47,7 +47,10 @@ Recent wave entrypoints:
 | Venue closure tranche | [S321](stage-s321-venue-closure-tranche-charter-report.md) | [S326](stage-s326-venue-progression-evidence-gate-report.md) |
 | Production wiring tranche | [S327](stage-s327-production-wiring-tranche-charter-report.md) | [S331](stage-s331-production-wiring-evidence-gate-report.md) |
 | Live stack integration wave | [S332](stage-s332-live-stack-integration-charter-report.md) | [S336](stage-s336-live-stack-evidence-gate-report.md) |
-| Venue activation wave | [S337](stage-s337-venue-activation-charter-report.md) | S342 (planned) |
+| Venue activation wave | [S337](stage-s337-venue-activation-charter-report.md) | [S346](stage-s346-venue-activation-evidence-gate-report.md) |
+| Production readiness assessment wave | [S347](stage-s347-production-readiness-assessment-charter-report.md) | [S352](stage-s352-production-readiness-assessment-gate-report.md) |
+| Operational foundation wave | [S353](stage-s353-operational-foundation-charter-report.md) | [S357](stage-s357-operational-foundation-evidence-gate-report.md) |
+| Strategy/signal integration wave | [S358](stage-s358-strategy-signal-integration-charter-report.md) | S363 (pending) |
 
 Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
 for the expected linking model between charter, execution, promoted docs, and
@@ -102,6 +105,15 @@ gate decisions.
 | [C26](stage-c26-periodic-review-model-for-repository-development-environment-report.md) | Periodic review model for repository development environment |
 | [C27](stage-c27-support-surface-sunset-consolidation-and-retirement-strategy-report.md) | Support-surface sunset, consolidation, and retirement strategy |
 | [C28](stage-c28-strategic-operating-model-for-the-repository-as-a-development-platform-report.md) | Strategic operating model for the repository as a development platform |
+| [C29](stage-c29-strategic-checkpoints-for-the-development-platform-report.md) | Strategic checkpoints for the development platform |
+| [C30](stage-c30-development-platform-readiness-model-for-future-foundry-waves-report.md) | Development-platform readiness model for future Foundry waves |
+| [C31](stage-c31-criteria-for-opening-containing-or-rejecting-new-support-surfaces-report.md) | Criteria for opening, containing, consolidating, or rejecting new support surfaces |
+| [C32](stage-c32-continuous-prioritization-model-for-the-development-platform-report.md) | Continuous prioritization model for the development platform |
+| [C33](stage-c33-canonical-workflow-hotspot-assessment-and-selection-report.md) | Canonical workflow hotspot assessment and selection |
+| [C34](stage-c34-canonical-workflow-taxonomy-convergence-report.md) | Canonical workflow taxonomy convergence |
+| [C35](stage-c35-documentary-topology-compression-and-canonical-navigation-hardening-report.md) | Documentary topology compression and canonical navigation hardening |
+| [C36](stage-c36-make-and-raccoon-cli-contract-hardening-report.md) | Make and raccoon-cli contract hardening |
+| [C37](stage-c37-development-platform-convergence-light-enforcement-report.md) | Development-platform convergence light enforcement |
 
 ## Phase 1: Foundation (S06–S10)
 
@@ -605,7 +617,7 @@ gate decisions.
 | [S335](stage-s335-kill-switch-live-and-canonical-smoke-report.md) | LSI-3: Kill-switch live and canonical smoke |
 | [S336](stage-s336-live-stack-evidence-gate-report.md) | LSI-4: Live stack evidence gate — formal wave closure |
 
-## Phase 33: Venue Activation Wave (S337–S342)
+## Phase 33: Venue Activation Wave (S337–S346)
 
 | Stage | Description |
 |---|---|
@@ -614,4 +626,39 @@ gate decisions.
 | [S339](stage-s339-canonical-activation-surface-report.md) | VA-2: Canonical activation surface and runtime controls |
 | [S340](stage-s340-venue-active-smoke-report.md) | VA-3: Venue-active smoke and acceptance scenarios |
 | [S341](stage-s341-controlled-activation-verification-report.md) | VA-4: Controlled activation verification with live venue path |
-| S342 (planned) | VA-5: Evidence gate final |
+| [S342](stage-s342-real-venue-activation-smoke-report.md) | VA-5: Real venue activation smoke |
+| [S343](stage-s343-extended-live-observation-window-report.md) | VA-6: Extended live observation window |
+| [S344](stage-s344-activation-state-queryability-report.md) | VA-7: Activation state queryability via gateway HTTP |
+| [S345](stage-s345-operational-runbook-validation-report.md) | VA-8: Operational runbook validation against real/testnet |
+| [S346](stage-s346-venue-activation-evidence-gate-report.md) | VA-9: Evidence gate — formal wave closure |
+
+## Phase 34: Production Readiness Assessment Wave (S347–S352)
+
+| Stage | Description |
+|---|---|
+| [S347](stage-s347-production-readiness-assessment-charter-report.md) | Production readiness assessment wave charter and scope freeze |
+| [S348](stage-s348-live-testnet-connectivity-assessment-report.md) | Live testnet connectivity and credential handling assessment |
+| [S349](stage-s349-endurance-and-sustained-activation-assessment-report.md) | Endurance and sustained activation assessment |
+| [S350](stage-s350-monitoring-and-alertability-assessment-report.md) | Monitoring and alertability assessment |
+| [S351](stage-s351-deployment-and-smoke-automation-assessment-report.md) | Deployment and smoke automation assessment |
+| [S352](stage-s352-production-readiness-assessment-gate-report.md) | Production readiness assessment gate (wave closure) |
+
+## Phase 35: Operational Foundation Wave (S353–S358)
+
+| Stage | Description |
+|---|---|
+| [S353](stage-s353-operational-foundation-charter-report.md) | Operational foundation wave charter and scope freeze |
+| [S354](stage-s354-metrics-and-operational-signals-foundation-report.md) | Metrics and operational signals foundation (OF-1 + OF-3) |
+| [S355](stage-s355-ci-smoke-integration-report.md) | OF-2: CI smoke integration and reproducibility hardening |
+| [S356](stage-s356-startup-credential-validation-report.md) | OF-4: Startup credential validation and operational preflight |
+| [S357](stage-s357-operational-foundation-evidence-gate-report.md) | OF-5: Operational foundation evidence gate |
+
+## Phase 36: Strategy/Signal Integration Wave (S358–S363)
+
+| Stage | Description |
+|---|---|
+| [S358](stage-s358-strategy-signal-integration-charter-report.md) | Strategy/signal integration wave charter and scope freeze |
+| [S359](stage-s359-source-selection-and-canonical-contract-report.md) | Source selection and canonical integration contract (SSI-1) |
+| [S360](stage-s360-controlled-source-to-execution-wiring-report.md) | Controlled source-to-execution wiring (SSI-2) |
+| [S361](stage-s361-explainability-and-runtime-controls-report.md) | Explainability and runtime controls for source-driven execution (SSI-3) |
+| [S362](stage-s362-end-to-end-domain-to-venue-slice-report.md) | End-to-end domain-to-venue vertical slice proof (SSI-4) |

@@ -43,9 +43,10 @@ type Registry struct {
 	VenueMarketOrderLatest natskit.ControlSpec
 
 	// ── Cross-Family (shared) ────────────────────────────────────
-	StatusLatest natskit.ControlSpec
-	ControlGet   natskit.ControlSpec
-	ControlSet   natskit.ControlSpec
+	StatusLatest         natskit.ControlSpec
+	ControlGet           natskit.ControlSpec
+	ControlSet           natskit.ControlSpec
+	ActivationSurfaceGet natskit.ControlSpec
 }
 
 func DefaultRegistry() Registry {
@@ -115,6 +116,12 @@ func DefaultRegistry() Registry {
 			Subject:     "execution.control.set",
 			RequestType: "execution.control.v1.set_request",
 			ReplyType:   "execution.control.v1.set_reply",
+			QueueGroup:  "execution.control",
+		},
+		ActivationSurfaceGet: natskit.ControlSpec{
+			Subject:     "execution.activation.surface",
+			RequestType: "execution.activation.v1.surface_request",
+			ReplyType:   "execution.activation.v1.surface_reply",
 			QueueGroup:  "execution.control",
 		},
 	}

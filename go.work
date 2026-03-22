@@ -1,7 +1,6 @@
 go 1.25.7
 
 use (
-	./codegen
 	./cmd/configctl
 	./cmd/derive
 	./cmd/execute
@@ -10,6 +9,7 @@ use (
 	./cmd/migrate
 	./cmd/store
 	./cmd/writer
+	./codegen
 	./internal/actors
 	./internal/adapters/clickhouse
 	./internal/adapters/exchanges

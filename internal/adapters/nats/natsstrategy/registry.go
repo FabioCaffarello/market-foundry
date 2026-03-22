@@ -152,3 +152,25 @@ func WriterSqueezeBreakoutEntryStrategyConsumer() natskit.ConsumerSpec {
 func StoreSqueezeBreakoutEntryStrategyConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec("store-strategy-squeeze-breakout-entry", "strategy.events.squeeze_breakout_entry.resolved.>", "strategy.events.v1.squeeze_breakout_entry_resolved", "STRATEGY_EVENTS")
 }
+
+// ── Execute Consumer Specs ────────────────────────────────────────
+// S360: Strategy-to-execution wiring — execute binary consumes strategy events
+// to produce ExecutionIntents via PaperOrderEvaluator.
+
+// ExecuteStrategyMeanReversionEntryConsumer defines the durable consumer spec for the execute binary
+// consuming mean reversion entry strategy events from STRATEGY_EVENTS.
+// S360: This is the canonical wiring point — strategy events enter the execution path here.
+func ExecuteStrategyMeanReversionEntryConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "execute-strategy-mean-reversion-entry",
+		Event: natskit.EventSpec{
+			Subject: "strategy.events.mean_reversion_entry.resolved.>",
+			Type:    "strategy.events.v1.mean_reversion_entry_resolved",
+			Stream: natskit.StreamSpec{
+				Name: "STRATEGY_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}

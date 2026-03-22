@@ -21,7 +21,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
 	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-status stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery \
-	ci-analytical seed seed-multi live live-check live-multi live-multi-check \
+	ci-analytical ci-smoke ci-preflight ci-wait-ready seed seed-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
 	migrate-up migrate-status migrate-validate \
 	codegen-check codegen-test codegen-integrated codegen-equivalence codegen-validate-all codegen-status \
@@ -91,23 +91,15 @@ docs: ## Show primary docs for workflows, targets, and tooling.
 	@printf "  DEVELOPMENT.md\n"
 	@printf "  docs/README.md\n"
 	@printf "  docs/operations/README.md\n"
+	@printf "  docs/operations/documentary-ownership-and-canonical-navigation.md\n"
+	@printf "  docs/operations/make-and-raccoon-cli-contract.md\n"
+	@printf "  docs/operations/documentation-governance-entrypoints-and-taxonomy.md\n"
 	@printf "  docs/operations/repository-metadata-indexes-and-developer-navigation-system.md\n"
 	@printf "  docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md\n"
-	@printf "  docs/operations/makefile-targets-reference-and-conventions.md\n"
-	@printf "  docs/operations/scripts-catalog-and-usage-guide.md\n"
-	@printf "  docs/operations/repository-maintainability-economics-and-structural-cost-control.md\n"
-	@printf "  docs/operations/tooling-evolution-patterns-and-repository-extension-discipline.md\n"
+	@printf "  docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md\n"
 	@printf "  docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md\n"
-	@printf "  docs/operations/repository-platform-governance-health-review-and-sustainability-model.md\n"
+	@printf "  docs/operations/development-platform-readiness-model-for-future-foundry-waves.md\n"
 	@printf "  docs/operations/long-term-documentation-and-operational-sustainability-model.md\n"
-	@printf "  docs/operations/developer-environment-strategic-health-model.md\n"
-	@printf "  docs/operations/repository-health-dimensions-signals-and-decision-usage.md\n"
-	@printf "  docs/operations/repository-sustainability-review-routines-and-entropy-control.md\n"
-	@printf "  docs/operations/periodic-review-model-for-repository-development-environment.md\n"
-	@printf "  docs/operations/repository-review-cadence-triggers-and-follow-through-rules.md\n"
-	@printf "  docs/operations/support-surface-sunset-consolidation-and-retirement-strategy.md\n"
-	@printf "  docs/operations/support-surface-lifecycle-signals-and-consolidation-criteria.md\n"
-	@printf "  docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md\n"
 	@printf "  docs/tooling/README.md\n"
 	@printf "  docs/architecture/README.md\n"
 	@printf "  docs/stages/INDEX.md\n"
@@ -130,17 +122,17 @@ stage-status: ## Show continuity status and next actions for one active stage.
 	@./scripts/stage-tooling.sh status
 stage-check: ## Validate one active stage (`STAGE_ID` and optional `STAGE_SLUG`/`STAGE_REPORT`/`STAGE_REQUIRE`).
 	@./scripts/stage-tooling.sh check
-tdd: $(RACCOON_BIN) ## Show impact-driven validation guidance for current changes.
-	$(RACCOON_BIN) --project-root . tdd
+tdd: $(RACCOON_BIN) ## Show raccoon impact-driven validation guidance for current changes.
+	$(RACCOON_BIN) --project-root . change tdd
 
-coverage-map: $(RACCOON_BIN) ## Show current guard-rail coverage and known gaps.
-	$(RACCOON_BIN) --project-root . coverage-map
+coverage-map: $(RACCOON_BIN) ## Show raccoon inspection coverage and known gaps.
+	$(RACCOON_BIN) --project-root . inspect coverage
 
-briefing: $(RACCOON_BIN) ## Generate a raccoon briefing for `TARGETS=...`.
-	$(RACCOON_BIN) --project-root . briefing $(TARGETS)
+briefing: $(RACCOON_BIN) ## Generate a raccoon change briefing for `TARGETS=...`.
+	$(RACCOON_BIN) --project-root . change briefing $(TARGETS)
 
-recommend: $(RACCOON_BIN) ## Generate recommendations from diff/baseline analysis.
-	$(RACCOON_BIN) --project-root . recommend $(TARGETS)
+recommend: $(RACCOON_BIN) ## Generate raccoon validation recommendations from diff/baseline analysis.
+	$(RACCOON_BIN) --project-root . change recommend $(TARGETS)
 
 ##@ Go And Test
 tidy: ## Run `go mod tidy` across workspace modules.
@@ -286,6 +278,11 @@ smoke-help: ## Show smoke/proof selection, prerequisites, and common troubleshoo
 	@printf "  %-24s %s\n" "make smoke-composed" "Composed pipeline smoke (S330). No stack needed"
 	@printf "  %-24s %s\n" "make smoke-operational" "Process isolation + halt/resume proof. Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-restart-recovery" "Restart/recovery resilience proof. Requires: make up && make seed"
+	@printf "\nCI and preflight\n"
+	@printf "  %-24s %s\n" "make ci-smoke" "CI-safe stackless smoke suite (no compose needed)."
+	@printf "  %-24s %s\n" "make ci-preflight" "Local pre-push: tests + consistency + quality gate + stackless smoke."
+	@printf "  %-24s %s\n" "make ci-wait-ready" "Poll infra readiness before stack-dependent smokes."
+	@printf "  %-24s %s\n" "make ci-analytical" "CI analytical gate: unit tests + smoke-analytical."
 	@printf "\nCommon overrides\n"
 	@printf "  %-24s %s\n" "SMOKE_WAIT=180" "Increase wait/flush timeout for a smoke run."
 	@printf "  %-24s %s\n" "BASE_URL=http://host:8080" "Point smokes at a non-default gateway."
@@ -315,8 +312,8 @@ smoke-live-stack: ## Canonical live stack smoke: venue path + persistence + comp
 	@echo "Running canonical live stack smoke (S335)..."
 	@./scripts/smoke-live-stack.sh
 
-smoke-activation: ## S340+S341: Activation smoke — acceptance transitions + controlled live path verification.
-	@echo "Running activation smoke (S340+S341)..."
+smoke-activation: ## S340+S341+S342+S343: Activation smoke — acceptance transitions + controlled live path + extended observation.
+	@echo "Running activation smoke (S340+S341+S342+S343)..."
 	@./scripts/smoke-activation.sh
 
 smoke-operational: ## Canonical specialized proof for OS-process/container operational behavior.
@@ -334,14 +331,21 @@ smoke-restart-recovery: ## Canonical specialized proof for restart/recovery beha
 diag: ## Capture a lightweight diagnostic snapshot of the running stack.
 	@./scripts/diag-check.sh
 
+ci-smoke: smoke-composed ## CI-safe smoke suite: all stackless smokes runnable without compose infrastructure.
+
+ci-preflight: test repo-consistency-check quality-gate smoke-composed ## Local pre-push preflight: tests + consistency + quality gate + stackless smoke.
+
 ci-analytical: test smoke-analytical ## CI-oriented analytical gate: unit tests plus smoke-analytical.
 
-##@ Architecture And Analysis
-arch-guard: $(RACCOON_BIN) ## Enforce architecture layer boundaries.
-	$(RACCOON_BIN) --project-root . arch-guard
+ci-wait-ready: ## Poll infrastructure readiness (ClickHouse + gateway) before running stack-dependent smokes.
+	@./scripts/ci-wait-ready.sh
 
-drift-detect: $(RACCOON_BIN) ## Detect cross-layer drift in naming and wiring.
-	$(RACCOON_BIN) --project-root . drift-detect
+##@ Architecture And Analysis
+arch-guard: $(RACCOON_BIN) ## Enforce architecture layer boundaries via raccoon strategic checks.
+	$(RACCOON_BIN) --project-root . check arch
+
+drift-detect: $(RACCOON_BIN) ## Detect cross-layer drift via raccoon strategic checks.
+	$(RACCOON_BIN) --project-root . check drift
 
 snapshot: $(RACCOON_BIN) ## Generate a JSON code-intelligence snapshot.
 	$(RACCOON_BIN) --project-root . --json snapshot
@@ -368,13 +372,13 @@ raccoon-test: ## Run raccoon-cli tests.
 	cargo test --manifest-path $(RACCOON_DIR)/Cargo.toml
 
 quality-gate: $(RACCOON_BIN) ## Run the fast quality gate profile.
-	$(RACCOON_BIN) --project-root . quality-gate
+	$(RACCOON_BIN) --project-root . check gate
 
 quality-gate-ci: $(RACCOON_BIN) ## Run the CI quality gate profile with JSON output.
-	$(RACCOON_BIN) --project-root . quality-gate --profile ci --json
+	$(RACCOON_BIN) --project-root . check gate --profile ci --json
 
 quality-gate-deep: $(RACCOON_BIN) ## Run the deep quality gate profile.
-	$(RACCOON_BIN) --project-root . quality-gate --profile deep
+	$(RACCOON_BIN) --project-root . check gate --profile deep
 
 ##@ Codegen
 codegen-check: ## Verify generated output matches golden snapshots.

@@ -6,7 +6,9 @@ import (
 
 	actorcommon "internal/actors/common"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsstrategy "internal/adapters/nats/natsstrategy"
 	domainexec "internal/domain/execution"
+	"internal/domain/strategy"
 	"internal/application/ports"
 	"internal/shared/healthz"
 	"internal/shared/settings"
@@ -22,10 +24,11 @@ type ExecuteSupervisor struct {
 	venueQuery      ports.VenueQueryPort // nil when venue has no query capability (e.g. paper)
 	trackers        map[string]*healthz.Tracker
 	logger          *slog.Logger
-	consumer        *natsexecution.Consumer // closed on actor stop
+	consumer         *natsexecution.Consumer  // closed on actor stop
+	strategyConsumer *natsstrategy.Consumer   // S360: closed on actor stop
 	// S339: Activation surface dimensions passed from binary startup.
-	adapterState    domainexec.AdapterState
-	credentialState domainexec.CredentialState
+	adapterState     domainexec.AdapterState
+	credentialState  domainexec.CredentialState
 }
 
 func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, venueQuery ports.VenueQueryPort, trackers map[string]*healthz.Tracker, opts ...SupervisorOption) actor.Producer {
@@ -64,6 +67,9 @@ func (s *ExecuteSupervisor) Receive(c *actor.Context) {
 		}
 
 	case actor.Stopped:
+		if s.strategyConsumer != nil {
+			_ = s.strategyConsumer.Close()
+		}
 		if s.consumer != nil {
 			_ = s.consumer.Close()
 		}
@@ -127,9 +133,41 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 	}
 	s.consumer = consumer
 
+	// ── S360: Strategy-to-execution wiring ──────────────────────────
+	// Spawn strategy consumer actor that evaluates StrategyResolvedEvent
+	// and forwards produced ExecutionIntents to the venue adapter actor.
+	strategyTracker := s.trackers["strategy-consumer"]
+	strategyActorPID := ctx.SpawnChild(NewStrategyConsumerActor(StrategyConsumerConfig{
+		MaxPositionPct: DefaultMaxPositionPct,
+		Tracker:        strategyTracker,
+		AdapterPID:     adapterPID,
+	}), "strategy-consumer")
+
+	strategyConsumerSpec := natsstrategy.ExecuteStrategyMeanReversionEntryConsumer()
+	strategyRegistry := natsstrategy.DefaultRegistry()
+
+	stratConsumer := natsstrategy.NewConsumer(
+		s.cfg.NATS.URL,
+		strategyConsumerSpec,
+		strategyRegistry,
+		func(event strategy.StrategyResolvedEvent) {
+			if strategyTracker != nil {
+				strategyTracker.RecordEvent()
+			}
+			ctx.Send(strategyActorPID, strategyReceivedMessage{Event: event})
+		},
+		slog.Default().With("actor", "strategy-consumer-nats"),
+	)
+	if err := stratConsumer.Start(); err != nil {
+		return fmt.Errorf("start strategy consumer: %w", err)
+	}
+	s.strategyConsumer = stratConsumer
+
 	s.logger.Info("execute supervisor started",
 		"consumer_durable", consumerSpec.Durable,
 		"consumer_subject", consumerSpec.Event.Subject,
+		"strategy_consumer_durable", strategyConsumerSpec.Durable,
+		"strategy_consumer_subject", strategyConsumerSpec.Event.Subject,
 		"venue_type", string(s.cfg.Venue.Type),
 		"staleness_max_age", stalenessMaxAge.String(),
 		"submit_timeout", submitTimeout.String(),

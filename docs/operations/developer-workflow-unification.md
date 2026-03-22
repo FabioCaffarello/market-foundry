@@ -17,6 +17,7 @@ functional architecture.
 - `make smoke*` is the proof-of-record runtime validation surface.
 - `make diag`, `make ps`, and `make logs` are the first-line troubleshooting surface.
 - Direct `scripts/*.sh`, direct `raccoon-cli`, and raw `docker compose` / `go` / `cargo` are expert or debugging routes, not the default developer journey.
+- `raccoon-cli` is the strategic intelligence layer for inspection, impact, TDD guidance, drift, and architecture safety; `make` remains the workflow contract.
 
 ## Official Command Map
 
@@ -30,6 +31,10 @@ functional architecture.
 | Baseline runtime proof | `make smoke` | Default smoke for ordinary runtime changes |
 | Multi-symbol runtime proof | `make smoke-multi` | Use when the change affects symbol breadth or symbol isolation |
 | Analytical runtime proof | `make smoke-analytical` | Use for writer/ClickHouse/read-path changes |
+| Persistence round-trip proof | `make smoke-round-trip` | Use when the change touches adapter → NATS → ClickHouse → HTTP continuity |
+| Live-stack verification proof | `make smoke-live-stack` | Use for the specialized live-stack and gateway verification path |
+| Activation control-surface proof | `make smoke-activation` | Use when the change touches activation transitions or the control surface |
+| Composed pipeline proof | `make smoke-composed` | Use when the change is bounded to the composed execution pipeline without the full stack |
 | Process/runtime operational proof | `make smoke-operational` | Use for lifecycle, halt/resume, or process-isolation changes |
 | Restart/recovery proof | `make smoke-restart-recovery` | Use for restart durability and recovery behavior |
 | Pre-change guard rail | `make check` | Runs repo consistency + fast quality gate |
@@ -99,11 +104,20 @@ Use this selection order:
 1. `make smoke` for baseline single-symbol runtime behavior.
 2. `make smoke-multi` when the change affects governed multi-symbol behavior.
 3. `make smoke-analytical` when the change touches writer, ClickHouse, analytical readers, or analytical HTTP surfaces.
-4. `make smoke-operational` when the change affects process lifecycle or operational isolation.
-5. `make smoke-restart-recovery` when the change affects restart durability or recovery behavior.
+4. `make smoke-round-trip` when the change affects adapter → NATS → ClickHouse → HTTP continuity.
+5. `make smoke-live-stack` when the change affects the specialized live-stack verification path.
+6. `make smoke-activation` when the change affects activation transitions or control-surface behavior.
+7. `make smoke-composed` when the change is bounded to the composed execution pipeline without the full stack.
+8. `make smoke-operational` when the change affects process lifecycle or operational isolation.
+9. `make smoke-restart-recovery` when the change affects restart durability or recovery behavior.
 
 If multiple behaviors changed, run the narrowest set of smokes that directly
 prove those behaviors instead of defaulting immediately to the heaviest harness.
+
+For the full proof inventory and ownership model, use
+[`development-lifecycle-entrypoints-and-canonical-flows.md`](development-lifecycle-entrypoints-and-canonical-flows.md)
+and
+[`operational-proof-entrypoints-and-ownership.md`](operational-proof-entrypoints-and-ownership.md).
 
 ### 5. Troubleshoot In The Official Order
 

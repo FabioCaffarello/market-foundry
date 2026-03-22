@@ -31,6 +31,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::analyzers::{impact_map, tdd};
+use crate::command_refs;
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -772,11 +773,22 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
         writeln!(out, "Reason: {}", report.scope_note).unwrap();
         writeln!(out).unwrap();
         writeln!(out, "Usage:").unwrap();
-        writeln!(out, "  raccoon-cli recommend <file1> [file2] ...").unwrap();
-        writeln!(out, "  raccoon-cli recommend --baseline snapshot.json").unwrap();
         writeln!(
             out,
-            "  raccoon-cli recommend   # auto-detect from git status"
+            "  {} <file1> [file2] ...",
+            command_refs::CHANGE_RECOMMEND
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "  {} --baseline snapshot.json",
+            command_refs::CHANGE_RECOMMEND
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "  {}   # auto-detect from git status",
+            command_refs::CHANGE_RECOMMEND
         )
         .unwrap();
         return out;
@@ -864,8 +876,8 @@ pub fn render_human(report: &RecommendReport, verbose: bool) -> String {
     // ── Gate profile ──
     writeln!(
         out,
-        "Quality-gate: raccoon-cli quality-gate --profile {}",
-        report.gate_profile.profile
+        "Quality-gate: {}",
+        command_refs::check_gate(&report.gate_profile.profile)
     )
     .unwrap();
     writeln!(out, "  why: {}", report.gate_profile.why).unwrap();

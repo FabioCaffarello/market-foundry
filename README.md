@@ -19,7 +19,7 @@ Foundation repository for the market-foundry system.
 - **Schema migration utility** (`cmd/migrate`) — forward-only ClickHouse schema management
 - **Actor-based orchestration** using the Hollywood framework
 - **NATS messaging** for inter-service communication
-- **Rust CLI** (raccoon-cli) for static analysis, architecture enforcement, and quality gates
+- **Rust CLI** (raccoon-cli) for strategic repository intelligence: inspection, impact analysis, architecture enforcement, and quality gates
 - **Docker Compose** setup for local development
 
 ## Architecture
@@ -116,14 +116,12 @@ make arch-guard  # Architecture boundary check
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow reference.
 The documentation entrypoint is [`docs/README.md`](docs/README.md).
 The operational support index is [`docs/operations/README.md`](docs/operations/README.md).
+Ownership by subject lives in
+[`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md).
 The repository-shape navigation entrypoints are
 [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
 and
 [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md).
-The C21 structural-cost model lives in
-[`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md)
-and
-[`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md).
 Direct tooling references live in [`docs/tooling/README.md`](docs/tooling/README.md).
 
 ## Repository Navigation
@@ -143,10 +141,9 @@ rather than the documentation taxonomy:
 
 - [`docs/README.md`](docs/README.md) - top-level documentation navigation
 - [`docs/operations/README.md`](docs/operations/README.md) - canonical operations/support index
+- [`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md) - ownership by subject and owner/reference split
 - [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md) - repository-shape navigation model
 - [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md) - task-to-directory navigation rules
-- [`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md) - canonical structural-cost model for support surfaces
-- [`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md) - hotspot inventory and reduction principles
 - [`docs/tooling/README.md`](docs/tooling/README.md) - `raccoon-cli` guardrails,
   drift rules, and topology references
 - [`docs/architecture/README.md`](docs/architecture/README.md) - canonical
@@ -164,7 +161,7 @@ rather than the documentation taxonomy:
 - `make diag`, `make ps`, and `make logs SERVICE=...` are the first-line troubleshooting entrypoints for a running stack.
 - `make live*` and `stack-*` targets are ergonomic wrappers around canonical runtime workflows, not competing proof-of-record surfaces.
 - `scripts/*.sh` are auxiliary harnesses behind `make`; call them directly only when you need debugging detail or flags that the public Make target intentionally hides.
-- Direct `raccoon-cli` usage is the expert tooling surface for inspection and governance; it complements `make` and should not replace runtime/operator flows that already have Makefile entrypoints.
+- Direct `raccoon-cli` usage is the expert tooling surface for inspection and governance; it complements `make`, owns strategic intelligence tasks, and should not replace runtime/operator flows that already have Makefile entrypoints.
 - Raw `docker compose`, `go`, and `cargo` commands are substrate-level interfaces for working on those layers directly, not the primary repository workflow surface.
 
 ## What Was Removed

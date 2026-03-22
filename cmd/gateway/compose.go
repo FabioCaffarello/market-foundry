@@ -228,6 +228,13 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 		deps.Execution = execDeps
 	}
 
+	// Activation surface — wired from execution control gateway.
+	if conns.executionControl != nil {
+		deps.Activation = routes.ActivationFamilyDeps{
+			GetActivationSurface: executionclient.NewGetActivationSurfaceUseCase(conns.executionControl),
+		}
+	}
+
 	// Analytical use cases — conditional on ClickHouse availability.
 	// These are additive endpoints (R-08) that do not modify existing behavior.
 	if chClient != nil {

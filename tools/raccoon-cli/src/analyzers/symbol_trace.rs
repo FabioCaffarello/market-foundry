@@ -31,6 +31,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::codeintel::{self, GoFunc, ProjectIndex, TypeKind, Visibility};
+use crate::command_refs;
 use crate::lsp::bridge::GoplsBridge;
 use crate::lsp::types::{HoverInfo, LspDefinition, LspReference, LspStatus};
 
@@ -695,33 +696,33 @@ fn build_recommendations(definitions: &[Definition], references: &[Reference]) -
 
     for file in &all_files {
         if file.contains("contracts") || file.contains("ports") || file.contains("events") {
-            cmds.insert("raccoon-cli contract-audit".into());
+            cmds.insert(command_refs::CHECK_CONTRACTS.into());
         }
         if file.contains("adapters/nats") || file.contains("adapters/kafka") {
-            cmds.insert("raccoon-cli contract-audit".into());
-            cmds.insert("raccoon-cli runtime-bindings".into());
+            cmds.insert(command_refs::CHECK_CONTRACTS.into());
+            cmds.insert(command_refs::CHECK_BINDINGS.into());
         }
         if file.contains("domain/") {
-            cmds.insert("raccoon-cli arch-guard".into());
+            cmds.insert(command_refs::CHECK_ARCH.into());
         }
         if file.contains("application/") {
-            cmds.insert("raccoon-cli arch-guard".into());
+            cmds.insert(command_refs::CHECK_ARCH.into());
         }
         if file.contains("actors/") {
-            cmds.insert("raccoon-cli runtime-bindings".into());
+            cmds.insert(command_refs::CHECK_BINDINGS.into());
         }
         if file.contains("interfaces/http") {
-            cmds.insert("raccoon-cli arch-guard".into());
+            cmds.insert(command_refs::CHECK_ARCH.into());
         }
         if file.contains("deploy/") || file.contains("configs/") {
-            cmds.insert("raccoon-cli topology-doctor".into());
-            cmds.insert("raccoon-cli drift-detect".into());
+            cmds.insert(command_refs::CHECK_TOPOLOGY.into());
+            cmds.insert(command_refs::CHECK_DRIFT.into());
         }
     }
 
     // If we found any definitions/references, impact-map is always useful.
     if !definitions.is_empty() || !references.is_empty() {
-        cmds.insert("raccoon-cli impact-map <symbol>".into());
+        cmds.insert(format!("{} <symbol>", command_refs::CHANGE_IMPACT));
     }
 
     cmds.into_iter().collect()
@@ -1503,8 +1504,8 @@ type Supervisor struct {
             report
                 .recommended_commands
                 .iter()
-                .any(|c| c.contains("arch-guard")),
-            "should recommend arch-guard for domain type"
+                .any(|c| c.contains("check arch")),
+            "should recommend check arch for domain type"
         );
     }
 

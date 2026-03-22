@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"internal/shared/metrics"
 	"log/slog"
 	"net/http"
 	"runtime"
@@ -186,6 +187,7 @@ func (s *HealthServer) Start() error {
 	mux.HandleFunc("GET /readyz", s.HandleReadyz)
 	mux.HandleFunc("GET /statusz", s.HandleStatusz)
 	mux.HandleFunc("GET /diagz", s.HandleDiagz)
+	mux.Handle("GET /metrics", metrics.Handler())
 
 	s.server = &http.Server{
 		Addr:         s.addr,

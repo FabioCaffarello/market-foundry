@@ -22,6 +22,12 @@ func Run(config settings.AppConfig) {
 		"timeframes", config.Pipeline.Timeframes,
 	)
 
+	// ── Phase 0: Preflight — fail fast on missing preconditions ────
+	bootstrap.RunPreflight("derive", logger, []bootstrap.PreflightCheck{
+		bootstrap.NATSEnabledCheck(config),
+		bootstrap.NATSURLFormatCheck(config),
+	})
+
 	engine, err := actorcommon.NewDefaultEngine()
 	if err != nil {
 		logger.Error("create actor engine", "error", err)

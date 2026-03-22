@@ -91,6 +91,7 @@ make check
 ```
 
 Runs the raccoon-cli fast quality-gate to verify repository structure, topology, contracts, and architecture boundaries before you start coding.
+Treat `raccoon-cli` here as the strategic intelligence layer behind the Make workflow, not as a second public workflow surface.
 The target now starts with a lightweight repository consistency pass so broken
 support-doc links, stage index drift, naming drift, and missing script wrappers
 fail before deeper analysis runs.
@@ -107,7 +108,8 @@ make stage-status STAGE_ID=C20 STAGE_SLUG=automation-support-for-waves-execution
 make tdd
 ```
 
-Get a TDD guide showing what to validate for your current changes.
+Get a TDD guide showing what to validate for your current changes. Use direct
+`raccoon-cli change *` commands only when you need narrower expert analysis or JSON output.
 
 ### 3. Implement
 
@@ -203,6 +205,7 @@ See:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/operations/README.md`](docs/operations/README.md)
+- [`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md)
 - [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
 - [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md)
 - [`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md)

@@ -25,6 +25,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::codeintel::{self, GoType, ImportKind, ProjectIndex, TypeKind, Visibility};
+use crate::command_refs;
 use crate::lsp::bridge::GoplsBridge;
 use crate::lsp::types::{LspReference, LspStatus};
 
@@ -266,9 +267,9 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         description: "deploy/configs — service configuration",
         patterns: &["deploy/configs/"],
         commands: &[
-            "raccoon-cli doctor",
-            "raccoon-cli topology-doctor",
-            "raccoon-cli drift-detect",
+            command_refs::CHECK_REPO,
+            command_refs::CHECK_TOPOLOGY,
+            command_refs::CHECK_DRIFT,
         ],
     },
     SensitiveAreaDef {
@@ -276,9 +277,9 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         description: "docker-compose — service orchestration",
         patterns: &["deploy/compose/"],
         commands: &[
-            "raccoon-cli doctor",
-            "raccoon-cli topology-doctor",
-            "raccoon-cli drift-detect",
+            command_refs::CHECK_REPO,
+            command_refs::CHECK_TOPOLOGY,
+            command_refs::CHECK_DRIFT,
         ],
     },
     SensitiveAreaDef {
@@ -286,9 +287,9 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         description: "NATS/JetStream adapter layer",
         patterns: &["internal/adapters/nats/"],
         commands: &[
-            "raccoon-cli contract-audit",
-            "raccoon-cli runtime-bindings",
-            "raccoon-cli arch-guard",
+            command_refs::CHECK_CONTRACTS,
+            command_refs::CHECK_BINDINGS,
+            command_refs::CHECK_ARCH,
         ],
     },
     SensitiveAreaDef {
@@ -296,34 +297,34 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
         description: "Kafka adapter layer",
         patterns: &["internal/adapters/kafka/"],
         commands: &[
-            "raccoon-cli topology-doctor",
-            "raccoon-cli runtime-bindings",
-            "raccoon-cli arch-guard",
+            command_refs::CHECK_TOPOLOGY,
+            command_refs::CHECK_BINDINGS,
+            command_refs::CHECK_ARCH,
         ],
     },
     SensitiveAreaDef {
         name: "domain",
         description: "domain layer — business rules (must be pure)",
         patterns: &["internal/domain/"],
-        commands: &["raccoon-cli arch-guard", "raccoon-cli contract-audit"],
+        commands: &[command_refs::CHECK_ARCH, command_refs::CHECK_CONTRACTS],
     },
     SensitiveAreaDef {
         name: "application",
         description: "application layer — use cases and ports",
         patterns: &["internal/application/"],
-        commands: &["raccoon-cli arch-guard", "raccoon-cli contract-audit"],
+        commands: &[command_refs::CHECK_ARCH, command_refs::CHECK_CONTRACTS],
     },
     SensitiveAreaDef {
         name: "http-handlers",
         description: "HTTP interface layer — API endpoints",
         patterns: &["internal/interfaces/http/"],
-        commands: &["raccoon-cli arch-guard"],
+        commands: &[command_refs::CHECK_ARCH],
     },
     SensitiveAreaDef {
         name: "actors",
         description: "actor supervision trees — runtime wiring",
         patterns: &["internal/actors/"],
-        commands: &["raccoon-cli arch-guard", "raccoon-cli runtime-bindings"],
+        commands: &[command_refs::CHECK_ARCH, command_refs::CHECK_BINDINGS],
     },
     SensitiveAreaDef {
         name: "validator-logic",
@@ -333,9 +334,9 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
             "internal/application/validatorresults/",
         ],
         commands: &[
-            "raccoon-cli contract-audit",
-            "raccoon-cli runtime-bindings",
-            "make smoke",
+            command_refs::CHECK_CONTRACTS,
+            command_refs::CHECK_BINDINGS,
+            command_refs::MAKE_SMOKE,
         ],
     },
     SensitiveAreaDef {
@@ -346,9 +347,9 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
             "internal/application/dataplane/",
         ],
         commands: &[
-            "raccoon-cli topology-doctor",
-            "raccoon-cli runtime-bindings",
-            "make smoke",
+            command_refs::CHECK_TOPOLOGY,
+            command_refs::CHECK_BINDINGS,
+            command_refs::MAKE_SMOKE,
         ],
     },
     SensitiveAreaDef {
@@ -358,7 +359,7 @@ const SENSITIVE_AREAS: &[SensitiveAreaDef] = &[
             "internal/actors/scopes/configctl/",
             "internal/application/configctl/",
         ],
-        commands: &["raccoon-cli contract-audit", "make smoke"],
+        commands: &[command_refs::CHECK_CONTRACTS, command_refs::MAKE_SMOKE],
     },
 ];
 
@@ -799,7 +800,7 @@ fn match_areas(path: &str) -> (Vec<AreaMatch>, Vec<String>) {
 
     // Always recommend quality-gate as a catch-all
     if !areas.is_empty() {
-        commands.insert("raccoon-cli quality-gate".to_string());
+        commands.insert(command_refs::check_gate("fast"));
     }
 
     (areas, commands.into_iter().collect())

@@ -315,6 +315,11 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 				a.cfg.Source,
 				a.handleExecutionControlSet,
 			),
+			natskit.NewTypedControlRoute(
+				a.cfg.ExecutionRegistry.ActivationSurfaceGet,
+				a.cfg.Source,
+				a.handleActivationSurfaceGet,
+			),
 		)
 	}
 
@@ -370,6 +375,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 			"subject_execution_status_latest", a.cfg.ExecutionRegistry.StatusLatest.Subject,
 			"subject_execution_control_get", a.cfg.ExecutionRegistry.ControlGet.Subject,
 			"subject_execution_control_set", a.cfg.ExecutionRegistry.ControlSet.Subject,
+			"subject_activation_surface_get", a.cfg.ExecutionRegistry.ActivationSurfaceGet.Subject,
 			"bucket_execution_control", natsexecution.ControlBucket,
 		)
 	}
@@ -497,6 +503,30 @@ func (a *QueryResponderActor) handleExecutionControlSet(ctx context.Context, cmd
 	)
 
 	return executionclient.ExecutionControlReply{Gate: gate}, nil
+}
+
+func (a *QueryResponderActor) handleActivationSurfaceGet(ctx context.Context, _ executionclient.ActivationSurfaceQuery) (executionclient.ActivationSurfaceReply, *problem.Problem) {
+	gate, prob := a.executionControlStore.Get(ctx)
+	if prob != nil {
+		return executionclient.ActivationSurfaceReply{}, prob
+	}
+
+	dims, prob := a.executionControlStore.GetDimensions(ctx)
+	if prob != nil {
+		return executionclient.ActivationSurfaceReply{}, prob
+	}
+
+	// If dimensions were published by the execute binary, compose full surface.
+	// Otherwise, return gate-only surface with unknown adapter/credentials.
+	adapter := execution.AdapterState("unknown")
+	creds := execution.CredentialState("unknown")
+	if dims != nil {
+		adapter = dims.Adapter
+		creds = dims.Credentials
+	}
+
+	surface := execution.NewActivationSurface(adapter, gate, creds)
+	return executionclient.ActivationSurfaceReply{Surface: surface}, nil
 }
 
 func (a *QueryResponderActor) handleExecutionStatusLatest(ctx context.Context, query executionclient.ExecutionStatusQuery) (executionclient.ExecutionStatusReply, *problem.Problem) {

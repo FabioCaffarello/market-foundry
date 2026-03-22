@@ -29,6 +29,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::codeintel::{self, GoFunc, ProjectIndex, TypeKind, Visibility};
+use crate::command_refs;
 use crate::lsp::bridge::GoplsBridge;
 use crate::lsp::types::{LspReference, LspStatus};
 
@@ -953,25 +954,25 @@ fn build_recommended_checks(
     let area_names: BTreeSet<&str> = sensitive_areas.iter().map(|a| a.area.as_str()).collect();
 
     if area_names.contains("domain") || area_names.contains("application") {
-        cmds.insert("raccoon-cli arch-guard".into());
+        cmds.insert(command_refs::CHECK_ARCH.into());
     }
 
     if area_names.contains("ports")
         || area_names.contains("contracts/events")
         || !contracts.is_empty()
     {
-        cmds.insert("raccoon-cli contract-audit".into());
+        cmds.insert(command_refs::CHECK_CONTRACTS.into());
     }
 
     if area_names.contains("adapters") || area_names.contains("actors") {
-        cmds.insert("raccoon-cli runtime-bindings".into());
+        cmds.insert(command_refs::CHECK_BINDINGS.into());
     }
 
     if area_names.contains("http_interfaces") {
-        cmds.insert("raccoon-cli arch-guard".into());
+        cmds.insert(command_refs::CHECK_ARCH.into());
     }
 
-    cmds.insert("raccoon-cli drift-detect".into());
+    cmds.insert(command_refs::CHECK_DRIFT.into());
 
     cmds.into_iter().collect()
 }
@@ -1881,7 +1882,7 @@ func HandleGetConfig(id string) string {
         assert!(report
             .recommended_checks
             .iter()
-            .any(|c| c.contains("arch-guard")));
+            .any(|c| c.contains("check arch")));
     }
 
     #[test]
@@ -1893,7 +1894,7 @@ func HandleGetConfig(id string) string {
         assert!(report
             .recommended_checks
             .iter()
-            .any(|c| c.contains("contract-audit")));
+            .any(|c| c.contains("check contracts")));
     }
 
     // ── Output rendering ───────────────────────────────────────────────
@@ -2098,6 +2099,6 @@ func HandleGetConfig(id string) string {
         assert!(report
             .recommended_checks
             .iter()
-            .any(|c| c.contains("drift-detect")));
+            .any(|c| c.contains("check drift")));
     }
 }

@@ -55,6 +55,42 @@ runtime behavior, and governed expansion.
 - [`venue-readiness-charter-and-scope-freeze.md`](venue-readiness-charter-and-scope-freeze.md)
 - [`venue-readiness-capabilities-questions-and-non-goals.md`](venue-readiness-capabilities-questions-and-non-goals.md)
 
+### Venue Activation (Phase 33)
+
+- [`activation-http-contracts-audit-fields-and-usage-examples.md`](activation-http-contracts-audit-fields-and-usage-examples.md)
+- [`operational-runbook-validation.md`](operational-runbook-validation.md)
+- [`activation-runbook-checklist-results-and-limitations.md`](activation-runbook-checklist-results-and-limitations.md)
+
+### Production Readiness Assessment (Phase 34)
+
+- [`live-testnet-connectivity-and-credential-handling-assessment.md`](live-testnet-connectivity-and-credential-handling-assessment.md)
+- [`credential-gated-operation-risks-ergonomics-and-limitations.md`](credential-gated-operation-risks-ergonomics-and-limitations.md)
+
+### Operational Foundation (Phase 35)
+
+- [`operational-foundation-wave-charter-and-scope-freeze.md`](operational-foundation-wave-charter-and-scope-freeze.md)
+- [`operational-foundation-items-exit-criteria-and-non-goals.md`](operational-foundation-items-exit-criteria-and-non-goals.md)
+- [`metrics-and-operational-signals-foundation.md`](metrics-and-operational-signals-foundation.md)
+- [`ci-smoke-integration-and-reproducibility-hardening.md`](ci-smoke-integration-and-reproducibility-hardening.md)
+- [`smoke-ci-shape-pass-fail-contract-and-operational-frictions.md`](smoke-ci-shape-pass-fail-contract-and-operational-frictions.md)
+- [`startup-credential-validation-and-operational-preflight.md`](startup-credential-validation-and-operational-preflight.md)
+- [`preflight-checks-startup-fail-fast-semantics-and-limitations.md`](preflight-checks-startup-fail-fast-semantics-and-limitations.md)
+- [`operational-foundation-evidence-gate.md`](operational-foundation-evidence-gate.md)
+- [`operational-foundation-evidence-matrix-residual-gaps-and-next-ceremony.md`](operational-foundation-evidence-matrix-residual-gaps-and-next-ceremony.md)
+
+### Strategy/Signal Integration (Phase 36)
+
+- [`strategy-signal-integration-wave-charter-and-scope-freeze.md`](strategy-signal-integration-wave-charter-and-scope-freeze.md)
+- [`strategy-signal-integration-capabilities-questions-and-non-goals.md`](strategy-signal-integration-capabilities-questions-and-non-goals.md)
+- [`source-selection-and-canonical-integration-contract.md`](source-selection-and-canonical-integration-contract.md)
+- [`source-to-execution-contract-boundaries-invariants-and-limits.md`](source-to-execution-contract-boundaries-invariants-and-limits.md)
+- [`controlled-source-to-execution-wiring.md`](controlled-source-to-execution-wiring.md)
+- [`source-driven-execution-wiring-order-controls-and-limitations.md`](source-driven-execution-wiring-order-controls-and-limitations.md)
+- [`explainability-and-runtime-controls-for-source-driven-execution.md`](explainability-and-runtime-controls-for-source-driven-execution.md)
+- [`source-driven-queryability-audit-fields-and-operational-limits.md`](source-driven-queryability-audit-fields-and-operational-limits.md)
+- [`end-to-end-domain-to-venue-slice-proof.md`](end-to-end-domain-to-venue-slice-proof.md)
+- [`canonical-source-driven-vertical-slice-evidence-and-limitations.md`](canonical-source-driven-vertical-slice-evidence-and-limitations.md)
+
 ### Analytical and ClickHouse
 
 - [`analytical-storage-strategy.md`](analytical-storage-strategy.md)

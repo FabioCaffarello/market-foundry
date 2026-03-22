@@ -10,6 +10,12 @@ extension: deciding which surface should absorb a new need, how far that
 surface should expand, and when a request should be rejected or folded into an
 existing path.
 
+For the executive decision criteria and repository-anchored examples that now
+govern those choices, use:
+
+- [`criteria-for-opening-containing-or-rejecting-new-support-surfaces.md`](criteria-for-opening-containing-or-rejecting-new-support-surfaces.md)
+- [`support-surface-expansion-decision-rules-and-examples.md`](support-surface-expansion-decision-rules-and-examples.md)
+
 ## Current Growth Pattern
 
 The support surface grew in three visible waves:

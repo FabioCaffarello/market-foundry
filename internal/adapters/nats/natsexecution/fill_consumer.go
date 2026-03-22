@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"sync/atomic"
+	"time"
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
+	"internal/shared/metrics"
 	"internal/shared/problem"
 
 	natsclient "github.com/nats-io/nats.go"
@@ -87,17 +89,25 @@ func (c *FillConsumer) Start() error {
 }
 
 func (c *FillConsumer) onMessage(msg jetstream.Msg) {
+	start := time.Now()
 	c.delivered.Add(1)
+	metrics.IncConsumerMessage(c.spec.Durable, "delivered")
 
 	meta, _ := msg.Metadata()
 	if meta != nil && meta.NumDelivered > 1 {
 		c.redelivered.Add(1)
+		metrics.IncConsumerMessage(c.spec.Durable, "redelivered")
 		c.logger.Warn("fill event redelivered",
 			"subject", msg.Subject(),
 			"num_delivered", meta.NumDelivered,
 			"max_deliver", c.spec.MaxDeliver,
 			"stream_seq", meta.Sequence.Stream,
 		)
+	}
+
+	// Update consumer lag from message metadata.
+	if meta != nil {
+		metrics.SetConsumerLag(c.spec.Durable, float64(meta.NumPending))
 	}
 
 	if meta != nil && c.spec.MaxDeliver > 0 && meta.NumDelivered >= uint64(c.spec.MaxDeliver) {
@@ -117,6 +127,7 @@ func (c *FillConsumer) onMessage(msg jetstream.Msg) {
 			"subject", msg.Subject(),
 		)
 		c.terminateOrNak(msg, prob)
+		metrics.ObserveConsumerProcessing(c.spec.Durable, time.Since(start))
 		return
 	}
 
@@ -125,11 +136,14 @@ func (c *FillConsumer) onMessage(msg jetstream.Msg) {
 	if err := msg.Ack(); err != nil {
 		c.logger.Error("ack fill event", "error", err)
 	}
+
+	metrics.ObserveConsumerProcessing(c.spec.Durable, time.Since(start))
 }
 
 func (c *FillConsumer) terminateOrNak(msg jetstream.Msg, prob *problem.Problem) {
 	if prob.Code == problem.InvalidArgument {
 		c.terminated.Add(1)
+		metrics.IncConsumerMessage(c.spec.Durable, "terminated")
 		c.logger.Warn("fill event terminated (non-recoverable)",
 			"subject", msg.Subject(),
 			"reason", prob.Message,
@@ -140,6 +154,7 @@ func (c *FillConsumer) terminateOrNak(msg jetstream.Msg, prob *problem.Problem) 
 		return
 	}
 	c.nakked.Add(1)
+	metrics.IncConsumerMessage(c.spec.Durable, "nakked")
 	if err := msg.Nak(); err != nil {
 		c.logger.Error("nak fill event", "error", err)
 	}

@@ -19,25 +19,23 @@ func Run(config settings.AppConfig) {
 
 	logger.Info("writer starting")
 
-	// ── Phase 0: Validate all writer prerequisites before any I/O ────
-	//
-	// All config invariants are checked up front so that misconfiguration
-	// fails fast with an actionable message, before opening connections.
-
-	if !config.NATS.Enabled {
-		logger.Error("writer startup blocked: nats.enabled must be true — writer consumes events from NATS JetStream")
-		os.Exit(1)
-	}
-
-	if prob := config.ClickHouse.ValidateForWriter(); prob != nil {
-		logger.Error("writer startup blocked: clickhouse config validation failed", "error", prob)
-		os.Exit(1)
-	}
-
-	if prob := config.Pipeline.ValidateForWriter(); prob != nil {
-		logger.Error("writer startup blocked: pipeline config validation failed", "error", prob)
-		os.Exit(1)
-	}
+	// ── Phase 0: Preflight — fail fast on missing preconditions ────
+	bootstrap.RunPreflight("writer", logger, []bootstrap.PreflightCheck{
+		bootstrap.NATSEnabledCheck(config),
+		bootstrap.NATSURLFormatCheck(config),
+		{Name: "clickhouse-config", Check: func() error {
+			if prob := config.ClickHouse.ValidateForWriter(); prob != nil {
+				return prob
+			}
+			return nil
+		}},
+		{Name: "pipeline-config", Check: func() error {
+			if prob := config.Pipeline.ValidateForWriter(); prob != nil {
+				return prob
+			}
+			return nil
+		}},
+	})
 
 	logger.Info("writer config validated",
 		"clickhouse_addr", config.ClickHouse.Addr,

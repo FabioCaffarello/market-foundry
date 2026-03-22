@@ -23,6 +23,10 @@ remains `make smoke*`.
 | Baseline single-symbol runtime proof | `make smoke` | `make up && make seed` |
 | Multi-symbol runtime proof | `make smoke-multi` | `make up && make seed-multi` |
 | Analytical write/read proof | `make smoke-analytical` | `make up && make seed` or `make seed-multi` |
+| Persistence round-trip proof | `make smoke-round-trip` | `make up && make seed` |
+| Live stack and gateway verification proof | `make smoke-live-stack` | `make up && make seed` |
+| Activation control-surface proof | `make smoke-activation` | `make up && make seed` |
+| Composed pipeline proof without the full stack | `make smoke-composed` | none |
 | OS-process and halt/resume proof | `make smoke-operational` | `make up && make seed` |
 | Restart/recovery proof | `make smoke-restart-recovery` | `make up && make seed` |
 | Proof selection help | `make smoke-help` | none |

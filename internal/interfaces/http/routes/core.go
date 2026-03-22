@@ -13,6 +13,7 @@ import (
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
 	"internal/interfaces/http/handlers"
+	"internal/shared/metrics"
 	"internal/shared/webserver"
 	"internal/shared/problem"
 )
@@ -94,6 +95,27 @@ func (e ExecutionFamilyDeps) HasAny() bool {
 	return e.GetLatestExecution != nil || e.GetExecutionStatus != nil || e.GetExecutionControl != nil
 }
 
+// ActivationFamilyDeps groups activation surface query use cases.
+type ActivationFamilyDeps struct {
+	GetActivationSurface handlersGetActivationSurfaceUseCase
+}
+
+// HasAny reports whether at least one activation use case is available.
+func (a ActivationFamilyDeps) HasAny() bool {
+	return a.GetActivationSurface != nil
+}
+
+// SourceExplainFamilyDeps groups source-driven path explainability use cases.
+// S361: Exposes the composite source explain endpoint.
+type SourceExplainFamilyDeps struct {
+	GetSourceExplanation handlersGetSourceExplanationUseCase
+}
+
+// HasAny reports whether the source explain use case is available.
+func (s SourceExplainFamilyDeps) HasAny() bool {
+	return s.GetSourceExplanation != nil
+}
+
 type Dependencies struct {
 	Readiness                    handlers.ReadinessChecker
 	CreateDraft                  handlersCreateDraftUseCase
@@ -112,6 +134,8 @@ type Dependencies struct {
 	Strategy                     StrategyFamilyDeps
 	Risk                         RiskFamilyDeps
 	Execution                    ExecutionFamilyDeps
+	Activation                   ActivationFamilyDeps
+	SourceExplain                SourceExplainFamilyDeps
 	Analytical                   AnalyticalFamilyDeps
 	Logger                       *slog.Logger
 }
@@ -204,6 +228,14 @@ type handlersSetExecutionControlUseCase interface {
 	Execute(context.Context, executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem)
 }
 
+type handlersGetActivationSurfaceUseCase interface {
+	Execute(context.Context, executionclient.ActivationSurfaceQuery) (executionclient.ActivationSurfaceReply, *problem.Problem)
+}
+
+type handlersGetSourceExplanationUseCase interface {
+	Execute(context.Context, executionclient.SourceExplainQuery) (executionclient.SourceExplainReply, *problem.Problem)
+}
+
 func DefaultRoutes(deps Dependencies) []webserver.Route {
 	readiness := deps.Readiness
 	if readiness == nil {
@@ -239,6 +271,12 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	if deps.Execution.HasAny() {
 		routes = append(routes, Execution(deps.Execution)...)
 	}
+	if deps.Activation.HasAny() {
+		routes = append(routes, Activation(deps.Activation)...)
+	}
+	if deps.SourceExplain.HasAny() {
+		routes = append(routes, SourceExplain(deps.SourceExplain)...)
+	}
 	if deps.Analytical.HasAny() {
 		routes = append(routes, Analytical(deps.Analytical, deps.Logger)...)
 	}
@@ -259,6 +297,11 @@ func Core(readiness handlers.ReadinessChecker) []webserver.Route {
 			Method:  http.MethodGet,
 			Path:    "/readyz",
 			Handler: readyzHandler.Readyz,
+		},
+		{
+			Method:  http.MethodGet,
+			Path:    "/metrics",
+			Handler: metrics.HandlerFunc(),
 		},
 	}
 }
