@@ -22,15 +22,6 @@ func Execution(deps ExecutionFamilyDeps) []webserver.Route {
 		})
 	}
 
-	// S454A: Lifecycle list — enumerates all tracked execution lifecycle entries.
-	if deps.GetLifecycleList != nil {
-		routes = append(routes, webserver.Route{
-			Method:  http.MethodGet,
-			Path:    "/execution/lifecycle/list",
-			Handler: handler.GetLifecycleList,
-		})
-	}
-
 	if deps.GetExecutionControl != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodGet,

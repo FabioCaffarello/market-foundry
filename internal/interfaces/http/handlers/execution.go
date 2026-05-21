@@ -102,25 +102,3 @@ func (h *ExecutionWebHandler) GetExecutionStatus(w http.ResponseWriter, r *http.
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
-// GetLifecycleList handles GET /execution/lifecycle/list?source=...&symbol=...
-// S454A: Returns all tracked execution lifecycle entries across KV buckets.
-// S466: Optional source/symbol query params narrow the returned entries.
-func (h *ExecutionWebHandler) GetLifecycleList(w http.ResponseWriter, r *http.Request) {
-	if h == nil || h.getLifecycleList == nil {
-		writeProblemResponse(w, problem.New(problem.Unavailable, "lifecycle list query is unavailable"))
-		return
-	}
-
-	query := executionclient.LifecycleListQuery{
-		Source: r.URL.Query().Get("source"),
-		Symbol: r.URL.Query().Get("symbol"),
-	}
-
-	result, prob := h.getLifecycleList.Execute(r.Context(), query)
-	if prob != nil {
-		writeProblemResponse(w, prob)
-		return
-	}
-
-	writeJSONResponse(w, http.StatusOK, result)
-}

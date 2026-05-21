@@ -124,7 +124,7 @@ func (h *SessionWebHandler) AuditSession(w http.ResponseWriter, r *http.Request)
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
-// ListSessions handles GET /session/list
+// ListSessions handles GET /session-list
 func (h *SessionWebHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.listSessions == nil {
 		writeProblemResponse(w, problem.New(problem.Unavailable, "session list query is unavailable"))
@@ -140,7 +140,7 @@ func (h *SessionWebHandler) ListSessions(w http.ResponseWriter, r *http.Request)
 	writeJSONResponse(w, http.StatusOK, result)
 }
 
-// BatchAuditSessions handles GET /session/batch-audit
+// BatchAuditSessions handles GET /session-batch-audit
 // S467: Audits all terminal sessions (or a filtered set) in a single call.
 // Query parameters:
 //   - status: optional status filter (e.g., "closed", "halted")

@@ -56,7 +56,7 @@ while [[ $# -gt 0 ]]; do
 Usage: $0 [OPTIONS]
 
 Options:
-  --session-id <id>  Verify a specific session (default: latest from /session/list)
+  --session-id <id>  Verify a specific session (default: latest from /session-list)
   --json             Output structured JSON only (no human-readable log)
   --save             Save report to backups/sessions/<session_id>/po-report.json
   -h, --help         Show this help
@@ -137,8 +137,8 @@ print(json.dumps(existing))
 # ── Resolve session ─────────────────────────────────────────────────────────
 
 if [[ -z "${SESSION_ID}" ]]; then
-    log "Resolving latest session from ${GATEWAY_URL}/session/list ..."
-    session_list=$(http_get "${GATEWAY_URL}/session/list")
+    log "Resolving latest session from ${GATEWAY_URL}/session-list ..."
+    session_list=$(http_get "${GATEWAY_URL}/session-list")
     if [[ -n "${session_list}" ]]; then
         SESSION_ID=$(echo "${session_list}" | python3 -c "
 import sys, json

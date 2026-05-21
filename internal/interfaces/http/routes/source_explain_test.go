@@ -60,12 +60,12 @@ func TestSourceExplainRouteRegistered(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/execution/source-explain", nil)
+	req := httptest.NewRequest(http.MethodGet, "/execution-source-explain", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /execution/source-explain: expected %d, got %d", http.StatusOK, rec.Code)
+		t.Fatalf("GET /execution-source-explain: expected %d, got %d", http.StatusOK, rec.Code)
 	}
 
 	var reply executionclient.SourceExplainReply
@@ -100,7 +100,7 @@ func TestSourceExplainRouteUnavailable(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/execution/source-explain", nil)
+	req := httptest.NewRequest(http.MethodGet, "/execution-source-explain", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

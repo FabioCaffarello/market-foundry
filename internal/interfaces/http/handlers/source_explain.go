@@ -21,7 +21,7 @@ func NewSourceExplainWebHandler(getExplanation getSourceExplanationUseCase) *Sou
 	return &SourceExplainWebHandler{getExplanation: getExplanation}
 }
 
-// GetExplanation handles GET /execution/source-explain
+// GetExplanation handles GET /execution-source-explain
 // Optional query params: source, symbol, timeframe (when provided, includes last intent/result).
 func (h *SourceExplainWebHandler) GetExplanation(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.getExplanation == nil {

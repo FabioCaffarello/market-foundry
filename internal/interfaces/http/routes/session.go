@@ -20,7 +20,7 @@ func Session(deps SessionFamilyDeps) []webserver.Route {
 	if deps.ListSessions != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodGet,
-			Path:    "/session/list",
+			Path:    "/session-list",
 			Handler: handler.ListSessions,
 		})
 	}
@@ -29,7 +29,7 @@ func Session(deps SessionFamilyDeps) []webserver.Route {
 	if deps.BatchAuditSession != nil {
 		routes = append(routes, webserver.Route{
 			Method:  http.MethodGet,
-			Path:    "/session/batch-audit",
+			Path:    "/session-batch-audit",
 			Handler: handler.BatchAuditSessions,
 		})
 	}
