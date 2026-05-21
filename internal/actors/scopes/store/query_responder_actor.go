@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-
+	"strings"
 	"time"
 
 	actorcommon "internal/actors/common"
@@ -30,12 +30,12 @@ import (
 
 // QueryResponderConfig holds the configuration for the query responder actor.
 type QueryResponderConfig struct {
-	NATSURL          string
-	Source           string
-	Registry         natsevidence.Registry
-	SignalRegistry   *natssignal.Registry   // nil when no signal families are enabled
-	DecisionRegistry *natsdecision.Registry // nil when no decision families are enabled
-	StrategyRegistry *natsstrategy.Registry // nil when no strategy families are enabled
+	NATSURL           string
+	Source            string
+	Registry          natsevidence.Registry
+	SignalRegistry    *natssignal.Registry    // nil when no signal families are enabled
+	DecisionRegistry  *natsdecision.Registry  // nil when no decision families are enabled
+	StrategyRegistry  *natsstrategy.Registry  // nil when no strategy families are enabled
 	RiskRegistry      *natsrisk.Registry      // nil when no risk families are enabled
 	ExecutionRegistry *natsexecution.Registry // nil when no execution families are enabled
 }
@@ -43,19 +43,21 @@ type QueryResponderConfig struct {
 // QueryResponderActor serves evidence and signal queries from the NATS KV stores.
 // It reads the materialized projections — no dependency on derive actors.
 type QueryResponderActor struct {
-	cfg                      QueryResponderConfig
-	logger                   *slog.Logger
-	store                    *natsevidence.CandleKVStore
-	burstStore               *natsevidence.TradeBurstKVStore
-	volumeStore              *natsevidence.VolumeKVStore
-	signalRSIStore           *natssignal.KVStore
-	decisionRSIOversoldStore             *natsdecision.KVStore
-	strategyMeanReversionEntryStore      *natsstrategy.KVStore
-	riskPositionExposureStore             *natsrisk.KVStore
-	executionPaperOrderStore             *natsexecution.KVStore
-	executionVenueMarketOrderStore       *natsexecution.KVStore
-	executionControlStore                *natsexecution.ControlKVStore
-	responder                            *natskit.RequestReplyResponder
+	cfg                             QueryResponderConfig
+	logger                          *slog.Logger
+	store                           *natsevidence.CandleKVStore
+	burstStore                      *natsevidence.TradeBurstKVStore
+	volumeStore                     *natsevidence.VolumeKVStore
+	signalRSIStore                  *natssignal.KVStore
+	decisionRSIOversoldStore        *natsdecision.KVStore
+	strategyMeanReversionEntryStore *natsstrategy.KVStore
+	riskPositionExposureStore       *natsrisk.KVStore
+	executionPaperOrderStore        *natsexecution.KVStore
+	executionVenueMarketOrderStore  *natsexecution.KVStore
+	executionVenueRejectionStore    *natsexecution.KVStore // S387: rejection read model
+	executionControlStore           *natsexecution.ControlKVStore
+	sessionStore                    *natsexecution.SessionKVStore // S460: session metadata
+	responder                       *natskit.RequestReplyResponder
 }
 
 func NewQueryResponderActor(cfg QueryResponderConfig) actor.Producer {
@@ -124,9 +126,19 @@ func (a *QueryResponderActor) Receive(c *actor.Context) {
 				a.logger.Error("close execution venue market order query KV store", "error", err)
 			}
 		}
+		if a.executionVenueRejectionStore != nil {
+			if err := a.executionVenueRejectionStore.Close(); err != nil {
+				a.logger.Error("close execution venue rejection query KV store", "error", err)
+			}
+		}
 		if a.executionControlStore != nil {
 			if err := a.executionControlStore.Close(); err != nil {
 				a.logger.Error("close execution control query KV store", "error", err)
+			}
+		}
+		if a.sessionStore != nil {
+			if err := a.sessionStore.Close(); err != nil {
+				a.logger.Error("close session KV store", "error", err)
 			}
 		}
 
@@ -288,11 +300,35 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 			a.handleExecutionVenueMarketOrderLatest,
 		))
 
-		// Wire composite status query (reads both KV stores + control).
+		// S387: Open a read-only KV store connection for venue rejection queries.
+		rejectionStore := natsexecution.NewKVStore(a.cfg.NATSURL, natsexecution.VenueRejectionLatestBucket)
+		if err := rejectionStore.Start(); err != nil {
+			// Best-effort: rejection store unavailability does not prevent startup.
+			a.logger.Warn("execution venue rejection query KV store unavailable — rejection read-path degraded", "error", err)
+		} else {
+			a.executionVenueRejectionStore = rejectionStore
+
+			// S407: Dedicated rejection query route — makes rejection audit detail
+			// queryable independently from the composite status endpoint.
+			routes = append(routes, natskit.NewTypedControlRoute(
+				a.cfg.ExecutionRegistry.VenueRejectionLatest,
+				a.cfg.Source,
+				a.handleExecutionVenueRejectionLatest,
+			))
+		}
+
+		// Wire composite status query (reads all KV stores + control).
 		routes = append(routes, natskit.NewTypedControlRoute(
 			a.cfg.ExecutionRegistry.StatusLatest,
 			a.cfg.Source,
 			a.handleExecutionStatusLatest,
+		))
+
+		// S413: Wire lifecycle list query (enumerates all tracked partition keys).
+		routes = append(routes, natskit.NewTypedControlRoute(
+			a.cfg.ExecutionRegistry.LifecycleList,
+			a.cfg.Source,
+			a.handleExecutionLifecycleList,
 		))
 
 		// Wire execution control gate (get + set).
@@ -321,6 +357,26 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 				a.handleActivationSurfaceGet,
 			),
 		)
+
+		// S460: Wire session metadata query routes.
+		sessStore := natsexecution.NewSessionKVStore(a.cfg.NATSURL)
+		if err := sessStore.Start(); err != nil {
+			a.logger.Warn("session KV store unavailable — session queries degraded", "error", err)
+		} else {
+			a.sessionStore = sessStore
+			routes = append(routes,
+				natskit.NewTypedControlRoute(
+					a.cfg.ExecutionRegistry.SessionGet,
+					a.cfg.Source,
+					a.handleSessionGet,
+				),
+				natskit.NewTypedControlRoute(
+					a.cfg.ExecutionRegistry.SessionList,
+					a.cfg.Source,
+					a.handleSessionList,
+				),
+			)
+		}
 	}
 
 	responder := natskit.NewRequestReplyResponder(a.cfg.NATSURL, routes)
@@ -372,11 +428,17 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 			"bucket_execution_paper_order_latest", natsexecution.PaperOrderLatestBucket,
 			"subject_execution_venue_market_order_latest", a.cfg.ExecutionRegistry.VenueMarketOrderLatest.Subject,
 			"bucket_execution_venue_market_order_latest", natsexecution.VenueMarketOrderLatestBucket,
+			"bucket_execution_venue_rejection_latest", natsexecution.VenueRejectionLatestBucket,
+			"subject_execution_venue_rejection_latest", a.cfg.ExecutionRegistry.VenueRejectionLatest.Subject,
+			"rejection_store_available", a.executionVenueRejectionStore != nil,
 			"subject_execution_status_latest", a.cfg.ExecutionRegistry.StatusLatest.Subject,
+			"subject_execution_lifecycle_list", a.cfg.ExecutionRegistry.LifecycleList.Subject,
 			"subject_execution_control_get", a.cfg.ExecutionRegistry.ControlGet.Subject,
 			"subject_execution_control_set", a.cfg.ExecutionRegistry.ControlSet.Subject,
 			"subject_activation_surface_get", a.cfg.ExecutionRegistry.ActivationSurfaceGet.Subject,
 			"bucket_execution_control", natsexecution.ControlBucket,
+			"session_store_available", a.sessionStore != nil,
+			"bucket_session", natsexecution.SessionBucket,
 		)
 	}
 	a.logger.Info("query responder started", logFields...)
@@ -476,6 +538,24 @@ func (a *QueryResponderActor) handleExecutionVenueMarketOrderLatest(ctx context.
 	return executionclient.ExecutionLatestReply{ExecutionIntent: intent}, nil
 }
 
+// S407: Dedicated rejection query handler — returns intent + rejection audit detail.
+func (a *QueryResponderActor) handleExecutionVenueRejectionLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionRejectionReply, *problem.Problem) {
+	intent, prob := a.executionVenueRejectionStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	if prob != nil {
+		return executionclient.ExecutionRejectionReply{}, prob
+	}
+
+	var detail *executionclient.RejectionDetail
+	if intent != nil {
+		detail = extractRejectionDetail(intent)
+	}
+
+	return executionclient.ExecutionRejectionReply{
+		ExecutionIntent: intent,
+		Detail:          detail,
+	}, nil
+}
+
 func (a *QueryResponderActor) handleExecutionControlGet(ctx context.Context, _ executionclient.ExecutionControlQuery) (executionclient.ExecutionControlReply, *problem.Problem) {
 	gate, prob := a.executionControlStore.Get(ctx)
 	if prob != nil {
@@ -540,15 +620,199 @@ func (a *QueryResponderActor) handleExecutionStatusLatest(ctx context.Context, q
 		return executionclient.ExecutionStatusReply{}, prob
 	}
 
+	// S387: Read rejection projection for complete lifecycle visibility.
+	var rejection *execution.ExecutionIntent
+	var rejectionDetail *executionclient.RejectionDetail
+	if a.executionVenueRejectionStore != nil {
+		rejection, _ = a.executionVenueRejectionStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+		// S407: Extract rejection audit detail from embedded metadata.
+		if rejection != nil {
+			rejectionDetail = extractRejectionDetail(rejection)
+		}
+		// Best-effort: rejection store unavailability does not fail the query.
+	}
+
 	gate, prob := a.executionControlStore.Get(ctx)
 	if prob != nil {
 		return executionclient.ExecutionStatusReply{}, prob
 	}
 
 	return executionclient.ExecutionStatusReply{
-		Intent:      intent,
-		Result:      result,
-		Gate:        gate,
-		Propagation: executionclient.DeriveEffectivePropagation(intent, result),
+		Intent:          intent,
+		Result:          result,
+		Rejection:       rejection,
+		RejectionDetail: rejectionDetail,
+		Gate:            gate,
+		Propagation:     executionclient.DeriveEffectivePropagation(intent, result, rejection),
 	}, nil
+}
+
+// S413: handleExecutionLifecycleList enumerates all tracked partition keys across
+// the three execution KV buckets and returns a per-key lifecycle summary with
+// effective propagation.
+// S466: Accepts optional Source/Symbol filters — when set, only matching entries are returned.
+func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, query executionclient.LifecycleListQuery) (executionclient.LifecycleListReply, *problem.Problem) {
+	// Collect unique keys from all execution KV buckets.
+	keySet := make(map[string]struct{})
+	var intentKeys, fillKeys, rejectionKeys []string
+
+	if a.executionPaperOrderStore != nil {
+		keys, _ := a.executionPaperOrderStore.Keys(ctx)
+		intentKeys = keys
+		for _, k := range keys {
+			keySet[k] = struct{}{}
+		}
+	}
+	if a.executionVenueMarketOrderStore != nil {
+		keys, _ := a.executionVenueMarketOrderStore.Keys(ctx)
+		fillKeys = keys
+		for _, k := range keys {
+			keySet[k] = struct{}{}
+		}
+	}
+	if a.executionVenueRejectionStore != nil {
+		keys, _ := a.executionVenueRejectionStore.Keys(ctx)
+		rejectionKeys = keys
+		for _, k := range keys {
+			keySet[k] = struct{}{}
+		}
+	}
+
+	// Build lookup sets for O(1) membership checks.
+	intentSet := toSet(intentKeys)
+	fillSet := toSet(fillKeys)
+	rejectionSet := toSet(rejectionKeys)
+
+	entries := make([]executionclient.LifecycleEntry, 0, len(keySet))
+	for key := range keySet {
+		source, symbol, timeframe := parsePartitionKey(key)
+
+		// S466: Apply optional source/symbol filters.
+		if query.Source != "" && source != query.Source {
+			continue
+		}
+		if query.Symbol != "" && symbol != query.Symbol {
+			continue
+		}
+
+		entry := executionclient.LifecycleEntry{
+			Key:       key,
+			Source:    source,
+			Symbol:    symbol,
+			Timeframe: timeframe,
+		}
+
+		// Read intent (paper_order).
+		var intent, result, rejection *execution.ExecutionIntent
+		if _, ok := intentSet[key]; ok {
+			intent, _ = a.executionPaperOrderStore.Get(ctx, source, symbol, timeframe)
+		}
+		if intent != nil {
+			entry.IntentStatus = string(intent.Status)
+			ts := intent.Timestamp
+			entry.IntentTimestamp = &ts
+		}
+
+		// Read fill (venue_market_order).
+		if _, ok := fillSet[key]; ok {
+			result, _ = a.executionVenueMarketOrderStore.Get(ctx, source, symbol, timeframe)
+		}
+		if result != nil {
+			entry.FillStatus = string(result.Status)
+			ts := result.Timestamp
+			entry.FillTimestamp = &ts
+		}
+
+		// Read rejection (venue_rejection).
+		if _, ok := rejectionSet[key]; ok {
+			rejection, _ = a.executionVenueRejectionStore.Get(ctx, source, symbol, timeframe)
+		}
+		if rejection != nil {
+			entry.RejectionStatus = string(rejection.Status)
+			ts := rejection.Timestamp
+			entry.RejectionTimestamp = &ts
+		}
+
+		entry.Propagation = executionclient.DeriveEffectivePropagation(intent, result, rejection)
+		entries = append(entries, entry)
+	}
+
+	return executionclient.LifecycleListReply{
+		Entries: entries,
+		Total:   len(entries),
+	}, nil
+}
+
+// parsePartitionKey splits a "{source}.{symbol}.{timeframe}" key back into components.
+func parsePartitionKey(key string) (source, symbol string, timeframe int) {
+	parts := strings.SplitN(key, ".", 3)
+	if len(parts) < 3 {
+		return key, "", 0
+	}
+	tf := 0
+	fmt.Sscanf(parts[2], "%d", &tf)
+	return parts[0], parts[1], tf
+}
+
+func toSet(keys []string) map[string]struct{} {
+	m := make(map[string]struct{}, len(keys))
+	for _, k := range keys {
+		m[k] = struct{}{}
+	}
+	return m
+}
+
+// S460: handleSessionGet retrieves a session record by ID.
+func (a *QueryResponderActor) handleSessionGet(ctx context.Context, query executionclient.SessionGetQuery) (executionclient.SessionGetReply, *problem.Problem) {
+	session, prob := a.sessionStore.Get(ctx, query.SessionID)
+	if prob != nil {
+		return executionclient.SessionGetReply{}, prob
+	}
+	return executionclient.SessionGetReply{Session: session}, nil
+}
+
+// S460: handleSessionList returns all session records.
+func (a *QueryResponderActor) handleSessionList(ctx context.Context, _ executionclient.SessionListQuery) (executionclient.SessionListReply, *problem.Problem) {
+	sessions, prob := a.sessionStore.List(ctx)
+	if prob != nil {
+		return executionclient.SessionListReply{}, prob
+	}
+	if sessions == nil {
+		sessions = []execution.Session{}
+	}
+	return executionclient.SessionListReply{
+		Sessions: sessions,
+		Total:    len(sessions),
+	}, nil
+}
+
+// extractRejectionDetail reconstructs RejectionDetail from metadata embedded by
+// the RejectionProjectionActor (S407). Returns nil if no rejection metadata is present.
+func extractRejectionDetail(intent *execution.ExecutionIntent) *executionclient.RejectionDetail {
+	if intent == nil || intent.Metadata == nil {
+		return nil
+	}
+
+	code := intent.Metadata["rejection_code"]
+	reason := intent.Metadata["rejection_reason"]
+	if code == "" && reason == "" {
+		return nil
+	}
+
+	detail := &executionclient.RejectionDetail{
+		RejectionCode:   code,
+		RejectionReason: reason,
+	}
+
+	// Reconstruct venue details from prefixed metadata keys.
+	for k, v := range intent.Metadata {
+		if strings.HasPrefix(k, "venue_detail.") {
+			if detail.VenueDetails == nil {
+				detail.VenueDetails = make(map[string]any)
+			}
+			detail.VenueDetails[strings.TrimPrefix(k, "venue_detail.")] = v
+		}
+	}
+
+	return detail
 }

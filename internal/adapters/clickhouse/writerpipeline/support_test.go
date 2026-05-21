@@ -508,6 +508,141 @@ func TestMarshalJSON_Struct(t *testing.T) {
 	}
 }
 
+// ── S411: Venue Rejection Row Mapper Tests ──────────────────────
+
+func TestMapVenueRejectionRow_ColumnCount(t *testing.T) {
+	e := execution.VenueOrderRejectedEvent{
+		Metadata: testMetadata(),
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0",
+			Status: execution.StatusRejected,
+			Final:  true, Timestamp: fixedTime,
+		},
+		RejectionCode:   "INSUFFICIENT_MARGIN",
+		RejectionReason: "margin below minimum",
+	}
+	row := mapVenueRejectionRow(e)
+
+	if len(row) != 20 {
+		t.Fatalf("expected 20 columns (same as fill/paper), got %d", len(row))
+	}
+}
+
+func TestMapVenueRejectionRow_StatusIsRejected(t *testing.T) {
+	e := execution.VenueOrderRejectedEvent{
+		Metadata: testMetadata(),
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
+			Final: true, Timestamp: fixedTime,
+		},
+		RejectionCode:   "INVALID_PARAMS",
+		RejectionReason: "invalid quantity",
+	}
+	row := mapVenueRejectionRow(e)
+
+	assertEq(t, "status", row[11], "rejected")
+}
+
+func TestMapVenueRejectionRow_MetadataContainsRejectionFields(t *testing.T) {
+	e := execution.VenueOrderRejectedEvent{
+		Metadata: testMetadata(),
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binances", Symbol: "ethusdt", Timeframe: 300,
+			Side: execution.SideSell, Quantity: "1.0", Status: execution.StatusRejected,
+			Metadata:      map[string]string{"origin": "testnet"},
+			CorrelationID: "exec-corr-rej",
+			CausationID:   "exec-caus-rej",
+			Final:         true, Timestamp: fixedTime,
+		},
+		RejectionCode:   "INSUFFICIENT_MARGIN",
+		RejectionReason: "margin below minimum for ETHUSDT",
+		VenueDetails:    map[string]any{"exchange_code": "-2019", "msg": "Margin is insufficient."},
+	}
+	row := mapVenueRejectionRow(e)
+
+	// Metadata column is index 15.
+	metaJSON := row[15].(string)
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
+		t.Fatalf("metadata is not valid JSON: %v", err)
+	}
+
+	// Original metadata preserved.
+	if parsed["origin"] != "testnet" {
+		t.Errorf("expected origin=testnet, got %q", parsed["origin"])
+	}
+	// Rejection fields embedded.
+	if parsed["rejection_code"] != "INSUFFICIENT_MARGIN" {
+		t.Errorf("expected rejection_code=INSUFFICIENT_MARGIN, got %q", parsed["rejection_code"])
+	}
+	if parsed["rejection_reason"] != "margin below minimum for ETHUSDT" {
+		t.Errorf("expected rejection_reason, got %q", parsed["rejection_reason"])
+	}
+	// Venue details embedded with prefix.
+	if parsed["venue_detail.exchange_code"] != "-2019" {
+		t.Errorf("expected venue_detail.exchange_code=-2019, got %q", parsed["venue_detail.exchange_code"])
+	}
+	if parsed["venue_detail.msg"] != "Margin is insufficient." {
+		t.Errorf("expected venue_detail.msg, got %q", parsed["venue_detail.msg"])
+	}
+
+	// Correlation chain preserved.
+	assertEq(t, "exec_correlation_id", row[16], "exec-corr-rej")
+	assertEq(t, "exec_causation_id", row[17], "exec-caus-rej")
+}
+
+func TestMapVenueRejectionRow_NilMetadataCreatesNew(t *testing.T) {
+	e := execution.VenueOrderRejectedEvent{
+		Metadata: testMetadata(),
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
+			Metadata: nil,
+			Final:    true, Timestamp: fixedTime,
+		},
+		RejectionCode:   "TEST_CODE",
+		RejectionReason: "test reason",
+	}
+	row := mapVenueRejectionRow(e)
+
+	metaJSON := row[15].(string)
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
+		t.Fatalf("metadata is not valid JSON: %v", err)
+	}
+	if parsed["rejection_code"] != "TEST_CODE" {
+		t.Errorf("expected rejection_code=TEST_CODE, got %q", parsed["rejection_code"])
+	}
+}
+
+func TestMapVenueRejectionRow_EmptyRejectionFieldsNotEmbedded(t *testing.T) {
+	e := execution.VenueOrderRejectedEvent{
+		Metadata: testMetadata(),
+		ExecutionIntent: execution.ExecutionIntent{
+			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
+			Final: true, Timestamp: fixedTime,
+		},
+		RejectionCode:   "",
+		RejectionReason: "",
+	}
+	row := mapVenueRejectionRow(e)
+
+	metaJSON := row[15].(string)
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
+		t.Fatalf("metadata is not valid JSON: %v", err)
+	}
+	if _, ok := parsed["rejection_code"]; ok {
+		t.Error("empty rejection_code should not be embedded")
+	}
+	if _, ok := parsed["rejection_reason"]; ok {
+		t.Error("empty rejection_reason should not be embedded")
+	}
+}
+
 func assertEq(t *testing.T, field string, got, want any) {
 	t.Helper()
 	if got != want {

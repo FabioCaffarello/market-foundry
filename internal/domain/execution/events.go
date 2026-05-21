@@ -53,3 +53,35 @@ type VenueOrderFilledEvent struct {
 
 func (e VenueOrderFilledEvent) EventName() events.Name         { return EventVenueOrderFilled }
 func (e VenueOrderFilledEvent) EventMetadata() events.Metadata { return e.Metadata }
+
+// ── Venue Rejection Events ─────────────────────────────────────
+//
+// Owner: execute binary.
+// Stream: EXECUTION_REJECTION_EVENTS (execution.rejection.venue_market_order.{source}.{symbol}.{timeframe}).
+// Consumers: store (rejection projection), writer (ClickHouse persistence).
+//
+// Rejection events close the observability gap identified by S385: venue rejections
+// previously existed only as Problem returns to the actor layer, with no downstream
+// event trail. This event makes rejections auditable and queryable.
+
+const (
+	// EventVenueOrderRejected is emitted by execute when a venue submission is rejected.
+	EventVenueOrderRejected events.Name = "venue_order_rejected"
+)
+
+// VenueOrderRejectedEvent is emitted by the execute binary when a venue adapter
+// returns a non-retryable rejection (e.g. insufficient margin, invalid parameters).
+// Family: venue_market_order. Owner: execute binary.
+//
+// The event preserves the original ExecutionIntent with Status=rejected and carries
+// the rejection reason from the Problem for audit trail completeness.
+type VenueOrderRejectedEvent struct {
+	Metadata        events.Metadata `json:"metadata"`
+	ExecutionIntent ExecutionIntent `json:"execution_intent"`
+	RejectionCode   string          `json:"rejection_code"`
+	RejectionReason string          `json:"rejection_reason"`
+	VenueDetails    map[string]any  `json:"venue_details,omitempty"`
+}
+
+func (e VenueOrderRejectedEvent) EventName() events.Name         { return EventVenueOrderRejected }
+func (e VenueOrderRejectedEvent) EventMetadata() events.Metadata { return e.Metadata }

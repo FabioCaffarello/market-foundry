@@ -83,6 +83,7 @@ func (a *ExchangeScopeActor) onActivate(c *actor.Context, msg activateBindingMes
 
 	childName := "ws-" + symbol
 	pid := c.SpawnChild(NewWebSocketAdapterActor(WebSocketAdapterConfig{
+		Source:       a.cfg.Source,
 		Symbol:       symbol,
 		PublisherPID: a.publisherPID,
 	}), childName)

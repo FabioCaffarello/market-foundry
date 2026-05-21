@@ -52,12 +52,17 @@ type queryKeyParams struct {
 }
 
 // parseQueryKeyParams extracts source, symbol, timeframe from query string.
-// Returns a problem if timeframe is missing or invalid.
+// All three parameters are required — returns a descriptive problem for each missing field.
 func parseQueryKeyParams(r *http.Request) (queryKeyParams, *problem.Problem) {
 	source := r.URL.Query().Get("source")
+	if source == "" {
+		return queryKeyParams{}, problem.New(problem.InvalidArgument, "source query parameter is required")
+	}
 	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		return queryKeyParams{}, problem.New(problem.InvalidArgument, "symbol query parameter is required")
+	}
 	timeframeStr := r.URL.Query().Get("timeframe")
-
 	if timeframeStr == "" {
 		return queryKeyParams{}, problem.New(problem.InvalidArgument, "timeframe query parameter is required")
 	}

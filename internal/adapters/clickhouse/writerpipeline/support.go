@@ -169,6 +169,30 @@ func NewVenueFillStarter(reg natsexecution.Registry) ConsumerStarter {
 	}
 }
 
+// NewVenueRejectionStarter creates a ConsumerStarter for venue order rejection events.
+// S411: closes the ClickHouse persistence gap (RG-1) — venue rejections flow from
+// EXECUTION_REJECTION_EVENTS stream to the executions ClickHouse table.
+// Rejection-specific fields (code, reason, venue details) are embedded into the
+// metadata JSON column, matching the pattern used by the KV projection actor.
+func NewVenueRejectionStarter(reg natsexecution.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsexecution.NewRejectionConsumer(natsURL, spec, reg,
+			func(event execution.VenueOrderRejectedEvent) {
+				recordEvent(tracker)
+				emitRow(mapVenueRejectionRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
 func recordEvent(tracker *healthz.Tracker) {
 	if tracker == nil {
 		return
@@ -361,6 +385,54 @@ func mapVenueFillRow(e execution.VenueOrderFilledEvent) []any {
 		marshalJSON(x.Fills),
 		marshalJSON(x.Parameters),
 		marshalJSON(x.Metadata),
+		x.CorrelationID,
+		x.CausationID,
+		x.Final,
+		x.Timestamp,
+	}
+}
+
+// mapVenueRejectionRow maps a VenueOrderRejectedEvent to ClickHouse executions row values.
+// Uses the same column order as mapExecutionRow — all execution lifecycle events target the same table.
+// S411: Rejection-specific fields (rejection_code, rejection_reason, venue details) are merged
+// into the intent's Metadata map before serialization, so they survive the ClickHouse round-trip
+// and are queryable via the metadata JSON column. This mirrors the KV projection approach from S407.
+func mapVenueRejectionRow(e execution.VenueOrderRejectedEvent) []any {
+	m := e.Metadata
+	x := e.ExecutionIntent
+
+	// Embed rejection audit fields into metadata for ClickHouse persistence.
+	enrichedMeta := make(map[string]string, len(x.Metadata)+3)
+	for k, v := range x.Metadata {
+		enrichedMeta[k] = v
+	}
+	if e.RejectionCode != "" {
+		enrichedMeta["rejection_code"] = e.RejectionCode
+	}
+	if e.RejectionReason != "" {
+		enrichedMeta["rejection_reason"] = e.RejectionReason
+	}
+	for k, v := range e.VenueDetails {
+		enrichedMeta["venue_detail."+k] = fmt.Sprintf("%v", v)
+	}
+
+	return []any{
+		m.ID,
+		m.OccurredAt,
+		m.CorrelationID,
+		m.CausationID,
+		x.Type,
+		x.Source,
+		x.Symbol,
+		uint32(x.Timeframe),
+		string(x.Side),
+		parseFloat(x.Quantity),
+		parseFloat(x.FilledQuantity),
+		string(x.Status),
+		marshalJSON(x.Risk),
+		marshalJSON(x.Fills),
+		marshalJSON(x.Parameters),
+		marshalJSON(enrichedMeta),
 		x.CorrelationID,
 		x.CausationID,
 		x.Final,

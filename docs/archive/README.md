@@ -2,29 +2,23 @@
 
 ## Purpose
 
-This directory stores superseded, consolidated, or historical documents that are
-no longer canonical for current repository execution.
+This directory stores useful history that should no longer compete with the
+primary human navigation surface.
 
-It exists for traceability, research, and historical comparison.
+## Archived Areas
+
+| Area | Role |
+|---|---|
+| [`operations/README.md`](operations/README.md) | Pre-O18 operations/support corpus |
+| [`documentation/README.md`](documentation/README.md) | Superseded documentation-topology and reconciliation artifacts |
+
+Other archive subdirectories remain available for older architectural,
+analytical, tranche, and lifecycle material.
 
 ## Rules
 
-- Do not use archived documents as the current source of truth.
-- Confirm the active canonical document first in
-  [`../README.md`](../README.md),
-  [`../operations/README.md`](../operations/README.md), or
-  [`../architecture/README.md`](../architecture/README.md).
-- Use archive material only when you need historical context, consolidation
-  provenance, or an older rationale that is no longer active.
-
-## Typical Uses
-
-- Comparing a current architecture document against a superseded variant
-- Understanding why a consolidation happened
-- Recovering historical terminology during repo archaeology
-
-## See Also
-
-- [`../architecture/documentation-canonical-map-after-consolidation.md`](../architecture/documentation-canonical-map-after-consolidation.md)
-- [`../architecture/documentation-changes-archive-delete-consolidate-log.md`](../architecture/documentation-changes-archive-delete-consolidate-log.md)
-- [`../stages/INDEX.md`](../stages/INDEX.md)
+- do not use archive material as the current source of truth;
+- confirm the active owner doc first in [`../product/README.md`](../product/README.md),
+  [`../development/README.md`](../development/README.md), or
+  [`../architecture/README.md`](../architecture/README.md);
+- use archive material for rationale, archaeology, or consolidation provenance.

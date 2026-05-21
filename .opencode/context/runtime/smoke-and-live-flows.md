@@ -5,6 +5,7 @@ Choose by intent:
 - fastest bring-up: `make live`, `make live-multi`
 - inspect each step: `make up` + `make seed*`
 - choose proof: `make smoke-help`
+- stackless CI-safe proof: `make ci-smoke`
 
 Proof-of-record mapping:
 
@@ -15,6 +16,7 @@ Proof-of-record mapping:
 - live stack or kill-switch path -> `make smoke-live-stack`, `make smoke-activation`
 - no full stack needed -> `make smoke-composed`
 - lifecycle/recovery -> `make smoke-operational`, `make smoke-restart-recovery`
+- compose orchestration wiring -> `make smoke-compose-wiring`
 
 Script boundary:
 

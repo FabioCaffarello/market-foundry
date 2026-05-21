@@ -69,7 +69,9 @@ services:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
       - ../clickhouse/config/listen.xml:/etc/clickhouse-server/config.d/listen.xml:ro
+      - ../clickhouse/config/backup-disk.xml:/etc/clickhouse-server/config.d/backup-disk.xml:ro
       - ../clickhouse/users/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml
+      - ../../backups/clickhouse:/backups
     cap_add:
       - SYS_NICE
     networks:

@@ -48,6 +48,12 @@ type ConsumerSpec struct {
 	Event      EventSpec
 	AckWait    time.Duration
 	MaxDeliver int
+	// FilterSubjects enables multi-subject filtering on the consumer.
+	// S401: When set, these subjects replace the single Event.Subject in the
+	// NATS ConsumerConfig. Used for segment-scoped consumers that subscribe
+	// to multiple source-specific subjects (e.g., binancef + binances).
+	// When empty, the consumer falls back to Event.Subject (single filter).
+	FilterSubjects []string
 }
 
 // PutResult describes the outcome of a projection write to the latest bucket.

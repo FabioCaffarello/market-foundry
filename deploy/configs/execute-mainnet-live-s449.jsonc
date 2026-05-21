@@ -1,0 +1,46 @@
+{
+  // Execute (Mainnet Live -- S449 Session) -- First supervised live trading session.
+  //
+  // S449: Adapted from execute-mainnet-live.jsonc for the first live ceremony.
+  // DEVIATION: credential_provider changed from "file" to "env" because mainnet
+  // credentials are stored as environment variables, not mounted files.
+  // This deviation is documented in the S449 session record.
+  //
+  // AUTHORIZATION: S443 evidence gate -> S444 ceremony charter -> S445 C-6 -> S448 verdict.
+  // SCOPE: Binance Spot only, BTCUSDT, market order, minimum exchange quantity.
+  // OPERATOR: Must be present throughout. Kill-switch must be tested before session.
+  //
+  // WARNING: THIS CONFIG SUBMITS REAL ORDERS ON MAINNET.
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8084"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "venue": {
+    "dry_run": false,
+    "staleness_max_age": "120s",
+    "submit_timeout": "10s",
+    "credential_provider": "env",
+    "segments": {
+      "spot": {
+        "enabled": true,
+        "adapter": "binance_spot_mainnet"
+      }
+    }
+  },
+  "pipeline": {
+    "execution_families": ["paper_order"],
+    "risk_families": ["position_exposure"],
+    "strategy_families": ["mean_reversion_entry"],
+    "decision_families": ["rsi_oversold"],
+    "signal_families": ["rsi"],
+    "families": ["candle", "tradeburst", "volume"]
+  }
+}

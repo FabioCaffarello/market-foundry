@@ -6,18 +6,32 @@ Owner surfaces:
 
 - `../../../README.md` for repository identity and quick orientation
 - `../../../DEVELOPMENT.md` for the day-to-day change loop
-- `../../../docs/operations/README.md` for support and operational entrypoints
+- `../../../docs/development/owners.md` for contributor owner mapping
+- `../../../docs/product/owners.md` for system/product owner mapping
 - `../../../docs/tooling/README.md` for `raccoon-cli` internals and references
 - `../../../docs/architecture/README.md` for architecture and governance
+- `../../../docs/architecture/information-system-governance-and-classification.md`
+  for classification and evolution policy
 - `../../../docs/stages/INDEX.md` for historical stage evidence
 - `../../../docs/archive/README.md` for superseded material
 
 Routing rules:
 
-- update owner docs when behavior, contract, or governance changes
-- update `.opencode` only when routing or compression must change
-- write stage reports for evidence; do not turn them into active owner docs
+- update owner docs when behavior, workflow, contract, or governance changes
+- update `.opencode` only when routing, compression, or handoff changed
+- stage reports are evidence, not recurring owner answers
+- archive superseded guidance instead of leaving compatibility sprawl in active surfaces
 
-Use `../../../docs/operations/documentary-ownership-and-canonical-navigation.md`
-and `../../../docs/architecture/documentation-canonical-map-after-consolidation.md`
-when ownership is ambiguous.
+What `.opencode` intentionally absorbs from `docs/`:
+
+- owner-doc routing
+- workflow and proof entrypoint compression
+- short stage/governance entrypoints
+- tooling boundary reminders
+
+What stays in `docs/`:
+
+- human explanation
+- durable rationale
+- rule catalogs
+- historical evidence

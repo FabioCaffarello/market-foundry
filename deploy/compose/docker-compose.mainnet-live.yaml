@@ -1,0 +1,20 @@
+# S449: Compose override for mainnet live execution (Spot only).
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.mainnet-live.yaml up -d
+#
+# Overrides the execute service to use mainnet live config with dry_run=false.
+# THIS SUBMITS REAL ORDERS ON MAINNET. Operator must be present.
+#
+# Authorization: S443 -> S444 -> S445 -> S448 -> S449.
+# Scope: Binance Spot, BTCUSDT, market order, minimum quantity.
+
+services:
+  execute:
+    command: ["-config", "/etc/market-foundry/execute-mainnet-live-s449.jsonc"]
+    ports:
+      - "127.0.0.1:8084:8084"
+    volumes:
+      - ../configs/execute-mainnet-live-s449.jsonc:/etc/market-foundry/execute-mainnet-live-s449.jsonc:ro
+    env_file:
+      - ../envs/local.env

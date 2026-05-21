@@ -1,0 +1,55 @@
+{
+  // Execute (Mainnet Dry-Run) — Binance Spot + Futures mainnet with dry-run enforced.
+  //
+  // CANONICAL: Mainnet execution config (both segments, dry_run=true).
+  //
+  // S434: This config targets mainnet endpoints but enforces dry_run=true.
+  // All venue calls are intercepted by DryRunSubmitter — no real orders are submitted.
+  // Use this config to validate mainnet credential resolution, connectivity probing,
+  // and pipeline wiring against production endpoints without risk.
+  //
+  // WARNING: Mainnet adapters require real API credentials.
+  //   Credentials are resolved via CredentialProvider (default: environment variables).
+  //   S439: Set credential_provider to "file" and credential_path to use mounted secrets.
+  //   Required credentials (env vars or secret files):
+  //     MF_VENUE_BINANCE_SPOT_MAINNET_API_KEY, _API_SECRET
+  //     MF_VENUE_BINANCE_FUTURES_MAINNET_API_KEY, _API_SECRET
+  //
+  // Port: 8084 (internal only).
+  // Segments: spot (binance_spot_mainnet), futures (binance_futures_mainnet).
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8084"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "venue": {
+    "dry_run": true,
+    "staleness_max_age": "120s",
+    "submit_timeout": "10s",
+    "segments": {
+      "spot": {
+        "enabled": true,
+        "adapter": "binance_spot_mainnet"
+      },
+      "futures": {
+        "enabled": true,
+        "adapter": "binance_futures_mainnet"
+      }
+    }
+  },
+  "pipeline": {
+    "execution_families": ["paper_order"],
+    "risk_families": ["position_exposure"],
+    "strategy_families": ["mean_reversion_entry"],
+    "decision_families": ["rsi_oversold"],
+    "signal_families": ["rsi"],
+    "families": ["candle", "tradeburst", "volume"]
+  }
+}

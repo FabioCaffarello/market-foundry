@@ -126,27 +126,38 @@ type trackerStatus struct {
 
 // statusResponse is returned by /statusz.
 type statusResponse struct {
-	Status          string          `json:"status"`
-	Phase           string          `json:"phase"`
-	Runtime         string          `json:"runtime,omitempty"`
-	Uptime          string          `json:"uptime,omitempty"`
-	StartedAt       string          `json:"started_at,omitempty"`
-	DegradedTrackers []string       `json:"degraded_trackers,omitempty"`
-	Trackers        []trackerStatus `json:"trackers,omitempty"`
+	Status           string          `json:"status"`
+	Phase            string          `json:"phase"`
+	Runtime          string          `json:"runtime,omitempty"`
+	Uptime           string          `json:"uptime,omitempty"`
+	StartedAt        string          `json:"started_at,omitempty"`
+	DegradedTrackers []string        `json:"degraded_trackers,omitempty"`
+	Trackers         []trackerStatus `json:"trackers,omitempty"`
+	Segments         []SegmentStatus `json:"segments,omitempty"`
 }
+
+// Health server defaults.
+const (
+	DefaultIdleThreshold      = 2 * time.Minute
+	DefaultHeartbeatInterval  = 30 * time.Second
+	DefaultStartingThreshold  = 30 * time.Second
+)
 
 // HealthServer provides /healthz, /readyz, /statusz, and /diagz endpoints.
 type HealthServer struct {
-	addr          string
-	runtime       string
-	checks        []ReadinessCheck
-	trackers      []*Tracker
-	idleThreshold time.Duration
-	server        *http.Server
-	logger        *slog.Logger
-	startedAt     time.Time
-	stopHeartbeat context.CancelFunc
-	heartbeatWg   sync.WaitGroup
+	addr              string
+	runtime           string
+	checks            []ReadinessCheck
+	trackers          []*Tracker
+	segments          *SegmentHealthRegistry
+	idleThreshold     time.Duration
+	heartbeatInterval time.Duration
+	startingThreshold time.Duration
+	server            *http.Server
+	logger            *slog.Logger
+	startedAt         time.Time
+	stopHeartbeat     context.CancelFunc
+	heartbeatWg       sync.WaitGroup
 }
 
 // Option configures the HealthServer.
@@ -163,15 +174,36 @@ func WithIdleThreshold(d time.Duration) Option {
 	return func(s *HealthServer) { s.idleThreshold = d }
 }
 
+// WithHeartbeatInterval sets the interval between idle heartbeat checks.
+// Default: 30 seconds.
+func WithHeartbeatInterval(d time.Duration) Option {
+	return func(s *HealthServer) { s.heartbeatInterval = d }
+}
+
+// WithStartingThreshold sets the duration after boot during which the phase
+// is reported as "starting" when no events have been recorded.
+// Default: 30 seconds.
+func WithStartingThreshold(d time.Duration) Option {
+	return func(s *HealthServer) { s.startingThreshold = d }
+}
+
+// WithSegments attaches a segment health registry to the health server.
+// When set, /statusz and /diagz include per-segment health breakdowns.
+func WithSegments(reg *SegmentHealthRegistry) Option {
+	return func(s *HealthServer) { s.segments = reg }
+}
+
 // NewHealthServer creates a health server listening on addr.
 func NewHealthServer(addr string, checks []ReadinessCheck, trackers []*Tracker, opts ...Option) *HealthServer {
 	s := &HealthServer{
-		addr:          addr,
-		checks:        checks,
-		trackers:      trackers,
-		idleThreshold: 2 * time.Minute,
-		logger:        slog.Default().With("component", "healthz"),
-		startedAt:     time.Now(),
+		addr:              addr,
+		checks:            checks,
+		trackers:          trackers,
+		idleThreshold:     DefaultIdleThreshold,
+		heartbeatInterval: DefaultHeartbeatInterval,
+		startingThreshold: DefaultStartingThreshold,
+		logger:            slog.Default().With("component", "healthz"),
+		startedAt:         time.Now(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -294,6 +326,9 @@ func (s *HealthServer) HandleStatusz(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	resp.Phase = s.computePhase()
+	if s.segments != nil {
+		resp.Segments = s.segments.Status()
+	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -312,7 +347,7 @@ func (s *HealthServer) computePhase() string {
 	uptime := time.Since(s.startedAt)
 
 	if len(s.trackers) == 0 {
-		if uptime < 30*time.Second {
+		if uptime < s.startingThreshold {
 			return "starting"
 		}
 		return "active"
@@ -345,7 +380,7 @@ func (s *HealthServer) computePhase() string {
 	if degraded > 0 {
 		return "degraded"
 	}
-	if awaiting == total && uptime < 30*time.Second {
+	if awaiting == total && uptime < s.startingThreshold {
 		return "starting"
 	}
 	if awaiting > 0 {
@@ -408,12 +443,16 @@ func (s *HealthServer) HandleDiagz(w http.ResponseWriter, _ *http.Request) {
 	}
 	diag["trackers"] = trackerSummary
 
+	if s.segments != nil {
+		diag["segments"] = s.segments.Status()
+	}
+
 	writeJSON(w, http.StatusOK, diag)
 }
 
 func (s *HealthServer) heartbeatLoop(ctx context.Context) {
 	defer s.heartbeatWg.Done()
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(s.heartbeatInterval)
 	defer ticker.Stop()
 
 	for {

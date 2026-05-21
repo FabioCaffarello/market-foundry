@@ -10,7 +10,6 @@ Canonical owner docs:
 - `../../../docs/architecture/stage-definition-of-done.md`
 - `../../../docs/architecture/anti-debt-checklist.md`
 - `../../../docs/architecture/actor-ownership.md`
-- `../../../docs/architecture/stream-family-catalog.md`
 - `../../../docs/architecture/prohibited-carryovers.md`
 - `../../../internal/README.md`
 
@@ -38,5 +37,6 @@ Do not reintroduce:
 - old quality-service binaries or naming
 - `.context/` structure
 
-If the change alters boundaries, update the canonical architecture docs instead
-of expanding `.opencode`.
+If the change alters binary purpose, ownership, stream wiring, or architectural
+rules, update canonical architecture docs and relevant `raccoon-cli` checks in
+the same change instead of expanding `.opencode`.

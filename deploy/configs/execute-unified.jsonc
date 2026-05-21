@@ -1,0 +1,52 @@
+{
+  // Execute (Unified) — Binance Spot + Futures testnet with dry-run active.
+  //
+  // CANONICAL: Segmented execution config (both segments, dry_run=true).
+  //
+  // S416: This is the canonical config for segmented execution in dry-run mode.
+  // Both Spot and Futures segments are enabled. The SegmentRouter dispatches
+  // intents to the correct adapter based on the intent source (binances -> spot,
+  // binancef -> futures). To run a single segment, disable the other in this
+  // config rather than using a per-segment config file.
+  //
+  // Port: 8084 (internal only).
+  // Segments: spot (binance_spot_testnet), futures (binance_futures_testnet).
+  // Credential env vars:
+  //   MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY, _API_SECRET
+  //   MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY, _API_SECRET
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8084"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "venue": {
+    "dry_run": true,
+    "staleness_max_age": "120s",
+    "submit_timeout": "10s",
+    "segments": {
+      "spot": {
+        "enabled": true,
+        "adapter": "binance_spot_testnet"
+      },
+      "futures": {
+        "enabled": true,
+        "adapter": "binance_futures_testnet"
+      }
+    }
+  },
+  "pipeline": {
+    "execution_families": ["paper_order"],
+    "risk_families": ["position_exposure"],
+    "strategy_families": ["mean_reversion_entry"],
+    "decision_families": ["rsi_oversold"],
+    "signal_families": ["rsi"],
+    "families": ["candle", "tradeburst", "volume"]
+  }
+}

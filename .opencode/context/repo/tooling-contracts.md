@@ -4,9 +4,8 @@ Use this file when choosing the execution surface for a task.
 
 Canonical owner docs:
 
-- `../../../docs/operations/make-and-raccoon-cli-contract.md`
+- `../../../docs/development/commands-and-proofs.md`
 - `../../../docs/tooling/cli-overview.md`
-- `../../../docs/operations/raccoon-cli-command-reference.md`
 - `../../../tools/raccoon-cli/README.md`
 - `../../../scripts/README.md`
 
@@ -17,6 +16,8 @@ Contract:
 - `raccoon-cli` owns strategic inspection, impact analysis, TDD guidance, drift,
   and architecture safety
 - `scripts/*.sh` own harness implementation detail behind `make`
+- raw `docker compose`, `go`, and `cargo` commands are substrate interfaces,
+  not the first workflow answer
 
 Canonical `make` wrappers around tooling intelligence:
 

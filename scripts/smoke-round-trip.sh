@@ -45,6 +45,9 @@ EOF
 
 FLUSH_WAIT="${SMOKE_WAIT:-${FLUSH_WAIT:-60}}"
 CLICKHOUSE_DATABASE="${CLICKHOUSE_DATABASE:-market_foundry}"
+CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-9000}"
+CLICKHOUSE_USER="${CLICKHOUSE_USER:-default}"
+CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-clickhouse}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -70,7 +73,7 @@ phase "Phase 1: Infrastructure Readiness"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking ClickHouse health..."
-CH_RESULT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --query "SELECT 1" 2>/dev/null || echo "")
+CH_RESULT=$(compose exec -T clickhouse clickhouse-client --port "${CLICKHOUSE_PORT}" --user "${CLICKHOUSE_USER}" --password "${CLICKHOUSE_PASSWORD}" --query "SELECT 1" 2>/dev/null || echo "")
 if [[ "$CH_RESULT" == "1" ]]; then
     pass "ClickHouse is healthy"
 else
@@ -121,7 +124,7 @@ phase "Phase 3: ClickHouse Executions Table"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Checking executions table row count..."
-EXEC_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
+EXEC_COUNT=$(compose exec -T clickhouse clickhouse-client --port "${CLICKHOUSE_PORT}" --user "${CLICKHOUSE_USER}" --password "${CLICKHOUSE_PASSWORD}" --database "${CLICKHOUSE_DATABASE}" \
     --query "SELECT count() FROM executions" 2>/dev/null || echo "0")
 
 if [[ "$EXEC_COUNT" -gt 0 ]]; then
@@ -132,7 +135,7 @@ fi
 
 # Check specifically for venue fills (status=filled with real fills).
 info "Checking for venue fill rows (status='filled')..."
-FILLED_COUNT=$(compose exec -T clickhouse clickhouse-client --port 9000 --user default --password clickhouse --database "${CLICKHOUSE_DATABASE}" \
+FILLED_COUNT=$(compose exec -T clickhouse clickhouse-client --port "${CLICKHOUSE_PORT}" --user "${CLICKHOUSE_USER}" --password "${CLICKHOUSE_PASSWORD}" --database "${CLICKHOUSE_DATABASE}" \
     --query "SELECT count() FROM executions WHERE status = 'filled'" 2>/dev/null || echo "0")
 
 if [[ "$FILLED_COUNT" -gt 0 ]]; then

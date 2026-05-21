@@ -37,7 +37,7 @@ repository workflow contract.
 - If a script remains compatibility-only, debugging-only, or wrapper-only,
   label that status clearly in docs rather than letting it look canonical by
   accident.
-- Keep this file short; detailed behavior belongs in
-  [`../docs/operations/scripts-catalog-and-usage-guide.md`](../docs/operations/scripts-catalog-and-usage-guide.md).
+- Keep this file short; canonical contributor guidance belongs in
+  [`../docs/development/commands-and-proofs.md`](../docs/development/commands-and-proofs.md).
 - If a script becomes a public workflow entrypoint, update this file, the
   Makefile help text, and the relevant operations doc in the same change.

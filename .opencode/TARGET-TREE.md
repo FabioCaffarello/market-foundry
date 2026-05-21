@@ -16,6 +16,9 @@ concerns: `repo`, `runtime`, `change`, and `intelligence`.
   O14-report.md
   O15-report.md
   O16-report.md
+  O17-report.md
+  O19-report.md
+  O20-report.md
   config.json
   opencode.json
   agent/
@@ -59,8 +62,9 @@ concerns: `repo`, `runtime`, `change`, and `intelligence`.
 
 - `Makefile` remains the public command surface. `.opencode` does not grow a
   parallel command catalog.
-- `AGENTS.md`, `README.md`, `DEVELOPMENT.md`, `docs/operations/`,
-  `docs/tooling/`, and `docs/architecture/` remain canonical owners.
+- `AGENTS.md`, `README.md`, `DEVELOPMENT.md`, `docs/development/`,
+  `docs/product/`, `docs/tooling/`, and `docs/architecture/` remain canonical
+  owners.
 - `raccoon-cli` remains the real intelligence layer. `.opencode` only routes to
   it and compresses the handoff context around it.
 - The agent surface stays minimal: one `foundry-agent` only. Do not add durable
@@ -69,6 +73,8 @@ concerns: `repo`, `runtime`, `change`, and `intelligence`.
   file that routes to all approved local leaves.
 - O-reports remain reports. They may explain why the layer changed, but they do
   not become a second active index, owner map, or policy catalog.
+- `.opencode` may absorb only navigation, compression, entrypoint choice,
+  operational short context, session support, and safe-change guidance.
 
 ## Not Part Of The Target Tree
 

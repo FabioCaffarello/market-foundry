@@ -2,9 +2,9 @@
 
 Canonical owner docs:
 
-- `../../../docs/operations/make-and-raccoon-cli-contract.md`
+- `../../../docs/development/commands-and-proofs.md`
+- `../../../docs/tooling/README.md`
 - `../../../docs/tooling/cli-overview.md`
-- `../../../docs/operations/raccoon-cli-command-reference.md`
 - `../../../tools/raccoon-cli/README.md`
 
 Use this surface for:

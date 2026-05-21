@@ -50,6 +50,13 @@ func newAnalyticalExecutionReader(client *clickhouse.Client, logger *slog.Logger
 	return clickhouse.NewExecutionReader(client, logger)
 }
 
+// newAnalyticalLifecycleReader creates the analytical lifecycle history reader from the adapter layer.
+// S453A: Unlike the execution reader (per-type queries), the lifecycle reader queries across
+// all execution event types for unified timeline reconstruction.
+func newAnalyticalLifecycleReader(client *clickhouse.Client, logger *slog.Logger) analyticalclient.LifecycleHistoryReader {
+	return clickhouse.NewExecutionReader(client, logger)
+}
+
 // newAnalyticalCompositeReader creates the composite execution chain reader from the adapter layer.
 // The CompositeReader queries all five domain tables by correlation_id and assembles
 // a unified causal chain. It satisfies both CompositeReader (chain queries) and

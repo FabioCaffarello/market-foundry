@@ -81,6 +81,9 @@ func (a *PaperOrderEvaluatorActor) onRiskAssessed(c *actor.Context, msg riskAsse
 	intent.CorrelationID = msg.CorrelationID
 	intent.CausationID = msg.CausationID
 
+	// S470: enrich risk input with causal event reference.
+	intent.Risk.EventID = msg.CausationID
+
 	// Apply paper fill simulation: submitted → filled for actionable orders.
 	intent, ok = a.simulator.SimulateFill(intent)
 	if !ok {

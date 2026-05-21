@@ -32,6 +32,7 @@ func (s *PaperFillSimulator) SimulateFill(intent domainexec.ExecutionIntent) (do
 			Price:     "0",
 			Quantity:  intent.Quantity,
 			Fee:       "0",
+			FeeSource: domainexec.FeeSourceSimulated,
 			Simulated: true,
 			Timestamp: intent.Timestamp,
 		},

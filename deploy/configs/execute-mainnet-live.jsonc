@@ -1,0 +1,62 @@
+{
+  // Execute (Mainnet Live) -- Supervised live trading under minimum authorized scope.
+  //
+  // S445: C-6 controlled execution. This config enables real order submission
+  // on Binance Spot mainnet for the first supervised live trading ceremony.
+  //
+  // AUTHORIZATION: S443 evidence gate, condition C-6.
+  // SCOPE: Binance Spot only, BTCUSDT, market order, minimum exchange quantity.
+  // CREDENTIAL: File-based provider required (no env vars for mainnet live).
+  // OPERATOR: Must be present throughout. Kill-switch must be tested before session.
+  //
+  // WARNING: THIS CONFIG SUBMITS REAL ORDERS ON MAINNET.
+  // Do NOT use this config without completing the full pre-session checklist.
+  // See: docs/architecture/live-trading-enablement-scope-constraints-stop-conditions-and-non-goals.md
+  //
+  // Required pre-session:
+  //   1. Kill-switch cycle test passes (kill-switch-ops.sh cycle)
+  //   2. Automated backup completes (clickhouse-scheduled-backup.sh)
+  //   3. Credentials mounted at credential_path as files
+  //   4. Operator confirms trade-only API key permissions (no withdrawal)
+  //   5. Kill-switch gate is active (kill-switch-ops.sh status)
+  //
+  // Required credentials (mounted at credential_path):
+  //   <credential_path>/binance_spot_mainnet/API_KEY
+  //   <credential_path>/binance_spot_mainnet/API_SECRET
+  //
+  // Port: 8084 (internal only).
+  // Segment: Spot only (Futures is NOT authorized).
+  "log": {
+    "level": "info",
+    "format": "text"
+  },
+  "http": {
+    "addr": ":8084"
+  },
+  "nats": {
+    "enabled": true,
+    "url": "nats://nats:4222",
+    "request_timeout": "2s"
+  },
+  "venue": {
+    "dry_run": false,
+    "staleness_max_age": "120s",
+    "submit_timeout": "10s",
+    "credential_provider": "file",
+    "credential_path": "/run/secrets/market-foundry",
+    "segments": {
+      "spot": {
+        "enabled": true,
+        "adapter": "binance_spot_mainnet"
+      }
+    }
+  },
+  "pipeline": {
+    "execution_families": ["paper_order"],
+    "risk_families": ["position_exposure"],
+    "strategy_families": ["mean_reversion_entry"],
+    "decision_families": ["rsi_oversold"],
+    "signal_families": ["rsi"],
+    "families": ["candle", "tradeburst", "volume"]
+  }
+}

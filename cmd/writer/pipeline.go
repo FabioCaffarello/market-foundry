@@ -287,5 +287,19 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
 			startConsumer: writerpipeline.NewVenueFillStarter(reg.execution),
 		},
+		// ── Execution: venue_rejection → executions ──
+		// S411: venue rejection events from EXECUTION_REJECTION_EVENTS → same executions table.
+		// Closes the ClickHouse persistence gap (RG-1) identified in S409 evidence gate.
+		// Rejection-specific fields (code, reason, venue details) are embedded in metadata JSON.
+		{
+			family:        "venue_rejection",
+			consumerName:  "writer-execution-venue-rejection-consumer",
+			inserterName:  "writer-execution-venue-rejection-inserter",
+			table:         "executions",
+			insertSQL:     "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)",
+			consumerSpec:  natsexecution.WriterVenueMarketOrderRejectionConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
+			startConsumer: writerpipeline.NewVenueRejectionStarter(reg.execution),
+		},
 	}
 }

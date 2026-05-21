@@ -71,6 +71,11 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 		return
 	}
 
+	// S470: enrich decision inputs with causal event reference.
+	for i := range strat.Decisions {
+		strat.Decisions[i].EventID = msg.CausationID
+	}
+
 	if prob := strat.Validate(); prob != nil {
 		a.logger.Error("strategy validation failed", "error", prob.Message)
 		return

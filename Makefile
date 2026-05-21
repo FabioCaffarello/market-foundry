@@ -20,12 +20,14 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
-	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-status stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery \
-	ci-analytical ci-smoke ci-preflight ci-wait-ready seed seed-multi live live-check live-multi live-multi-check \
+	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-status stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery smoke-compose-wiring smoke-e2e-multi-binary smoke-failure-isolation smoke-live-dry-run smoke-segmented-compose smoke-spot-ingest smoke-unified-coexistence smoke-spot-venue-live smoke-futures-venue-live smoke-e2e-unified-spot smoke-e2e-unified-futures smoke-endurance-soak smoke-runtime-preflight smoke-backup-restore smoke-backup-offhost \
+	ci-analytical ci-smoke ci-preflight ci-wait-ready seed seed-multi seed-spot seed-spot-multi seed-unified seed-unified-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
 	migrate-up migrate-status migrate-validate \
+	ch-backup ch-restore ch-backup-list ch-backup-auto \
 	codegen-check codegen-test codegen-integrated codegen-equivalence codegen-validate-all codegen-status \
-	stack-up stack-down stack-restart stack-logs
+	stack-up stack-down stack-restart stack-logs \
+	po-verify
 
 define RUN_IN_MODULES
 	@MODULE='$(MODULE)' ./scripts/utils/for-each-module.sh $(1)
@@ -90,19 +92,18 @@ docs: ## Show primary docs for workflows, targets, and tooling.
 	@printf "  README.md\n"
 	@printf "  DEVELOPMENT.md\n"
 	@printf "  docs/README.md\n"
-	@printf "  docs/operations/README.md\n"
-	@printf "  docs/operations/documentary-ownership-and-canonical-navigation.md\n"
-	@printf "  docs/operations/make-and-raccoon-cli-contract.md\n"
-	@printf "  docs/operations/documentation-governance-entrypoints-and-taxonomy.md\n"
-	@printf "  docs/operations/repository-metadata-indexes-and-developer-navigation-system.md\n"
-	@printf "  docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md\n"
-	@printf "  docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md\n"
-	@printf "  docs/operations/strategic-operating-model-for-the-repository-as-a-development-platform.md\n"
-	@printf "  docs/operations/development-platform-readiness-model-for-future-foundry-waves.md\n"
-	@printf "  docs/operations/long-term-documentation-and-operational-sustainability-model.md\n"
+	@printf "  docs/product/README.md\n"
+	@printf "  docs/product/owners.md\n"
+	@printf "  docs/development/README.md\n"
+	@printf "  docs/development/owners.md\n"
+	@printf "  docs/development/workflow.md\n"
+	@printf "  docs/development/repository-map.md\n"
+	@printf "  docs/development/commands-and-proofs.md\n"
+	@printf "  docs/development/stages-and-governance.md\n"
 	@printf "  docs/tooling/README.md\n"
 	@printf "  docs/architecture/README.md\n"
 	@printf "  docs/stages/INDEX.md\n"
+	@printf "  docs/archive/README.md\n"
 
 ##@ Core Workflow
 bootstrap: ## Validate local prerequisites and repository entrypoints for the official workflow.
@@ -259,13 +260,29 @@ live-multi-check: ## Ergonomic wrapper: validate an already-running multi-symbol
 	@echo "Live multi-symbol pipeline check (validate running stack)..."
 	@./scripts/live-pipeline-activate.sh --multi-symbol --check-only
 
-seed: ## Seed configctl with the default single-symbol configuration.
-	@echo "Seeding configctl (single symbol)..."
+seed: ## Seed configctl with the default single-symbol configuration (Futures).
+	@echo "Seeding configctl (single symbol, source=binancef)..."
 	@./scripts/seed-configctl.sh
 
-seed-multi: ## Seed configctl with the default multi-symbol configuration.
-	@echo "Seeding configctl (multi-symbol)..."
+seed-multi: ## Seed configctl with the default multi-symbol configuration (Futures).
+	@echo "Seeding configctl (multi-symbol, source=binancef)..."
 	@./scripts/seed-configctl.sh --multi-symbol
+
+seed-spot: ## Seed configctl with the Spot single-symbol configuration.
+	@echo "Seeding configctl (single symbol, source=binances)..."
+	@SOURCE=binances ./scripts/seed-configctl.sh
+
+seed-spot-multi: ## Seed configctl with the Spot multi-symbol configuration.
+	@echo "Seeding configctl (multi-symbol, source=binances)..."
+	@SOURCE=binances ./scripts/seed-configctl.sh --multi-symbol
+
+seed-unified: ## S400: Seed configctl with merged Spot+Futures bindings (single config).
+	@echo "Seeding configctl (unified, sources=binancef+binances)..."
+	@./scripts/seed-configctl.sh --merge
+
+seed-unified-multi: ## S400: Seed configctl with merged Spot+Futures multi-symbol bindings.
+	@echo "Seeding configctl (unified multi-symbol, sources=binancef+binances)..."
+	@./scripts/seed-configctl.sh --merge --multi-symbol
 
 smoke-help: ## Show smoke/proof selection, prerequisites, and common troubleshooting entrypoints.
 	@printf "Operational smoke/proof selection\n"
@@ -278,6 +295,20 @@ smoke-help: ## Show smoke/proof selection, prerequisites, and common troubleshoo
 	@printf "  %-24s %s\n" "make smoke-composed" "Composed pipeline smoke (S330). No stack needed"
 	@printf "  %-24s %s\n" "make smoke-operational" "Process isolation + halt/resume proof. Requires: make up && make seed"
 	@printf "  %-24s %s\n" "make smoke-restart-recovery" "Restart/recovery resilience proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-compose-wiring" "S372: Compose wiring validation (boot+streams+consumers). Requires: make up"
+	@printf "  %-24s %s\n" "make smoke-e2e-multi-binary" "S373: E2E multi-binary pipeline proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-failure-isolation" "S374: Multi-binary failure isolation proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-live-listening" "S378: Live exchange listening proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-live-dry-run" "S380: E2E live-listen + dry-run proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-segmented-compose" "S394: Segmented Binance compose proof. Requires: make up && make seed"
+	@printf "  %-24s %s\n" "make smoke-spot-ingest" "S397: Spot ingest binding seed proof. Requires: make up && make seed-spot"
+	@printf "  %-24s %s\n" "make smoke-unified-coexistence" "S402: Single-compose coexistence proof. Requires: make up && make seed-unified"
+	@printf "  %-24s %s\n" "make smoke-spot-venue-live" "S405: Spot real venue acceptance/fill proof. No compose needed."
+	@printf "  %-24s %s\n" "make smoke-futures-venue-live" "S416: Futures real venue acceptance/fill proof. No compose needed."
+	@printf "  %-24s %s\n" "make smoke-e2e-unified-spot" "S408: Unified compose E2E proof for Spot. Requires: make up && make seed-unified"
+	@printf "  %-24s %s\n" "make smoke-e2e-unified-futures" "S419: Unified compose E2E proof for Futures. Requires: make up && make seed-unified"
+	@printf "  %-24s %s\n" "make smoke-endurance-soak" "S412: Endurance soak and persistence hardening. Phases 1-4: no compose."
+	@printf "  %-24s %s\n" "make smoke-runtime-preflight" "S419: Consolidated runtime smoke & Futures preflight. No compose needed."
 	@printf "\nCI and preflight\n"
 	@printf "  %-24s %s\n" "make ci-smoke" "CI-safe stackless smoke suite (no compose needed)."
 	@printf "  %-24s %s\n" "make ci-preflight" "Local pre-push: tests + consistency + quality gate + stackless smoke."
@@ -327,6 +358,67 @@ smoke-composed: ## S330: Composed pipeline operational smoke (no stack needed).
 smoke-restart-recovery: ## Canonical specialized proof for restart/recovery behavior.
 	@echo "Running restart and recovery smoke..."
 	@./scripts/smoke-restart-recovery.sh
+
+smoke-compose-wiring: ## S372: Compose-level orchestration wiring validation (boot, streams, consumers, connectivity).
+	@echo "Running compose-level wiring validation (S372)..."
+	@./scripts/smoke-compose-wiring.sh
+
+smoke-e2e-multi-binary: ## S373: End-to-end multi-binary pipeline proof (derive→NATS→execute→store→gateway).
+	@echo "Running end-to-end multi-binary pipeline proof (S373)..."
+	@./scripts/smoke-e2e-multi-binary.sh
+
+smoke-failure-isolation: ## S374: Multi-binary failure isolation proof (restart one, others survive).
+	@echo "Running multi-binary failure isolation proof (S374)..."
+	@./scripts/smoke-failure-isolation-multi-binary.sh
+
+smoke-live-listening: ## S378: Compose live exchange listening proof (real trades, paper mode).
+	@echo "Running compose live exchange listening proof (S378)..."
+	@./scripts/smoke-live-exchange-listening.sh
+
+smoke-live-dry-run: ## S380: End-to-end live-listen + dry-run proof (live data → dry-run fill → read/explain).
+	@echo "Running end-to-end live-listen + dry-run proof (S380)..."
+	@./scripts/smoke-e2e-live-listen-dry-run.sh
+
+smoke-segmented-compose: ## S394: Compose-level segmented Binance proof (Futures/Spot configs, dry-run, segment isolation).
+	@echo "Running segmented compose proof (S394)..."
+	@./scripts/smoke-segmented-compose.sh
+
+smoke-spot-ingest: ## S397: Spot ingest binding seed and runtime projection validation.
+	@echo "Running Spot ingest binding seed proof (S397)..."
+	@./scripts/smoke-spot-ingest-binding.sh
+
+smoke-unified-coexistence: ## S402: Single-compose coexistence proof (Spot+Futures unified config, dry-run, isolation).
+	@echo "Running single-compose coexistence proof (S402)..."
+	@./scripts/smoke-unified-coexistence.sh
+
+smoke-spot-venue-live: ## S405: Spot real venue acceptance/fill proof (unit tests, no compose needed).
+	@echo "Running Spot real venue acceptance/fill proof (S405)..."
+	@./scripts/smoke-spot-venue-live.sh
+
+smoke-futures-venue-live: ## S416: Futures real venue acceptance/fill proof (unit tests, no compose needed).
+	@echo "Running Futures real venue acceptance/fill proof (S416)..."
+	@./scripts/smoke-futures-venue-live.sh
+
+smoke-e2e-unified-spot: ## S408: Unified compose E2E proof for Spot segment. Requires: make up && make seed-unified
+	@echo "Running unified compose E2E proof for Spot segment (S408)..."
+	@./scripts/smoke-e2e-unified-spot.sh
+
+smoke-e2e-unified-futures: ## S419: Unified compose E2E proof for Futures segment. Requires: make up && make seed-unified
+	@echo "Running unified compose E2E proof for Futures segment (S419)..."
+	@./scripts/smoke-e2e-unified-futures.sh
+
+smoke-endurance-soak: ## S412: Endurance soak and persistence hardening proof. Phases 1-4: no compose. Phases 5-8: make up && make seed-unified
+	@echo "Running endurance soak and persistence hardening proof (S412)..."
+	@./scripts/smoke-endurance-soak.sh
+
+smoke-runtime-preflight: ## S419: Consolidated runtime smoke & Futures preflight (stackless). No compose needed.
+	@echo "Running consolidated runtime smoke & Futures preflight (S419)..."
+	@./scripts/smoke-unified-runtime-preflight.sh
+
+smoke-backup-restore: ## S435: ClickHouse backup/restore proof. Requires ClickHouse running.
+	@echo "Running ClickHouse backup/restore proof (S435)..."
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/smoke-clickhouse-backup-restore.sh
 
 diag: ## Capture a lightweight diagnostic snapshot of the running stack.
 	@./scripts/diag-check.sh
@@ -431,3 +523,31 @@ migrate-status: ## Show migration status (applied and pending).
 migrate-validate: ## Verify checksums of applied migrations.
 	@$(LOAD_LOCAL_ENV) \
 	$(GO) run ./cmd/migrate validate
+
+##@ ClickHouse Backup
+ch-backup: ## Backup all ClickHouse tables (or TABLE=<name> for one).
+	@mkdir -p backups/clickhouse
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/clickhouse-backup.sh $(TABLE)
+
+ch-restore: ## Restore from backup. Usage: make ch-restore BACKUP=mf_20260323_120000 [TABLE=executions]
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/clickhouse-restore.sh $(BACKUP) $(TABLE)
+
+ch-backup-list: ## List available ClickHouse backups.
+	@ls -1 backups/clickhouse/ 2>/dev/null | grep -v '^\.' || echo "(no backups found)"
+
+ch-backup-auto: ## Automated backup + off-host replication. Set BACKUP_OFFHOST_TARGET for replication.
+	@mkdir -p backups/clickhouse backups/logs
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/clickhouse-scheduled-backup.sh
+
+smoke-backup-offhost: ## S440: Automated backup + off-host replication proof. Requires ClickHouse running.
+	@echo "Running automated backup + off-host replication proof (S440)..."
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/smoke-automated-backup-offhost.sh
+
+##@ Post-Operation Verification
+po-verify: ## S461: Run automated PO checks. SESSION_ID=<id> --json --save
+	@$(LOAD_LOCAL_ENV) \
+	./scripts/po-verify.sh $(if $(SESSION_ID),--session-id $(SESSION_ID),) $(PO_FLAGS)

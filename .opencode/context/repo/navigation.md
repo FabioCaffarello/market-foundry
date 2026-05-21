@@ -8,7 +8,7 @@ Read in this order:
 2. `../../../Makefile`
 3. `../../../README.md`
 4. `../../../DEVELOPMENT.md`
-5. `../../../docs/operations/documentary-ownership-and-canonical-navigation.md`
+5. `../../../docs/development/owners.md`
 
 Then branch by task:
 
@@ -20,11 +20,12 @@ Then branch by task:
 
 Canonical owner docs behind those routes:
 
-- repository shape: `../../../docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`
+- repository shape: `../../../docs/development/repository-map.md`
 - binary ownership: `../../../cmd/README.md`
 - implementation layers: `../../../internal/README.md`
 - runtime assets: `../../../deploy/README.md`
 - harnesses behind `make`: `../../../scripts/README.md`
 - shared test assets: `../../../tests/README.md`
-- active docs taxonomy: `../../../docs/operations/README.md`
+- development owner map: `../../../docs/development/owners.md`
+- product owner map: `../../../docs/product/owners.md`
 - architecture corpus: `../../../docs/architecture/README.md`

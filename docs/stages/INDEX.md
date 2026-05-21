@@ -10,10 +10,9 @@ current workflow or architecture rules.
 For daily workflow and current documentation navigation, start with:
 
 - [`../README.md`](../README.md)
-- [`../operations/README.md`](../operations/README.md)
+- [`../development/README.md`](../development/README.md)
 - [`../architecture/README.md`](../architecture/README.md)
-- [`../operations/stage-documentation-governance-and-narrative-coherence.md`](../operations/stage-documentation-governance-and-narrative-coherence.md)
-- [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
+- [`../development/stages-and-governance.md`](../development/stages-and-governance.md)
 
 ---
 
@@ -51,11 +50,37 @@ Recent wave entrypoints:
 | Production readiness assessment wave | [S347](stage-s347-production-readiness-assessment-charter-report.md) | [S352](stage-s352-production-readiness-assessment-gate-report.md) |
 | Operational foundation wave | [S353](stage-s353-operational-foundation-charter-report.md) | [S357](stage-s357-operational-foundation-evidence-gate-report.md) |
 | Strategy/signal integration wave | [S358](stage-s358-strategy-signal-integration-charter-report.md) | [S363](stage-s363-strategy-signal-integration-evidence-gate-report.md) |
-| Derive integration wave | [S364](stage-s364-derive-integration-charter-report.md) | S369 (planned) |
+| Derive integration wave | [S364](stage-s364-derive-integration-charter-report.md) | [S369](stage-s369-derive-integration-evidence-gate-report.md) |
+| Multi-binary orchestration proof wave | [S370](stage-s370-multi-binary-orchestration-charter-report.md) | [S375](stage-s375-multi-binary-orchestration-evidence-gate-report.md) |
+| Exchange listening and dry-run foundation wave | [S376](stage-s376-exchange-listening-dry-run-charter-report.md) | [S381](stage-s381-exchange-listening-dry-run-evidence-gate-report.md) |
+| OMS foundation wave | [S382](stage-s382-oms-foundation-charter-report.md) | [S388](stage-s388-oms-foundation-evidence-gate-report.md) |
+| Testnet venue execution proof wave (refreshed, Spot-first) | [S389](stage-s389-testnet-venue-execution-proof-charter-report.md), [S396](stage-s396-testnet-venue-execution-charter-refresh-report.md) | S406 (evidence gate, renumbered) |
+| Binance Spot/Futures segmentation foundation wave | [S390](stage-s390-binance-segmentation-charter-report.md) | [S395](stage-s395-binance-segmentation-evidence-gate-report.md) |
+| Unified segment runtime foundation wave | [S398](stage-s398-unified-segment-runtime-charter-report.md) | [S403](stage-s403-unified-segment-runtime-evidence-gate-report.md) |
+| Testnet venue execution proof wave (unified runtime) | [S404](stage-s404-testnet-venue-execution-unified-runtime-charter-report.md) | [S409](stage-s409-testnet-venue-execution-unified-runtime-spot-first-evidence-gate-report.md) |
+| Production readiness hardening wave | [S410](stage-s410-production-readiness-hardening-charter-report.md) | [S414](stage-s414-production-readiness-hardening-evidence-gate-report.md) |
+| Futures venue execution proof wave | [S415](stage-s415-futures-venue-execution-proof-charter-report.md) | [S420](stage-s420-futures-venue-execution-evidence-gate-report.md) |
+| Runtime simplification and Futures proof prep wave | [S421](stage-s421-runtime-simplification-charter-report.md) | [S420](stage-s420-runtime-simplification-evidence-gate-report.md) |
+| Futures venue execution proof wave (post-simplification) | [S421](stage-s421-futures-venue-execution-charter-report.md) | [S426](stage-s426-futures-venue-execution-evidence-gate-report.md) |
+| Production hardening and mainnet readiness audit wave | [S427](stage-s427-production-hardening-charter-report.md) | [S431](stage-s431-production-hardening-evidence-gate-report.md) |
+| Mainnet enablement wave | [S432](stage-s432-mainnet-enablement-charter-report.md) | [S437](stage-s437-mainnet-authorization-evidence-gate-report.md) |
+| Live trading authorization wave | [S438](stage-s438-live-trading-authorization-charter-report.md) | [S443](stage-s443-live-trading-authorization-evidence-gate-report.md) |
+| Live trading enablement ceremony | [S444](stage-s444-live-trading-enablement-charter-report.md) | [S448](stage-s448-live-trading-enablement-evidence-gate-report.md) |
+| Operational history & explainability wave | [S452A](stage-s452a-operational-history-explainability-charter-report.md) | [S456A](stage-s456a-operational-history-and-explainability-evidence-gate-report.md) |
+| Second supervised live session wave | [S457](stage-s457-second-supervised-live-session-charter-report.md) | S460 (pending) |
+| Session intelligence & operational automation wave | [S459](stage-s459-session-intelligence-charter-report.md) | [S463](stage-s463-session-intelligence-evidence-gate-report.md) |
+| Session access & verification closure wave | [S464](stage-s464-session-access-verification-charter-report.md) | [S468](stage-s468-session-access-verification-evidence-gate-report.md) |
+| Strategy-to-execution decision quality wave | [S469](stage-s469-decision-quality-charter-report.md) | [S473](stage-s473-decision-quality-evidence-gate-report.md) |
+| Strategy effectiveness measurement wave | [S474](stage-s474-strategy-effectiveness-charter-report.md) | [S478](stage-s478-strategy-effectiveness-evidence-gate-report.md) PASS |
+| Round-trip pairing wave | [S479](stage-s479-round-trip-pairing-charter-report.md) | [S483](stage-s483-round-trip-pairing-evidence-gate-report.md) PASS |
+| Operational automation & monitoring hardening wave | [S484](stage-s484-operational-automation-monitoring-charter-report.md) | [S488](stage-s488-operational-automation-monitoring-evidence-gate-report.md) CONDITIONAL PASS |
+| Operational automation closure wave | [S489](stage-s489-operational-automation-closure-charter-report.md) | [S492](stage-s492-operational-automation-closure-evidence-gate-report.md) PASS |
+| Cross-session position continuity wave | [S493](stage-s493-cross-session-continuity-charter-report.md) | [S497](stage-s497-cross-session-continuity-evidence-gate-report.md) FULL PASS |
+| Operational hardening wave | [S498](stage-s498-operational-hardening-charter-report.md) | [S502](stage-s502-operational-hardening-evidence-gate-report.md) SUBSTANTIAL PASS |
 
-Use [`../operations/stage-history-traceability-and-linking-model.md`](../operations/stage-history-traceability-and-linking-model.md)
-for the expected linking model between charter, execution, promoted docs, and
-gate decisions.
+Use [`../development/stages-and-governance.md`](../development/stages-and-governance.md)
+for the current development-facing model that links stage history, governance,
+and promoted docs.
 
 ## History Boundaries
 
@@ -115,6 +140,7 @@ gate decisions.
 | [C35](stage-c35-documentary-topology-compression-and-canonical-navigation-hardening-report.md) | Documentary topology compression and canonical navigation hardening |
 | [C36](stage-c36-make-and-raccoon-cli-contract-hardening-report.md) | Make and raccoon-cli contract hardening |
 | [C37](stage-c37-development-platform-convergence-light-enforcement-report.md) | Development-platform convergence light enforcement |
+| [O18](stage-o18-human-documentation-information-architecture-refactor-report.md) | Human documentation information architecture refactor |
 
 ## Phase 1: Foundation (S06–S10)
 
@@ -675,3 +701,257 @@ gate decisions.
 | [S367](stage-s367-store-gateway-read-path-verification-report.md) | Store/gateway read-path verification for derive-produced events (DI-3) |
 | [S368](stage-s368-end-to-end-analytical-to-execution-report.md) | End-to-end analytical-to-execution proof (DI-4) |
 | [S369](stage-s369-derive-integration-evidence-gate-report.md) | Derive integration evidence gate (DI-5) |
+
+## Phase 38: Multi-Binary Orchestration Proof Wave (S370–S375)
+
+| Stage | Description |
+|---|---|
+| [S370](stage-s370-multi-binary-orchestration-charter-report.md) | Multi-binary orchestration proof wave charter and scope freeze |
+| [S371](stage-s371-binary-boundary-and-event-flow-audit-report.md) | Binary boundary and event-flow contract audit |
+| [S372](stage-s372-compose-level-orchestration-wiring-report.md) | Compose-level orchestration wiring validation |
+| [S373](stage-s373-end-to-end-multi-binary-pipeline-report.md) | End-to-end multi-binary pipeline proof |
+| [S374](stage-s374-operational-smoke-and-failure-isolation-report.md) | Operational smoke and failure isolation across binaries |
+| [S375](stage-s375-multi-binary-orchestration-evidence-gate-report.md) | Multi-binary orchestration evidence gate (wave closure) |
+
+## Phase 39: Exchange Listening and Dry-Run Foundation Wave (S376–S381)
+
+| Stage | Description |
+|---|---|
+| [S376](stage-s376-exchange-listening-dry-run-charter-report.md) | Exchange listening and dry-run foundation wave charter and scope freeze |
+| [S377](stage-s377-exchange-ingress-contracts-and-runtime-mode-report.md) | Exchange ingress contracts and runtime mode model |
+| [S378](stage-s378-compose-live-exchange-listening-proof-report.md) | Compose live exchange listening proof |
+| [S379](stage-s379-dry-run-execution-path-report.md) | Dry-run execution path by config |
+| [S380](stage-s380-end-to-end-live-listen-dry-run-report.md) | End-to-end live-listen + dry-run proof |
+| [S381](stage-s381-exchange-listening-dry-run-evidence-gate-report.md) | Exchange listening & dry-run evidence gate (wave closure) |
+
+## Phase 40: OMS Foundation Wave (S382–S387)
+
+| Stage | Description |
+|-------|-------------|
+| [S382](stage-s382-oms-foundation-charter-report.md) | OMS foundation wave charter and scope freeze |
+| [S383](stage-s383-canonical-order-model-report.md) | Canonical order model and lifecycle state machine |
+| [S384](stage-s384-lifecycle-invariant-coverage-and-price-realism-report.md) | Lifecycle invariant coverage and price realism hardening |
+| [S385](stage-s385-write-path-integration-by-mode-report.md) | Write-path integration tests by execution mode |
+| [S386](stage-s386-rejection-event-path-report.md) | Rejection event path and write-path observability |
+| [S387](stage-s387-lifecycle-persistence-read-path-and-pricesource-report.md) | Lifecycle persistence, read-path alignment, and PriceSource wiring |
+| [S388](stage-s388-oms-foundation-evidence-gate-report.md) | OMS foundation evidence gate (wave closure) |
+
+## Phase 41: Testnet Venue Execution Proof Wave (S389–S395)
+
+| Stage | Description |
+|-------|-------------|
+| [S389](stage-s389-testnet-venue-execution-proof-charter-report.md) | Testnet venue execution proof wave charter and scope freeze |
+| [S390](stage-s390-binance-segmentation-charter-report.md) | Binance segmentation charter |
+| [S391](stage-s391-venue-model-refactor-report.md) | Venue model refactor (exchange, segment, environment, execution mode) |
+| [S392](stage-s392-adapter-boundary-split-report.md) | Adapter boundary split for Binance Spot and Futures |
+| [S393](stage-s393-config-driven-enablement-report.md) | Config-driven enablement for Binance Spot and Futures |
+| [S394](stage-s394-compose-proof-segmented-binance-report.md) | Compose proof — segmented Binance architecture (live listening + dry-run) |
+| [S395](stage-s395-binance-segmentation-evidence-gate-report.md) | Binance segmentation evidence gate (wave closure) |
+| [S396](stage-s396-testnet-venue-execution-charter-refresh-report.md) | Testnet venue execution proof wave charter refresh (segmented, Spot-first) |
+| [S397](stage-s397-spot-ingest-binding-seed-report.md) | Spot ingest binding seed and runtime projection closure (S395-G3) |
+
+## Phase 42: Unified Segment Runtime Foundation Wave (S398--S403)
+
+| Stage | Description |
+|-------|-------------|
+| [S398](stage-s398-unified-segment-runtime-charter-report.md) | Unified segment runtime foundation wave charter and scope freeze |
+| [S399](stage-s399-unified-config-model-report.md) | Unified config model and segment enablement refactor |
+| [S400](stage-s400-binding-merge-and-runtime-projection-report.md) | Binding merge and multi-segment runtime projection |
+| [S401](stage-s401-segment-safe-routing-report.md) | Segment-safe routing and cross-segment leakage hardening |
+| [S402](stage-s402-single-compose-coexistence-proof-report.md) | Single-compose coexistence proof for Spot and Futures |
+| [S403](stage-s403-unified-segment-runtime-evidence-gate-report.md) | Unified segment runtime foundation evidence gate |
+
+## Phase 43: Testnet Venue Execution Proof on Unified Runtime (S404--S409)
+
+| Stage | Description |
+|-------|-------------|
+| [S404](stage-s404-testnet-venue-execution-unified-runtime-charter-report.md) | Testnet venue execution proof wave charter on unified runtime (Spot-first) |
+| [S405](stage-s405-spot-real-venue-acceptance-fill-proof-report.md) | Spot real venue connectivity, acceptance, and fill proof |
+| [S406](stage-s406-spot-real-rejection-and-partial-fill-report.md) | Spot real rejection and partial-fill evidence |
+| [S407](stage-s407-unified-runtime-read-path-spot-report.md) | Unified runtime read-path, auditability, and segment isolation under real Spot responses |
+| [S408](stage-s408-unified-compose-e2e-spot-report.md) | Unified compose E2E proof for Spot segment on unified runtime |
+| [S409](stage-s409-testnet-venue-execution-unified-runtime-spot-first-evidence-gate-report.md) | Evidence gate: Testnet Venue Execution Proof (final) |
+
+## Phase 44: Production Readiness Hardening Wave (S410--S414)
+
+| Stage | Description |
+|-------|-------------|
+| [S410](stage-s410-production-readiness-hardening-charter-report.md) | Production readiness hardening wave charter and scope freeze |
+| [S411](stage-s411-rejection-persistence-and-read-path-report.md) | Rejection persistence and read-path closure |
+| [S412](stage-s412-endurance-soak-and-persistence-hardening-report.md) | Endurance soak and persistence hardening |
+| [S413](stage-s413-operational-lifecycle-queryability-report.md) | Operational lifecycle queryability and read consolidation |
+| [S414](stage-s414-production-readiness-hardening-evidence-gate-report.md) | Evidence gate: Production Readiness Hardening -- PASS, FULL DELIVERY |
+
+## Phase 45: Futures Venue Execution Proof Wave (S415--S420)
+
+| Stage | Description |
+|-------|-------------|
+| [S415](stage-s415-futures-venue-execution-proof-charter-report.md) | Futures venue execution proof wave charter and scope freeze |
+| [S416](stage-s416-futures-real-venue-acceptance-fill-proof-report.md) | Futures real venue connectivity and lifecycle acceptance/fill proof |
+| [S417](stage-s417-futures-real-rejection-and-partial-fill-report.md) | Futures real rejection and partial fill evidence on unified runtime |
+| [S418](stage-s418-unified-runtime-read-path-futures-report.md) | Unified runtime read-path auditability and segment parity under real Futures responses |
+| [S419](stage-s419-unified-compose-e2e-futures-report.md) | Unified compose E2E proof for Futures segment on unified runtime |
+| [S420](stage-s420-futures-venue-execution-evidence-gate-report.md) | Evidence gate: Futures Venue Execution Proof -- PASS, SUBSTANTIAL DELIVERY |
+
+## Phase 46: Runtime Simplification and Consolidation Wave (S421--S426)
+
+| Stage | Description |
+|-------|-------------|
+| [S421](stage-s421-runtime-simplification-charter-report.md) | Runtime simplification and Futures proof prep wave charter and scope freeze |
+| [S416](stage-s416-execute-runtime-config-consolidation-report.md) | Execute/runtime config consolidation (3 canonical configs, 4 deprecated marked) |
+| [S417](stage-s417-compose-surface-consolidation-report.md) | Compose surface consolidation (3 canonical compose, 8 deprecated artifacts removed) |
+| [S418](stage-s418-transitional-artifact-removal-report.md) | Transitional artifact removal and source/segment taxonomy cleanup |
+| [S419](stage-s419-unified-runtime-smoke-and-futures-preflight-report.md) | Unified runtime smoke and Futures preflight readiness gate |
+| [S420](stage-s420-runtime-simplification-evidence-gate-report.md) | Evidence gate: Runtime Simplification and Consolidation -- PASS, FULL DELIVERY |
+
+## Phase 47: Futures Venue Execution Proof Wave -- Post-Simplification (S421--S426)
+
+| Stage | Description |
+|-------|-------------|
+| [S421](stage-s421-futures-venue-execution-charter-report.md) | Futures venue execution proof wave charter and scope freeze (post-simplification) |
+| [S422](stage-s422-futures-real-venue-acceptance-fill-proof-report.md) | Futures real venue connectivity and acceptance/fill proof (19 tests) |
+| [S423](stage-s423-futures-real-rejection-and-partial-fill-report.md) | Futures real rejection and partial fill evidence (19 tests) |
+| [S424](stage-s424-unified-runtime-read-path-futures-report.md) | Unified runtime read-path auditability and segment parity under real Futures responses (16 tests) |
+| [S425](stage-s425-unified-compose-e2e-futures-report.md) | Unified compose E2E proof for Futures segment on canonical surface (10 tests) |
+| [S426](stage-s426-futures-venue-execution-evidence-gate-report.md) | Evidence gate: Futures Venue Execution Proof (Post-Simplification) -- PASS, FULL DELIVERY |
+
+## Phase 48: Production Hardening and Mainnet Readiness Audit Wave (S427--S431)
+
+| Stage | Description |
+|-------|-------------|
+| [S427](stage-s427-production-hardening-charter-report.md) | Production Hardening and Mainnet Readiness Audit Wave -- charter and scope freeze |
+| [S428](stage-s428-fee-normalization-report.md) | Fee normalization model and cross-segment consistency (9 tests) |
+| [S429](stage-s429-per-segment-health-report.md) | Per-segment health and operational readiness signals (11 tests) |
+| [S430](stage-s430-mainnet-readiness-audit-report.md) | Mainnet readiness audit and KV history strategy decision (3 blockers, 10 non-blockers, RG-3 closed) |
+| [S431](stage-s431-production-hardening-evidence-gate-report.md) | Evidence gate: Production Hardening and Mainnet Readiness Audit -- PASS, FULL DELIVERY |
+
+## Phase 49: Mainnet Enablement Wave (S432--S437)
+
+| Stage | Description |
+|-------|-------------|
+| [S432](stage-s432-mainnet-enablement-charter-report.md) | Mainnet Enablement Wave -- charter and scope freeze |
+| [S433](stage-s433-mainnet-adapter-readiness-report.md) | Mainnet adapter readiness for Spot and Futures (B-1 resolved, 20 tests) |
+| [S434](stage-s434-mainnet-secret-manager-report.md) | Secret manager integration for mainnet credentials (B-2 resolved, CredentialProvider interface, preflight check, 20 tests) |
+| [S435](stage-s435-clickhouse-backup-restore-report.md) | ClickHouse backup/restore operational proof (B-3 resolved, native backup, 33 checks) |
+| [S436](stage-s436-mainnet-dry-run-proof-report.md) | Mainnet dry-run proof: connectivity, DryRunSubmitter interception, fail-closed controls, audit markers |
+| [S437](stage-s437-mainnet-authorization-evidence-gate-report.md) | Evidence gate: Mainnet Enablement -- AUTHORIZED CONDITIONAL (17/17 FULL, 6 conditions for live trading) |
+
+## Phase 50: Live Trading Authorization Wave (S438--S443)
+
+| Stage | Description |
+|-------|-------------|
+| [S438](stage-s438-live-trading-authorization-charter-report.md) | Live Trading Authorization Wave -- charter and scope freeze |
+| [S439](stage-s439-external-secret-manager-report.md) | External secret manager integration for live credentials |
+| [S440](stage-s440-automated-backup-off-host-report.md) | Automated backup with off-host replication (8/8 FULL, eliminates same-host fragility, cron-ready) |
+| [S441](stage-s441-authenticated-mainnet-proof-report.md) | Authenticated mainnet API proof and sustained soak (11/11 FULL, closes C-1 and C-4) |
+| [S442](stage-s442-kill-switch-operational-runbook-report.md) | Kill-switch operational runbook: procedures, SLA, script, C-5 satisfied (4/4 FULL, 0 code changes) |
+| [S443](stage-s443-live-trading-authorization-evidence-gate-report.md) | Evidence gate: Live Trading Authorization -- AUTHORIZED CONDITIONAL |
+
+## Phase 51: Live Trading Enablement Ceremony (S444--S448)
+
+| Stage | Description |
+|-------|-------------|
+| [S444](stage-s444-live-trading-enablement-charter-report.md) | Live Trading Enablement Ceremony -- charter and scope freeze |
+| [S445](stage-s445-c6-controlled-execution-report.md) | C-6 controlled execution: dry_run=false now valid for mainnet (9 tests, 11/12 invariants intact) |
+| [S446](stage-s446-supervised-live-session-report.md) | Supervised live session proof: operational script, code path verification, audit trail, 5 findings |
+| [S447](stage-s447-post-session-operational-verification-report.md) | Post-session operational verification: persistence, read-path, fees, backup, lifecycle consistency, scope containment (9 checks) |
+| [S448](stage-s448-live-trading-enablement-evidence-gate-report.md) | Evidence gate: Live Trading Enablement -- LIVE TRADING ENABLED WITH RESTRICTIONS |
+
+## Phase 52: Operational Memory Hardening (S453A--)
+
+| Stage | Description |
+|-------|-------------|
+| [S453A](stage-s453a-historical-execution-read-model-report.md) | Historical execution read model: unified lifecycle timeline query, ClickHouse-backed, 10/10 FULL, 19 tests |
+| [S454A](stage-s454a-operational-list-queries-report.md) | Operational list queries: relaxed-filter execution list, execution summary, 6 tests |
+| [S455A](stage-s455a-session-explainability-and-consistency-report.md) | Session explainability surface + cross-surface consistency audit: explain endpoint, field parity fix, 6 tests |
+| [S456A](stage-s456a-operational-history-and-explainability-evidence-gate-report.md) | Evidence gate: Operational History & Explainability -- WAVE CLOSED (SUBSTANTIALLY COMPLETE), 2 FULL / 3 SUBSTANTIAL / 2 PARTIAL, 48 wave tests, 0 regressions |
+
+## Phase 53: Second Supervised Live Session (S457--)
+
+| Stage | Description |
+|-------|-------------|
+| [S457](stage-s457-second-supervised-live-session-charter-report.md) | Second Supervised Live Session Wave -- charter and scope freeze, 9 observability goals, 16 governing questions, S449 deviations corrected |
+
+## Phase 54: Session Intelligence & Operational Automation Wave (S459--S463)
+
+| Stage | Description |
+|-------|-------------|
+| [S459](stage-s459-session-intelligence-charter-report.md) | Session Intelligence & Operational Automation Wave -- charter and scope freeze, 4 capabilities, 7 governing questions, 15 non-goals |
+| [S460](stage-s460-canonical-session-metadata-report.md) | Canonical Session Metadata Model and Persistence -- first-class session entity, KV persistence, HTTP queryability, Q6 answered, 17 tests |
+| [S461](stage-s461-po-automation-report.md) | PO Automation and Verification Pipeline -- 8/9 checks automated, structured JSON output, dual-surface (script+HTTP), session-bound, Q5/Q8/Q11 answered, 13 tests |
+| [S462](stage-s462-session-audit-bundle-report.md) | Session Audit Bundle and Explainability Surface -- canonical audit bundle, single-endpoint session review, fee/lifecycle/consistency assessment, 11 tests |
+| [S463](stage-s463-session-intelligence-evidence-gate-report.md) | Session Intelligence Evidence Gate -- wave closed substantially complete, 1 FULL + 3 SUBSTANTIAL, 7/7 questions answered, 41 tests, zero regressions |
+
+## Phase 55: Session Access & Verification Closure Wave (S464--S468)
+
+| Stage | Description |
+|-------|-------------|
+| [S464](stage-s464-session-access-verification-charter-report.md) | Session Access & Verification Closure Wave -- charter and scope freeze, closes G3/G4 MEDIUM gaps from S463 |
+| [S465](stage-s465-gateway-wiring-and-session-http-closure-report.md) | Gateway wiring and session HTTP closure -- G3/G4 resolved, CH adapters, full verify/audit composition, 3 tests |
+| [S466](stage-s466-verification-parameterization-report.md) | Verification parameterization and operator ergonomics -- hardcode reduction, lifecycle filtering, health options, script env vars, 9 tests |
+| [S467](stage-s467-batch-audit-and-session-evidence-report.md) | Batch audit and session evidence usability -- batch audit endpoint, check index, improved explanation, lifecycle filtering, 11 tests |
+| [S468](stage-s468-session-access-verification-evidence-gate-report.md) | Session Access & Verification Closure Evidence Gate -- wave closed substantially complete, 2/2 MEDIUM gaps closed, 2 FULL + 1 SUBSTANTIAL + 1 PARTIAL, 23 tests, zero regressions |
+
+## Phase 56: Strategy-to-Execution Decision Quality Wave (S469--S473)
+
+| Stage | Description |
+|-------|-------------|
+| [S469](stage-s469-decision-quality-charter-report.md) | Strategy-to-Execution Decision Quality Wave -- charter and scope freeze, 4 blocks ordered, 5 governing questions, 20 non-goals frozen |
+| [S470](stage-s470-decision-lineage-report.md) | Decision lineage and causality model -- EventID in all Input types, lineage package, chain validation, 14 tests, zero regressions |
+| [S471](stage-s471-decision-review-surface-report.md) | Decision review surface and evidence bundle -- decision-centric review with inputs/transform/constraints/output, 2 HTTP endpoints, 7 tests, zero regressions |
+| [S472](stage-s472-cross-domain-consistency-report.md) | Cross-domain consistency checks -- 9 checks across decision/strategy/risk/execution, integrated into review surface, 18 tests, zero regressions |
+| [S473](stage-s473-decision-quality-evidence-gate-report.md) | Decision Quality Evidence Gate -- wave closed PASS, 2 FULL + 2 SUBSTANTIAL + 1 PARTIAL, 39 tests total, 5 residual gaps (all LOW), zero regressions |
+
+## Phase 57: Strategy Effectiveness Measurement Wave (S474--S478)
+
+| Stage | Description |
+|-------|-------------|
+| [S474](stage-s474-strategy-effectiveness-charter-report.md) | Strategy Effectiveness Measurement Wave -- charter and scope freeze, 4 blocks ordered, 5 governing questions, 20 non-goals frozen |
+| [S476](stage-s476-measurement-read-surfaces-report.md) | Measurement read surfaces and batch evaluation -- effectiveness domain types, classification rules, P&L attribution, 2 HTTP endpoints, review bundle extension, 30 new tests, zero regressions |
+| [S477](stage-s477-effectiveness-review-report.md) | Effectiveness review and comparative analysis -- cohort aggregation endpoint, group_by comparison, CohortSummary semantics, 1 HTTP endpoint, 15 new tests, zero regressions |
+| [S478](stage-s478-strategy-effectiveness-evidence-gate-report.md) | Strategy Effectiveness Evidence Gate -- wave closed PASS, 7 FULL capabilities, 5/5 governing questions YES, 45 tests total, 6 residual gaps (0 blocking), zero regressions |
+
+## Phase 58: Round-Trip Pairing Wave (S479--S483)
+
+| Stage | Description |
+|-------|-------------|
+| [S479](stage-s479-round-trip-pairing-charter-report.md) | Round-Trip Pairing Wave -- charter and scope freeze, 4 blocks ordered, 5 governing questions, 18 non-goals frozen, addresses G-SE1 single-leg dominance |
+| [S480](stage-s480-round-trip-model-report.md) | Canonical round-trip and leg-pairing model -- Leg/RoundTrip/PairingState domain types, FIFO matching with 7 invariants, partial-fill handling, 6 unmatched reason codes, 26 tests, zero regressions |
+| [S481](stage-s481-pairing-read-model-report.md) | Pairing read model and attribution integration -- HTTP surfaces for round-trip pairing, ClassifyPair wired into effectiveness batch pipeline, realized P&L replaces unresolved for paired chains, 12 tests, zero regressions |
+| [S482](stage-s482-round-trip-review-report.md) | Round-trip review and outcome reconciliation -- review surface with 8 reconciliation flags, 3 reliability signals, outcome/flagged filters, data-quality summary, 17 tests, zero regressions |
+
+## Phase 59: Operational Automation & Monitoring Hardening Wave (S484--S489)
+
+| Stage | Description |
+|-------|-------------|
+| [S485](stage-s485-verification-automation-hardening-report.md) | Verification automation hardening -- session-scoped verification replacing 24h windows, scope-aware PO checks, batch check aggregation, 7 new tests, zero regressions |
+| [S486](stage-s486-monitoring-operational-state-report.md) | Monitoring and operational state -- consolidated /monitoring/state endpoint, surface availability, session/gate summary, graceful degradation, 8 tests, zero regressions |
+| [S487](stage-s487-batch-review-and-triage-report.md) | Batch review and operational triage -- severity-ranked triage surfaces for sessions/decisions/round-trips, cross-domain overview, check/severity filtering, 17 tests, zero regressions |
+| [S488](stage-s488-operational-automation-monitoring-evidence-gate-report.md) | Operational automation & monitoring evidence gate -- CONDITIONAL PASS, G-OA1 event-driven trigger carried forward |
+
+## Phase 60: Operational Automation Closure Wave (S489--S493)
+
+| Stage | Description |
+|-------|-------------|
+| [S489](stage-s489-operational-automation-closure-charter-report.md) | Operational automation closure wave -- charter and scope freeze, 6 capabilities, 4 governing questions, closes gaps from S488 conditional pass |
+| [S490](stage-s490-event-driven-verification-trigger-report.md) | Event-driven verification trigger -- NATS JetStream lifecycle consumer, auto-trigger on session close/halt, dedup + fail-closed, closes G-OA1, 9 tests, zero regressions |
+| [S491](stage-s491-end-to-end-automation-proof-report.md) | End-to-end automation proof and unified report -- unified operational report artifact (4 sections), E2E trigger→verify→report chain, HTTP endpoint, closes G-OA2 + G-OA5, 24 tests, zero regressions |
+| [S492](stage-s492-operational-automation-closure-evidence-gate-report.md) | Operational automation closure evidence gate -- PASS, 3/3 MUST capabilities FULL, 3/3 required governing questions YES, zero regressions, wave formally closed |
+
+## Phase 61: Cross-Session Position Continuity Wave (S493--S497)
+
+| Stage | Description |
+|-------|-------------|
+| [S493](stage-s493-cross-session-continuity-charter-report.md) | Cross-session position continuity wave -- charter and scope freeze, 6 capabilities, 5 governing questions, read-side only, no position engine |
+| [S494](stage-s494-cross-session-continuity-model-report.md) | Canonical cross-session continuity model -- 4-state continuity classification, 5 carry-forward rules, SessionLeg/CrossSessionWindow/CrossSessionLegSet types, AnnotateRoundTrips, 37 new tests, zero regressions |
+| [S495](stage-s495-cross-session-read-model-report.md) | Cross-session read model and continuity attribution -- GetCrossSessionPairingUseCase, ContinuitySummary, HTTP surface, effectiveness integration, 17 new tests (80 total), zero regressions |
+| [S496](stage-s496-continuity-review-report.md) | Continuity review and cross-session reconciliation -- GetContinuityReviewUseCase, ReconcileCrossSessionRoundTrip, 3 new flags, effectiveness split by cross/intra, HTTP surface, 13 new tests, zero regressions |
+| [S497](stage-s497-cross-session-continuity-evidence-gate-report.md) | Cross-session position continuity evidence gate -- FULL PASS, 5/5 governing questions YES, 3 MUST at FULL, 2 SHOULD at FULL, 1 MAY at SUBSTANTIAL, 52 new tests, zero regressions, all guard rails compliant |
+
+## Phase 62: Operational Hardening Wave (S498+)
+
+| Stage | Description |
+|-------|-------------|
+| [S498](stage-s498-operational-hardening-charter-report.md) | Operational hardening wave -- charter and scope freeze |
+| [S499](stage-s499-fee-persistence-hardening-report.md) | Fee persistence and reconciliation hardening -- FeeSource provenance, fee ratio anomaly detection, segment-aware verification, ExitCostBasis, fee coverage metrics, 6 new tests, zero regressions |
+| [S500](stage-s500-lifecycle-close-hardening-report.md) | Lifecycle close edge cases hardening -- session idempotency guard, temporal validation, InFlight counter, NonTerminalAtClose/HaltedSessionOrigin flags, carryover reliability degradation, cross-session partial remainder cascade tests, 22 new tests, zero regressions |

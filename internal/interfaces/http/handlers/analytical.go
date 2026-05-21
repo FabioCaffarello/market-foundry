@@ -36,17 +36,37 @@ type getAnalyticalExecutionHistoryUseCase interface {
 	Execute(context.Context, analyticalclient.ExecutionHistoryQuery) (analyticalclient.ExecutionHistoryReply, *problem.Problem)
 }
 
+type getAnalyticalLifecycleHistoryUseCase interface {
+	Execute(context.Context, analyticalclient.LifecycleHistoryQuery) (analyticalclient.LifecycleHistoryReply, *problem.Problem)
+}
+
+type getAnalyticalExecutionListUseCase interface {
+	Execute(context.Context, analyticalclient.ExecutionListQuery) (analyticalclient.ExecutionListReply, *problem.Problem)
+}
+
+type getAnalyticalExecutionSummaryUseCase interface {
+	Execute(context.Context, analyticalclient.ExecutionSummaryQuery) (analyticalclient.ExecutionSummaryReply, *problem.Problem)
+}
+
+type getAnalyticalSessionExplainUseCase interface {
+	Execute(context.Context, analyticalclient.SessionExplainQuery) (analyticalclient.SessionExplainReply, *problem.Problem)
+}
+
 // AnalyticalWebHandler handles HTTP requests for analytical (ClickHouse-backed) queries.
 // These are additive endpoints under /analytical/ — they do not modify or overlap
 // with the existing operational query surface.
 type AnalyticalWebHandler struct {
-	getCandleHistory   getAnalyticalCandleHistoryUseCase
-	getSignalHistory   getAnalyticalSignalHistoryUseCase
-	getDecisionHistory getAnalyticalDecisionHistoryUseCase
-	getStrategyHistory getAnalyticalStrategyHistoryUseCase
-	getRiskHistory      getAnalyticalRiskHistoryUseCase
-	getExecutionHistory getAnalyticalExecutionHistoryUseCase
-	logger              *slog.Logger
+	getCandleHistory       getAnalyticalCandleHistoryUseCase
+	getSignalHistory       getAnalyticalSignalHistoryUseCase
+	getDecisionHistory     getAnalyticalDecisionHistoryUseCase
+	getStrategyHistory     getAnalyticalStrategyHistoryUseCase
+	getRiskHistory         getAnalyticalRiskHistoryUseCase
+	getExecutionHistory    getAnalyticalExecutionHistoryUseCase
+	getLifecycleHistory    getAnalyticalLifecycleHistoryUseCase
+	getExecutionList       getAnalyticalExecutionListUseCase
+	getExecutionSummary    getAnalyticalExecutionSummaryUseCase
+	getSessionExplain      getAnalyticalSessionExplainUseCase
+	logger                 *slog.Logger
 }
 
 // AnalyticalHandlerDeps groups all dependencies for the analytical HTTP handler.
@@ -54,13 +74,17 @@ type AnalyticalWebHandler struct {
 // addition without signature churn. Each field is optional — nil disables the
 // corresponding endpoint gracefully.
 type AnalyticalHandlerDeps struct {
-	GetCandleHistory   getAnalyticalCandleHistoryUseCase
-	GetSignalHistory   getAnalyticalSignalHistoryUseCase
-	GetDecisionHistory getAnalyticalDecisionHistoryUseCase
-	GetStrategyHistory getAnalyticalStrategyHistoryUseCase
-	GetRiskHistory      getAnalyticalRiskHistoryUseCase
-	GetExecutionHistory getAnalyticalExecutionHistoryUseCase
-	Logger              *slog.Logger
+	GetCandleHistory       getAnalyticalCandleHistoryUseCase
+	GetSignalHistory       getAnalyticalSignalHistoryUseCase
+	GetDecisionHistory     getAnalyticalDecisionHistoryUseCase
+	GetStrategyHistory     getAnalyticalStrategyHistoryUseCase
+	GetRiskHistory         getAnalyticalRiskHistoryUseCase
+	GetExecutionHistory    getAnalyticalExecutionHistoryUseCase
+	GetLifecycleHistory    getAnalyticalLifecycleHistoryUseCase
+	GetExecutionList       getAnalyticalExecutionListUseCase
+	GetExecutionSummary    getAnalyticalExecutionSummaryUseCase
+	GetSessionExplain      getAnalyticalSessionExplainUseCase
+	Logger                 *slog.Logger
 }
 
 func NewAnalyticalWebHandler(deps AnalyticalHandlerDeps) *AnalyticalWebHandler {
@@ -69,15 +93,26 @@ func NewAnalyticalWebHandler(deps AnalyticalHandlerDeps) *AnalyticalWebHandler {
 		logger = slog.Default()
 	}
 	return &AnalyticalWebHandler{
-		getCandleHistory:   deps.GetCandleHistory,
-		getSignalHistory:   deps.GetSignalHistory,
-		getDecisionHistory: deps.GetDecisionHistory,
-		getStrategyHistory: deps.GetStrategyHistory,
-		getRiskHistory:      deps.GetRiskHistory,
-		getExecutionHistory: deps.GetExecutionHistory,
-		logger:              logger.With("component", "analytical_handler"),
+		getCandleHistory:       deps.GetCandleHistory,
+		getSignalHistory:       deps.GetSignalHistory,
+		getDecisionHistory:     deps.GetDecisionHistory,
+		getStrategyHistory:     deps.GetStrategyHistory,
+		getRiskHistory:         deps.GetRiskHistory,
+		getExecutionHistory:    deps.GetExecutionHistory,
+		getLifecycleHistory:    deps.GetLifecycleHistory,
+		getExecutionList:       deps.GetExecutionList,
+		getExecutionSummary:    deps.GetExecutionSummary,
+		getSessionExplain:      deps.GetSessionExplain,
+		logger:                 logger.With("component", "analytical_handler"),
 	}
 }
+
+// Analytical query defaults and bounds.
+const (
+	AnalyticalDefaultLimit = 50
+	AnalyticalMinLimit     = 1
+	AnalyticalMaxLimit     = 500
+)
 
 // analyticalParams holds the common pagination and time-range parameters
 // shared by all analytical handler methods.
@@ -88,16 +123,17 @@ type analyticalParams struct {
 }
 
 // parseAnalyticalParams extracts limit, since, and until from query string.
-// Defaults: limit=50, since=0, until=0 (no filter).
+// Defaults: limit=AnalyticalDefaultLimit, since=0, until=0 (no filter).
 func parseAnalyticalParams(r *http.Request) (analyticalParams, *problem.Problem) {
-	limit := 50
+	limit := AnalyticalDefaultLimit
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		parsed, err := strconv.Atoi(limitStr)
 		if err != nil {
 			return analyticalParams{}, problem.New(problem.InvalidArgument, "limit must be a valid integer")
 		}
-		if parsed < 1 || parsed > 500 {
-			return analyticalParams{}, problem.New(problem.InvalidArgument, "limit must be between 1 and 500")
+		if parsed < AnalyticalMinLimit || parsed > AnalyticalMaxLimit {
+			return analyticalParams{}, problem.New(problem.InvalidArgument,
+				fmt.Sprintf("limit must be between %d and %d", AnalyticalMinLimit, AnalyticalMaxLimit))
 		}
 		limit = parsed
 	}
@@ -498,4 +534,241 @@ func (h *AnalyticalWebHandler) GetExecutionHistory(w http.ResponseWriter, r *htt
 		Source:     result.Source,
 		Meta:       result.Meta,
 	})
+}
+
+type analyticalLifecycleHistoryResponse struct {
+	Entries any                        `json:"entries"`
+	Source  string                     `json:"source"`
+	Meta    analyticalclient.QueryMeta `json:"meta"`
+}
+
+// GetLifecycleHistory handles GET /analytical/execution/lifecycle?source=...&symbol=...&timeframe=...&side=...&status=...&since=...&until=...&limit=...
+// S453A: Returns a unified chronological timeline of all execution event types
+// for a given source/symbol/timeframe — enabling lifecycle reconstruction.
+func (h *AnalyticalWebHandler) GetLifecycleHistory(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	if h == nil || h.getLifecycleHistory == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "analytical lifecycle query is unavailable"))
+		return
+	}
+
+	key, prob := parseQueryKeyParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	side := r.URL.Query().Get("side")
+	status := r.URL.Query().Get("status")
+
+	params, prob := parseAnalyticalParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	result, prob := h.getLifecycleHistory.Execute(r.Context(), analyticalclient.LifecycleHistoryQuery{
+		Source:    key.Source,
+		Symbol:    key.Symbol,
+		Timeframe: key.Timeframe,
+		Side:      side,
+		Status:    status,
+		Limit:     params.Limit,
+		Since:     params.Since,
+		Until:     params.Until,
+	})
+	if prob != nil {
+		totalMs := time.Since(start).Milliseconds()
+		h.logger.Warn("analytical lifecycle request failed",
+			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"side", side, "status", status, "total_ms", totalMs, "problem", prob.Code,
+		)
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	totalMs := time.Since(start).Milliseconds()
+	w.Header().Set("Server-Timing", fmt.Sprintf("total;dur=%d, query;dur=%d", totalMs, result.Meta.QueryMs))
+
+	writeJSONResponse(w, http.StatusOK, analyticalLifecycleHistoryResponse{
+		Entries: result.Entries,
+		Source:  result.Source,
+		Meta:    result.Meta,
+	})
+}
+
+type analyticalExecutionListResponse struct {
+	Entries any                        `json:"entries"`
+	Source  string                     `json:"source"`
+	Meta    analyticalclient.QueryMeta `json:"meta"`
+}
+
+// GetExecutionList handles GET /analytical/execution/list?type=...&source=...&symbol=...&timeframe=...&side=...&status=...&since=...&until=...&limit=...
+// S454A: Relaxed-filter execution list — at least one filter required, but none individually mandatory.
+func (h *AnalyticalWebHandler) GetExecutionList(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	if h == nil || h.getExecutionList == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "analytical execution list query is unavailable"))
+		return
+	}
+
+	execType := r.URL.Query().Get("type")
+	source := r.URL.Query().Get("source")
+	symbol := r.URL.Query().Get("symbol")
+	side := r.URL.Query().Get("side")
+	status := r.URL.Query().Get("status")
+
+	var timeframe int
+	if tfStr := r.URL.Query().Get("timeframe"); tfStr != "" {
+		parsed, err := strconv.Atoi(tfStr)
+		if err != nil {
+			writeProblemResponse(w, problem.New(problem.InvalidArgument, "timeframe must be a valid integer"))
+			return
+		}
+		timeframe = parsed
+	}
+
+	params, prob := parseAnalyticalParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	result, prob := h.getExecutionList.Execute(r.Context(), analyticalclient.ExecutionListQuery{
+		Type:      execType,
+		Source:    source,
+		Symbol:    symbol,
+		Timeframe: timeframe,
+		Side:      side,
+		Status:    status,
+		Limit:     params.Limit,
+		Since:     params.Since,
+		Until:     params.Until,
+	})
+	if prob != nil {
+		totalMs := time.Since(start).Milliseconds()
+		h.logger.Warn("analytical execution list request failed",
+			"type", execType, "source", source, "symbol", symbol, "timeframe", timeframe,
+			"side", side, "status", status, "total_ms", totalMs, "problem", prob.Code,
+		)
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	totalMs := time.Since(start).Milliseconds()
+	w.Header().Set("Server-Timing", fmt.Sprintf("total;dur=%d, query;dur=%d", totalMs, result.Meta.QueryMs))
+
+	writeJSONResponse(w, http.StatusOK, analyticalExecutionListResponse{
+		Entries: result.Entries,
+		Source:  result.Source,
+		Meta:    result.Meta,
+	})
+}
+
+type analyticalExecutionSummaryResponse struct {
+	Entries any                        `json:"entries"`
+	Source  string                     `json:"source"`
+	Meta    analyticalclient.QueryMeta `json:"meta"`
+}
+
+// GetExecutionSummary handles GET /analytical/execution/summary?source=...&symbol=...&timeframe=...&since=...&until=...
+// S454A: Returns execution counts grouped by (type, status) for operational overview.
+func (h *AnalyticalWebHandler) GetExecutionSummary(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	if h == nil || h.getExecutionSummary == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "analytical execution summary query is unavailable"))
+		return
+	}
+
+	source := r.URL.Query().Get("source")
+	symbol := r.URL.Query().Get("symbol")
+
+	var timeframe int
+	if tfStr := r.URL.Query().Get("timeframe"); tfStr != "" {
+		parsed, err := strconv.Atoi(tfStr)
+		if err != nil {
+			writeProblemResponse(w, problem.New(problem.InvalidArgument, "timeframe must be a valid integer"))
+			return
+		}
+		timeframe = parsed
+	}
+
+	params, prob := parseAnalyticalParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	result, prob := h.getExecutionSummary.Execute(r.Context(), analyticalclient.ExecutionSummaryQuery{
+		Source:    source,
+		Symbol:    symbol,
+		Timeframe: timeframe,
+		Since:     params.Since,
+		Until:     params.Until,
+	})
+	if prob != nil {
+		totalMs := time.Since(start).Milliseconds()
+		h.logger.Warn("analytical execution summary request failed",
+			"source", source, "symbol", symbol, "timeframe", timeframe,
+			"total_ms", totalMs, "problem", prob.Code,
+		)
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	totalMs := time.Since(start).Milliseconds()
+	w.Header().Set("Server-Timing", fmt.Sprintf("total;dur=%d, query;dur=%d", totalMs, result.Meta.QueryMs))
+
+	writeJSONResponse(w, http.StatusOK, analyticalExecutionSummaryResponse{
+		Entries: result.Entries,
+		Source:  result.Source,
+		Meta:    result.Meta,
+	})
+}
+
+// GetSessionExplain handles GET /analytical/execution/explain?source=...&symbol=...&timeframe=...&limit=...
+// S455A: Returns a unified explanation combining KV state, ClickHouse history, and cross-surface consistency.
+func (h *AnalyticalWebHandler) GetSessionExplain(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	if h == nil || h.getSessionExplain == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "session explain query is unavailable"))
+		return
+	}
+
+	key, prob := parseQueryKeyParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	params, prob := parseAnalyticalParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	result, prob := h.getSessionExplain.Execute(r.Context(), analyticalclient.SessionExplainQuery{
+		Source:    key.Source,
+		Symbol:    key.Symbol,
+		Timeframe: key.Timeframe,
+		Limit:     params.Limit,
+	})
+	if prob != nil {
+		totalMs := time.Since(start).Milliseconds()
+		h.logger.Warn("session explain request failed",
+			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"total_ms", totalMs, "problem", prob.Code,
+		)
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	totalMs := time.Since(start).Milliseconds()
+	w.Header().Set("Server-Timing", fmt.Sprintf("total;dur=%d, query;dur=%d", totalMs, result.Meta.QueryMs))
+
+	writeJSONResponse(w, http.StatusOK, result)
 }

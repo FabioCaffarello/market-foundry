@@ -1,8 +1,10 @@
 package execute
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	actorcommon "internal/actors/common"
 	natsexecution "internal/adapters/nats/natsexecution"
@@ -29,6 +31,12 @@ type ExecuteSupervisor struct {
 	// S339: Activation surface dimensions passed from binary startup.
 	adapterState     domainexec.AdapterState
 	credentialState  domainexec.CredentialState
+	// S460: Session metadata lifecycle.
+	sessionStore     *natsexecution.SessionKVStore
+	session          *domainexec.Session
+	operator         string // injected via WithOperator option
+	// S490: Publisher for session lifecycle events (verification trigger).
+	lifecyclePublisher *natsexecution.Publisher
 }
 
 func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, venueQuery ports.VenueQueryPort, trackers map[string]*healthz.Tracker, opts ...SupervisorOption) actor.Producer {
@@ -58,6 +66,13 @@ func WithActivationState(adapter domainexec.AdapterState, creds domainexec.Crede
 	}
 }
 
+// WithOperator sets the operator identity for session metadata.
+func WithOperator(operator string) SupervisorOption {
+	return func(s *ExecuteSupervisor) {
+		s.operator = operator
+	}
+}
+
 func (s *ExecuteSupervisor) Receive(c *actor.Context) {
 	switch msg := c.Message().(type) {
 	case actor.Started:
@@ -67,6 +82,14 @@ func (s *ExecuteSupervisor) Receive(c *actor.Context) {
 		}
 
 	case actor.Stopped:
+		// S460: Close session before tearing down consumers.
+		s.closeSession("")
+		if s.lifecyclePublisher != nil {
+			_ = s.lifecyclePublisher.Close()
+		}
+		if s.sessionStore != nil {
+			_ = s.sessionStore.Close()
+		}
 		if s.strategyConsumer != nil {
 			_ = s.strategyConsumer.Close()
 		}
@@ -95,6 +118,12 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 	stalenessMaxAge := s.cfg.Venue.StalenessMaxAgeDuration()
 	submitTimeout := s.cfg.Venue.SubmitTimeoutDuration()
 
+	// S401: Build allowed source set from enabled segments for defense-in-depth.
+	allowedSources := make(map[string]bool)
+	for _, src := range s.cfg.Venue.EnabledSegmentSources() {
+		allowedSources[src] = true
+	}
+
 	// Spawn the venue adapter actor.
 	adapterPID := ctx.SpawnChild(NewVenueAdapterActor(VenueAdapterConfig{
 		NATSURL:         s.cfg.NATS.URL,
@@ -107,14 +136,17 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 		Tracker:         adapterTracker,
 		AdapterState:    s.adapterState,
 		CredentialState: s.credentialState,
+		AllowedSources:  allowedSources,
 	}), "venue-adapter")
 
 	// Spawn the consumer actor for execution intents.
-	// TRANSITIONAL BRIDGE: In paper mode, the venue consumer subscribes to paper_order
-	// subjects because derive only produces PaperOrderSubmittedEvent. When venue-specific
-	// intent subjects are introduced, this consumer's spec will migrate accordingly.
+	// S401: When unified segments are configured, the consumer subscribes only to
+	// subjects matching enabled segment sources. This prevents cross-segment leakage
+	// at the NATS subscription level — the consumer never receives intents for segments
+	// without a registered adapter.
 	consumerTracker := s.trackers["venue-consumer"]
-	consumerSpec := natsexecution.ExecuteVenueMarketOrderIntakeConsumer()
+	enabledSources := s.cfg.Venue.EnabledSegmentSources()
+	consumerSpec := natsexecution.ExecuteVenueIntakeConsumerForSegments(enabledSources)
 
 	consumer := natsexecution.NewConsumer(
 		s.cfg.NATS.URL,
@@ -163,6 +195,17 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 	}
 	s.strategyConsumer = stratConsumer
 
+	// S490: Start session lifecycle publisher for verification triggers.
+	lifecyclePub := natsexecution.NewPublisher(s.cfg.NATS.URL, "execute.supervisor", execRegistry)
+	if err := lifecyclePub.Start(); err != nil {
+		s.logger.Warn("session lifecycle publisher unavailable — event-driven verification degraded", "error", err)
+	} else {
+		s.lifecyclePublisher = lifecyclePub
+	}
+
+	// S460: Open session metadata record.
+	s.openSession()
+
 	s.logger.Info("execute supervisor started",
 		"consumer_durable", consumerSpec.Durable,
 		"consumer_subject", consumerSpec.Event.Subject,
@@ -172,6 +215,140 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 		"staleness_max_age", stalenessMaxAge.String(),
 		"submit_timeout", submitTimeout.String(),
 		"control_gate", "EXECUTION_CONTROL",
+		"session_id", s.sessionID(),
 	)
 	return nil
+}
+
+func (s *ExecuteSupervisor) sessionID() string {
+	if s.session != nil {
+		return s.session.SessionID
+	}
+	return ""
+}
+
+func (s *ExecuteSupervisor) openSession() {
+	now := time.Now().UTC()
+	session := domainexec.Session{
+		SessionID: domainexec.NewSessionID(now),
+		Operator:  s.operator,
+		Status:    domainexec.SessionOpen,
+		StartedAt: now,
+		Config: domainexec.SessionConfigSnapshot{
+			VenueType:  string(s.cfg.Venue.Type),
+			DryRun:     s.cfg.Venue.DryRun != nil && *s.cfg.Venue.DryRun,
+			Segments:   s.cfg.Venue.EnabledSegmentSources(),
+		},
+		Activation: domainexec.SessionActivationSnapshot{
+			Adapter:     s.adapterState,
+			Credentials: s.credentialState,
+			GateStatus:  domainexec.GateActive, // gate is active at startup
+			Effective:   domainexec.ComputeEffectiveMode(s.adapterState, domainexec.GateActive, s.credentialState),
+		},
+	}
+
+	store := natsexecution.NewSessionKVStore(s.cfg.NATS.URL)
+	if err := store.Start(); err != nil {
+		s.logger.Warn("session KV store unavailable — session metadata degraded", "error", err)
+		s.session = &session
+		return
+	}
+	s.sessionStore = store
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if prob := store.Put(ctx, session); prob != nil {
+		s.logger.Warn("failed to persist session open", "error", prob.Message, "session_id", session.SessionID)
+	} else {
+		s.logger.Info("session opened", "session_id", session.SessionID)
+	}
+	s.session = &session
+}
+
+func (s *ExecuteSupervisor) closeSession(reason string) {
+	if s.session == nil {
+		return
+	}
+
+	// Collect segment counters from the venue-adapter tracker.
+	var counters []domainexec.SessionSegmentCounters
+	if tracker := s.trackers["venue-adapter"]; tracker != nil {
+		allCounters := tracker.Counters()
+		for _, src := range s.cfg.Venue.EnabledSegmentSources() {
+			seg := string(settings.SegmentForSource(src))
+			counters = append(counters, domainexec.SessionSegmentCounters{
+				Segment:   seg,
+				Processed: allCounters[seg+":processed"],
+				Filled:    allCounters[seg+":filled"],
+				Rejected:  allCounters[seg+":rejected"],
+				Errors:    allCounters[seg+":errors"],
+			})
+		}
+	}
+
+	if reason != "" {
+		if prob := s.session.Halt(reason, counters); prob != nil {
+			s.logger.Warn("session already terminal, skipping halt", "error", prob.Message, "session_id", s.session.SessionID)
+			return
+		}
+	} else {
+		if prob := s.session.Close(counters); prob != nil {
+			s.logger.Warn("session already terminal, skipping close", "error", prob.Message, "session_id", s.session.SessionID)
+			return
+		}
+	}
+
+	if s.sessionStore != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if prob := s.sessionStore.Put(ctx, *s.session); prob != nil {
+			s.logger.Warn("failed to persist session close", "error", prob.Message, "session_id", s.session.SessionID)
+		} else {
+			s.logger.Info("session closed",
+				"session_id", s.session.SessionID,
+				"status", string(s.session.Status),
+				"duration", s.session.Duration().String(),
+			)
+		}
+	}
+
+	// S490: Publish session lifecycle event for event-driven verification trigger.
+	s.publishSessionLifecycle()
+}
+
+func (s *ExecuteSupervisor) publishSessionLifecycle() {
+	if s.lifecyclePublisher == nil || s.session == nil {
+		return
+	}
+
+	event := domainexec.SessionLifecycleEvent{
+		SessionID:  s.session.SessionID,
+		Status:     s.session.Status,
+		Operator:   s.session.Operator,
+		HaltReason: s.session.HaltReason,
+		VenueType:  s.session.Config.VenueType,
+		DryRun:     s.session.Config.DryRun,
+		Segments:   s.session.Config.Segments,
+	}
+	if s.session.ClosedAt != nil {
+		event.ClosedAt = *s.session.ClosedAt
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if prob := s.lifecyclePublisher.PublishSessionLifecycle(ctx, event); prob != nil {
+		s.logger.Warn("failed to publish session lifecycle event — manual verification still available",
+			"error", prob.Message,
+			"session_id", s.session.SessionID,
+			"status", string(s.session.Status),
+		)
+	} else {
+		s.logger.Info("session lifecycle event published",
+			"session_id", s.session.SessionID,
+			"status", string(s.session.Status),
+		)
+	}
 }

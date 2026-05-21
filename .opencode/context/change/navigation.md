@@ -4,10 +4,12 @@ Canonical owner docs:
 
 - `../../../AGENTS.md`
 - `../../../DEVELOPMENT.md`
-- `../../../docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`
+- `../../../docs/development/workflow.md`
+- `../../../docs/development/stages-and-governance.md`
 - `../../../docs/architecture/stage-definition-of-done.md`
 - `../../../docs/architecture/anti-debt-checklist.md`
 - `../../../docs/architecture/opus-guidance-rules.md`
+- `../../../docs/architecture/market-foundry-evolution-playbook.md`
 
 Start here by question:
 

@@ -22,6 +22,7 @@ const (
 // depth forward for traceability. As of S251, strategy Type and DecisionSeverity
 // actively influence risk confidence multipliers, position limits, and drawdown
 // tolerance via strategy-type-aware and severity-aware scaling in the evaluators.
+// S470: EventID added to make the causal reference to the originating strategy event explicit.
 type StrategyInput struct {
 	Type              string `json:"type"`
 	Direction         string `json:"direction"`
@@ -29,6 +30,7 @@ type StrategyInput struct {
 	Timeframe         int    `json:"timeframe"`
 	DecisionSeverity  string `json:"decision_severity,omitempty"`
 	DecisionRationale string `json:"decision_rationale,omitempty"`
+	EventID           string `json:"event_id,omitempty"`
 }
 
 // Constraints holds the risk-imposed limits on a position.

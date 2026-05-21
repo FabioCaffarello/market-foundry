@@ -489,6 +489,34 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 				return c, c.Start()
 			}),
 		},
+		// S387: Venue rejection family — materializes venue_market_order rejections from execute.
+		// Paired with venue_market_order fills to close the lifecycle persistence gap.
+		// Enabled by the same "venue_market_order" family flag — rejections are part of the venue outcome.
+		{
+			Scope:          DomainExecution,
+			Family:         "venue_rejection",
+			ProjectionName: "execution-venue-rejection-projection",
+			ConsumerName:   "execution-venue-rejection-consumer",
+			Buckets:        []string{natsexecution.VenueRejectionLatestBucket},
+			ConsumerSpec:   natsexecution.StoreVenueMarketOrderRejectionConsumer(),
+			IsEnabled:      func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewRejectionProjectionActor(RejectionProjectionConfig{
+					NATSURL: natsURL,
+					Bucket:  natsexecution.VenueRejectionLatestBucket,
+					Tracker: tracker,
+				})
+			},
+			NewConsumer: startConsumer("venue_rejection", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsexecution.NewRejectionConsumer(url, spec, reg.execution, func(event domainexec.VenueOrderRejectedEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, rejectionReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
 	}, reg
 }
 

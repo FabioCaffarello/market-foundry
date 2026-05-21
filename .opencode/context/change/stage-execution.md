@@ -9,6 +9,12 @@ Entrypoints:
 - `make stage-check STAGE_ID=... STAGE_SLUG=...`
 - `make stage-scaffold STAGE_ID=... STAGE_SLUG=... STAGE_TITLE=...`
 
+Canonical owners:
+
+- `../../../docs/development/stages-and-governance.md`
+- `../../../docs/stages/INDEX.md`
+- `../../../docs/architecture/stage-definition-of-done.md`
+
 What the helper is for:
 
 - scaffold one report

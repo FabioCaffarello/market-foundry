@@ -11,5 +11,6 @@ Use this when you know the workflow need but not the underlying intelligence com
 - `make quality-gate` -> `raccoon-cli check gate`
 - `make quality-gate-ci` -> `raccoon-cli check gate --profile ci --json`
 - `make check-deep` -> `raccoon-cli check gate --profile deep` plus repo consistency
+- direct topology deep dive -> `raccoon-cli check topology`, `check bindings`, `check contracts`
 
 If the answer is a stable public step, keep it in `make`; if the answer is inspection depth, go to direct CLI.

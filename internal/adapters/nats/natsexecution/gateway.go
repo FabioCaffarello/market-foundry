@@ -69,3 +69,24 @@ func (g *Gateway) GetExecutionStatus(ctx context.Context, query executionclient.
 
 	return natskit.DecodeControlReply[executionclient.ExecutionStatusReply](spec, replyBytes)
 }
+
+// GetLifecycleList queries the store for all tracked execution lifecycle entries
+// across KV buckets. S454A: Exposes the S413 lifecycle list via the gateway.
+func (g *Gateway) GetLifecycleList(ctx context.Context, query executionclient.LifecycleListQuery) (executionclient.LifecycleListReply, *problem.Problem) {
+	if g == nil || g.client == nil {
+		return executionclient.LifecycleListReply{}, problem.New(problem.Unavailable, "execution gateway is unavailable")
+	}
+
+	spec := g.registry.LifecycleList
+	requestBytes, prob := natskit.EncodeControlRequest(ctx, spec, g.source, query)
+	if prob != nil {
+		return executionclient.LifecycleListReply{}, prob
+	}
+
+	replyBytes, err := g.client.Request(ctx, spec.Subject, requestBytes)
+	if err != nil {
+		return executionclient.LifecycleListReply{}, problem.Wrap(err, problem.Unavailable, "request lifecycle list failed")
+	}
+
+	return natskit.DecodeControlReply[executionclient.LifecycleListReply](spec, replyBytes)
+}

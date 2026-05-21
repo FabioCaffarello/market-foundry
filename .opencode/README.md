@@ -1,61 +1,76 @@
 # market-foundry `.opencode`
 
-`.opencode` is a short navigation layer for real engineering work in this repo.
-It compresses entrypoints; it does not replace the owner docs.
+`.opencode` is the real OpenCode configuration layer for `market-foundry`.
+Its job is operational compression: route work quickly, compress recurring
+context, and shorten safe handoff between sessions and agents.
+
+It does not replace human owner docs.
 
 Canonical owners:
 
 - `AGENTS.md` and `Makefile` for workflow and command surface
-- `README.md` and `DEVELOPMENT.md` for orientation and daily loop
-- `docs/operations/`, `docs/tooling/`, and `docs/architecture/` for support and governance
+- `README.md` and `DEVELOPMENT.md` for root orientation
+- `docs/development/` for contributor workflow, proofs, and repo navigation
+- `docs/product/` for system and product identity
+- `docs/tooling/` and `tools/raccoon-cli/README.md` for tooling contracts
+- `docs/architecture/` for boundaries, governance, and rationale
+- `docs/architecture/information-system-governance-and-classification.md` for
+  classification and evolution rules across `.opencode` and `docs/`
 
-Use this layer only to answer quickly:
+Use `.opencode` only for:
 
-- where to start the local stack and prove behavior
-- how to change safely and validate the touched path
-- when to use `make`, direct scripts, or `raccoon-cli`
+- navigation and entrypoint choice
+- semantic compression of recurring repo context
+- short operational handoff between sessions
+- safe-change orientation tied to the real workflow
+- `raccoon-cli` usage in support of `make`, not instead of it
+
+Approved blocks:
+
+- `repo`
+- `runtime`
+- `change`
+- `intelligence`
+
+No `product` block is opened inside `.opencode` for now.
+`docs/product/` already owns that question well enough, and adding a local
+mirror here would widen the surface without a distinct operational mission.
 
 Entry navigation:
 
 - `context/navigation.md`
+- `context/repo/navigation.md`
 - `context/runtime/navigation.md`
 - `context/change/navigation.md`
 - `context/intelligence/navigation.md`
 
-Guard rails:
+## Invariants
 
-- keep files short and task-shaped
-- point to real entrypoints and owner docs
-- avoid copying long command catalogs or architecture prose
-
-## Lightweight Invariants
-
-- `.opencode` is a navigation layer, not a second owner-doc tree.
-- Canonical ownership remains in `AGENTS.md`, `Makefile`, `README.md`,
-  `DEVELOPMENT.md`, `docs/operations/`, `docs/tooling/`, and
-  `docs/architecture/`.
-- The approved topology stays bounded to one root agent, two profiles, and the
-  four context areas `repo`, `runtime`, `change`, and `intelligence`.
-- Every context area must keep explicit links to canonical owner docs and local
-  navigation to all of its approved leaf files.
-- Every local path and `make` reference must resolve against the live codebase.
-- `.opencode` must not revive removed surfaces, publish stale workflow
-  commands, or grow durable owner catalogs, stage history, or parallel command
-  taxonomies.
+- `.opencode` is the OpenCode layer for this repo, but not a parallel
+  documentation framework.
+- The layer stays bounded to one root agent, two profiles, and the four context
+  areas `repo`, `runtime`, `change`, and `intelligence`.
+- Every context file must stay short, task-shaped, and anchored to real owner
+  docs or live repository entrypoints.
+- `.opencode` may absorb only navigation, compression, entrypoint choice,
+  operational short context, session support, and safe-change guidance.
+- Long policy, full runbooks, stage evidence, and architecture rationale remain
+  in canonical docs.
+- `make` stays the public workflow surface; `raccoon-cli` stays the strategic
+  intelligence layer behind that workflow.
 
 ## Evolution Rule
 
 Change `.opencode` only when one of these is true:
 
-- a canonical entrypoint moved and navigation would otherwise break;
-- a recurring repository task needs a shorter route that the owner docs already
-  define clearly;
-- a real drift pattern escaped review more than once and a cheap objective
-  check can catch it.
+- a canonical owner doc or repository entrypoint moved
+- a recurring task needs a shorter route into already-existing owner content
+- safe handoff or safe-change context is repeatedly too expensive to rebuild
+- a cheap repository-local check can prevent real `.opencode` drift
 
 Do not grow `.opencode` when the real need is:
 
-- updating canonical policy, runbooks, or architecture rationale;
-- adding another owner catalog or subject map;
-- documenting historical evidence better in `docs/stages/`;
-- compensating for weak owner docs instead of fixing those owner docs.
+- better human explanation in `docs/`
+- deeper governance or architecture rationale
+- another taxonomy, registry, catalog, or framework layer
+- historical narrative that belongs in `docs/stages/` or `docs/archive/`

@@ -8,6 +8,7 @@ Grouped command map:
 - `inspect` -> symbol, lsp, contract-usage, coverage
 - `change` -> impact, tdd, briefing, recommend, rename
 - utilities -> `snapshot`, `snapshot-diff`, `baseline-drift`
+- compatibility only -> `legacy runtime-smoke` and hidden flat aliases
 
 Do not use it for:
 
@@ -18,4 +19,4 @@ Do not use it for:
 Primary references:
 
 - `../../../docs/tooling/cli-overview.md`
-- `../../../docs/operations/raccoon-cli-command-reference.md`
+- `../../../tools/raccoon-cli/README.md`

@@ -11,8 +11,9 @@ When changing support surfaces, keep these aligned:
 
 - `Makefile`
 - `scripts/README.md`
-- `docs/operations/make-and-raccoon-cli-contract.md`
+- `docs/development/commands-and-proofs.md`
 - `docs/tooling/cli-overview.md`
 - `tools/raccoon-cli/README.md`
+- `.opencode/`
 
 If a new command or script needs documentation in multiple places, it is probably a public-surface change, not a local tweak.

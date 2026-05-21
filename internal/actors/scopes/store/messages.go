@@ -53,3 +53,9 @@ type executionReceivedMessage struct {
 type fillReceivedMessage struct {
 	Event execution.VenueOrderFilledEvent
 }
+
+// rejectionReceivedMessage is sent from the rejection consumer actor to the rejection projection actor.
+// S387: Closes the projection gap — rejection events now reach the KV read model.
+type rejectionReceivedMessage struct {
+	Event execution.VenueOrderRejectedEvent
+}

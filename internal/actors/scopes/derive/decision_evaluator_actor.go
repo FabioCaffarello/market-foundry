@@ -71,6 +71,11 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 		return
 	}
 
+	// S470: enrich signal inputs with causal event reference.
+	for i := range dec.Signals {
+		dec.Signals[i].EventID = msg.CausationID
+	}
+
 	if prob := dec.Validate(); prob != nil {
 		a.logger.Error("decision validation failed", "error", prob.Message)
 		return

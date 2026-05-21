@@ -5,8 +5,8 @@ Use this file for the shortest safe change loop.
 Canonical owner docs:
 
 - `../../../DEVELOPMENT.md`
-- `../../../docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`
-- `../../../docs/operations/operational-proof-entrypoints-and-ownership.md`
+- `../../../docs/development/workflow.md`
+- `../../../docs/development/commands-and-proofs.md`
 
 Core loop:
 

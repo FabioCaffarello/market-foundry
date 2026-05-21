@@ -15,9 +15,10 @@ Compression:
 - `cmd/` owns binaries
 - `internal/` owns implementation
 - `deploy/` owns runtime assets
-- `docs/` owns canonical explanation
+- `docs/` owns human explanation
+- `docs/stages/` owns immutable evidence
 - `tools/raccoon-cli/` owns structural inspection tooling
 
-Use `../../../docs/architecture/monorepo-structure-and-engineering-conventions.md`
-or `../../../docs/architecture/repository-architecture-census-and-refactor-map.md`
-when task placement depends on architectural detail, not just path selection.
+If placement changes ownership, contracts, or layering, confirm against
+`../../../docs/architecture/market-foundry-evolution-playbook.md` and
+`../../../docs/architecture/anti-debt-checklist.md` before editing.

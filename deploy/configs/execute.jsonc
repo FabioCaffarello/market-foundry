@@ -1,6 +1,13 @@
 {
   // Execute — consumes execution intents, submits to venue adapter, publishes fills.
   //
+  // CANONICAL: Paper simulator base config (no segments, dry_run=true).
+  //
+  // S416: This is the default execute config. It uses paper_simulator with no
+  // segments — suitable for development, testing, and pipeline validation.
+  // For segmented execution (Spot/Futures), use execute-unified.jsonc.
+  // For real testnet execution, use execute-venue-live.jsonc.
+  //
   // Port: 8084 (internal only, not exposed on host).
   // Dependencies: nats, configctl, store.
   // Activation gates: kill switch, staleness guard, domain validation, trace propagation.
@@ -17,15 +24,50 @@
     "request_timeout": "2s"
   },
   // ── Venue adapter ─────────────────────────────────────────────────
-  // Known types: paper_simulator, binance_futures_testnet.
-  // Only paper_simulator is approved. Adding a new type requires activation gate ceremony:
-  //   1. Governance review  2. Adapter implementation  3. Integration test  4. Docs update.
+  // S399: Two modes of adapter selection:
+  //   1. Standalone: venue.type = "paper_simulator" (no segments needed).
+  //   2. Segments-based: venue.segments maps each market segment to its
+  //      adapter. Supports Spot, Futures, or both in one config.
+  //
+  // When segments are present, type must be empty or "paper_simulator".
   "venue": {
     "type": "paper_simulator",
+    // dry_run: when true (default), DryRunSubmitter intercepts all venue calls.
+    // Fail-closed: omitted or null is treated as true.
+    // S399: Applies uniformly to all enabled segments.
+    "dry_run": true,
     // staleness_max_age: reject intents older than this (range: 30s–600s, default: 120s).
     "staleness_max_age": "120s",
     // submit_timeout: max wait for venue SubmitOrder (range: 1s–60s, default: 10s).
     "submit_timeout": "10s"
+    // ── Segments (S399 unified model) ──────────────────────────────
+    // Enable Spot, Futures, or both. Each segment carries its own adapter.
+    // Fail-closed: absent or empty segments map means paper_simulator only.
+    //
+    // To enable segmented adapters, set type to "" or "paper_simulator" and
+    // uncomment the segments block below:
+    //
+    // "segments": {
+    //   "spot": {
+    //     "enabled": true,
+    //     "adapter": "binance_spot_testnet"
+    //   },
+    //   "futures": {
+    //     "enabled": true,
+    //     "adapter": "binance_futures_testnet"
+    //   }
+    // }
+    //
+    // Valid adapters per segment:
+    //   spot:    binance_spot_testnet
+    //   futures: binance_futures_testnet
+    //
+    // Invalid combinations (fail-closed at startup):
+    //   - enabled segment without adapter
+    //   - adapter/segment mismatch (e.g., futures adapter on spot segment)
+    //   - paper_simulator as segment adapter
+    //   - segment-requiring venue.type with segments map (ambiguous)
+    //   - segments map with no enabled segments
   },
   "pipeline": {
     // Execute must declare the full dependency chain for pipeline validation.

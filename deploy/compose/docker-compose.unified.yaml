@@ -1,0 +1,21 @@
+# S400: Compose override for unified multi-segment execution (Spot + Futures).
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.unified.yaml up -d
+#
+# Overrides the execute service to use the unified config with both segments
+# enabled. The SegmentRouter dispatches intents to the correct adapter by source.
+# Requires credential env vars for BOTH segments:
+#   MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY, _API_SECRET
+#   MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY, _API_SECRET
+
+services:
+  execute:
+    command: ["-config", "/etc/market-foundry/execute-unified.jsonc"]
+    volumes:
+      - ../configs/execute-unified.jsonc:/etc/market-foundry/execute-unified.jsonc:ro
+    environment:
+      - MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY=${MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY:-}
+      - MF_VENUE_BINANCE_SPOT_TESTNET_API_SECRET=${MF_VENUE_BINANCE_SPOT_TESTNET_API_SECRET:-}
+      - MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY=${MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY:-}
+      - MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET=${MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET:-}

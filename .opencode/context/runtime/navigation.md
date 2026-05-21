@@ -4,9 +4,9 @@ Canonical owner docs:
 
 - `../../../README.md`
 - `../../../DEVELOPMENT.md`
+- `../../../docs/development/workflow.md`
+- `../../../docs/development/commands-and-proofs.md`
 - `../../../deploy/README.md`
-- `../../../docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md`
-- `../../../docs/operations/operational-proof-entrypoints-and-ownership.md`
 - `../../../docs/architecture/current-baseline-runbook.md`
 
 Start here by question:
@@ -18,6 +18,7 @@ Start here by question:
 
 Default entrypoints:
 
+- `make bootstrap` before first bring-up or after machine drift
 - `make live` for fastest bring-up
 - `make up` + `make seed` or `make seed-multi` for controlled bring-up
 - `make smoke-help` before choosing a proof
@@ -25,4 +26,4 @@ Default entrypoints:
 - `make diag`, `make ps`, `make logs SERVICE=...`, `SERVICE=... make restart` first in troubleshooting
 
 Use direct scripts or substrate tools only for harness debugging or low-level
-runtime investigation.
+runtime investigation. `raccoon-cli` is not the runtime orchestrator.

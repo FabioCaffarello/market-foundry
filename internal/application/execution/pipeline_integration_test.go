@@ -553,7 +553,7 @@ func TestPipeline_StatusPropagation_IntentAndResult(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := executionclient.DeriveEffectivePropagation(tc.intent, tc.result)
+			got := executionclient.DeriveEffectivePropagation(tc.intent, tc.result, nil)
 			if got != tc.wantProp {
 				t.Fatalf("expected propagation %q, got %q", tc.wantProp, got)
 			}

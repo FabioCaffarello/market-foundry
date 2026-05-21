@@ -65,13 +65,21 @@ func (c *Consumer) Start() error {
 		return fmt.Errorf("ensure execution stream: %w", err)
 	}
 
-	cons, err := js.CreateOrUpdateConsumer(ctx, c.spec.Event.Stream.Name, jetstream.ConsumerConfig{
-		Durable:       c.spec.Durable,
-		FilterSubject: c.spec.Event.Subject,
-		AckWait:       c.spec.AckWait,
-		MaxDeliver:    c.spec.MaxDeliver,
-		AckPolicy:     jetstream.AckExplicitPolicy,
-	})
+	// S401: When FilterSubjects is set, use multi-subject filtering for segment-scoped
+	// consumers. Otherwise fall back to single FilterSubject from Event.Subject.
+	consumerCfg := jetstream.ConsumerConfig{
+		Durable:    c.spec.Durable,
+		AckWait:    c.spec.AckWait,
+		MaxDeliver: c.spec.MaxDeliver,
+		AckPolicy:  jetstream.AckExplicitPolicy,
+	}
+	if len(c.spec.FilterSubjects) > 0 {
+		consumerCfg.FilterSubjects = c.spec.FilterSubjects
+	} else {
+		consumerCfg.FilterSubject = c.spec.Event.Subject
+	}
+
+	cons, err := js.CreateOrUpdateConsumer(ctx, c.spec.Event.Stream.Name, consumerCfg)
 	if err != nil {
 		nc.Close()
 		return fmt.Errorf("create durable consumer: %w", err)

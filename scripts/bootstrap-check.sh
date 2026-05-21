@@ -61,20 +61,21 @@ required_paths=(
     "README.md"
     "DEVELOPMENT.md"
     "docs/README.md"
+    "docs/product/README.md"
+    "docs/product/owners.md"
+    "docs/product/system-overview.md"
+    "docs/development/README.md"
+    "docs/development/owners.md"
+    "docs/development/workflow.md"
+    "docs/development/repository-map.md"
+    "docs/development/commands-and-proofs.md"
+    "docs/development/stages-and-governance.md"
     "docs/operations/README.md"
-    "docs/operations/documentary-ownership-and-canonical-navigation.md"
-    "docs/operations/make-and-raccoon-cli-contract.md"
-    "docs/operations/development-environment-architecture-and-lifecycle.md"
-    "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md"
-    "docs/operations/documentation-system-hardening.md"
-    "docs/operations/documentation-governance-entrypoints-and-taxonomy.md"
-    "docs/operations/repository-policy-and-lightweight-enforcement-2.md"
-    "docs/operations/repository-invariants-check-matrix-and-enforcement-policy.md"
-    "docs/operations/developer-workflow-unification.md"
-    "docs/operations/developer-onboarding-and-troubleshooting-guide.md"
     "docs/tooling/README.md"
     "docs/architecture/README.md"
+    "docs/architecture/information-system-governance-and-classification.md"
     "docs/stages/INDEX.md"
+    "docs/archive/README.md"
     "deploy/compose/docker-compose.yaml"
     "deploy/envs/local.env"
     "tools/raccoon-cli/Cargo.toml"
@@ -123,6 +124,6 @@ Troubleshooting first steps:
   - make logs SERVICE=gateway
 
 Canonical lifecycle docs:
-  - docs/operations/development-environment-architecture-and-lifecycle.md
-  - docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md
+  - docs/development/workflow.md
+  - docs/development/commands-and-proofs.md
 EOF

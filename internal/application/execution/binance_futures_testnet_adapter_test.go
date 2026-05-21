@@ -124,6 +124,17 @@ func TestBinanceAdapter_SubmitOrder_Filled(t *testing.T) {
 	if fill.Simulated {
 		t.Fatal("fill should NOT be simulated")
 	}
+	// S428: Fee must be "0" (Futures RESULT response doesn't include commission).
+	// CostBasis carries the cumQuote (notional value).
+	if fill.Fee != "0" {
+		t.Fatalf("expected fee 0 (Futures has no commission in RESULT), got %s", fill.Fee)
+	}
+	if fill.CostBasis != "65.43210" {
+		t.Fatalf("expected cost_basis 65.43210 (cumQuote), got %s", fill.CostBasis)
+	}
+	if fill.FeeAsset != "" {
+		t.Fatalf("expected empty fee_asset for Futures, got %s", fill.FeeAsset)
+	}
 }
 
 func TestBinanceAdapter_SubmitOrder_SellSide(t *testing.T) {

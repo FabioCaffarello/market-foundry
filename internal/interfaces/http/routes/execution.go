@@ -9,7 +9,7 @@ import (
 
 // Execution registers HTTP routes for execution query and control endpoints.
 func Execution(deps ExecutionFamilyDeps) []webserver.Route {
-	handler := handlers.NewExecutionWebHandler(deps.GetLatestExecution, deps.GetExecutionStatus)
+	handler := handlers.NewExecutionWebHandler(deps.GetLatestExecution, deps.GetExecutionStatus, deps.GetLifecycleList)
 	controlHandler := handlers.NewExecutionControlWebHandler(deps.GetExecutionControl, deps.SetExecutionControl)
 
 	var routes []webserver.Route
@@ -19,6 +19,15 @@ func Execution(deps ExecutionFamilyDeps) []webserver.Route {
 			Method:  http.MethodGet,
 			Path:    "/execution/:type/latest",
 			Handler: handler.GetLatestExecution,
+		})
+	}
+
+	// S454A: Lifecycle list — enumerates all tracked execution lifecycle entries.
+	if deps.GetLifecycleList != nil {
+		routes = append(routes, webserver.Route{
+			Method:  http.MethodGet,
+			Path:    "/execution/lifecycle/list",
+			Handler: handler.GetLifecycleList,
 		})
 	}
 

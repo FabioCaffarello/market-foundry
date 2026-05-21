@@ -30,10 +30,12 @@ const (
 
 // SignalInput records which signal contributed to this decision.
 // This is a decision-owned type — it does not import from the signal domain.
+// S470: EventID added to make the causal reference to the originating signal event explicit.
 type SignalInput struct {
 	Type      string `json:"type"`
 	Value     string `json:"value"`
 	Timeframe int    `json:"timeframe"`
+	EventID   string `json:"event_id,omitempty"`
 }
 
 // Decision represents a discrete, typed evaluation combining signals into a categorical judgment.

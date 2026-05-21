@@ -35,8 +35,9 @@ Options:
   --help            Show this help text.
 
 Environment:
-  BASE_URL          Gateway base URL. Default: http://127.0.0.1:8080
-  SMOKE_WAIT        Alternate way to override --wait from make/env.
+  BASE_URL              Gateway base URL. Default: http://127.0.0.1:8080
+  SMOKE_WAIT            Alternate way to override --wait from make/env.
+  SMOKE_POLL_INTERVAL   Poll interval in seconds. Default: 5
 EOF
 }
 
@@ -83,7 +84,7 @@ info "  (ingest connects to Binance WS, derive samples 60s and 300s candles)"
 
 CANDLE_FOUND=false
 ELAPSED=0
-POLL_INTERVAL=5
+POLL_INTERVAL="${SMOKE_POLL_INTERVAL:-${CANDLE_POLL_INTERVAL:-5}}"
 
 while [[ $ELAPSED -lt $WAIT_SECONDS ]]; do
     RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")

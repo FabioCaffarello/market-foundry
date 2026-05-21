@@ -20,18 +20,21 @@ source "${SCRIPT_DIR}/utils/lib.sh"
 
 usage() {
     cat <<'EOF'
-Usage: ./scripts/seed-configctl.sh [--multi-symbol] [--help]
+Usage: ./scripts/seed-configctl.sh [--multi-symbol] [--merge] [--help]
 
 Seeds configctl through the full lifecycle: draft -> validate -> compile -> activate.
-Canonical public entrypoints: `make seed`, `make seed-multi`
+Canonical public entrypoints: `make seed`, `make seed-multi`, `make seed-unified`
 
 Options:
   --multi-symbol  Seed the default multi-symbol configuration (btcusdt,ethusdt).
+  --merge         S400: Merge bindings from multiple sources into a single config.
+                  Uses SOURCES env var (default: binancef,binances).
   --help          Show this help text.
 
 Environment:
   BASE_URL        Gateway base URL. Default: http://127.0.0.1:8080
   SOURCE          Source name used for bindings. Default: binancef
+  SOURCES         Comma-separated source list for --merge mode. Default: binancef,binances
   SYMBOLS         Comma-separated symbol list. Overrides the default symbol set.
 EOF
 }
@@ -41,10 +44,14 @@ SOURCE="${SOURCE:-binancef}"
 CORRELATION_ID="seed-$(date +%s)"
 
 MULTI_SYMBOL=false
+MERGE_MODE=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --multi-symbol)
             MULTI_SYMBOL=true
+            ;;
+        --merge)
+            MERGE_MODE=true
             ;;
         -h|--help)
             usage
@@ -79,7 +86,20 @@ if [[ ${#SYMBOL_LIST[@]} -eq 0 ]]; then
 fi
 
 SYMBOLS="$(IFS=,; echo "${SYMBOL_LIST[*]}")"
-info "Seeding configctl with source=${SOURCE} symbols=[${SYMBOLS}]"
+
+# ---------- S400: Resolve source list for merge mode ----------
+if $MERGE_MODE; then
+    SOURCES="${SOURCES:-binancef,binances}"
+    IFS=',' read -ra SOURCE_LIST <<< "$SOURCES"
+    CONFIG_NAME="market-data-unified"
+    CONFIG_DESC="Merged ingestion bindings for ${SOURCES}: ${SYMBOLS}"
+    info "Seeding configctl (merge mode) with sources=[${SOURCES}] symbols=[${SYMBOLS}]"
+else
+    SOURCE_LIST=("$SOURCE")
+    CONFIG_NAME="market-data-${SOURCE}"
+    CONFIG_DESC="Ingestion bindings for ${SOURCE}: ${SYMBOLS}"
+    info "Seeding configctl with source=${SOURCE} symbols=[${SYMBOLS}]"
+fi
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/readyz" 2>/dev/null || echo "000")
 if [[ "$HTTP_CODE" != "200" ]]; then
@@ -87,11 +107,17 @@ if [[ "$HTTP_CODE" != "200" ]]; then
 fi
 
 # ---------- Build bindings JSON ----------
+# S400: When --merge, generates bindings for each source × symbol combination.
 BINDINGS_JSON="["
-for i in "${!SYMBOL_LIST[@]}"; do
-    sym="${SYMBOL_LIST[$i]}"
-    [[ $i -gt 0 ]] && BINDINGS_JSON+=","
-    BINDINGS_JSON+="{\"name\":\"${sym}-trades\",\"topic\":\"${SOURCE}.${sym}\"}"
+FIRST_BINDING=true
+for src in "${SOURCE_LIST[@]}"; do
+    src="${src//[[:space:]]/}"
+    [[ -n "$src" ]] || continue
+    for sym in "${SYMBOL_LIST[@]}"; do
+        $FIRST_BINDING || BINDINGS_JSON+=","
+        FIRST_BINDING=false
+        BINDINGS_JSON+="{\"name\":\"${src}-${sym}-trades\",\"topic\":\"${src}.${sym}\"}"
+    done
 done
 BINDINGS_JSON+="]"
 
@@ -99,8 +125,8 @@ BINDINGS_JSON+="]"
 CONFIG_CONTENT=$(cat <<ENDJSON
 {
   "metadata": {
-    "name": "market-data-${SOURCE}",
-    "description": "Ingestion bindings for ${SOURCE}: ${SYMBOLS}"
+    "name": "${CONFIG_NAME}",
+    "description": "${CONFIG_DESC}"
   },
   "bindings": ${BINDINGS_JSON},
   "fields": [
@@ -125,7 +151,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json" \
     -H "X-Correlation-ID: ${CORRELATION_ID}" \
-    -d "{\"name\":\"market-data-${SOURCE}\",\"format\":\"json\",\"content\":${ESCAPED_CONTENT}}")
+    -d "{\"name\":\"${CONFIG_NAME}\",\"format\":\"json\",\"content\":${ESCAPED_CONTENT}}")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -195,8 +221,12 @@ echo "  Configctl Seed: COMPLETE"
 echo "======================================"
 echo ""
 echo "Bindings activated:"
-for sym in "${SYMBOL_LIST[@]}"; do
-    echo "  ${SOURCE}.${sym}"
+for src in "${SOURCE_LIST[@]}"; do
+    src="${src//[[:space:]]/}"
+    [[ -n "$src" ]] || continue
+    for sym in "${SYMBOL_LIST[@]}"; do
+        echo "  ${src}.${sym}"
+    done
 done
 echo ""
 echo "Services will discover bindings via:"

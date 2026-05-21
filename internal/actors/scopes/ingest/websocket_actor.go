@@ -7,18 +7,22 @@ import (
 
 	actorcommon "internal/actors/common"
 	"internal/adapters/exchanges/binancef"
+	"internal/adapters/exchanges/binances"
+	"internal/domain/observation"
 
 	"github.com/anthdm/hollywood/actor"
 )
 
 // WebSocketAdapterConfig holds the configuration for a single WebSocket adapter.
 type WebSocketAdapterConfig struct {
+	Source       string // exchange source (e.g., "binancef", "binances")
 	Symbol       string
 	PublisherPID *actor.PID
 }
 
-// WebSocketAdapterActor connects to a Binance Futures aggTrade WebSocket stream,
+// WebSocketAdapterActor connects to an exchange-specific aggTrade WebSocket stream,
 // normalizes incoming trades, and forwards them to the publisher actor.
+// The Source field determines which exchange adapter (Futures or Spot) is used.
 type WebSocketAdapterActor struct {
 	cfg    WebSocketAdapterConfig
 	logger *slog.Logger
@@ -33,7 +37,7 @@ func NewWebSocketAdapterActor(cfg WebSocketAdapterConfig) actor.Producer {
 
 func (a *WebSocketAdapterActor) Receive(c *actor.Context) {
 	if a.logger == nil {
-		a.logger = slog.Default().With("actor", "ws-adapter", "symbol", a.cfg.Symbol)
+		a.logger = slog.Default().With("actor", "ws-adapter", "source", a.cfg.Source, "symbol", a.cfg.Symbol)
 	}
 
 	switch msg := c.Message().(type) {
@@ -54,39 +58,91 @@ func (a *WebSocketAdapterActor) Receive(c *actor.Context) {
 	}
 }
 
+// tradeParser abstracts the parse+normalize pipeline for an exchange source.
+type tradeParser struct {
+	parse     func([]byte) (interface{}, error)
+	normalize func(interface{}, string) (observation.TradeReceivedEvent, error)
+	streamURL string
+}
+
 func (a *WebSocketAdapterActor) start(c *actor.Context) {
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
 
 	symbol := a.cfg.Symbol
+	source := a.cfg.Source
 	publisherPID := a.cfg.PublisherPID
 
-	client := binancef.NewWSClient(symbol, func(data []byte) {
-		agg, prob := binancef.ParseAggTrade(data)
-		if prob != nil {
-			a.logger.Warn("parse aggTrade", "error", prob.Message)
-			return
+	handler := a.buildHandler(c, source, symbol, publisherPID)
+	if handler == nil {
+		a.logger.Error("unsupported exchange source, cannot start adapter", "source", source)
+		c.Engine().Poison(c.PID())
+		return
+	}
+
+	var streamURL string
+	switch source {
+	case "binancef":
+		client := binancef.NewWSClient(symbol, handler, a.logger)
+		streamURL = client.StreamURL()
+		a.logger.Info("starting websocket adapter", "url", streamURL)
+		go func() {
+			client.Run(ctx)
+			if ctx.Err() == nil {
+				a.logger.Error("websocket adapter exited unexpectedly")
+				c.Engine().Poison(c.PID())
+			}
+		}()
+	case "binances":
+		client := binances.NewWSClient(symbol, handler, a.logger)
+		streamURL = client.StreamURL()
+		a.logger.Info("starting websocket adapter", "url", streamURL)
+		go func() {
+			client.Run(ctx)
+			if ctx.Err() == nil {
+				a.logger.Error("websocket adapter exited unexpectedly")
+				c.Engine().Poison(c.PID())
+			}
+		}()
+	default:
+		a.logger.Error("unsupported exchange source", "source", source)
+		c.Engine().Poison(c.PID())
+	}
+}
+
+// buildHandler returns a MessageHandler routed to the correct exchange adapter.
+// Returns nil if the source is unsupported.
+func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol string, publisherPID *actor.PID) func([]byte) {
+	switch source {
+	case "binancef":
+		return func(data []byte) {
+			agg, prob := binancef.ParseAggTrade(data)
+			if prob != nil {
+				a.logger.Warn("parse aggTrade", "error", prob.Message)
+				return
+			}
+			event, prob := binancef.Normalize(agg, symbol)
+			if prob != nil {
+				a.logger.Error("normalize trade", "error", prob.Message)
+				return
+			}
+			c.Send(publisherPID, publishTradeMessage{Event: event})
 		}
-
-		event, prob := binancef.Normalize(agg, symbol)
-		if prob != nil {
-			a.logger.Error("normalize trade", "error", prob.Message)
-			return
+	case "binances":
+		return func(data []byte) {
+			agg, prob := binances.ParseAggTrade(data)
+			if prob != nil {
+				a.logger.Warn("parse aggTrade", "error", prob.Message)
+				return
+			}
+			event, prob := binances.Normalize(agg, symbol)
+			if prob != nil {
+				a.logger.Error("normalize trade", "error", prob.Message)
+				return
+			}
+			c.Send(publisherPID, publishTradeMessage{Event: event})
 		}
-
-		c.Send(publisherPID, publishTradeMessage{Event: event})
-	}, a.logger)
-
-	a.logger.Info("starting websocket adapter", "url", client.StreamURL())
-
-	// Run in a goroutine supervised by the actor lifecycle.
-	// When the actor is stopped, cancel() terminates the read loop.
-	go func() {
-		client.Run(ctx)
-		// If Run returns and context is not cancelled, the actor should restart.
-		if ctx.Err() == nil {
-			a.logger.Error("websocket adapter exited unexpectedly")
-			c.Engine().Poison(c.PID())
-		}
-	}()
+	default:
+		return nil
+	}
 }

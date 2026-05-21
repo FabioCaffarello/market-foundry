@@ -235,42 +235,240 @@ var executionDependsOnRisk = map[string][]string{
 }
 
 // ── Venue adapter types ───────────────────────────────────────────
-// These are the valid venue adapter types. Only paper_simulator is approved.
-// Adding a new type requires an activation gate ceremony.
+// These are the valid venue adapter types. Only paper_simulator is approved
+// by default. Adding a new type requires an activation gate ceremony.
 
 type VenueType string
 
 const (
 	VenueTypePaperSimulator         VenueType = "paper_simulator"
 	VenueTypeBinanceFuturesTestnet  VenueType = "binance_futures_testnet"
+	VenueTypeBinanceSpotTestnet     VenueType = "binance_spot_testnet"
+	VenueTypeBinanceFuturesMainnet  VenueType = "binance_futures_mainnet"
+	VenueTypeBinanceSpotMainnet     VenueType = "binance_spot_mainnet"
 )
 
 var knownVenueTypes = map[VenueType]bool{
 	VenueTypePaperSimulator:        true,
 	VenueTypeBinanceFuturesTestnet: true,
+	VenueTypeBinanceSpotTestnet:    true,
+	VenueTypeBinanceFuturesMainnet: true,
+	VenueTypeBinanceSpotMainnet:    true,
+}
+
+// ── Market segment types ────────────────────────────────────────────
+
+type MarketSegment string
+
+const (
+	MarketSegmentSpot    MarketSegment = "spot"
+	MarketSegmentFutures MarketSegment = "futures"
+)
+
+// Segment returns the market segment implied by a VenueType.
+// Returns empty string for paper_simulator and unknown types.
+func (v VenueType) Segment() MarketSegment {
+	switch v {
+	case VenueTypeBinanceFuturesTestnet, VenueTypeBinanceFuturesMainnet:
+		return MarketSegmentFutures
+	case VenueTypeBinanceSpotTestnet, VenueTypeBinanceSpotMainnet:
+		return MarketSegmentSpot
+	default:
+		return ""
+	}
+}
+
+// Environment returns "testnet", "mainnet", or empty for non-exchange types.
+func (v VenueType) Environment() string {
+	switch v {
+	case VenueTypeBinanceFuturesTestnet, VenueTypeBinanceSpotTestnet:
+		return "testnet"
+	case VenueTypeBinanceFuturesMainnet, VenueTypeBinanceSpotMainnet:
+		return "mainnet"
+	default:
+		return ""
+	}
+}
+
+// IsMainnet reports whether this adapter targets mainnet endpoints.
+func (v VenueType) IsMainnet() bool {
+	return v.Environment() == "mainnet"
+}
+
+// RequiresSegmentConfig reports whether the venue type requires explicit
+// segment enablement in configuration. Paper simulator does not.
+func (v VenueType) RequiresSegmentConfig() bool {
+	return v.Segment() != ""
+}
+
+// sourceForSegment maps each market segment to the canonical source prefix
+// used in ingest binding topics and execution intent Source fields.
+// S400: Required for multi-segment routing — the execute binary uses this
+// to dispatch intents to the correct segment adapter.
+var sourceForSegment = map[MarketSegment]string{
+	MarketSegmentFutures: "binancef",
+	MarketSegmentSpot:    "binances",
+}
+
+// SourceForSegment returns the canonical source prefix for a market segment
+// (e.g., "binancef" for futures, "binances" for spot).
+// Returns empty string for unknown segments.
+func SourceForSegment(seg MarketSegment) string {
+	return sourceForSegment[seg]
+}
+
+// SegmentForSource returns the market segment implied by a source prefix.
+// Returns empty string for unknown sources.
+func SegmentForSource(source string) MarketSegment {
+	for seg, src := range sourceForSegment {
+		if src == source {
+			return seg
+		}
+	}
+	return ""
+}
+
+// ── Segment venue config ────────────────────────────────────────────
+// S399: Per-segment adapter configuration. Each market segment carries its
+// own adapter type and enabled flag, allowing Spot, Futures, or both to be
+// governed by a single unified config file.
+//
+// Fail-closed: absent or nil entry means NOT enabled. A segment must have
+// enabled=true AND a valid adapter to be active.
+
+type SegmentVenueConfig struct {
+	Enabled bool      `json:"enabled"`
+	Adapter VenueType `json:"adapter"`
+}
+
+// knownMarketSegments is the canonical set of recognized segment keys.
+var knownMarketSegments = map[MarketSegment]bool{
+	MarketSegmentSpot:    true,
+	MarketSegmentFutures: true,
+}
+
+// adapterSegmentCompatibility maps each segment-requiring adapter to its
+// implied segment. Used by validation to reject adapter/segment mismatches.
+var adapterSegmentCompatibility = map[VenueType]MarketSegment{
+	VenueTypeBinanceFuturesTestnet: MarketSegmentFutures,
+	VenueTypeBinanceSpotTestnet:    MarketSegmentSpot,
+	VenueTypeBinanceFuturesMainnet: MarketSegmentFutures,
+	VenueTypeBinanceSpotMainnet:    MarketSegmentSpot,
 }
 
 // VenueConfig controls venue adapter selection for the execute binary.
 // Optional for binaries that don't submit orders (derive, store, gateway).
+//
+// S399: Two modes of adapter selection:
+//   - Standalone: venue.type selects a single adapter. Valid for
+//     paper_simulator or when no segments are defined.
+//   - Segments-based: venue.segments maps each market segment to its
+//     adapter config. Supports Spot, Futures, or both in one config.
+//     When segments are present, Type must be empty or paper_simulator.
 type VenueConfig struct {
-	Type              VenueType `json:"type"`
-	StalenessMaxAge   string    `json:"staleness_max_age,omitempty"`
-	SubmitTimeout     string    `json:"submit_timeout,omitempty"`
+	Type            VenueType      `json:"type,omitempty"`
+	StalenessMaxAge string         `json:"staleness_max_age,omitempty"`
+	SubmitTimeout   string         `json:"submit_timeout,omitempty"`
+	// DryRun governs whether the execution pipeline may submit real orders.
+	// When true (the default), a DryRunSubmitter intercepts all venue calls
+	// and produces auditable dry-run receipts instead of reaching the venue.
+	// Fail-closed: omitted or null is treated as true.
+	// S379: Setting this to false requires venue.type != paper_simulator.
+	// S399: Applies uniformly to all enabled segments.
+	DryRun          *bool          `json:"dry_run,omitempty"`
+	// Segments maps market segment names to their adapter configuration.
+	// S399: When present and at least one segment is enabled, segments govern
+	// adapter selection. Each segment carries its own adapter type and enabled flag.
+	// Fail-closed: absent map means no segments active — only paper_simulator allowed.
+	Segments        map[MarketSegment]*SegmentVenueConfig `json:"segments,omitempty"`
+	// CredentialProvider selects the backend for credential resolution.
+	// S439: Allowed values: "env" (default), "file".
+	// "env"  — reads MF_VENUE_{TYPE}_{KEY} from environment variables.
+	// "file" — reads from files at {credential_path}/{venue_type}/{KEY}.
+	// Fail-closed: unrecognized values are rejected at config validation.
+	CredentialProvider string `json:"credential_provider,omitempty"`
+	// CredentialPath is the base directory for the "file" credential provider.
+	// S439: Required when credential_provider is "file". Ignored otherwise.
+	// Expected layout: {credential_path}/{venue_type}/{KEY}
+	// Compatible with Docker secrets, K8s secrets, Vault Agent, AWS ESO.
+	CredentialPath string `json:"credential_path,omitempty"`
 }
 
-// Validate checks that the venue type, if set, is a known value.
+// HasUnifiedSegments reports whether the config uses the segments map
+// for adapter selection (S399 unified model).
+func (v VenueConfig) HasUnifiedSegments() bool {
+	return len(v.Segments) > 0
+}
+
+// EnabledSegments returns the list of enabled market segments in canonical
+// order (spot before futures). Returns nil when no segments are enabled.
+func (v VenueConfig) EnabledSegments() []MarketSegment {
+	var segs []MarketSegment
+	for _, seg := range []MarketSegment{MarketSegmentSpot, MarketSegmentFutures} {
+		if cfg, ok := v.Segments[seg]; ok && cfg != nil && cfg.Enabled {
+			segs = append(segs, seg)
+		}
+	}
+	return segs
+}
+
+// IsSegmentEnabled reports whether the given market segment is enabled.
+// Fail-closed: absent map or absent entry means not enabled.
+func (v VenueConfig) IsSegmentEnabled(seg MarketSegment) bool {
+	cfg, ok := v.Segments[seg]
+	return ok && cfg != nil && cfg.Enabled
+}
+
+// EnabledSegmentSources returns the canonical source prefixes for all enabled
+// segments (e.g., ["binances", "binancef"]). Returns nil when no segments are
+// enabled or when the standalone Type-based config is used.
+// S401: Used by the execute binary to build segment-scoped consumer filters.
+func (v VenueConfig) EnabledSegmentSources() []string {
+	segs := v.EnabledSegments()
+	if len(segs) == 0 {
+		return nil
+	}
+	sources := make([]string, 0, len(segs))
+	for _, seg := range segs {
+		if src := SourceForSegment(seg); src != "" {
+			sources = append(sources, src)
+		}
+	}
+	return sources
+}
+
+// AdapterForSegment returns the venue adapter type for the given segment.
+// Returns empty string if the segment is not configured.
+func (v VenueConfig) AdapterForSegment(seg MarketSegment) VenueType {
+	cfg, ok := v.Segments[seg]
+	if !ok || cfg == nil {
+		return ""
+	}
+	return cfg.Adapter
+}
+
+// Validate checks that the venue config is structurally valid.
+// S399: Supports both standalone Type-based and segments-based configs.
 func (v VenueConfig) Validate() *problem.Problem {
-	if v.Type == "" {
+	if v.Type == "" && !v.HasUnifiedSegments() {
 		return nil // optional — not every binary uses venue
 	}
 	var issues []problem.ValidationIssue
-	if !knownVenueTypes[v.Type] {
+
+	// Validate Type if set.
+	if v.Type != "" && !knownVenueTypes[v.Type] {
+		allowed := make([]string, 0, len(knownVenueTypes))
+		for vt := range knownVenueTypes {
+			allowed = append(allowed, string(vt))
+		}
 		issues = append(issues, problem.ValidationIssue{
 			Field:   "venue.type",
-			Message: fmt.Sprintf("unknown venue type %q; allowed: paper_simulator, binance_futures_testnet", v.Type),
+			Message: fmt.Sprintf("unknown venue type %q; allowed: %s", v.Type, strings.Join(allowed, ", ")),
 			Value:   string(v.Type),
 		})
 	}
+
+	// Validate duration fields.
 	if v.StalenessMaxAge != "" {
 		d, err := time.ParseDuration(v.StalenessMaxAge)
 		if err != nil {
@@ -303,10 +501,197 @@ func (v VenueConfig) Validate() *problem.Problem {
 			})
 		}
 	}
+
+	// S379: dry_run=false with paper_simulator is contradictory.
+	if v.DryRun != nil && !*v.DryRun {
+		if v.Type == VenueTypePaperSimulator || (v.Type == "" && !v.HasUnifiedSegments()) {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.dry_run",
+				Message: "dry_run=false requires a venue adapter (paper_simulator is inherently dry-run)",
+			})
+		}
+	}
+
+	// S445: dry_run=false is now authorized for mainnet adapters.
+	// Authorization: S443 evidence gate, condition C-6.
+	// Scope: Binance Spot, BTCUSDT, market order, minimum quantity, supervised ceremony.
+	// Fail-closed behavior is preserved by IsDryRun() defaulting to true when omitted.
+	// DryRunSubmitter, SafetyGate, and kill-switch remain fully intact for all profiles
+	// where dry_run is not explicitly set to false.
+	// Reversal: restore the validation block from S433 (git revert).
+
+	// S439: Credential provider validation.
+	issues = append(issues, v.validateCredentialProvider()...)
+
+	// S399: Segment enablement validation — fail-closed.
+	issues = append(issues, v.validateSegmentEnablement()...)
+
 	if len(issues) == 0 {
 		return nil
 	}
 	return validationProblem("venue config is invalid", issues...)
+}
+
+// knownCredentialProviders lists the allowed credential provider backends.
+// S439: "env" is the default; "file" reads from mounted secret files.
+var knownCredentialProviders = map[string]bool{
+	"":     true, // empty = default to "env"
+	"env":  true,
+	"file": true,
+}
+
+// CredentialProviderName returns the effective credential provider name.
+// S439: Defaults to "env" when omitted.
+func (v VenueConfig) CredentialProviderName() string {
+	if v.CredentialProvider == "" {
+		return "env"
+	}
+	return v.CredentialProvider
+}
+
+// validateCredentialProvider checks that the credential provider config is valid.
+// S439: Fail-closed — unknown providers are rejected; "file" requires credential_path.
+func (v VenueConfig) validateCredentialProvider() []problem.ValidationIssue {
+	var issues []problem.ValidationIssue
+	if !knownCredentialProviders[v.CredentialProvider] {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "venue.credential_provider",
+			Message: fmt.Sprintf("unknown credential provider %q; allowed: env, file", v.CredentialProvider),
+			Value:   v.CredentialProvider,
+		})
+		return issues
+	}
+	if v.CredentialProviderName() == "file" && v.CredentialPath == "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "venue.credential_path",
+			Message: "credential_path is required when credential_provider is \"file\"",
+		})
+	}
+	if v.CredentialProvider != "file" && v.CredentialPath != "" {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "venue.credential_path",
+			Message: "credential_path is only used when credential_provider is \"file\"; either set credential_provider to \"file\" or remove credential_path",
+		})
+	}
+	return issues
+}
+
+// validateSegmentEnablement validates segment configuration.
+// S399: Two modes — standalone (Type-based) and segments-based (Segments map).
+func (v VenueConfig) validateSegmentEnablement() []problem.ValidationIssue {
+	if !v.HasUnifiedSegments() {
+		// No segments map → standalone Type-based mode.
+		// If Type requires a segment, reject — must use segments map.
+		seg := v.Type.Segment()
+		if seg != "" {
+			return []problem.ValidationIssue{{
+				Field:   "venue.segments",
+				Message: fmt.Sprintf("venue type %q requires segments config; add segments map with %s segment enabled", v.Type, seg),
+			}}
+		}
+		return nil
+	}
+
+	// Segments map is present — validate unified model.
+	var issues []problem.ValidationIssue
+
+	// S399: When segments map is used, Type must be empty or paper_simulator.
+	// A segment-requiring Type (e.g., binance_futures_testnet) creates ambiguity.
+	if v.Type != "" && v.Type != VenueTypePaperSimulator {
+		if v.Type.Segment() != "" {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   "venue.type",
+				Message: fmt.Sprintf("venue.type %q selects a segment adapter; use segments map instead (set type to empty or paper_simulator)", v.Type),
+			})
+		}
+	}
+
+	// Validate each segment entry.
+	enabledCount := 0
+	for seg, cfg := range v.Segments {
+		// Unknown segment key.
+		if !knownMarketSegments[seg] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   fmt.Sprintf("venue.segments.%s", seg),
+				Message: fmt.Sprintf("unknown market segment %q; allowed: spot, futures", seg),
+			})
+			continue
+		}
+		if cfg == nil {
+			continue
+		}
+		if !cfg.Enabled {
+			continue
+		}
+		enabledCount++
+
+		// Enabled segment must have an adapter.
+		if cfg.Adapter == "" {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   fmt.Sprintf("venue.segments.%s.adapter", seg),
+				Message: fmt.Sprintf("enabled segment %q must have an adapter configured", seg),
+			})
+			continue
+		}
+
+		// Adapter must be a known venue type.
+		if !knownVenueTypes[cfg.Adapter] {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   fmt.Sprintf("venue.segments.%s.adapter", seg),
+				Message: fmt.Sprintf("unknown adapter %q for segment %q", cfg.Adapter, seg),
+			})
+			continue
+		}
+
+		// Paper simulator cannot be used as a segment adapter.
+		if cfg.Adapter == VenueTypePaperSimulator {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   fmt.Sprintf("venue.segments.%s.adapter", seg),
+				Message: fmt.Sprintf("paper_simulator cannot be used as a segment adapter for %q", seg),
+			})
+			continue
+		}
+
+		// Adapter must be compatible with the segment.
+		expectedSeg, ok := adapterSegmentCompatibility[cfg.Adapter]
+		if ok && expectedSeg != seg {
+			issues = append(issues, problem.ValidationIssue{
+				Field:   fmt.Sprintf("venue.segments.%s.adapter", seg),
+				Message: fmt.Sprintf("adapter %q is for segment %q, not %q", cfg.Adapter, expectedSeg, seg),
+			})
+		}
+	}
+
+	// At least one segment must be enabled when segments map is present.
+	if enabledCount == 0 {
+		issues = append(issues, problem.ValidationIssue{
+			Field:   "venue.segments",
+			Message: "segments map is present but no segments are enabled; enable at least one or remove segments",
+		})
+	}
+
+	return issues
+}
+
+// IsDryRun reports whether dry-run mode is active.
+// Fail-closed: returns true when DryRun is nil (omitted) or explicitly true.
+// S379: the only way to disable dry-run is to set dry_run=false explicitly.
+func (v VenueConfig) IsDryRun() bool {
+	return v.DryRun == nil || *v.DryRun
+}
+
+// hasMainnetAdapter reports whether any configured adapter targets mainnet.
+// S433: Used by validation to enforce dry_run=true for mainnet.
+func (v VenueConfig) hasMainnetAdapter() bool {
+	if v.Type.IsMainnet() {
+		return true
+	}
+	for _, cfg := range v.Segments {
+		if cfg != nil && cfg.Enabled && cfg.Adapter.IsMainnet() {
+			return true
+		}
+	}
+	return false
 }
 
 // StalenessMaxAgeDuration returns the configured staleness max age or the default (120s).

@@ -14,5 +14,6 @@ Typical pivots:
 - no data after seed -> rerun `make seed`, then inspect `ingest` and `derive`
 - analytical smoke fails -> inspect `writer`, `clickhouse`, `make migrate-status`
 - compose health fail -> run `make compose-config` and inspect `deploy/compose/docker-compose.yaml`
+- topology/config drift suspicion -> run `make drift-detect` or direct `raccoon-cli check topology`
 
 Escalate to direct scripts only when you need `../../../scripts/diag-check.sh` in `--local` mode or other harness-level flags.

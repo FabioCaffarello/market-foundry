@@ -308,34 +308,38 @@ owner_anchor_rules = {
         "Makefile",
         "README.md",
         "DEVELOPMENT.md",
-        "docs/operations/documentary-ownership-and-canonical-navigation.md",
+        "docs/development/owners.md",
+        "docs/product/owners.md",
+        "docs/tooling/README.md",
         "docs/architecture/README.md",
+        "docs/architecture/information-system-governance-and-classification.md",
     ],
     "context/repo/navigation.md": [
         "AGENTS.md",
         "Makefile",
         "README.md",
         "DEVELOPMENT.md",
-        "docs/operations/documentary-ownership-and-canonical-navigation.md",
+        "docs/development/owners.md",
     ],
     "context/runtime/navigation.md": [
         "README.md",
         "DEVELOPMENT.md",
         "deploy/README.md",
-        "docs/operations/development-lifecycle-entrypoints-and-canonical-flows.md",
-        "docs/operations/operational-proof-entrypoints-and-ownership.md",
+        "docs/development/workflow.md",
+        "docs/development/commands-and-proofs.md",
     ],
     "context/change/navigation.md": [
         "AGENTS.md",
         "DEVELOPMENT.md",
+        "docs/development/stages-and-governance.md",
         "docs/architecture/stage-definition-of-done.md",
         "docs/architecture/anti-debt-checklist.md",
         "docs/architecture/opus-guidance-rules.md",
     ],
     "context/intelligence/navigation.md": [
-        "docs/operations/make-and-raccoon-cli-contract.md",
+        "docs/development/commands-and-proofs.md",
+        "docs/tooling/README.md",
         "docs/tooling/cli-overview.md",
-        "docs/operations/raccoon-cli-command-reference.md",
         "tools/raccoon-cli/README.md",
     ],
 }
@@ -455,6 +459,25 @@ if report_issues:
     issues.extend(f"  - {item}" for item in report_issues)
 else:
     checks.append(".opencode reports remain reports instead of a parallel owner index")
+
+active_owner_stems = {
+    path.stem
+    for directory in ("docs/product", "docs/development", "docs/tooling")
+    for path in (root / directory).glob("*.md")
+    if path.name != "README.md"
+}
+stem_collisions = []
+for path in sorted(opencode.joinpath("context").rglob("*.md")):
+    if path.stem in active_owner_stems:
+        stem_collisions.append(
+            f"{path.relative_to(root).as_posix()}: stem collides with active human doc `{path.stem}.md`"
+        )
+
+if stem_collisions:
+    issues.append("potential .opencode to docs duplication detected:")
+    issues.extend(f"  - {item}" for item in stem_collisions)
+else:
+    checks.append(".opencode context filenames stay distinct from active human owner docs")
 
 reachable = set(profile_includes)
 queue = list(profile_includes)

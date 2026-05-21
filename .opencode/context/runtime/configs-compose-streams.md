@@ -15,6 +15,7 @@ When to open these files:
 - compose/startup mismatch or ports/depends_on/healthchecks drift
 - config key added or service boot fails on `-config`
 - ClickHouse schema or migration issue after `make up`
-- `raccoon-cli check topology` or `make arch-guard` points at wiring drift
+- `raccoon-cli check topology`, `raccoon-cli check bindings`, or `make drift-detect` points at wiring drift
 
-Prefer `make compose-config`, `make migrate-status`, and `make migrate-validate` before manual edits.
+Prefer `make compose-config`, `make migrate-status`, and `make migrate-validate`
+before manual edits.

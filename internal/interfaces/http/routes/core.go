@@ -88,11 +88,12 @@ type ExecutionFamilyDeps struct {
 	GetExecutionStatus  handlersGetExecutionStatusUseCase
 	GetExecutionControl handlersGetExecutionControlUseCase
 	SetExecutionControl handlersSetExecutionControlUseCase
+	GetLifecycleList    handlersGetLifecycleListUseCase
 }
 
 // HasAny reports whether at least one execution use case is available.
 func (e ExecutionFamilyDeps) HasAny() bool {
-	return e.GetLatestExecution != nil || e.GetExecutionStatus != nil || e.GetExecutionControl != nil
+	return e.GetLatestExecution != nil || e.GetExecutionStatus != nil || e.GetExecutionControl != nil || e.GetLifecycleList != nil
 }
 
 // ActivationFamilyDeps groups activation surface query use cases.
@@ -137,6 +138,9 @@ type Dependencies struct {
 	Activation                   ActivationFamilyDeps
 	SourceExplain                SourceExplainFamilyDeps
 	Analytical                   AnalyticalFamilyDeps
+	Session                      SessionFamilyDeps
+	Monitoring                   MonitoringFamilyDeps
+	Triage                       TriageFamilyDeps // S487
 	Logger                       *slog.Logger
 }
 
@@ -228,12 +232,60 @@ type handlersSetExecutionControlUseCase interface {
 	Execute(context.Context, executionclient.SetExecutionControlCommand) (executionclient.ExecutionControlReply, *problem.Problem)
 }
 
+type handlersGetLifecycleListUseCase interface {
+	Execute(context.Context, executionclient.LifecycleListQuery) (executionclient.LifecycleListReply, *problem.Problem)
+}
+
 type handlersGetActivationSurfaceUseCase interface {
 	Execute(context.Context, executionclient.ActivationSurfaceQuery) (executionclient.ActivationSurfaceReply, *problem.Problem)
 }
 
 type handlersGetSourceExplanationUseCase interface {
 	Execute(context.Context, executionclient.SourceExplainQuery) (executionclient.SourceExplainReply, *problem.Problem)
+}
+
+// S460: Session query use case interfaces.
+type handlersGetSessionUseCase interface {
+	Execute(context.Context, executionclient.SessionGetQuery) (executionclient.SessionGetReply, *problem.Problem)
+}
+
+type handlersListSessionsUseCase interface {
+	Execute(context.Context, executionclient.SessionListQuery) (executionclient.SessionListReply, *problem.Problem)
+}
+
+// S461: Session verification use case interface.
+type handlersVerifySessionUseCase interface {
+	Execute(context.Context, executionclient.SessionVerifyQuery) (executionclient.SessionVerifyReply, *problem.Problem)
+}
+
+// S462: Session audit bundle use case interface.
+type handlersAuditSessionUseCase interface {
+	Execute(context.Context, executionclient.SessionAuditQuery) (executionclient.SessionAuditReply, *problem.Problem)
+}
+
+// S467: Batch audit use case interface.
+type handlersBatchAuditSessionUseCase interface {
+	Execute(context.Context, executionclient.SessionBatchAuditQuery) (executionclient.SessionBatchAuditReply, *problem.Problem)
+}
+
+// S491: Unified operational report use case interface.
+type handlersUnifiedReportUseCase interface {
+	Execute(context.Context, executionclient.SessionUnifiedReportQuery) (executionclient.SessionUnifiedReportReply, *problem.Problem)
+}
+
+// SessionFamilyDeps groups session query use cases.
+type SessionFamilyDeps struct {
+	GetSession        handlersGetSessionUseCase
+	ListSessions      handlersListSessionsUseCase
+	VerifySession     handlersVerifySessionUseCase     // S461
+	AuditSession      handlersAuditSessionUseCase      // S462
+	BatchAuditSession handlersBatchAuditSessionUseCase // S467
+	UnifiedReport     handlersUnifiedReportUseCase     // S491
+}
+
+// HasAny reports whether at least one session use case is available.
+func (s SessionFamilyDeps) HasAny() bool {
+	return s.GetSession != nil || s.ListSessions != nil || s.VerifySession != nil || s.AuditSession != nil || s.BatchAuditSession != nil || s.UnifiedReport != nil
 }
 
 func DefaultRoutes(deps Dependencies) []webserver.Route {
@@ -279,6 +331,15 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Analytical.HasAny() {
 		routes = append(routes, Analytical(deps.Analytical, deps.Logger)...)
+	}
+	if deps.Session.HasAny() {
+		routes = append(routes, Session(deps.Session)...)
+	}
+	if deps.Monitoring.HasAny() {
+		routes = append(routes, Monitoring(deps.Monitoring)...)
+	}
+	if deps.Triage.HasAny() {
+		routes = append(routes, Triage(deps.Triage, deps.Logger)...)
 	}
 	return routes
 }

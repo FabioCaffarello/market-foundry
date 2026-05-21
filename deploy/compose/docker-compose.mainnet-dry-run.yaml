@@ -1,0 +1,34 @@
+# S434: Compose override for mainnet dry-run execution (Spot + Futures).
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.mainnet-dry-run.yaml up -d
+#
+# Overrides the execute service to use mainnet adapters with dry_run=true.
+# All venue calls are intercepted by DryRunSubmitter — no real orders are submitted.
+# This validates mainnet credential resolution and connectivity without risk.
+#
+# CRITICAL: Mainnet credentials must be provided via a secure channel.
+# Supported sources (via CredentialProvider):
+#   1. Environment variables (default): set in host env or .env file
+#   2. Future: secret manager integration (Vault, AWS SM, etc.)
+#
+# Required credential keys:
+#   MF_VENUE_BINANCE_SPOT_MAINNET_API_KEY
+#   MF_VENUE_BINANCE_SPOT_MAINNET_API_SECRET
+#   MF_VENUE_BINANCE_FUTURES_MAINNET_API_KEY
+#   MF_VENUE_BINANCE_FUTURES_MAINNET_API_SECRET
+#
+# WARNING: Never commit real mainnet credentials to this file or any config file.
+# The ${VAR:-} syntax ensures compose starts even if vars are unset in the host;
+# the binary's preflight check will fail-fast with an actionable error message.
+
+services:
+  execute:
+    command: ["-config", "/etc/market-foundry/execute-mainnet-dry-run.jsonc"]
+    volumes:
+      - ../configs/execute-mainnet-dry-run.jsonc:/etc/market-foundry/execute-mainnet-dry-run.jsonc:ro
+    environment:
+      - MF_VENUE_BINANCE_SPOT_MAINNET_API_KEY=${MF_VENUE_BINANCE_SPOT_MAINNET_API_KEY:-}
+      - MF_VENUE_BINANCE_SPOT_MAINNET_API_SECRET=${MF_VENUE_BINANCE_SPOT_MAINNET_API_SECRET:-}
+      - MF_VENUE_BINANCE_FUTURES_MAINNET_API_KEY=${MF_VENUE_BINANCE_FUTURES_MAINNET_API_KEY:-}
+      - MF_VENUE_BINANCE_FUTURES_MAINNET_API_SECRET=${MF_VENUE_BINANCE_FUTURES_MAINNET_API_SECRET:-}

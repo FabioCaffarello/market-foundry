@@ -67,8 +67,15 @@ CANDLE_WAIT_MAX="${CANDLE_WAIT_MAX:-90}"
 CANDLE_POLL_INTERVAL="${CANDLE_POLL_INTERVAL:-5}"
 
 # Default symbols and timeframes.
-DEFAULT_SYMBOL="btcusdt"
-ALL_TIMEFRAMES=(60 300 900 3600)
+DEFAULT_SYMBOL="${DEFAULT_SYMBOL:-btcusdt}"
+DEFAULT_SOURCE="${DEFAULT_SOURCE:-binancef}"
+ALL_TIMEFRAMES=(${ALL_TIMEFRAMES:-60 300 900 3600})
+
+# ClickHouse defaults (overridable per environment).
+CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-9000}"
+CLICKHOUSE_USER="${CLICKHOUSE_USER:-default}"
+CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-clickhouse}"
+CLICKHOUSE_DATABASE="${CLICKHOUSE_DATABASE:-market_foundry}"
 
 # ── Common validations ───────────────────────────────────────────────
 require_commands() {

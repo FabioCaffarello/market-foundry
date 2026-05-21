@@ -98,11 +98,42 @@ Validation rejects configs that violate these dependencies at startup.
 
 | Field              | Type     | Default  | Range        | Notes                              |
 |--------------------|----------|----------|--------------|------------------------------------|
-| `type`             | string   | —        | —            | `paper_simulator` or `binance_futures_testnet` |
+| `type`             | string   | —        | —            | `paper_simulator` only when no segments; empty when segments are used |
+| `dry_run`          | bool*    | `true`   | —            | Fail-closed: omitted/null = true. Set `false` only with real adapters |
 | `staleness_max_age`| duration | `"120s"` | 30s – 600s   | Reject intents older than this     |
 | `submit_timeout`   | duration | `"10s"`  | 1s – 60s     | Max wait for venue SubmitOrder     |
+| `segments`         | map      | —        | —            | Unified segment model (see below)  |
 
-Only `paper_simulator` is currently approved. `binance_futures_testnet` requires activation gate ceremony.
+### `venue.segments` (S399 unified model)
+
+When present, segments govern adapter selection. Each segment key maps to:
+
+| Field     | Type   | Notes                                  |
+|-----------|--------|----------------------------------------|
+| `enabled` | bool   | Must be `true` for the segment to boot |
+| `adapter` | string | Must match the segment (see below)     |
+
+Valid adapters per segment:
+
+| Segment   | Valid adapter               |
+|-----------|-----------------------------|
+| `spot`    | `binance_spot_testnet`      |
+| `futures` | `binance_futures_testnet`   |
+
+Fail-closed rules:
+- Enabled segment without adapter: **rejected**
+- Adapter/segment mismatch: **rejected**
+- `paper_simulator` as segment adapter: **rejected**
+- Segments map with zero enabled segments: **rejected**
+- Segment-requiring `type` with segments map: **rejected** (ambiguous)
+
+### Canonical config files
+
+| File                      | Purpose                                       | Status     |
+|---------------------------|-----------------------------------------------|------------|
+| `execute.jsonc`           | Paper simulator, no segments, dry_run=true    | Canonical  |
+| `execute-unified.jsonc`   | Both segments, dry_run=true                   | Canonical  |
+| `execute-venue-live.jsonc`| Both segments, dry_run=false (real testnet)   | Canonical  |
 
 ---
 

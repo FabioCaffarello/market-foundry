@@ -71,6 +71,11 @@ func (a *PositionExposureEvaluatorActor) onStrategyResolved(c *actor.Context, ms
 		return
 	}
 
+	// S470: enrich strategy inputs with causal event reference.
+	for i := range assessment.Strategies {
+		assessment.Strategies[i].EventID = msg.CausationID
+	}
+
 	if prob := assessment.Validate(); prob != nil {
 		a.logger.Error("risk assessment validation failed", "error", prob.Message)
 		return

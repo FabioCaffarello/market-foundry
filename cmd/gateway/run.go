@@ -43,7 +43,18 @@ func Run(config settings.AppConfig) {
 	}
 
 	// Phase 2b: Wire use cases from connections → route dependencies.
-	deps := buildRouteDependencies(config, conns, chClient, logger)
+	deps, verifyUC, reportUC := buildRouteDependencies(config, conns, chClient, logger)
+
+	// Phase 2c: S490 — Start event-driven verification trigger.
+	// S491: Trigger now also produces the unified report after verification.
+	// Optional background consumer that reacts to session close/halt events.
+	var trigger *verificationTrigger
+	if verifyUC != nil {
+		trigger = startVerificationTrigger(config.NATS.URL, verifyUC, reportUC, logger)
+		if trigger != nil {
+			defer trigger.Close()
+		}
+	}
 
 	// Phase 3: Assemble routes and spawn the gateway actor.
 	gatewayRoutes := routes.DefaultRoutes(deps)

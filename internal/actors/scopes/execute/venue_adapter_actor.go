@@ -14,6 +14,8 @@ import (
 	"internal/shared/events"
 	"internal/shared/healthz"
 	"internal/shared/metrics"
+	"internal/shared/problem"
+	"internal/shared/settings"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -34,6 +36,11 @@ type VenueAdapterConfig struct {
 	// S339: Activation surface dimensions for canonical state reporting.
 	AdapterState     domainexec.AdapterState
 	CredentialState  domainexec.CredentialState
+	// S401: AllowedSources restricts which source prefixes this actor accepts.
+	// When non-empty, intents with sources not in this set are rejected before
+	// reaching the SegmentRouter — defense-in-depth against cross-segment leakage.
+	// When empty, all sources are accepted (backwards-compatible with standalone configs).
+	AllowedSources   map[string]bool
 }
 
 // VenueAdapterActor consumes execution intents, checks kill switch + staleness,
@@ -194,14 +201,45 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 	)
 }
 
+// segmentPrefix returns the segment name prefix for tracker counters.
+// Returns empty string for unknown sources (counters are not incremented).
+func segmentPrefix(source string) string {
+	seg := settings.SegmentForSource(source)
+	if seg == "" {
+		return ""
+	}
+	return string(seg) + ":"
+}
+
 func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	tracker := a.cfg.Tracker
 	if tracker != nil {
 		tracker.Counter("processed").Add(1)
 	}
 	intent := msg.Event.ExecutionIntent
+	segPfx := segmentPrefix(intent.Source)
 	if tracker != nil {
 		tracker.Counter("processed:" + intent.Symbol).Add(1)
+		if segPfx != "" {
+			tracker.Counter(segPfx + "processed").Add(1)
+		}
+	}
+
+	// S401: Gate 0 — Segment source guard (defense-in-depth).
+	// Rejects intents from sources not in the allowed set before any other processing.
+	// This is redundant with the SegmentRouter's own source validation but provides
+	// an additional isolation barrier at the actor boundary.
+	if len(a.cfg.AllowedSources) > 0 && !a.cfg.AllowedSources[intent.Source] {
+		if tracker != nil {
+			tracker.Counter("rejected_source").Add(1)
+		}
+		a.logger.Warn("intent rejected — source not in allowed set",
+			"source", intent.Source,
+			"symbol", intent.Symbol,
+			"timeframe", intent.Timeframe,
+			"correlation_id", msg.Event.Metadata.CorrelationID,
+		)
+		return
 	}
 
 	// Gates 1+2: Kill switch and staleness guard.
@@ -264,6 +302,9 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	if prob != nil {
 		if tracker != nil {
 			tracker.RecordError()
+			if segPfx != "" {
+				tracker.Counter(segPfx + "errors").Add(1)
+			}
 		}
 		logAttrs := []any{
 			"error", prob.Message,
@@ -282,6 +323,12 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 			}
 		}
 		a.logger.Error("venue submit failed", logAttrs...)
+
+		// S386: Publish rejection event for non-retryable failures (true venue rejections).
+		// Retryable failures (transient network/rate-limit) are NOT rejections — they were
+		// already retried by RetrySubmitter and exhausted. Both exhausted-retryable and
+		// non-retryable problems produce a rejection event because the intent is terminal.
+		a.publishRejection(msg, intent, prob)
 		return
 	}
 
@@ -316,6 +363,9 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		tracker.RecordEvent()
 		tracker.Counter("filled").Add(1)
 		tracker.Counter("filled:" + intent.Symbol).Add(1)
+		if segPfx != "" {
+			tracker.Counter(segPfx + "filled").Add(1)
+		}
 	}
 
 	a.logger.Info("venue order filled",
@@ -331,6 +381,59 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	)
 }
 
+// publishRejection emits a VenueOrderRejectedEvent for audit trail and observability.
+// S386: This closes the gap where rejections existed only as Problem returns with no
+// downstream event. The intent is marked as rejected+final before publication.
+func (a *VenueAdapterActor) publishRejection(msg intentReceivedMessage, intent domainexec.ExecutionIntent, prob *problem.Problem) {
+	rejected := intent
+	rejected.Status = domainexec.StatusRejected
+	rejected.Final = true
+
+	rejectionEvent := domainexec.VenueOrderRejectedEvent{
+		Metadata: events.NewMetadata().
+			WithCorrelationID(msg.Event.Metadata.CorrelationID).
+			WithCausationID(msg.Event.Metadata.ID),
+		ExecutionIntent: rejected,
+		RejectionCode:   string(prob.Code),
+		RejectionReason: prob.Message,
+		VenueDetails:    prob.Details,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if pubProb := a.fillPublisher.PublishRejection(ctx, rejectionEvent); pubProb != nil {
+		a.logger.Error("publish rejection event failed",
+			"error", pubProb.Message,
+			"source", intent.Source,
+			"symbol", intent.Symbol,
+			"timeframe", intent.Timeframe,
+			"correlation_id", msg.Event.Metadata.CorrelationID,
+		)
+		return
+	}
+
+	tracker := a.cfg.Tracker
+	if tracker != nil {
+		tracker.Counter("rejected").Add(1)
+		tracker.Counter("rejected:" + intent.Symbol).Add(1)
+		segPfx := segmentPrefix(intent.Source)
+		if segPfx != "" {
+			tracker.Counter(segPfx + "rejected").Add(1)
+		}
+	}
+
+	a.logger.Info("venue order rejected",
+		"rejection_code", string(prob.Code),
+		"source", intent.Source,
+		"symbol", intent.Symbol,
+		"timeframe", intent.Timeframe,
+		"side", string(intent.Side),
+		"quantity", intent.Quantity,
+		"correlation_id", msg.Event.Metadata.CorrelationID,
+	)
+}
+
 func (a *VenueAdapterActor) logStats() {
 	tracker := a.cfg.Tracker
 	if tracker == nil {
@@ -339,6 +442,7 @@ func (a *VenueAdapterActor) logStats() {
 	a.logger.Info("venue adapter stats",
 		"processed", tracker.Counter("processed").Load(),
 		"filled", tracker.Counter("filled").Load(),
+		"rejected", tracker.Counter("rejected").Load(),
 		"skipped_stale", tracker.Counter("skipped_stale").Load(),
 		"skipped_halt", tracker.Counter("skipped_halt").Load(),
 		"errors", tracker.ErrorCount(),

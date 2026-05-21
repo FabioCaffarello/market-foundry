@@ -292,10 +292,13 @@ func (a *BinanceFuturesTestnetAdapter) parseOrderResponse(body []byte, intent do
 	filled.FilledQuantity = resp.ExecutedQty
 
 	// Build fill record for filled/partially_filled orders.
+	// S428: Fee is "0" because Futures RESULT response does not include commission.
+	// CostBasis carries cumQuote (the actual notional value), which was previously
+	// misplaced in the Fee field. This separation enables correct cross-segment queries.
 	if status == domainexec.StatusFilled || status == domainexec.StatusPartiallyFilled {
-		fee := "0"
-		if resp.CumQuote != "" && resp.ExecutedQty != "" {
-			fee = resp.CumQuote // cumulative quote as fee proxy (commissions come from separate endpoint)
+		costBasis := "0"
+		if resp.CumQuote != "" {
+			costBasis = resp.CumQuote
 		}
 
 		fillTime := time.Now().UTC()
@@ -307,7 +310,10 @@ func (a *BinanceFuturesTestnetAdapter) parseOrderResponse(body []byte, intent do
 			{
 				Price:     resp.AvgPrice,
 				Quantity:  resp.ExecutedQty,
-				Fee:       fee,
+				Fee:       "0",
+				FeeAsset:  "",
+				CostBasis: costBasis,
+				FeeSource: domainexec.FeeSourceUnavailable,
 				Simulated: false,
 				Timestamp: fillTime,
 			},
@@ -388,6 +394,90 @@ func (a *BinanceFuturesTestnetAdapter) QueryOrder(ctx context.Context, clientOrd
 	// The caller is expected to supply the original intent for full context.
 	syntheticIntent := domainexec.ExecutionIntent{Symbol: symbol}
 	return a.parseOrderResponse(body, syntheticIntent)
+}
+
+// FuturesAccountInfo holds the subset of Binance Futures account data used for
+// authenticated connectivity proofs. Read-only surface.
+// S441: Introduced for authenticated mainnet proof without order submission.
+type FuturesAccountInfo struct {
+	CanTrade      bool   `json:"canTrade"`
+	FeeTier       int    `json:"feeTier"`
+	TotalWalletBalance string `json:"-"`
+	AssetCount    int    `json:"-"`
+	PositionCount int    `json:"-"`
+	HTTPStatus    int    `json:"-"`
+}
+
+// AccountStatus performs an authenticated read-only call to the Binance Futures
+// account endpoint (GET /fapi/v2/account). This proves:
+//   - API key and secret are valid and correctly signed (HMAC-SHA256)
+//   - The mainnet endpoint is reachable and accepts authenticated requests
+//   - The account exists and returns permissions and balance metadata
+//
+// S441: This method is used exclusively for connectivity proofs and soak tests.
+// It never submits orders, modifies account state, or triggers any write operation.
+func (a *BinanceFuturesTestnetAdapter) AccountStatus(ctx context.Context) (FuturesAccountInfo, *problem.Problem) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultRequestDeadline)
+		defer cancel()
+	}
+
+	params := url.Values{}
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	params.Set("recvWindow", "5000")
+
+	signature := a.sign(params.Encode())
+	params.Set("signature", signature)
+
+	endpoint := a.baseURL + "/fapi/v2/account"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
+	if err != nil {
+		return FuturesAccountInfo{}, problem.Wrap(err, problem.Internal, "build futures account status request failed")
+	}
+	httpReq.Header.Set("X-MBX-APIKEY", a.apiKey)
+
+	resp, err := a.httpClient.Do(httpReq)
+	if err != nil {
+		return FuturesAccountInfo{}, problem.Wrap(err, problem.Unavailable, "futures account status request failed").MarkRetryable()
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	if err != nil {
+		return FuturesAccountInfo{}, problem.Wrap(err, problem.Internal, "read futures account status response failed")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp binanceErrorResponse
+		_ = json.Unmarshal(body, &errResp)
+		return FuturesAccountInfo{HTTPStatus: resp.StatusCode}, problem.Newf(problem.InvalidArgument,
+			"futures account status failed (HTTP %d, code %d): %s", resp.StatusCode, errResp.Code, errResp.Message)
+	}
+
+	var raw struct {
+		CanTrade           bool   `json:"canTrade"`
+		FeeTier            int    `json:"feeTier"`
+		TotalWalletBalance string `json:"totalWalletBalance"`
+		Assets             []struct {
+			Asset string `json:"asset"`
+		} `json:"assets"`
+		Positions []struct {
+			Symbol string `json:"symbol"`
+		} `json:"positions"`
+	}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return FuturesAccountInfo{}, problem.Wrap(err, problem.Internal, "parse futures account status response failed")
+	}
+
+	return FuturesAccountInfo{
+		CanTrade:           raw.CanTrade,
+		FeeTier:            raw.FeeTier,
+		TotalWalletBalance: raw.TotalWalletBalance,
+		AssetCount:         len(raw.Assets),
+		PositionCount:      len(raw.Positions),
+		HTTPStatus:         resp.StatusCode,
+	}, nil
 }
 
 // mapSymbol normalizes the internal lowercase symbol to Binance's uppercase convention.

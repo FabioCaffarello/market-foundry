@@ -1,0 +1,27 @@
+# S416: Canonical compose override for venue-live execution (dry_run=false).
+#
+# Consolidates the former docker-compose.unified-{spot,futures}-live.yaml
+# into a single overlay. Both segments are enabled; which segment is exercised
+# depends on the intents flowing through the pipeline, not the config.
+#
+# Usage:
+#   docker compose -f docker-compose.yaml -f docker-compose.venue-live.yaml up -d
+#
+# CRITICAL: This overlay enables REAL testnet order submission.
+#
+# Required env vars:
+#   MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY
+#   MF_VENUE_BINANCE_SPOT_TESTNET_API_SECRET
+#   MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY
+#   MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET
+
+services:
+  execute:
+    command: ["-config", "/etc/market-foundry/execute-venue-live.jsonc"]
+    volumes:
+      - ../configs/execute-venue-live.jsonc:/etc/market-foundry/execute-venue-live.jsonc:ro
+    environment:
+      - MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY=${MF_VENUE_BINANCE_SPOT_TESTNET_API_KEY:-}
+      - MF_VENUE_BINANCE_SPOT_TESTNET_API_SECRET=${MF_VENUE_BINANCE_SPOT_TESTNET_API_SECRET:-}
+      - MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY=${MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY:-}
+      - MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET=${MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET:-}

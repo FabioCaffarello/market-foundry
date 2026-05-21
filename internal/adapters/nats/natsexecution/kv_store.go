@@ -121,6 +121,28 @@ func (s *KVStore) Get(ctx context.Context, source, symbol string, timeframe int)
 	return &intent, nil
 }
 
+// Keys returns all partition keys currently stored in the bucket.
+// Returns an empty slice when the bucket is empty or unavailable.
+// S413: Enables lifecycle list queries by enumerating tracked partition keys.
+func (s *KVStore) Keys(ctx context.Context) ([]string, *problem.Problem) {
+	if s == nil || s.latest == nil {
+		return nil, problem.New(problem.Unavailable, "execution KV store is unavailable")
+	}
+
+	lister, err := s.latest.ListKeys(ctx)
+	if err != nil {
+		// NATS returns an error when no keys exist — treat as empty.
+		return []string{}, nil
+	}
+
+	var keys []string
+	for key := range lister.Keys() {
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
 func (s *KVStore) Close() error {
 	if s != nil && s.nc != nil {
 		s.nc.Close()

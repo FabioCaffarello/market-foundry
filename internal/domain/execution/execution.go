@@ -73,11 +73,46 @@ func ValidTransition(from, to Status) bool {
 	return false
 }
 
+// FeeSource indicates the provenance of fee data in a FillRecord.
+// S499: Enables downstream logic to distinguish why a fee is zero.
+type FeeSource string
+
+const (
+	// FeeSourceVenue indicates real commission data from the exchange.
+	FeeSourceVenue FeeSource = "venue"
+
+	// FeeSourceUnavailable indicates the venue API did not return commission
+	// (e.g. Binance Futures RESULT response). Fee=0 is expected, not a gap.
+	FeeSourceUnavailable FeeSource = "unavailable"
+
+	// FeeSourceSimulated indicates a paper/dry-run fill with no real fee.
+	FeeSourceSimulated FeeSource = "simulated"
+
+	// FeeSourceFallback indicates a venue fill where the fills[] array was
+	// empty (unexpected for FULL response type). Fee=0 may be a data gap.
+	FeeSourceFallback FeeSource = "fallback"
+)
+
 // FillRecord represents a single fill event within an execution.
+//
+// S428 fee normalization: Fee is the actual trading commission charged by the venue.
+// CostBasis is the total notional value of the fill (price * quantity or cumQuote).
+// FeeAsset identifies the denomination of the fee (e.g. "BNB", "USDT").
+//
+// S499 fee provenance: FeeSource indicates why Fee has its current value,
+// enabling downstream reconciliation to distinguish expected zeros from gaps.
+//
+// Semantics by segment:
+//   - Spot: Fee = aggregated commission from fills[], FeeAsset = commissionAsset, CostBasis = cummulativeQuoteQty, FeeSource = venue
+//   - Futures: Fee = "0" (not available from RESULT response), FeeAsset = "", CostBasis = cumQuote, FeeSource = unavailable
+//   - Paper/DryRun: Fee = "0", FeeAsset = "", CostBasis = "0", FeeSource = simulated
 type FillRecord struct {
 	Price     string    `json:"price"`
 	Quantity  string    `json:"quantity"`
 	Fee       string    `json:"fee"`
+	FeeAsset  string    `json:"fee_asset,omitempty"`
+	CostBasis string    `json:"cost_basis,omitempty"`
+	FeeSource FeeSource `json:"fee_source,omitempty"`
 	Simulated bool      `json:"simulated"`
 	Timestamp time.Time `json:"timestamp"`
 }
@@ -86,6 +121,7 @@ type FillRecord struct {
 // This is an execution-owned type — it does not import from the risk domain.
 // S265: StrategyType and DecisionSeverity added to preserve full causal context
 // across the risk→execution boundary for traceability and behavioral analysis.
+// S470: EventID added to make the causal reference to the originating risk event explicit.
 type RiskInput struct {
 	Type             string `json:"type"`
 	Disposition      string `json:"disposition"`
@@ -93,6 +129,7 @@ type RiskInput struct {
 	Timeframe        int    `json:"timeframe"`
 	StrategyType     string `json:"strategy_type,omitempty"`
 	DecisionSeverity string `json:"decision_severity,omitempty"`
+	EventID          string `json:"event_id,omitempty"`
 }
 
 // ExecutionIntent represents a discrete, typed execution intent derived from a risk assessment.

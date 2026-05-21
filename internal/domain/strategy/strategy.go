@@ -19,6 +19,7 @@ const (
 // DecisionInput records which decision contributed to this strategy.
 // This is a strategy-owned type — it does not import from the decision domain.
 // Severity and Rationale carry the decision's semantic depth forward for traceability.
+// S470: EventID added to make the causal reference to the originating decision event explicit.
 type DecisionInput struct {
 	Type       string `json:"type"`
 	Outcome    string `json:"outcome"`
@@ -26,6 +27,7 @@ type DecisionInput struct {
 	Severity   string `json:"severity"`
 	Rationale  string `json:"rationale"`
 	Timeframe  int    `json:"timeframe"`
+	EventID    string `json:"event_id,omitempty"`
 }
 
 // Strategy represents a discrete, typed resolution combining decisions into a directional intent.

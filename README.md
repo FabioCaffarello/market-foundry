@@ -115,13 +115,8 @@ make arch-guard  # Architecture boundary check
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow reference.
 The documentation entrypoint is [`docs/README.md`](docs/README.md).
-The operational support index is [`docs/operations/README.md`](docs/operations/README.md).
-Ownership by subject lives in
-[`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md).
-The repository-shape navigation entrypoints are
-[`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
-and
-[`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md).
+The product surface lives in [`docs/product/README.md`](docs/product/README.md).
+The development surface lives in [`docs/development/README.md`](docs/development/README.md).
 Direct tooling references live in [`docs/tooling/README.md`](docs/tooling/README.md).
 
 ## Repository Navigation
@@ -135,19 +130,17 @@ rather than the documentation taxonomy:
 - [`scripts/README.md`](scripts/README.md) - script catalog and wrapper rules
 - [`tests/README.md`](tests/README.md) - test surfaces and when to use them
 - [`tools/raccoon-cli/README.md`](tools/raccoon-cli/README.md) - tooling workspace entrypoint
-- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md) - cross-repository map that connects these areas
+- [`docs/development/repository-map.md`](docs/development/repository-map.md) - cross-repository map that connects these areas
 
 ## Documentation Map
 
-- [`docs/README.md`](docs/README.md) - top-level documentation navigation
-- [`docs/operations/README.md`](docs/operations/README.md) - canonical operations/support index
-- [`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md) - ownership by subject and owner/reference split
-- [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md) - repository-shape navigation model
-- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md) - task-to-directory navigation rules
-- [`docs/tooling/README.md`](docs/tooling/README.md) - `raccoon-cli` guardrails,
-  drift rules, and topology references
-- [`docs/architecture/README.md`](docs/architecture/README.md) - canonical
-  architecture and governance entrypoint
+- [`docs/README.md`](docs/README.md) - human documentation entrypoint
+- [`docs/product/README.md`](docs/product/README.md) - product and runtime context
+- [`docs/product/owners.md`](docs/product/owners.md) - product-facing owner docs
+- [`docs/development/README.md`](docs/development/README.md) - contributor workflow and navigation
+- [`docs/development/owners.md`](docs/development/owners.md) - development-facing owner docs
+- [`docs/tooling/README.md`](docs/tooling/README.md) - `raccoon-cli` guardrails, drift rules, and topology references
+- [`docs/architecture/README.md`](docs/architecture/README.md) - deep canonical architecture reference
 - [`docs/stages/INDEX.md`](docs/stages/INDEX.md) - historical stage reports
 - [`docs/archive/README.md`](docs/archive/README.md) - archived and superseded docs
 
@@ -175,8 +168,9 @@ This repository was originally cloned from a quality-service. The following comp
 - Quality-specific HTTP endpoints and contracts
 - All `.context/` documentation from the quality-service era
 
-See [`docs/architecture/README.md`](docs/architecture/README.md) for detailed
-audit and decision records.
+See [`docs/product/README.md`](docs/product/README.md) and
+[`docs/architecture/README.md`](docs/architecture/README.md) for current
+system context and deep technical records.
 
 ## Next Phase
 

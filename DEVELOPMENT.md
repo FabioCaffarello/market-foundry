@@ -199,22 +199,20 @@ Repository navigation now also has physical-area entrypoints:
 - `deploy/README.md` for compose/config/env/migration assets
 - `scripts/README.md` for harness ownership behind `make`
 - `tests/README.md` for shared repository-level test assets
-- `docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md` for task-to-directory navigation
+- `docs/development/repository-map.md` for task-to-directory navigation
 
 See:
 
 - [`docs/README.md`](docs/README.md)
-- [`docs/operations/README.md`](docs/operations/README.md)
-- [`docs/operations/documentary-ownership-and-canonical-navigation.md`](docs/operations/documentary-ownership-and-canonical-navigation.md)
-- [`docs/operations/repository-metadata-indexes-and-developer-navigation-system.md`](docs/operations/repository-metadata-indexes-and-developer-navigation-system.md)
-- [`docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md`](docs/operations/repository-navigation-maps-entrypoints-and-maintenance-rules.md)
-- [`docs/operations/repository-maintainability-economics-and-structural-cost-control.md`](docs/operations/repository-maintainability-economics-and-structural-cost-control.md)
-- [`docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md`](docs/operations/repository-maintenance-hotspots-and-cost-reduction-principles.md)
+- [`docs/development/README.md`](docs/development/README.md)
+- [`docs/development/owners.md`](docs/development/owners.md)
+- [`docs/development/repository-map.md`](docs/development/repository-map.md)
+- [`docs/development/commands-and-proofs.md`](docs/development/commands-and-proofs.md)
+- [`docs/development/stages-and-governance.md`](docs/development/stages-and-governance.md)
 - [`docs/tooling/README.md`](docs/tooling/README.md)
 
-Keep this file intentionally shallow. The detailed support-document catalog lives
-in [`docs/operations/README.md`](docs/operations/README.md) so root workflow docs
-do not need to be edited every time the repository adds another support guide.
+Keep this file intentionally shallow. The detailed active contributor guidance
+now lives under [`docs/development/`](docs/development/README.md).
 
 ## Support Surface Hierarchy
 
@@ -236,10 +234,10 @@ do not need to be edited every time the repository adds another support guide.
 |---------|---------|
 | `README.md` | Project overview and quick orientation |
 | `DEVELOPMENT.md` | Daily engineering workflow |
-| `docs/operations/` | Operational support docs, unified workflow, onboarding, troubleshooting, command surfaces |
-| `docs/operations/documentation-*.md` | Documentation-system hardening, governance, entrypoints, and taxonomy |
+| `docs/product/` | Product and runtime context for humans |
+| `docs/development/` | Contributor workflow, repository map, commands, and stage hygiene |
 | `docs/tooling/` | `raccoon-cli` guardrails and drift-rule references |
-| `docs/architecture/` | Canonical architecture and governance |
+| `docs/architecture/` | Deep canonical architecture reference |
 | `docs/stages/` | Historical stage evidence |
 | `docs/archive/` | Archived or superseded material |
 
@@ -297,9 +295,10 @@ tools/raccoon-cli/   Rust architecture guardian CLI
 deploy/              Docker Compose, configs, Dockerfile
 scripts/             Utility and smoke-test scripts
 tests/http/          HTTP test files
-docs/architecture/   Architecture decisions and canonical patterns
+docs/product/        Product and runtime context
+docs/development/    Contributor workflow and repository navigation
+docs/architecture/   Deep canonical architecture reference
 docs/archive/        Historical and superseded documentation
-docs/operations/     Operational support docs and documentation conventions
 docs/stages/         Stage completion reports
 docs/tooling/        CLI and tooling documentation
 ```
