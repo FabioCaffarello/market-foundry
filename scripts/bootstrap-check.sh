@@ -61,21 +61,21 @@ required_paths=(
     "README.md"
     "DEVELOPMENT.md"
     "docs/README.md"
-    "docs/product/README.md"
-    "docs/product/owners.md"
-    "docs/product/system-overview.md"
-    "docs/development/README.md"
-    "docs/development/owners.md"
-    "docs/development/workflow.md"
-    "docs/development/repository-map.md"
-    "docs/development/commands-and-proofs.md"
-    "docs/development/stages-and-governance.md"
-    "docs/operations/README.md"
-    "docs/tooling/README.md"
-    "docs/architecture/README.md"
-    "docs/architecture/information-system-governance-and-classification.md"
-    "docs/stages/INDEX.md"
-    "docs/archive/README.md"
+    "docs/legacy/product/README.md"
+    "docs/legacy/product/owners.md"
+    "docs/legacy/product/system-overview.md"
+    "docs/legacy/development/README.md"
+    "docs/legacy/development/owners.md"
+    "docs/legacy/development/workflow.md"
+    "docs/legacy/development/repository-map.md"
+    "docs/legacy/development/commands-and-proofs.md"
+    "docs/legacy/development/stages-and-governance.md"
+    "docs/legacy/operations/README.md"
+    "docs/legacy/tooling/README.md"
+    "docs/legacy/architecture/README.md"
+    "docs/legacy/architecture/information-system-governance-and-classification.md"
+    "docs/legacy/stages/INDEX.md"
+    "docs/legacy/archive/README.md"
     "deploy/compose/docker-compose.yaml"
     "deploy/envs/local.env"
     "tools/raccoon-cli/Cargo.toml"
@@ -124,6 +124,6 @@ Troubleshooting first steps:
   - make logs SERVICE=gateway
 
 Canonical lifecycle docs:
-  - docs/development/workflow.md
-  - docs/development/commands-and-proofs.md
+  - docs/legacy/development/workflow.md
+  - docs/legacy/development/commands-and-proofs.md
 EOF
