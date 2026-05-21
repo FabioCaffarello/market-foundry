@@ -56,7 +56,7 @@ func TestS467_BatchAudit_Returns200(t *testing.T) {
 		},
 	}
 
-	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, batchUC)
+	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, batchUC, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/session/batch-audit?status=closed", nil)
 	rec := httptest.NewRecorder()
@@ -68,7 +68,7 @@ func TestS467_BatchAudit_Returns200(t *testing.T) {
 }
 
 func TestS467_BatchAudit_NilUseCase(t *testing.T) {
-	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, nil)
+	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/session/batch-audit", nil)
 	rec := httptest.NewRecorder()
@@ -92,7 +92,7 @@ func TestS467_BatchAudit_WithIDsParam(t *testing.T) {
 		},
 	}
 
-	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, batchUC)
+	handler := handlers.NewSessionWebHandler(&mockGetSession{}, &mockListSessions{}, &mockVerifySession{}, &mockAuditSession{}, batchUC, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/session/batch-audit?ids=s1,s2", nil)
 	rec := httptest.NewRecorder()

@@ -1,6 +1,6 @@
 module internal/adapters/nats
 
-go 1.25.6
+go 1.25.7
 
 require (
 	github.com/fxamacker/cbor/v2 v2.9.0
