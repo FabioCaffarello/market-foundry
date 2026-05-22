@@ -137,13 +137,26 @@ After the Phase 1A reset, `docs/architecture/` (subdir) no longer
 exists — replaced by `docs/ARCHITECTURE.md` (singular file) and
 `docs/domain/` (subdir of 11 docs).
 
-**Effect:** `make quality-gate` fails with 61 errors, which propagates
-to `make verify` failing.
+**Effect:** `make quality-gate` fails with 61 errors. This propagates
+to two places:
+
+1. `make verify` locally (the quality-gate target is part of verify).
+2. **CI on every push and PR** — `.github/workflows/ci.yml` includes
+   a `repository-checks` job that runs `make repo-consistency-check`
+   + `make quality-gate-ci`. The quality-gate-ci leg fails for the
+   same reason, marking CI red on `main` and on every PR.
+
+The CI red state has been silent since P1A.1 because no PR was opened
+during Phase 1A and pushes to `main` weren't being monitored against
+CI status. Phase 1D.2's PR templates surfacing this debt is the
+discovery point.
 
 **Resolution path:** rewrite or remove the `drift_detect.rs` analyzer
 to align with the Phase 1A docs topology. This is non-trivial Rust
-work and is scoped for P1D (governance) or P2 (environment hardening),
-not P1B.
+work and is scoped for P1D.3, P2 (environment hardening), or similar.
+The CI workflow `.github/workflows/ci.yml` does NOT require changes —
+once G6 is resolved in the analyzer, the CI `quality-gate-ci` job will
+pass automatically.
 
 **Status:** known debt; documented; `make verify` red until resolved.
 
