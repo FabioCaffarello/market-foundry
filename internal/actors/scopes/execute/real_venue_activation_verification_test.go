@@ -296,10 +296,9 @@ func TestRealVenueActivation_GateOpenEnablesRealVenueFlow(t *testing.T) {
 		t.Fatalf("[RVA-2] correlation mismatch: want %q, got %q", corrID, fill.Metadata.CorrelationID)
 	}
 
-	// Tracker counters consistent.
-	if adapterTracker.Counter("filled").Load() < 1 {
-		t.Fatalf("[RVA-2] expected filled >= 1, got %d", adapterTracker.Counter("filled").Load())
-	}
+	// Tracker counters consistent (eventually — actor increments after PublishFill).
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), 1, 2*time.Second,
+		"[RVA-2] expected filled >= 1")
 
 	t.Logf("[RVA-2] fill: venue_order_id=%s price=%s simulated=%v venue_requests=%d",
 		fill.VenueOrderID, fillRecord.Price, fillRecord.Simulated, venueRequests.Load())

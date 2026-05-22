@@ -194,9 +194,8 @@ func TestControlledActivation_GateOpenEnablesLiveFlow(t *testing.T) {
 	if fill.ExecutionIntent.Status != domainexec.StatusFilled {
 		t.Fatalf("[CAV-2] expected status=filled, got %q", fill.ExecutionIntent.Status)
 	}
-	if adapterTracker.Counter("filled").Load() < 1 {
-		t.Fatalf("[CAV-2] expected filled >= 1, got %d", adapterTracker.Counter("filled").Load())
-	}
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), 1, 2*time.Second,
+		"[CAV-2] expected filled >= 1")
 
 	t.Logf("[CAV-2] fill received: venue_order_id=%s correlation_id=%s",
 		fill.VenueOrderID, fill.Metadata.CorrelationID)

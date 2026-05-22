@@ -252,8 +252,7 @@ func TestEndurance_SustainedGateActiveWithLatencyTracking(t *testing.T) {
 			t.Fatalf("[END-1/inject-%d] fill is simulated — real venue adapter expected", i)
 		}
 
-		snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-		s343CheckInvariant(t, fmt.Sprintf("END-1/inject-%d", i), snap)
+		snap := s343EventuallyInvariant(t, fmt.Sprintf("END-1/inject-%d", i), adapterTracker, &venueRequests, 2*time.Second)
 
 		epoch := s349Epoch{
 			index:       i,
@@ -275,7 +274,7 @@ func TestEndurance_SustainedGateActiveWithLatencyTracking(t *testing.T) {
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "END-1/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -291,7 +290,6 @@ func TestEndurance_SustainedGateActiveWithLatencyTracking(t *testing.T) {
 	if finalSnap.errors != 0 {
 		t.Fatalf("[END-1] expected 0 errors, got %d", finalSnap.errors)
 	}
-	s343CheckInvariant(t, "END-1/final", finalSnap)
 
 	// ── Drift regression analysis ──
 	maxDrift, driftDetected := s349AnalyzeDrift(t, epochs)
@@ -416,8 +414,7 @@ func TestEndurance_MixedWorkloadEndurance(t *testing.T) {
 			expectedSkippedHalt++
 		}
 
-		snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-		s343CheckInvariant(t, fmt.Sprintf("END-2/%s/%d", phase, idx), snap)
+		snap := s343EventuallyInvariant(t, fmt.Sprintf("END-2/%s/%d", phase, idx), adapterTracker, &venueRequests, 2*time.Second)
 
 		latencyMs := float64(time.Since(publishStart).Microseconds()) / 1000.0
 		epochs = append(epochs, s349Epoch{
@@ -519,7 +516,7 @@ func TestEndurance_MixedWorkloadEndurance(t *testing.T) {
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "END-2/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -540,7 +537,6 @@ func TestEndurance_MixedWorkloadEndurance(t *testing.T) {
 	if finalSnap.processed != totalEvents {
 		t.Fatalf("[END-2] expected processed=%d, got %d", totalEvents, finalSnap.processed)
 	}
-	s343CheckInvariant(t, "END-2/final", finalSnap)
 
 	// ── Drift analysis ──
 	maxDrift, driftDetected := s349AnalyzeDrift(t, epochs)
@@ -624,8 +620,7 @@ func TestEndurance_CounterMonotonicityUnderRepeatedBursts(t *testing.T) {
 			totalFills++
 
 			latencyMs := float64(time.Since(publishStart).Microseconds()) / 1000.0
-			snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-			s343CheckInvariant(t, fmt.Sprintf("END-3/burst-%d/e%d", burst, ei), snap)
+			snap := s343EventuallyInvariant(t, fmt.Sprintf("END-3/burst-%d/e%d", burst, ei), adapterTracker, &venueRequests, 2*time.Second)
 
 			epochs = append(epochs, s349Epoch{
 				index:       len(epochs) + 1,
@@ -664,7 +659,7 @@ func TestEndurance_CounterMonotonicityUnderRepeatedBursts(t *testing.T) {
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "END-3/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -681,7 +676,6 @@ func TestEndurance_CounterMonotonicityUnderRepeatedBursts(t *testing.T) {
 	if finalSnap.errors != 0 {
 		t.Fatalf("[END-3] expected 0 errors, got %d", finalSnap.errors)
 	}
-	s343CheckInvariant(t, "END-3/final", finalSnap)
 
 	// ── Drift and latency regression ──
 	maxDrift, driftDetected := s349AnalyzeDrift(t, epochs)

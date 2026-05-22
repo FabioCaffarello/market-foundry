@@ -238,9 +238,9 @@ func TestExtendedObservation_SustainedGateActive(t *testing.T) {
 			t.Fatalf("[EOW-1/inject-%d] fill is simulated — real venue adapter expected", i)
 		}
 
-		// Take snapshot and validate invariant.
-		snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-		s343CheckInvariant(t, fmt.Sprintf("EOW-1/inject-%d", i), snap)
+		// Take snapshot and validate invariant (eventually — actor increments
+		// the filled counter after PublishFill returns).
+		snap := s343EventuallyInvariant(t, fmt.Sprintf("EOW-1/inject-%d", i), adapterTracker, &venueRequests, 2*time.Second)
 		snapshots = append(snapshots, snap)
 
 		if i < totalInjections {
@@ -254,7 +254,7 @@ func TestExtendedObservation_SustainedGateActive(t *testing.T) {
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "EOW-1/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -278,9 +278,6 @@ func TestExtendedObservation_SustainedGateActive(t *testing.T) {
 	if finalSnap.errors != 0 {
 		t.Fatalf("[EOW-1] expected 0 errors during sustained observation, got %d", finalSnap.errors)
 	}
-
-	// Counter invariant holds at end.
-	s343CheckInvariant(t, "EOW-1/final", finalSnap)
 
 	t.Logf("[EOW-1] window: %s (actual=%s)", windowDuration, windowEnd.Sub(windowStart).Truncate(time.Second))
 	t.Logf("[EOW-1] summary: processed=%d filled=%d skipped_halt=%d errors=%d venue_reqs=%d snapshots=%d",
@@ -404,8 +401,7 @@ func TestExtendedObservation_GateTransitionsDuringWindow(t *testing.T) {
 				expectedSkippedHalt++
 			}
 
-			snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-			s343CheckInvariant(t, fmt.Sprintf("EOW-2/%s/e%d", phaseLabel, ei), snap)
+			snap := s343EventuallyInvariant(t, fmt.Sprintf("EOW-2/%s/e%d", phaseLabel, ei), adapterTracker, &venueRequests, 2*time.Second)
 			snapshots = append(snapshots, snap)
 
 			if ei < ph.events-1 {
@@ -424,7 +420,7 @@ func TestExtendedObservation_GateTransitionsDuringWindow(t *testing.T) {
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "EOW-2/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -446,9 +442,6 @@ func TestExtendedObservation_GateTransitionsDuringWindow(t *testing.T) {
 	if finalSnap.errors != 0 {
 		t.Fatalf("[EOW-2] expected 0 errors, got %d", finalSnap.errors)
 	}
-
-	// Counter invariant at end.
-	s343CheckInvariant(t, "EOW-2/final", finalSnap)
 
 	// Total processed.
 	totalEvents := int64(0)
@@ -532,9 +525,9 @@ func TestExtendedObservation_CounterConsistencyUnderSustainedLoad(t *testing.T) 
 			totalFills++
 		}
 
-		// Validate after each burst.
-		snap := s343TakeSnapshot(adapterTracker, &venueRequests)
-		s343CheckInvariant(t, fmt.Sprintf("EOW-3/post-burst-%d", burst+1), snap)
+		// Validate after each burst (eventually — counter increments trail
+		// the NATS fill publish by a sub-microsecond window).
+		snap := s343EventuallyInvariant(t, fmt.Sprintf("EOW-3/post-burst-%d", burst+1), adapterTracker, &venueRequests, 2*time.Second)
 
 		if snap.filled != totalFills {
 			t.Fatalf("[EOW-3/post-burst-%d] expected filled=%d, got %d", burst+1, totalFills, snap.filled)
@@ -566,7 +559,7 @@ func TestExtendedObservation_CounterConsistencyUnderSustainedLoad(t *testing.T) 
 	}
 
 	windowEnd := time.Now()
-	finalSnap := s343TakeSnapshot(adapterTracker, &venueRequests)
+	finalSnap := s343EventuallyInvariant(t, "EOW-3/final", adapterTracker, &venueRequests, 2*time.Second)
 
 	// ── Final assertions ──
 
@@ -583,7 +576,6 @@ func TestExtendedObservation_CounterConsistencyUnderSustainedLoad(t *testing.T) 
 	if finalSnap.errors != 0 {
 		t.Fatalf("[EOW-3] expected 0 errors, got %d", finalSnap.errors)
 	}
-	s343CheckInvariant(t, "EOW-3/final", finalSnap)
 
 	t.Logf("[EOW-3] window: actual=%s", windowEnd.Sub(windowStart).Truncate(time.Second))
 	t.Logf("[EOW-3] summary: bursts=%d events_per_burst=%d total=%d filled=%d venue_reqs=%d errors=%d",
