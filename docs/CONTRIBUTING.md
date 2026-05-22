@@ -1,3 +1,482 @@
-# Contributing — WIP
+# Contributing
 
-PR-based workflow and contribution rules. To be written in prompt P1A.9.
+How to make changes to market-foundry, codified from lessons learned
+during the project's evolution.
+
+This document is for **two audiences**:
+
+1. **Humans contributing code, docs, or operational changes.** Whether
+   you're the project owner returning after a pause or a new
+   contributor, the rules here apply.
+2. **AI agents** (Claude Code, other agents) executing change tasks
+   on this repository. The protocols here are how the system stays
+   coherent across many turns.
+
+For higher-level architectural orientation, start with
+[`README.md`](README.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), and
+[`RESUMPTION.md`](RESUMPTION.md). For daily workflow basics, see
+[`DEVELOPMENT.md`](DEVELOPMENT.md).
+
+---
+
+## Core principles
+
+The principles below are **enforced**, not aspirational. Each was
+established because *not* enforcing it caused observable harm.
+
+### 1. Code is the source of truth
+
+When documentation and code disagree, **code wins**. Documentation is
+explanation; code is reality.
+
+Corollary for documentation work: **verify technical assertions against
+code before saving**. Multiple times during Phase 1A documentation
+reset, draft content claimed facts (number of streams, consumer
+ownership, plane taxonomy) that disagreed with the codebase. Catching
+these before save kept the documentation honest.
+
+### 2. Single-writer invariant
+
+Every JetStream stream, every NATS KV bucket, every NATS query subject
+has **exactly one writer**. No exceptions.
+
+This is the most important invariant in the system. Race conditions
+that "shouldn't be possible" are almost always violations of this
+invariant; preventing it by construction is much cheaper than
+debugging it post-hoc.
+
+See [`decisions/0008-single-writer-invariant.md`](decisions/0008-single-writer-invariant.md)
+for the full rationale.
+
+### 3. Static enforcement over convention
+
+If a rule can be checked automatically by `raccoon-cli`, it must be.
+Convention alone drifts; tools don't.
+
+See [`decisions/0004-raccoon-cli-static-enforcement.md`](decisions/0004-raccoon-cli-static-enforcement.md).
+
+### 4. Explicit duplication over premature abstraction
+
+Three similar lines that are clear beat one helper that is fragile.
+No `utils/` package. No interface with a single implementation. Structs
+over interfaces unless polymorphism is actually needed.
+
+### 5. Layer sovereignty is non-negotiable
+
+Imports flow inward only: `domain → application → adapters → actors →
+interfaces → cmd`. No exceptions. raccoon-cli enforces this.
+
+See [`decisions/0005-layer-sovereignty.md`](decisions/0005-layer-sovereignty.md).
+
+---
+
+## Rules for code changes
+
+### When adding an HTTP route
+
+**You must update `cmd/gateway/boot_test.go`'s `routes` slice.**
+
+This rule exists because three route trie conflicts were discovered
+simultaneously in production during Phase 0, causing gateway
+CrashLoopBackoff. The boot test was added as a regression guard:
+it exercises all routes against a fresh httprouter and fails if any
+conflict reappears.
+
+If your PR adds a route to `internal/interfaces/http/routes/` without
+adding to the test slice, CI fails. This is intentional.
+
+See [`decisions/0010-httprouter-trie-constraints.md`](decisions/0010-httprouter-trie-constraints.md)
+for the constraint details and the trade-offs.
+
+### When adding a new domain or family
+
+A new domain in `internal/domain/` should:
+
+1. Follow the canonical patterns (FamilyProcessor in derive, Pipeline
+   in store, FamilyDeps in gateway).
+2. Have a `Validate() *problem.Problem` on its principal type
+   (canonical signature).
+3. Have a dedicated `internal/adapters/nats/nats<domain>/` adapter
+   if it publishes to a stream.
+4. Get its own ADR if it introduces a structural pattern not already
+   established.
+5. Get its own doc under `docs/domain/` (use existing docs as templates).
+
+### When the canonical Validate signature doesn't fit
+
+If your domain genuinely needs to return something other than
+`*problem.Problem` (e.g., `[]ValidationDiagnostic` for multi-error
+reporting, like `ConfigDocument.Validate()`):
+
+1. **Justify with a code comment** explaining why the canonical
+   signature is insufficient.
+2. **Consider an ADR** if the deviation reflects a pattern others
+   may want to follow.
+3. **Don't deviate silently** — that produces drift, not design.
+
+### When introducing a new NATS stream
+
+1. Publish only from **one binary**. Document in the registry.
+2. Document the stream in [`RUNTIME.md`](RUNTIME.md) → streams table.
+3. If the topology decision is non-obvious (e.g., a new family of
+   events that didn't fit existing flows), write an ADR.
+
+### When introducing a new KV bucket
+
+1. Write only from **one actor**. Single-writer invariant.
+2. Document the bucket in [`RUNTIME.md`](RUNTIME.md) → KV buckets.
+3. Follow naming conventions: `{TYPE}_LATEST` and `{TYPE}_HISTORY` for
+   most domains; execution uses action-noun naming
+   (see [`domain/execution.md`](domain/execution.md)).
+
+### When introducing a new subject pattern
+
+Subjects follow `{domain}.{plane}.{type}.{verb}[.{key}]` with verb
+last. See [`decisions/0009-subject-taxonomy.md`](decisions/0009-subject-taxonomy.md).
+
+If you're introducing a new plane (beyond `events`, `event`, `control`,
+`command`, `reply`, `query`, `projection`, `fill`, `rejection`,
+`session`, `activation`), it warrants ADR consideration.
+
+---
+
+## Rules for documentation changes
+
+### Verify technical assertions against code before saving
+
+For docs containing factual claims (stream counts, consumer ownership,
+type lists, configuration shapes), **verify against the codebase**
+before committing the doc.
+
+Patterns from Phase 1A that worked:
+
+- **Inventory-first**: for docs dense in facts, generate an
+  inventory of the code state first (read-only grep/find pass),
+  then write the doc against that inventory.
+- **Slots in proposed content**: when the architect proposes content
+  inline, embed `<!-- SLOT N: ... -->` markers where factual tables
+  go, and fill from inventory/code at write time.
+- **Pause-and-report on divergence**: if the proposed content
+  disagrees with code reality, don't silently "fix" — pause, report
+  the divergence, and wait for direction.
+
+### Errata: correct immediately, don't accumulate
+
+When documentation A says one thing and documentation B (newer or
+verified against code) says another, **fix A in the next commit**.
+Don't accumulate contradictions hoping to batch-fix them later.
+
+Phase 1A established this pattern with P1A.4b.1 (errata against
+ARCHITECTURE.md and GLOSSARY.md discovered while writing RUNTIME.md).
+Small immediate erratta is cheaper than large accumulated ones.
+
+Exception: minor refinements (clarifying wording, improving examples)
+can accumulate to a single later pass. Factual contradictions cannot.
+
+### ARCHITECTURE vs RUNTIME — boundary
+
+It's tempting to put concrete operational facts in `ARCHITECTURE.md`.
+Resist this.
+
+| Document | Holds |
+|---|---|
+| `ARCHITECTURE.md` | Durable decisions, structural patterns, foundational principles |
+| `RUNTIME.md` | Concrete operational catalog (binaries, streams, ports, KV buckets, subjects) |
+
+If a fact will likely change (a new stream added, a port reassigned),
+it belongs in RUNTIME. If a principle will likely persist for years
+(layer sovereignty, single-writer invariant), it belongs in
+ARCHITECTURE.
+
+When in doubt, prefer RUNTIME. ARCHITECTURE should be the smaller doc.
+
+### Promote guard-rail comments to ADRs
+
+When you find a code-comment explicitly saying "no X here / never do
+Y", that's a guard rail. Guard rails should be **promoted to ADRs**:
+
+- Comments can be silently deleted; ADRs cannot.
+- Comments are found only by readers of that file; ADRs are
+  searchable.
+- ADRs explain *why* the constraint exists; comments often don't.
+
+[`decisions/0011-no-oms-expansion-pairing.md`](decisions/0011-no-oms-expansion-pairing.md)
+is an example of this promotion — package-level comments in
+`pairing.go` and `continuity.go` became an explicit ADR during
+Phase 1A.
+
+### Keep RESUMPTION.md current
+
+`RESUMPTION.md` is the entry point for someone returning to the
+project. It only earns its keep by being current.
+
+Update RESUMPTION when:
+
+- **Phase transition** (e.g., Phase 1A closes; mark P1A.X items done
+  and Phase 1B as in progress).
+- **New known gap discovered** (add to the G section).
+- **Gap resolved** (remove from G section, add to "Recently resolved"
+  appendix if useful, or just remove).
+- **Significant feature shipped** (move from "Deliberate non-features"
+  to "Current functional state").
+
+If you find yourself wondering whether RESUMPTION reflects reality,
+**that itself is the trigger to update it**.
+
+### Keep GLOSSARY.md current
+
+Add to glossary when:
+
+- A term has system-specific meaning beyond generic English/Go usage.
+- An existing term's definition changes (rare; usually means a
+  major refactor).
+
+Don't add generic terms (NATS, actor, goroutine) — they have upstream
+documentation.
+
+---
+
+## PR workflow
+
+### Branch convention
+
+```
+type/short-description
+```
+
+Examples:
+- `feat/backtesting-harness`
+- `fix/gateway-route-conflict`
+- `docs/architecture-revision`
+- `chore/dependabot-upgrade`
+
+### Commit message convention
+
+```
+type(scope): summary in present tense
+
+Detail in body, with cross-references where useful. Wrap at 72 chars.
+
+Examples of references:
+- Related ADR: see decisions/0010
+- Resolves gap: G1 from RESUMPTION
+- Test added: cmd/gateway/boot_test.go
+```
+
+Types in use:
+- `feat`: new capability
+- `fix`: bug fix
+- `docs`: documentation only
+- `chore`: tooling, deps, refactors without behavior change
+- `refactor`: structural changes without behavior change
+
+Scope is optional but useful for large changes (e.g.,
+`docs(p1a.8a):`, `fix(gateway):`).
+
+### PR description
+
+A PR description should:
+
+1. **State the goal** in one sentence at top.
+2. **List what changed** at high level (files touched, behavior
+   affected).
+3. **Cross-reference** affected docs and ADRs.
+4. **Identify risk** (e.g., "touches single-writer invariant of
+   X stream — careful review needed").
+5. **Specify how to verify** (which smoke, which test target).
+
+### Review checklist
+
+Before approving any PR:
+
+- [ ] `make verify` passes (or only the documented G3 `.opencode/`
+      failures, until P1B closes that).
+- [ ] If routes added: `cmd/gateway/boot_test.go` updated.
+- [ ] If new stream/bucket: single-writer invariant respected.
+- [ ] If new domain type: canonical `Validate() *problem.Problem`
+      signature, or documented deviation.
+- [ ] If structural decision: ADR considered.
+- [ ] If known-gap touched: RESUMPTION.md updated.
+- [ ] If domain-specific deep dive needed: `docs/domain/<x>.md` updated.
+- [ ] Layer sovereignty respected (raccoon-cli check passes).
+
+---
+
+## Authorized expansion protocol
+
+The single most important protocol in this repository.
+
+### Why this exists
+
+When executing a scoped task (a PR, a documentation prompt, a focused
+refactor), it's common to discover **a blocker or improvement that's
+outside the task's stated scope**. Two failure modes:
+
+1. **Silent expansion**: agent (human or AI) decides to fix the
+   blocker without notice. The PR balloons; the original scope is
+   muddied; reviewers can't tell what was intended vs incidental.
+2. **Silent skip**: agent ignores the blocker and proceeds with the
+   original task. The blocker stays unfixed; the PR ships an
+   incomplete fix or a workaround.
+
+The authorized expansion protocol prevents both.
+
+### Protocol
+
+When you (human or AI) encounter a blocker or improvement outside
+the stated scope:
+
+1. **Pause work.** Do not modify files related to the unscoped concern.
+2. **Report concisely.** Describe the finding in 3-5 lines.
+3. **Present options.** Typically 2-4 labeled choices (A, B, C, D)
+   covering: include in current scope; defer to follow-up; skip
+   entirely; clarify with project owner.
+4. **Wait for direction.** Do not act unilaterally.
+5. **Proceed per direction.** If the response authorizes expansion,
+   the commit message includes an "Authorized expansion:" section
+   describing what was added beyond the original scope.
+
+### Examples from Phase 1A
+
+- **P0.2**: Go version upgrade revealed a stale test file requiring
+  an unrelated fix. Pause-report-options-act protocol was followed;
+  the fix shipped with explicit authorization.
+- **P0.6**: One route conflict was the original target; a second and
+  third were discovered during work. Each was paused, reported, and
+  authorized before proceeding.
+- **P1A.3**: ARCHITECTURE.md draft contained factual divergences
+  from the codebase. Save was paused; divergences reported with
+  patch options; correct content shipped after authorization.
+
+This protocol works because it preserves the project owner's ability
+to **direct the scope** without forcing every agent decision to be
+pre-specified.
+
+---
+
+## When to write an ADR
+
+Write an ADR when:
+
+- The decision is **structurally durable** (will affect many future
+  changes).
+- The decision **inverts a default** or pattern that was previously
+  established.
+- The decision has **significant trade-offs** that future readers
+  need to understand.
+- The decision encodes a **guard rail** that should persist regardless
+  of code churn.
+
+Don't write an ADR for:
+
+- Pure refactorings without policy change.
+- Bug fixes (commit message is sufficient).
+- Tool upgrades (commit message or chore PR is sufficient).
+- Configuration values (these go in deployment docs).
+
+### ADR format
+
+See [`decisions/README.md`](decisions/README.md) and the existing
+ADRs (`decisions/0001-*.md` through `decisions/0011-*.md`) for the
+canonical format. Briefly:
+
+- **Status**: Accepted, Superseded, Deprecated
+- **Context**: the situation that motivated the decision
+- **Decision**: what we decided
+- **Consequences**: positive AND negative
+- **Alternatives considered**: what we rejected and why
+- **References**: cross-refs to code and docs
+
+ADRs are **append-only**. To change a decision, write a new ADR
+that supersedes the old one. Do not edit historical ADRs except for
+typos and broken links.
+
+---
+
+## Coding standards
+
+### Go code
+
+- `gofmt` clean.
+- `go vet` clean.
+- `raccoon-cli quality-gate` passes (covers layer sovereignty, structural rules).
+- Test coverage required for new domain logic (`make test` passes).
+- Behavioral tests required for new operational paths (`make test-behavioral`).
+
+### Rust code (raccoon-cli)
+
+- `cargo fmt` clean.
+- `cargo clippy` clean.
+- `cargo test` passes.
+
+### JSONC configs
+
+- Valid JSONC (parseable with comments).
+- Schema verified by `make codegen-validate-all`.
+
+### Markdown docs
+
+- No `make verify` cross-reference failures (except documented G3
+  `.opencode/` until P1B).
+- Internal links work.
+- Headings are sentence-case.
+
+---
+
+## Specifically for AI agents
+
+If you are an AI agent (Claude Code, another agent) executing a task
+on this repository:
+
+### Read these documents first
+
+In order:
+
+1. The prompt you received (your immediate task).
+2. [`RESUMPTION.md`](RESUMPTION.md) — current state.
+3. [`ARCHITECTURE.md`](ARCHITECTURE.md) — system shape.
+4. Any specific docs the prompt references.
+
+### Apply the protocols rigorously
+
+- **Validate against code** before claiming any technical fact.
+- **Pause and report** if you find divergences from the prompt's
+  expectations; do not silently "fix".
+- **Pause and report** if you find blockers outside scope; use the
+  authorized expansion protocol.
+- **Update RESUMPTION.md** if your task transitions a phase or
+  changes a documented gap.
+- **Update affected docs** when behavior changes (don't let
+  documentation drift while code moves).
+
+### Commit messages: explicit about provenance
+
+When AI-driven, commit messages should:
+- Identify the prompt or task (e.g., `docs(p1a.9): write CONTRIBUTING.md`).
+- Be clear about what the agent decided vs what the project owner
+  authorized.
+- Reference any "Authorized expansion:" if scope grew.
+
+### When in doubt
+
+Pause and ask. The cost of one extra clarification turn is much
+less than the cost of an incorrect autonomous decision that requires
+unwinding.
+
+---
+
+## Reading further
+
+| If you want | Go to |
+|---|---|
+| System overview | [`README.md`](README.md) |
+| Current state and gaps | [`RESUMPTION.md`](RESUMPTION.md) |
+| Architecture and patterns | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Runtime topology | [`RUNTIME.md`](RUNTIME.md) |
+| HTTP endpoints | [`HTTP-API.md`](HTTP-API.md) |
+| Daily workflow | [`DEVELOPMENT.md`](DEVELOPMENT.md) |
+| Operations | [`operations/`](operations/README.md) |
+| Architecture decision records | [`decisions/`](decisions/README.md) |
+| Domain deep dives | [`domain/`](domain/README.md) |
+| Terminology | [`GLOSSARY.md`](GLOSSARY.md) |
+| Historical material | [`legacy/`](legacy/README.md) |
