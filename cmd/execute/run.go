@@ -11,6 +11,7 @@ import (
 	executeactor "internal/actors/scopes/execute"
 	natsevidence "internal/adapters/nats/natsevidence"
 	appexec "internal/application/execution"
+	"internal/application/executionclient"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
 	"internal/shared/bootstrap"
@@ -129,7 +130,7 @@ func Run(config settings.AppConfig) {
 		"adapter", string(adapterState),
 		"credentials", string(venueResult.credentialState),
 		"dry_run", dryRunActive,
-		"effective_without_gate", string(domainexec.ComputeEffectiveMode(adapterState, domainexec.GateActive, venueResult.credentialState)),
+		"effective_without_gate", string(executionclient.ComputeEffectiveMode(adapterState, domainexec.GateActive, venueResult.credentialState)),
 		"note", "gate state resolves after NATS KV connect",
 	)
 

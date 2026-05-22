@@ -126,7 +126,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     report.add(check_interfaces_isolation(&index));
 
     // ── Structural/boundary rules (existing, enhanced) ────────────────
-    report.add(check_cmd_boundary(&index));
+    report.add(check_cmd_boundary(&index, project_root));
     report.add(check_tooling_boundary(project_root));
     report.add(check_no_cross_cmd_imports(&index));
     report.add(check_deploy_boundary(project_root));
@@ -317,9 +317,20 @@ fn check_interfaces_isolation(index: &ProjectIndex) -> CheckResult {
     CheckResult::from_findings("interfaces-isolation", findings)
 }
 
-// ── Rule 5: Cmd boundary (AST-based type counting) ──────────────────────────
+// ── Rule 5: Cmd boundary (AST-based type counting + domain-call detection) ──
+//
+// ADR-0005 frames cmd/ as the composition root that "sees everything".
+// Referencing domain types for wiring (struct literals, parameter types,
+// constants, type assertions) is permitted. What crosses the boundary is
+// invocation: calling a domain function from cmd/ bypasses the application
+// layer and embeds business logic in the entry point.
+//
+// This check flags `<alias>.<Fn>(...)` patterns where `<alias>` resolves to
+// an imported `internal/domain/*` package and `<Fn>` is an exported
+// package-level function (from codeintel's parsed function set). Struct
+// literals (`<alias>.<T>{...}`) and bare type references are not flagged.
 
-fn check_cmd_boundary(index: &ProjectIndex) -> CheckResult {
+fn check_cmd_boundary(index: &ProjectIndex, project_root: &Path) -> CheckResult {
     let cmd_files: Vec<&GoFile> = index
         .files
         .iter()
@@ -333,22 +344,93 @@ fn check_cmd_boundary(index: &ProjectIndex) -> CheckResult {
     let mut findings = Vec::new();
 
     for file in &cmd_files {
-        // Check that cmd/ does not import domain/ directly
+        // Resolve each cmd file's domain imports to (alias, callable function names).
+        // alias = explicit `as alias` from the import, else the last segment of the path.
+        let mut domain_imports: Vec<(String, Vec<String>)> = Vec::new();
         for imp in &file.imports {
             if imp.kind != ImportKind::Internal {
                 continue;
             }
-            if let Some(layer) = extract_internal_layer(&imp.path) {
-                if layer == "domain" {
-                    findings.push(
-                        Finding::warning("cmd-boundary", "cmd/ imports domain/ directly")
-                            .with_location(format!("{}:{}", file.path, imp.location.line))
-                            .with_why(
-                                "cmd packages should orchestrate via application use cases, \
-                             not reach into domain directly",
-                            )
-                            .with_help("access domain types through application layer contracts"),
-                    );
+            if extract_internal_layer(&imp.path) != Some("domain") {
+                continue;
+            }
+            let alias = imp
+                .alias
+                .clone()
+                .unwrap_or_else(|| {
+                    imp.path
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or("")
+                        .to_string()
+                });
+            if alias.is_empty() {
+                continue;
+            }
+            let pkg = index.packages.iter().find(|p| p.dir == imp.path);
+            let fn_names: Vec<String> = match pkg {
+                Some(p) => p
+                    .functions
+                    .iter()
+                    .filter(|f| {
+                        f.receiver.is_none() && matches!(f.visibility, Visibility::Exported)
+                    })
+                    .map(|f| f.name.clone())
+                    .collect(),
+                None => Vec::new(),
+            };
+            if fn_names.is_empty() {
+                continue;
+            }
+            domain_imports.push((alias, fn_names));
+        }
+
+        if !domain_imports.is_empty() {
+            let abs_path = project_root.join(&file.path);
+            if let Ok(content) = std::fs::read_to_string(&abs_path) {
+                let mut emitted: HashSet<(String, String)> = HashSet::new();
+                for (i, line) in content.lines().enumerate() {
+                    let trimmed_lead = line.trim_start();
+                    if trimmed_lead.starts_with("//") {
+                        continue;
+                    }
+                    for (alias, fn_names) in &domain_imports {
+                        for fn_name in fn_names {
+                            let pattern = format!("{alias}.{fn_name}(");
+                            let Some(pos) = line.find(&pattern) else {
+                                continue;
+                            };
+                            // Require non-identifier (or start of line) before the alias
+                            // to avoid matching `foo<alias>.Bar(` substring overlaps.
+                            if pos > 0 {
+                                let prev = line.as_bytes()[pos - 1];
+                                if prev.is_ascii_alphanumeric() || prev == b'_' {
+                                    continue;
+                                }
+                            }
+                            let key = (alias.clone(), fn_name.clone());
+                            if !emitted.insert(key) {
+                                continue;
+                            }
+                            findings.push(
+                                Finding::warning(
+                                    "cmd-boundary",
+                                    format!("cmd/ invokes domain function {alias}.{fn_name}()"),
+                                )
+                                .with_location(format!("{}:{}", file.path, i + 1))
+                                .with_why(
+                                    "ADR-0005 permits cmd/ to reference domain types for \
+                                     composition, but invoking domain functions crosses the \
+                                     boundary — entry points must orchestrate via the \
+                                     application layer",
+                                )
+                                .with_help(
+                                    "expose this function via internal/application/<X>client/ \
+                                     and invoke the client wrapper instead",
+                                ),
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -1148,13 +1230,19 @@ mod tests {
     // ── Cmd boundary (Rule 5) ───────────────────────────────────────────
 
     #[test]
-    fn cmd_importing_domain_directly_warns() {
+    fn cmd_calling_domain_function_warns() {
         let dir = tempfile::tempdir().unwrap();
         scaffold(dir.path());
 
         fs::write(
+            dir.path().join("internal/domain/configctl/ops.go"),
+            "package configctl\n\nfunc DoThing() {}\n",
+        )
+        .unwrap();
+        fs::write(
             dir.path().join("cmd/server/main.go"),
-            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n",
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n\n\
+             func main() { configctl.DoThing() }\n",
         )
         .unwrap();
 
@@ -1168,8 +1256,137 @@ mod tests {
             check
                 .findings
                 .iter()
-                .any(|f| f.severity == Severity::Warning),
-            "cmd importing domain should be a warning"
+                .any(|f| f.message.contains("invokes domain function")
+                    && f.message.contains("DoThing")),
+            "cmd calling a domain function should warn"
+        );
+    }
+
+    #[test]
+    fn cmd_using_domain_type_in_signature_is_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        scaffold(dir.path());
+
+        fs::write(
+            dir.path().join("internal/domain/configctl/types.go"),
+            "package configctl\n\ntype Config struct{}\n\nfunc DoThing() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("cmd/server/main.go"),
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n\n\
+             func wire(c configctl.Config) {}\n",
+        )
+        .unwrap();
+
+        let report = analyze(dir.path()).unwrap();
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "cmd-boundary")
+            .unwrap();
+        assert!(
+            !check
+                .findings
+                .iter()
+                .any(|f| f.message.contains("invokes domain function")),
+            "cmd referencing a domain type in a signature must not warn"
+        );
+    }
+
+    #[test]
+    fn cmd_creating_domain_struct_literal_is_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        scaffold(dir.path());
+
+        fs::write(
+            dir.path().join("internal/domain/configctl/types.go"),
+            "package configctl\n\ntype Config struct{ Name string }\n\nfunc DoThing() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("cmd/server/main.go"),
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n\n\
+             var _ = configctl.Config{Name: \"x\"}\n",
+        )
+        .unwrap();
+
+        let report = analyze(dir.path()).unwrap();
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "cmd-boundary")
+            .unwrap();
+        assert!(
+            !check
+                .findings
+                .iter()
+                .any(|f| f.message.contains("invokes domain function")),
+            "cmd composing a domain struct literal must not warn"
+        );
+    }
+
+    #[test]
+    fn cmd_referencing_domain_constant_is_ok() {
+        let dir = tempfile::tempdir().unwrap();
+        scaffold(dir.path());
+
+        fs::write(
+            dir.path().join("internal/domain/configctl/constants.go"),
+            "package configctl\n\nconst Active = \"active\"\n\nfunc DoThing() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("cmd/server/main.go"),
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n\n\
+             var state = configctl.Active\n",
+        )
+        .unwrap();
+
+        let report = analyze(dir.path()).unwrap();
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "cmd-boundary")
+            .unwrap();
+        assert!(
+            !check
+                .findings
+                .iter()
+                .any(|f| f.message.contains("invokes domain function")),
+            "cmd reading a domain constant must not warn"
+        );
+    }
+
+    #[test]
+    fn cmd_test_file_with_domain_call_is_exempt() {
+        let dir = tempfile::tempdir().unwrap();
+        scaffold(dir.path());
+
+        fs::write(
+            dir.path().join("internal/domain/configctl/ops.go"),
+            "package configctl\n\nfunc DoThing() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("cmd/server/main_test.go"),
+            "package main\n\nimport (\n\t\"internal/domain/configctl\"\n)\n\n\
+             func TestX() { configctl.DoThing() }\n",
+        )
+        .unwrap();
+
+        let report = analyze(dir.path()).unwrap();
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "cmd-boundary")
+            .unwrap();
+        assert!(
+            !check
+                .findings
+                .iter()
+                .any(|f| f.message.contains("invokes domain function")),
+            "_test.go files must not be scanned for cmd-boundary calls"
         );
     }
 
