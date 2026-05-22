@@ -7,7 +7,7 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Phase 1B closed — `.opencode/` exterminated; stale repository-consistency-check.sh replaced**.
+Last meaningful state change: **Phase 1D closed — G6 resolved (raccoon-cli drift_detect.rs aligned with Phase 1A topology); `make verify` PASSES for the first time since P1A.1**.
 
 ---
 
@@ -37,7 +37,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | FAIL — `quality-gate` reports 61 errors from `raccoon-cli drift-detect` against missing `docs/architecture/*.md` (see G6). `make test` and `repo-consistency-check` both PASS. |
+| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 6 active quality-gate analyzers green; 84 checks, 0 errors. |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |
@@ -125,41 +125,6 @@ dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
 
-### G6 — `raccoon-cli drift-detect` hardcoded against old topology
-
-`tools/raccoon-cli/src/analyzers/drift_detect.rs` contains 91 hardcoded
-references to `docs/architecture/*.md` files, asserting the presence of
-family architecture design docs (signal, decision, strategy, risk,
-execution) that never existed in the working tree. The analyzer was
-designed to enforce a future state.
-
-After the Phase 1A reset, `docs/architecture/` (subdir) no longer
-exists — replaced by `docs/ARCHITECTURE.md` (singular file) and
-`docs/domain/` (subdir of 11 docs).
-
-**Effect:** `make quality-gate` fails with 61 errors. This propagates
-to two places:
-
-1. `make verify` locally (the quality-gate target is part of verify).
-2. **CI on every push and PR** — `.github/workflows/ci.yml` includes
-   a `repository-checks` job that runs `make repo-consistency-check`
-   + `make quality-gate-ci`. The quality-gate-ci leg fails for the
-   same reason, marking CI red on `main` and on every PR.
-
-The CI red state has been silent since P1A.1 because no PR was opened
-during Phase 1A and pushes to `main` weren't being monitored against
-CI status. Phase 1D.2's PR templates surfacing this debt is the
-discovery point.
-
-**Resolution path:** rewrite or remove the `drift_detect.rs` analyzer
-to align with the Phase 1A docs topology. This is non-trivial Rust
-work and is scoped for P1D.3, P2 (environment hardening), or similar.
-The CI workflow `.github/workflows/ci.yml` does NOT require changes —
-once G6 is resolved in the analyzer, the CI `quality-gate-ci` job will
-pass automatically.
-
-**Status:** known debt; documented; `make verify` red until resolved.
-
 ---
 
 ## Known surface debt
@@ -233,7 +198,48 @@ archaeology.
 
 ---
 
-## Recently resolved (Phase 1B)
+## Recently resolved
+
+### G6 — `raccoon-cli drift-detect` against old topology (Phase 1D.4)
+
+**Resolved** by rewriting 6 const tables in
+`tools/raccoon-cli/src/analyzers/drift_detect.rs` to align with the
+Phase 1A topology:
+
+- `SIGNAL_DOCS`, `DECISION_DOCS`, `STRATEGY_DOCS`, `RISK_DOCS`,
+  `EXECUTION_DOCS` collapsed from 7–30 paths each (pre-reset granular
+  family architecture design docs that moved to `docs/legacy/`) to
+  1 path each (`docs/domain/<x>.md`).
+- `ARCH_DOCS` rewritten from 27 pre-reset arch docs to 8 canonical
+  root docs (`docs/ARCHITECTURE.md`, `docs/RUNTIME.md`,
+  `docs/HTTP-API.md`, `docs/DEVELOPMENT.md`, `docs/RESUMPTION.md`,
+  `docs/CONTRIBUTING.md`, `docs/GLOSSARY.md`, `docs/decisions/README.md`).
+- The "runtime-target.md mentions all services" sub-check rewired to
+  read `docs/RUNTIME.md` (was previously silently skipping because the
+  hardcoded path didn't exist).
+
+The 27 other checks in `drift_detect.rs` (per-domain adapter alignment,
+domain Go files, NATS subjects/durables/buckets, contracts,
+naming-identity guard against `DEFUNCT_NAMES = ["emulator", "validator"]`,
+actor-scope, stream-registry, premature-domain-entry, etc.) preserved
+unchanged. They were already passing; this change only touched the
+6 constants and one sub-check path.
+
+**Effect:** `make quality-gate` PASS (6/6 active analyzers, 84 checks,
+0 errors, was 61 errors). `make verify` PASS **for the first time since
+P1A.1** (18+ prompts ago). CI workflow `repository-checks` job will run
+green on the next push.
+
+**Pattern note:** this was the 7th instance of the
+"stale-infrastructure-post-restructure" pattern observed across Phases
+1A–1D (`.opencode/`, `scripts/repository-consistency-check.sh`,
+`AGENTS.md`, root `DEVELOPMENT.md`, root `README.md`, the CI workflow's
+silent G6 propagation, and finally `drift_detect.rs` itself). The
+discipline now lives in `docs/CONTRIBUTING.md` "Rules for documentation
+changes" and the `make` verification surface, with the analyzer itself
+enforcing the new topology going forward.
+
+## Earlier resolutions
 
 ### G3 — `make verify` cross-references (originally framed as 9 failures from `.opencode/`)
 
@@ -342,9 +348,9 @@ Each phase has a clear exit criterion.
 | **Phase 0** | Unblock — fix git limbo, align Go version, get smoke passing | **CLOSED** (commits up to 8900694, mid-May 2026) |
 | **Phase 1A** | Documentation reset — move legacy, write new docs | **CLOSED** (17 sub-prompts, 36 docs, May 2026) |
 | **Phase 1B** | Exterminate `.opencode/` | **CLOSED** (G6 escalated; see Recently resolved) |
-| Phase 1C | Build `.claude/` agentic layer | Pending — next |
-| Phase 1D | PR-based governance (PR template, CONTRIBUTING, issue templates) | Pending — depends on P1C; also owns G6 resolution candidate |
-| Phase 2 | Environment hardening (CI, Docker, scripts, Makefile cleanup) | Pending — depends on P1 closed; also owns G6 resolution candidate |
+| **Phase 1C** | Build `.claude/` agentic layer | **CLOSED** (CLAUDE.md + .claude/ structure built) |
+| **Phase 1D** | PR-based governance + G6 resolution | **CLOSED** (root files consolidated, .github/ templates, drift_detect.rs realigned) |
+| Phase 2 | Environment hardening (CI, Docker, scripts, Makefile cleanup) | Pending — next |
 | Phase 3 | First feature wave (most likely: backtesting — see N1) | Future |
 | Phase 4+ | Subsequent waves (PnL aggregation, multi-exchange, etc.) | Future |
 
@@ -370,25 +376,24 @@ Phase 1A subdivision (status at time of this doc):
 
 ## Concrete next step
 
-The immediate next step is **P1C — build the `.claude/` agentic
-layer** using the Anthropic ecosystem (CLAUDE.md root + `.claude/`
-directory). This replaces the `.opencode/` navigation layer that was
-deleted in P1B.
+Phase 1 is closed. The immediate next step is **Phase 2 —
+environment hardening**. Candidate scope (to be refined in its own
+prompt):
 
-P1C scope (to be refined in its own prompt):
-- Write `CLAUDE.md` at the repository root with concise, project-
-  specific guidance for Claude Code.
-- Create `.claude/` directory structure with agent definitions, slash
-  commands, and any project-local skills relevant to market-foundry
-  work.
-- Wire it together so the agentic layer is discoverable from a fresh
-  clone without reading the whole `docs/` tree.
+- CI workflow review (currently 7 jobs in `.github/workflows/ci.yml`,
+  no Dependabot, no separate lint job, no caching beyond raccoon-cli).
+- Docker image hygiene (multi-stage builds, base image policy, layer
+  cache).
+- Scripts audit (`scripts/*.sh` — what's used by which Make targets;
+  prune the unused).
+- Makefile cleanup (D4 — stage-tagged smoke targets that are dead
+  weight: `smoke-compose-wiring`, `smoke-failure-isolation`,
+  `smoke-live-listening`, etc.).
+- D2/D3 surface debt (`execute` config sprawl with `s449` namespace
+  residue; configctl singular vs plural subject ambiguity).
 
-After P1C: **P1D** (PR-based governance) opens. G6 (raccoon-cli
-drift-detect) is a candidate for resolution in either P1D or P2.
-
-`make verify` will remain red until G6 is addressed. This is
-documented debt, not regression.
+`make verify` is green. Any new red on `make verify` after Phase 1D.4
+is a real regression — not historical debt.
 
 ---
 

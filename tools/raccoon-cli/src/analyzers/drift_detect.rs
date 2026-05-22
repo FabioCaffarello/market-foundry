@@ -36,38 +36,18 @@ const CANONICAL_STREAMS: &[&str] = &[
 /// Old service names that should no longer appear in active code.
 const DEFUNCT_NAMES: &[&str] = &["emulator", "validator"];
 
-/// Architecture docs that must exist and mention all services.
+/// Canonical root-level docs that must exist (Phase 1A topology).
+/// Pre-reset docs/architecture/* design docs moved to docs/legacy/architecture/
+/// in P1A.1 (commit 407c723); active surface is now the consolidated root files.
 const ARCH_DOCS: &[&str] = &[
-    // Pre-consolidation structural docs
-    "docs/architecture/runtime-target.md",
-    "docs/architecture/stream-taxonomy.md",
-    "docs/architecture/actor-ownership.md",
-    "docs/architecture/stream-families.md",
-    "docs/architecture/stream-ownership-matrix.md",
-    "docs/architecture/stream-family-catalog.md",
-    "docs/architecture/projection-family-matrix.md",
-    "docs/architecture/system-principles.md",
-    // Consolidated governance docs (S96–S105) — authoritative for cross-cutting conventions
-    "docs/architecture/boundary-naming-and-interface-hygiene.md",
-    "docs/architecture/dependency-injection-and-composition-roots.md",
-    "docs/architecture/diagnostic-surfaces-and-runtime-signals.md",
-    "docs/architecture/error-handling-and-degradation-policy.md",
-    "docs/architecture/fail-fast-vs-graceful-degradation-rules.md",
-    "docs/architecture/family-runtime-registration-rules.md",
-    "docs/architecture/how-to-introduce-new-runtimes-domains-and-families.md",
-    "docs/architecture/minimal-observability-foundation.md",
-    "docs/architecture/monorepo-structure-and-engineering-conventions.md",
-    "docs/architecture/naming-conventions-for-domains-families-and-runtimes.md",
-    "docs/architecture/operational-contracts-and-cross-runtime-conventions.md",
-    "docs/architecture/registry-driven-runtime-assembly.md",
-    "docs/architecture/runtime-assembly-guidelines.md",
-    "docs/architecture/runtime-invariants-and-shared-behavior-rules.md",
-    "docs/architecture/config-activation-and-dependency-map-model.md",
-    "docs/architecture/config-validation-and-sync-rules.md",
-    // S105 governance refinement docs
-    "docs/architecture/expansion-playbooks-refined.md",
-    "docs/architecture/structural-anti-patterns-and-when-not-to-expand.md",
-    "docs/architecture/technical-governance-refinement.md",
+    "docs/ARCHITECTURE.md",
+    "docs/RUNTIME.md",
+    "docs/HTTP-API.md",
+    "docs/DEVELOPMENT.md",
+    "docs/RESUMPTION.md",
+    "docs/CONTRIBUTING.md",
+    "docs/GLOSSARY.md",
+    "docs/decisions/README.md",
 ];
 
 /// Stream names that must NOT appear in source yet (premature domain entry guard).
@@ -76,17 +56,10 @@ const PROHIBITED_STREAMS: &[(&str, &str)] = &[(
     "projection notification family is planned but not yet approved for implementation",
 )];
 
-/// Architecture docs specific to the signal domain that must exist.
-const SIGNAL_DOCS: &[&str] = &[
-    "docs/architecture/signal-domain-design.md",
-    "docs/architecture/signal-first-slice.md",
-    "docs/architecture/signal-stream-families.md",
-    "docs/architecture/signal-activation-and-ownership.md",
-    "docs/architecture/signal-projection-pattern.md",
-    "docs/architecture/signal-query-surface-guidelines.md",
-    "docs/architecture/signal-replay-idempotency-rules.md",
-    "docs/architecture/signal-family-01-contracts.md",
-];
+/// Active signal-domain doc (Phase 1A topology). Per-family design docs
+/// moved to docs/legacy/architecture/ in P1A.1; consolidated into one
+/// domain doc per Phase 1A.6.
+const SIGNAL_DOCS: &[&str] = &["docs/domain/signal.md"];
 
 /// Expected signal NATS subjects that must exist in source.
 const SIGNAL_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
@@ -166,17 +139,8 @@ const SIGNAL_DOMAIN_FILES: &[(&str, &str)] = &[
 
 // ── Decision domain governance constants ─────────────────────────────
 
-/// Architecture docs specific to the decision domain that must exist.
-const DECISION_DOCS: &[&str] = &[
-    "docs/architecture/decision-domain-design.md",
-    "docs/architecture/decision-first-slice.md",
-    "docs/architecture/decision-projection-pattern.md",
-    "docs/architecture/decision-stream-families.md",
-    "docs/architecture/decision-activation-and-ownership.md",
-    "docs/architecture/decision-query-surface-guidelines.md",
-    "docs/architecture/decision-family-01-contracts.md",
-    "docs/architecture/decision-replay-idempotency-rules.md",
-];
+/// Active decision-domain doc (Phase 1A topology).
+const DECISION_DOCS: &[&str] = &["docs/domain/decision.md"];
 
 /// Expected decision NATS subjects that must exist in source.
 const DECISION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
@@ -256,16 +220,8 @@ const DECISION_DOMAIN_FILES: &[(&str, &str)] = &[
 
 // ── Strategy domain governance constants ─────────────────────────────
 
-/// Architecture docs specific to the strategy domain that must exist.
-const STRATEGY_DOCS: &[&str] = &[
-    "docs/architecture/strategy-domain-design.md",
-    "docs/architecture/strategy-first-slice.md",
-    "docs/architecture/strategy-projection-pattern.md",
-    "docs/architecture/strategy-stream-families.md",
-    "docs/architecture/strategy-activation-and-ownership.md",
-    "docs/architecture/strategy-query-surface-guidelines.md",
-    "docs/architecture/strategy-replay-idempotency-rules.md",
-];
+/// Active strategy-domain doc (Phase 1A topology).
+const STRATEGY_DOCS: &[&str] = &["docs/domain/strategy.md"];
 
 /// Expected strategy NATS subjects that must exist in source.
 const STRATEGY_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
@@ -348,17 +304,8 @@ const STRATEGY_DOMAIN_FILES: &[(&str, &str)] = &[
 // These constants define the expected artifacts once risk is implemented.
 // Until S64 opens, RISK_EVENTS is in PROHIBITED_STREAMS.
 
-/// Architecture docs specific to the risk domain that must exist (produced by S62).
-const RISK_DOCS: &[&str] = &[
-    "docs/architecture/risk-domain-design.md",
-    "docs/architecture/risk-first-slice.md",
-    "docs/architecture/risk-projection-pattern.md",
-    "docs/architecture/risk-family-01-contracts.md",
-    "docs/architecture/risk-stream-families.md",
-    "docs/architecture/risk-activation-and-ownership.md",
-    "docs/architecture/risk-query-surface-guidelines.md",
-    "docs/architecture/risk-replay-idempotency-rules.md",
-];
+/// Active risk-domain doc (Phase 1A topology).
+const RISK_DOCS: &[&str] = &["docs/domain/risk.md"];
 
 /// Expected risk NATS subjects (activate after S64 opens implementation).
 const RISK_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
@@ -440,39 +387,8 @@ const RISK_DOMAIN_FILES: &[(&str, &str)] = &[
 // Execution governance active from S70. Implementation completed S71→S82.
 // Execute binary governance hardened in S83.
 
-/// Architecture docs specific to the execution domain that must exist.
-const EXECUTION_DOCS: &[&str] = &[
-    "docs/architecture/execution-domain-design.md",
-    "docs/architecture/execution-first-slice.md",
-    "docs/architecture/execution-projection-pattern.md",
-    "docs/architecture/execution-family-01-contracts.md",
-    "docs/architecture/execution-stream-families.md",
-    "docs/architecture/execution-activation-and-ownership.md",
-    "docs/architecture/execution-query-surface-guidelines.md",
-    "docs/architecture/execution-replay-idempotency-rules.md",
-    "docs/architecture/execution-lifecycle-model.md",
-    "docs/architecture/execution-fill-model.md",
-    "docs/architecture/execution-fill-projection-pattern.md",
-    "docs/architecture/execution-failure-recovery-model.md",
-    "docs/architecture/execution-control-and-kill-switch.md",
-    "docs/architecture/execution-status-propagation-model.md",
-    "docs/architecture/execution-projection-failure-semantics.md",
-    "docs/architecture/execution-trace-persistence.md",
-    "docs/architecture/execute-runtime-and-activation-model.md",
-    "docs/architecture/execute-governance-and-activation-model.md",
-    "docs/architecture/execution-family-separation-after-paper-step.md",
-    "docs/architecture/venue-routing-and-ownership-split.md",
-    "docs/architecture/pre-venue-fill-reconciliation-model.md",
-    "docs/architecture/async-fill-and-venue-intake-design.md",
-    "docs/architecture/venue-credentials-and-activation-prerequisites.md",
-    "docs/architecture/execution-query-surface-after-execute.md",
-    "docs/architecture/execution-read-side-authority-after-execute.md",
-    "docs/architecture/execution-operational-validation-matrix.md",
-    "docs/architecture/execution-integrated-operational-validation-matrix.md",
-    "docs/architecture/execute-actor-critical-test-coverage.md",
-    "docs/architecture/execute-actor-safety-model.md",
-    "docs/architecture/execute-operational-platform-integration.md",
-];
+/// Active execution-domain doc (Phase 1A topology).
+const EXECUTION_DOCS: &[&str] = &["docs/domain/execution.md"];
 
 /// Expected execution NATS subjects — all active post-S80.
 const EXECUTION_EXPECTED_SUBJECTS: &[(&str, &str)] = &[
@@ -1157,23 +1073,21 @@ fn check_docs_reality_drift(evidence: &Evidence) -> CheckResult {
         }
     }
 
-    // Check runtime-target.md mentions all services
-    let runtime_target_path = evidence
-        .project_root
-        .join("docs/architecture/runtime-target.md");
-    if runtime_target_path.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&runtime_target_path) {
+    // Check docs/RUNTIME.md mentions all services
+    let runtime_doc_path = evidence.project_root.join("docs/RUNTIME.md");
+    if runtime_doc_path.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&runtime_doc_path) {
             let lower = content.to_lowercase();
             for binary in APP_BINARIES {
                 if !lower.contains(&binary.to_lowercase()) {
                     findings.push(
                         Finding::warning(
                             "doc-service-missing",
-                            format!("runtime-target.md does not mention service '{binary}'"),
+                            format!("docs/RUNTIME.md does not mention service '{binary}'"),
                         )
-                        .with_location("docs/architecture/runtime-target.md")
-                        .with_why("architecture doc is incomplete -- developers won't know this service exists")
-                        .with_help(format!("add '{binary}' to the runtime-target.md service inventory")),
+                        .with_location("docs/RUNTIME.md")
+                        .with_why("runtime doc is incomplete -- developers won't know this service exists")
+                        .with_help(format!("add '{binary}' to the docs/RUNTIME.md service inventory")),
                     );
                 }
             }
