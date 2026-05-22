@@ -200,6 +200,38 @@ archaeology.
 
 ## Recently resolved
 
+### GitHub settings lockdown applied (Phase 3.3)
+
+**Resolved** by applying remote settings via `gh CLI`. Closes P3.0
+audit P0 findings #3, #4, #6. Finding #2 (fork lockdown) partially
+deferred — see below.
+
+Changes via `gh api`:
+
+- **Branch protection on `main`**: required status checks (Unit Tests,
+  Repository Consistency & Quality Gate, Go Lint (golangci-lint)),
+  strict (branch up to date), linear history required, no force-push,
+  no deletions. PR review NOT required (solo-dev workflow).
+- **Security & Analysis**: `secret_scanning`,
+  `secret_scanning_push_protection`, `dependabot_security_updates`,
+  `private_vulnerability_reporting` all enabled.
+- **Actions**: `sha_pinning_required: true` (allowed_actions kept at
+  "all"). May surface tag-pinned actions in the next CI run; P3.3.1
+  will migrate the workflow to SHA pins if so.
+
+**Finding #2 (fork lockdown) — deferred**: GitHub rejects
+`allow_forking: false` on personal-owned public repositories (HTTP
+422 — "Allow forks setting can only be changed on org-owned private
+repositories"). The repo still publishes `allow_forking: true`, but
+`pull_request_creation_policy: collaborators_only` already blocks
+external PRs, which was the underlying intent. Manual fallbacks
+(transfer to a GitHub org, or accept the fork-able state) documented
+in `docs/operations/github-settings.md`.
+
+Canonical reference of all remote settings now lives in
+`docs/operations/github-settings.md` (remote settings have no git
+history; this file is the source of truth going forward).
+
 ### `.gitignore` hardened (Phase 3.2)
 
 **Resolved** by expanding `.gitignore` from 17 lines (minimal) to ~180
