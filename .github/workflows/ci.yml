@@ -83,7 +83,11 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Bumped 15→20 in P4.1.8.a: the eventually-poll helper landed in
+    # P4.1.8 lets tests run their full observation windows (END-1: 5m,
+    # EOW-1: 2m, etc.) instead of fast-failing on the counter race.
+    # Workflow needs headroom past Go's `-timeout 18m`.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 

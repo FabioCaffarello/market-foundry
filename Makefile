@@ -148,7 +148,7 @@ test-unit: test ## Alias for `make test`.
 
 test-integration: ## Run integration tests (requires NATS at localhost:4222).
 	@echo "Running integration tests (build tag: integration)..."
-	$(call RUN_GO_TEST,-tags=integration,-tags=integration -count=1)
+	$(call RUN_GO_TEST,-tags=integration,-tags=integration -timeout 18m -count=1)
 
 test-clickhouse: ## Run ClickHouse integration tests (requires `CLICKHOUSE_DSN`).
 	@echo "Running ClickHouse integration tests (build tag: requireclickhouse)..."
