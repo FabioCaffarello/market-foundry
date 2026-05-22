@@ -1,69 +1,32 @@
-# AGENTS.md — market-foundry
+# AGENTS.md
 
-This file establishes the repository-wide operating contract for AI agents working in this codebase.
+This file is preserved as a convention. For the canonical operating
+instructions for Claude and other AI agents working on market-foundry,
+see **[CLAUDE.md](CLAUDE.md)** in the repository root.
 
-## Repository Status
+CLAUDE.md provides:
 
-**Post first-slice phase** — sanitized, first vertical slice complete, architectural recentralization done. Prepared for next vertical slice expansion.
+- Reading order for new sessions
+- Core operating protocols (validate against code, pause-and-report,
+  honesty over convenience, single-writer invariant, boot-test rule,
+  layer sovereignty)
+- Essential commands
+- What this repository is and is NOT
+- Default boundaries
+- Authorized expansion protocol reference
 
-## Default Validation Workflow
+For human contributors, see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
-1. `make check` — pre-code guard rail (quality-gate fast)
-2. `make tdd` — impact-driven testing guide
-3. Implement the smallest correct change
-4. `make verify` — post-change validation (Go tests + quality-gate)
-5. Escalate to `make check-deep` for significant changes
+---
 
-## Troubleshooting
+## Why this file is now a shim
 
-```bash
-make logs              # Stream service logs
-make logs SERVICE=gateway  # Single service logs
-make ps                # Show service status
-```
+Previously, `AGENTS.md` carried operational instructions and references
+to the pre-reset documentation topology (`docs/architecture/*`,
+`docs/tooling/*`, etc.). After the Phase 1A documentation reset, those
+paths moved to `docs/legacy/...` and the references became stale.
 
-## Primary Source Files
-
-Read these first to understand the system:
-
-- `Makefile` — all available targets
-- `DEVELOPMENT.md` — development workflow
-- `README.md` — project overview
-- `docs/architecture/` — architecture decisions and audit records
-- `docs/architecture/market-foundry-evolution-playbook.md` — evolution playbook (primary governance artifact)
-- `docs/architecture/stage-definition-of-done.md` — what "done" means for a stage
-- `docs/architecture/anti-debt-checklist.md` — practical debt prevention checklist
-- `docs/architecture/opus-guidance-rules.md` — rules for conducting the Opus
-- `docs/tooling/cli-overview.md` — CLI reference
-
-## Architecture Layers
-
-The Go workspace follows strict layering:
-
-```
-domain → application → adapters → actors → interfaces → cmd
-```
-
-Dependencies flow inward only. The raccoon-cli enforces this via `make arch-guard`.
-
-## Current Services
-
-| Service | Purpose |
-|---------|---------|
-| configctl | Config lifecycle management (NATS actors) |
-| gateway | HTTP API gateway (HTTP↔NATS translator) |
-| ingest | Market data capture: exchange WebSocket → observation events |
-| derive | Evidence derivation: observations → candles, volumes |
-| store | Read model materialization: NATS KV projections |
-| execute | Execution control service |
-| nats | Message bus infrastructure (external) |
-
-## Prohibited Patterns
-
-Do not reintroduce:
-- Kafka adapters or infrastructure
-- Old quality-service binaries (validator, consumer, emulator)
-- Quality-service naming or identity
-- `.context/` directory structure
-
-See `docs/architecture/prohibited-carryovers.md` for the full list.
+Rather than maintain two parallel documents (AGENTS.md and CLAUDE.md)
+that would drift apart, this file is now a shim pointing to the
+canonical source. The agentic-layer reset happened in Phases 1B-1C;
+this consolidation is part of Phase 1D.
