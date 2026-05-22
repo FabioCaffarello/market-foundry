@@ -16,7 +16,7 @@ COMPOSE_RUNTIME_SERVICES := clickhouse configctl derive execute gateway ingest n
 RACCOON_DIR := tools/raccoon-cli
 RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 
-.PHONY: help docs bootstrap \
+.PHONY: help docs bootstrap install-hooks \
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint lint-go \
@@ -105,6 +105,17 @@ docs: ## Show entry points to project documentation.
 ##@ Core Workflow
 bootstrap: ## Validate local prerequisites and repository entrypoints for the official workflow.
 	@./scripts/bootstrap-check.sh
+
+install-hooks: ## Install git hooks via lefthook (requires `lefthook` on PATH).
+	@if ! command -v lefthook >/dev/null 2>&1; then \
+		echo "❌ lefthook not installed."; \
+		echo "Install via: brew install lefthook  (macOS)"; \
+		echo "         or: go install github.com/evilmartians/lefthook@latest"; \
+		exit 1; \
+	fi
+	@lefthook install
+	@echo "✓ Git hooks installed via lefthook."
+	@echo "  Bypass when truly needed: LEFTHOOK=0 git commit ..."
 
 check: repo-consistency-check quality-gate ## Pre-code guard rail (consistency + fast quality gate).
 check-deep: repo-consistency-check quality-gate-deep ## Full validation profile for significant changes; not a substitute for `make smoke*`.

@@ -302,6 +302,52 @@ Before approving any PR:
 
 ---
 
+## Git hooks (lefthook)
+
+This project uses [lefthook](https://lefthook.dev/) for pre-commit and
+commit-msg validation. Hooks check formatting, trailing whitespace,
+YAML/JSON/TOML validity, and conventional commit message format.
+
+### Install
+
+```bash
+# macOS
+brew install lefthook
+
+# Linux / cross-platform
+go install github.com/evilmartians/lefthook@latest
+
+# Then activate for this repo
+make install-hooks
+```
+
+### What runs
+
+- **pre-commit**: gofmt check on staged `.go` files, trailing
+  whitespace, YAML/JSON/TOML validation. Fast (<2 sec typical).
+- **commit-msg**: conventional commit format
+  (`type(scope?): description`) via
+  `scripts/validate-commit-msg.sh`. Shell-only — no Node.js dep.
+- **pre-push**: `make lint-go` and `make verify` available but
+  disabled by default (`skip: true`). Enable in `lefthook.yml` when
+  you want stricter local pushes.
+
+### Bypass
+
+Only when truly necessary (e.g., reverting in-flight commits, or
+applying an emergency hotfix where the validator itself is broken):
+
+```bash
+LEFTHOOK=0 git commit ...
+# or
+git commit --no-verify
+```
+
+CI re-checks every push, so bypass only delays detection — it does
+not avoid it.
+
+---
+
 ## Authorized expansion protocol
 
 The single most important protocol in this repository.

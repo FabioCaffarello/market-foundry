@@ -1,0 +1,94 @@
+# lefthook.yml — git hooks for market-foundry
+#
+# Adopted in P3.4 of Phase 3 (environment hardening).
+# Install lefthook locally:
+#   macOS:    brew install lefthook
+#   Linux:    go install github.com/evilmartians/lefthook@latest
+#   Then:     lefthook install   (or: make install-hooks)
+#
+# Bypass when truly needed:
+#   LEFTHOOK=0 git commit ...
+#   or: git commit --no-verify
+#
+# Reference: https://lefthook.dev/
+
+# Stage: pre-commit (runs on `git commit`)
+# Cheap, fast checks. Heavier validation in pre-push and CI.
+pre-commit:
+  parallel: true
+  commands:
+    gofmt:
+      glob: "*.go"
+      run: |
+        unformatted=$(gofmt -l {staged_files})
+        if [ -n "$unformatted" ]; then
+          echo "❌ Following Go files are not formatted:"
+          echo "$unformatted"
+          echo ""
+          echo "Run: gofmt -w {staged_files}"
+          exit 1
+        fi
+
+    trailing-whitespace:
+      glob: "*.{go,md,yaml,yml,toml,rs,sh}"
+      run: |
+        files_with_trailing=$(grep -lE " +$" {staged_files} 2>/dev/null || true)
+        if [ -n "$files_with_trailing" ]; then
+          echo "❌ Trailing whitespace detected in:"
+          echo "$files_with_trailing"
+          echo ""
+          echo "Run: sed -i '' 's/ *$//' <files>   (macOS)"
+          echo "     sed -i    's/ *$//' <files>   (Linux)"
+          exit 1
+        fi
+
+    yaml-validate:
+      glob: "*.{yml,yaml}"
+      run: |
+        for f in {staged_files}; do
+          python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>&1 || {
+            echo "❌ Invalid YAML: $f"
+            exit 1
+          }
+        done
+
+    json-validate:
+      glob: "*.json"
+      run: |
+        for f in {staged_files}; do
+          python3 -c "import json; json.load(open('$f'))" 2>&1 || {
+            echo "❌ Invalid JSON: $f"
+            exit 1
+          }
+        done
+
+    toml-validate:
+      glob: "*.toml"
+      run: |
+        for f in {staged_files}; do
+          python3 -c "import tomllib; tomllib.load(open('$f', 'rb'))" 2>&1 || {
+            echo "❌ Invalid TOML: $f"
+            exit 1
+          }
+        done
+
+# Stage: commit-msg (runs on `git commit` after message is composed)
+# Validates conventional commit format without requiring Node.js.
+commit-msg:
+  commands:
+    validate-format:
+      run: ./scripts/validate-commit-msg.sh {1}
+
+# Stage: pre-push (runs on `git push`)
+# Heavier validation. Catch issues before remote.
+# DISABLED by default (skip: true) — enable when ready for strict workflow.
+pre-push:
+  parallel: false
+  commands:
+    lint-go:
+      skip: true   # enable by removing this line when ready
+      run: make lint-go
+
+    verify:
+      skip: true   # enable by removing this line when ready (~1 min)
+      run: make verify

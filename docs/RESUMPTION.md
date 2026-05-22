@@ -200,6 +200,36 @@ archaeology.
 
 ## Recently resolved
 
+### lefthook adopted for pre-commit and commit-msg validation (Phase 3.4)
+
+**Resolved** by introducing [lefthook](https://lefthook.dev/) as the
+pre-commit framework. Closes P3.0 audit P1 finding "no pre-commit
+framework" plus the related "no commitlint" finding without a Node.js
+dependency.
+
+Stages configured in the new `lefthook.yml`:
+
+- **pre-commit**: `gofmt` check on staged `.go` files, trailing
+  whitespace, and YAML/JSON/TOML validity. Fast (sub-2-second typical).
+- **commit-msg**: conventional commit format
+  (`type(scope?): description`) via the new
+  `scripts/validate-commit-msg.sh`, which accepts `feat`, `fix`,
+  `chore`, `docs`, `ci`, `refactor`, `test`, `style`, `perf`, `build`,
+  `revert`. Tested against the last 10 commits — all pass.
+- **pre-push**: `make lint-go` and `make verify` available but
+  `skip: true` by default. Opt in by removing the skip lines when
+  ready for stricter local push gating.
+
+Activation is per-developer (hooks are NOT auto-installed by the
+commit): `brew install lefthook` (macOS) or `go install
+github.com/evilmartians/lefthook@latest`, then `make install-hooks`.
+Bypass for emergencies via `LEFTHOOK=0 git commit ...` or
+`git commit --no-verify`.
+
+`docs/CONTRIBUTING.md` gained a "Git hooks (lefthook)" section
+between "PR workflow" and "Authorized expansion protocol".
+`scripts/README.md` table updated with the new validator.
+
 ### GitHub settings lockdown applied (Phase 3.3)
 
 **Resolved** by applying remote settings via `gh CLI`. Closes P3.0
