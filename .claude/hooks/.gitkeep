@@ -1,0 +1,8 @@
+# .claude/hooks/ is intentionally empty.
+#
+# Workflow hooks are added here for pre-commit, post-build, or other
+# event-driven automation tied to Claude sessions.
+#
+# When adding a hook:
+# - Create <event>-<purpose>.md with the hook definition.
+# - Update .claude/README.md to list it.

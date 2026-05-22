@@ -1,0 +1,9 @@
+# .claude/commands/ is intentionally empty.
+#
+# Slash commands are added here as concrete repeated tasks emerge
+# that benefit from automation. Until then, this directory is a
+# placeholder.
+#
+# When adding a command:
+# - Create <command-name>.md with the command definition.
+# - Update .claude/README.md to list it.

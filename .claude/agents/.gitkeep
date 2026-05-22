@@ -1,0 +1,8 @@
+# .claude/agents/ is intentionally empty.
+#
+# Sub-agent definitions are added here for specialized tasks that
+# benefit from a focused agent with a tailored prompt.
+#
+# When adding an agent:
+# - Create <agent-name>.md with the agent definition.
+# - Update .claude/README.md to list it.
