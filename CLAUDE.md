@@ -131,23 +131,24 @@ The basics:
 make bootstrap           # validate prerequisites (always works)
 make check               # pre-code guard rail
 make tdd                 # impact-driven validation guidance
-make verify              # post-change validation (currently red due to G6)
+make verify              # post-change validation (green since P1D.4)
 make smoke               # canonical end-to-end proof
 make up                  # bring up stack
 make down                # tear down stack
 ```
 
-### Known state of make verify (as of Phase 1B closure)
+### State of make verify
 
-`make verify` is currently **red** because of G6 documented in
-[docs/RESUMPTION.md](docs/RESUMPTION.md): `tools/raccoon-cli/src/analyzers/drift_detect.rs`
-has hardcoded paths to docs/architecture/*.md files that don't exist
-post-Phase 1A. This is known debt, escalated for Phase 1D or 2 to
-address.
+`make verify` is **green** end-to-end. The historical G6 issue
+(`tools/raccoon-cli/src/analyzers/drift_detect.rs` hardcoded against
+the pre-reset documentation topology) was resolved in P1D.4
+(commit 557a508), which realigned the const tables to the Phase 1A
+topology while preserving the 27 other working drift checks. See
+[docs/RESUMPTION.md](docs/RESUMPTION.md) → "Recently resolved" for
+the historical detail.
 
-Until G6 is resolved, the relevant gate is: `make test` + `make
-repo-consistency-check` must pass. `make quality-gate` is the broken
-component.
+A red `make verify` going forward indicates a real regression, not
+historical debt. Investigate before merging.
 
 ---
 
