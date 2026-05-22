@@ -15,13 +15,13 @@ import (
 
 func filledChain(corrID string) *analyticalclient.CompositeExecutionChain {
 	chain := fullChain(corrID)
-	chain.Execution.ExecutionIntent.Status = "filled"
-	chain.Execution.ExecutionIntent.FilledQuantity = "0.1"
-	chain.Execution.ExecutionIntent.CorrelationID = corrID
-	chain.Execution.ExecutionIntent.Fills = []execution.FillRecord{
+	chain.Execution.Status = "filled"
+	chain.Execution.FilledQuantity = "0.1"
+	chain.Execution.CorrelationID = corrID
+	chain.Execution.Fills = []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5000.00", Timestamp: time.Now()},
 	}
-	chain.Execution.ExecutionIntent.Risk = execution.RiskInput{
+	chain.Execution.Risk = execution.RiskInput{
 		Type:             "rsi_oversold",
 		Disposition:      "approved",
 		Confidence:       "0.85",
@@ -73,7 +73,7 @@ func TestGetEffectiveness_Single_FilledChain(t *testing.T) {
 
 func TestGetEffectiveness_Single_RejectedExcluded(t *testing.T) {
 	chain := fullChain("corr-rej")
-	chain.Execution.ExecutionIntent.Status = "rejected"
+	chain.Execution.Status = "rejected"
 	reader := &stubCompositeReader{chain: chain}
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
@@ -148,9 +148,9 @@ func TestGetEffectiveness_Batch_Success(t *testing.T) {
 
 func TestGetEffectiveness_Batch_SeverityFilter(t *testing.T) {
 	c1 := filledChain("corr-high")
-	c1.Execution.ExecutionIntent.Risk.DecisionSeverity = "high"
+	c1.Execution.Risk.DecisionSeverity = "high"
 	c2 := filledChain("corr-low")
-	c2.Execution.ExecutionIntent.Risk.DecisionSeverity = "low"
+	c2.Execution.Risk.DecisionSeverity = "low"
 
 	reader := &stubCompositeReader{chains: []analyticalclient.CompositeExecutionChain{*c1, *c2}}
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
@@ -174,9 +174,9 @@ func TestGetEffectiveness_Batch_SeverityFilter(t *testing.T) {
 
 func TestGetEffectiveness_Batch_StrategyTypeFilter(t *testing.T) {
 	c1 := filledChain("corr-mr")
-	c1.Execution.ExecutionIntent.Risk.StrategyType = "mean_reversion_entry"
+	c1.Execution.Risk.StrategyType = "mean_reversion_entry"
 	c2 := filledChain("corr-tf")
-	c2.Execution.ExecutionIntent.Risk.StrategyType = "trend_following"
+	c2.Execution.Risk.StrategyType = "trend_following"
 
 	reader := &stubCompositeReader{chains: []analyticalclient.CompositeExecutionChain{*c1, *c2}}
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
@@ -239,7 +239,7 @@ func TestGetEffectiveness_NilUseCase(t *testing.T) {
 func TestGetEffectiveness_Batch_MixedRejectedAndFilled(t *testing.T) {
 	c1 := filledChain("corr-filled")
 	c2 := fullChain("corr-rejected")
-	c2.Execution.ExecutionIntent.Status = "rejected"
+	c2.Execution.Status = "rejected"
 
 	reader := &stubCompositeReader{chains: []analyticalclient.CompositeExecutionChain{*c1, *c2}}
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
@@ -326,7 +326,7 @@ func TestGetDecisionReview_EffectivenessSection_NoExecution(t *testing.T) {
 
 func TestGetDecisionReview_EffectivenessSection_RejectedExecution(t *testing.T) {
 	chain := fullChain("corr-rej-review")
-	chain.Execution.ExecutionIntent.Status = "rejected"
+	chain.Execution.Status = "rejected"
 
 	reader := &stubCompositeReader{chain: chain}
 	uc := analyticalclient.NewGetDecisionReviewUseCase(reader, slog.Default())

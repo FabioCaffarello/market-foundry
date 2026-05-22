@@ -750,7 +750,7 @@ func parsePartitionKey(key string) (source, symbol string, timeframe int) {
 		return key, "", 0
 	}
 	tf := 0
-	fmt.Sscanf(parts[2], "%d", &tf)
+	_, _ = fmt.Sscanf(parts[2], "%d", &tf)
 	return parts[0], parts[1], tf
 }
 

@@ -17,6 +17,7 @@ repository workflow contract.
 |---|---|---|
 | `bootstrap-check.sh` | `make bootstrap` | local environment validation |
 | `repository-consistency-check.sh` | `make repo-consistency-check` | support-doc and repository guard rails |
+| `lint-go.sh` | `make lint-go` | golangci-lint across all workspace modules |
 | `live-pipeline-activate.sh` | `make live`, `make live-check` | ergonomic stack bring-up and validation |
 | `seed-configctl.sh` | `make seed`, `make seed-multi` | config seeding helpers |
 | `smoke-*.sh` | `make smoke*` | operational proofs and targeted runtime validation |

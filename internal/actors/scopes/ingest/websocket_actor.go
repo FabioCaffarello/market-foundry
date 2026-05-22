@@ -8,7 +8,6 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
-	"internal/domain/observation"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -56,13 +55,6 @@ func (a *WebSocketAdapterActor) Receive(c *actor.Context) {
 		}
 		a.logger.Warn("unknown message", "type", fmt.Sprintf("%T", msg))
 	}
-}
-
-// tradeParser abstracts the parse+normalize pipeline for an exchange source.
-type tradeParser struct {
-	parse     func([]byte) (interface{}, error)
-	normalize func(interface{}, string) (observation.TradeReceivedEvent, error)
-	streamURL string
 }
 
 func (a *WebSocketAdapterActor) start(c *actor.Context) {

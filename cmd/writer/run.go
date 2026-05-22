@@ -59,7 +59,7 @@ func Run(config settings.AppConfig) {
 		logger.Error("writer startup blocked: clickhouse connection failed", "addr", config.ClickHouse.Addr, "error", err)
 		os.Exit(1)
 	}
-	defer chClient.Close()
+	defer func() { _ = chClient.Close() }()
 
 	engine, err := actorcommon.NewDefaultEngine()
 	if err != nil {

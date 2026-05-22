@@ -680,20 +680,6 @@ func (v VenueConfig) IsDryRun() bool {
 	return v.DryRun == nil || *v.DryRun
 }
 
-// hasMainnetAdapter reports whether any configured adapter targets mainnet.
-// S433: Used by validation to enforce dry_run=true for mainnet.
-func (v VenueConfig) hasMainnetAdapter() bool {
-	if v.Type.IsMainnet() {
-		return true
-	}
-	for _, cfg := range v.Segments {
-		if cfg != nil && cfg.Enabled && cfg.Adapter.IsMainnet() {
-			return true
-		}
-	}
-	return false
-}
-
 // StalenessMaxAgeDuration returns the configured staleness max age or the default (120s).
 func (v VenueConfig) StalenessMaxAgeDuration() time.Duration {
 	return parseDurationOrDefault(v.StalenessMaxAge, 120*time.Second)

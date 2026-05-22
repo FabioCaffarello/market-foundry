@@ -40,6 +40,6 @@ func dialNATS(natsURL string) error {
 	if err != nil {
 		return fmt.Errorf("nats dial: %w", err)
 	}
-	conn.Close()
+	_ = conn.Close()
 	return nil
 }

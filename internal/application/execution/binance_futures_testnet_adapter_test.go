@@ -14,17 +14,6 @@ import (
 	domainexec "internal/domain/execution"
 )
 
-func newTestCredentials() *appexec.CredentialSet {
-	t := &testing.T{}
-	t.Setenv("MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY", "test-api-key")
-	t.Setenv("MF_VENUE_BINANCE_FUTURES_TESTNET_API_SECRET", "test-api-secret")
-	creds, prob := appexec.LoadCredentials("binance_futures_testnet", []string{"API_KEY", "API_SECRET"})
-	if prob != nil {
-		panic("failed to load test credentials: " + prob.Message)
-	}
-	return creds
-}
-
 func testCredentials(t *testing.T) *appexec.CredentialSet {
 	t.Helper()
 	t.Setenv("MF_VENUE_BINANCE_FUTURES_TESTNET_API_KEY", "test-api-key")

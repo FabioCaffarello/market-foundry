@@ -282,12 +282,13 @@ func TestMatchFIFO_PartialMatchProducesRemainder(t *testing.T) {
 
 	var paired, unmatched int
 	for _, rt := range rts {
-		if rt.State == StatePaired {
+		switch rt.State {
+		case StatePaired:
 			paired++
 			if rt.MatchedQuantity != formatFloat(0.1) {
 				t.Errorf("matched_quantity=%s, want 0.10000000", rt.MatchedQuantity)
 			}
-		} else if rt.State == StateUnmatchedEntry {
+		case StateUnmatchedEntry:
 			unmatched++
 		}
 	}

@@ -91,7 +91,7 @@ func (c *WSClient) readLoop(ctx context.Context) {
 		c.logger.Error("websocket dial failed", "error", err, "stream", c.stream)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	conn.SetPongHandler(func(string) error {
 		return conn.SetReadDeadline(time.Now().Add(pongWait))

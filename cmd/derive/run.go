@@ -42,7 +42,7 @@ func Run(config settings.AppConfig) {
 			logger.Error("create configctl request client", "error", err)
 			os.Exit(1)
 		}
-		defer client.Close()
+		defer func() { _ = client.Close() }()
 		gateway = natsconfigctl.NewGateway(client, "derive.config-query")
 	}
 

@@ -43,13 +43,6 @@ func newAnalyticalRiskReader(client *clickhouse.Client, logger *slog.Logger) ana
 	return clickhouse.NewRiskReader(client, logger)
 }
 
-// newAnalyticalExecutionReader creates the analytical execution reader from the adapter layer.
-// Same pattern as candle/signal/decision/strategy/risk readers — the adapter owns storage↔domain translation,
-// the gateway satisfies the analyticalclient.ExecutionReader interface at the composition boundary.
-func newAnalyticalExecutionReader(client *clickhouse.Client, logger *slog.Logger) analyticalclient.ExecutionReader {
-	return clickhouse.NewExecutionReader(client, logger)
-}
-
 // newAnalyticalLifecycleReader creates the analytical lifecycle history reader from the adapter layer.
 // S453A: Unlike the execution reader (per-type queries), the lifecycle reader queries across
 // all execution event types for unified timeline reconstruction.

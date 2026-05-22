@@ -28,7 +28,7 @@ func main() {
 	flags := flag.NewFlagSet(cmd, flag.ExitOnError)
 	dryRun := flags.Bool("dry-run", false, "show pending migrations without applying (up only)")
 	migrationsDir := flags.String("migrations-dir", envOrDefault("MIGRATIONS_DIR", "deploy/migrations"), "path to migrations directory")
-	flags.Parse(os.Args[2:])
+	_ = flags.Parse(os.Args[2:])
 
 	switch cmd {
 	case "up", "status", "validate":
@@ -46,7 +46,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "clickhouse: %v\n", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	runner := migrate.NewRunner(db, *migrationsDir)
 
@@ -81,7 +81,7 @@ func openClickHouse(ctx context.Context) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open base connection: %w", err)
 	}
-	defer base.Close()
+	defer func() { _ = base.Close() }()
 
 	if err := base.PingContext(ctx); err != nil {
 		return nil, fmt.Errorf("ping clickhouse: %w", err)
@@ -99,7 +99,7 @@ func openClickHouse(ctx context.Context) (*sql.DB, error) {
 	}
 
 	if err := db.PingContext(ctx); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("ping target database: %w", err)
 	}
 

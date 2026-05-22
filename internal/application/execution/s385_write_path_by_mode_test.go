@@ -384,9 +384,7 @@ func TestS385_VenueLive_Buy_SubmittedToFilled(t *testing.T) {
 	if receipt.Intent.Fills[0].Price != "67432.50" {
 		t.Errorf("expected fill price 67432.50, got %s", receipt.Intent.Fills[0].Price)
 	}
-	if receipt.Intent.Fills[0].Fee == "" || receipt.Intent.Fills[0].Fee == "0" {
-		// Venue fills carry cumQuote as fee proxy
-	}
+	// Venue fills carry cumQuote as fee proxy; empty or zero is tolerated here.
 }
 
 func TestS385_VenueLive_Sell_SubmittedToFilled(t *testing.T) {

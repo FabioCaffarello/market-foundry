@@ -198,7 +198,7 @@ func (uc *GetEffectivenessUseCase) executeBatch(ctx context.Context, query Effec
 			if chains[i].Execution == nil {
 				continue
 			}
-			if pairedCorrs[chains[i].Execution.ExecutionIntent.CorrelationID] {
+			if pairedCorrs[chains[i].Execution.CorrelationID] {
 				continue
 			}
 

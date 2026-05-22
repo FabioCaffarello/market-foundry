@@ -185,9 +185,10 @@ type legCandidate struct {
 //   - M7: Deterministic — same input always produces same output
 //
 // Partial-fill handling:
-//   When AllowPartialMatch is true and quantities differ, the matched quantity
-//   is min(entry, exit). The remainder produces an additional unmatched leg
-//   with reason quantity_mismatch_remainder.
+//
+//	When AllowPartialMatch is true and quantities differ, the matched quantity
+//	is min(entry, exit). The remainder produces an additional unmatched leg
+//	with reason quantity_mismatch_remainder.
 func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 	if len(legs) == 0 {
 		return nil
@@ -205,9 +206,10 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 			remainingQty:     qty,
 			originalIntentID: leg.CorrelationID,
 		}
-		if leg.Direction == LegEntry {
+		switch leg.Direction {
+		case LegEntry:
 			entries = append(entries, c)
-		} else if leg.Direction == LegExit {
+		case LegExit:
 			exits = append(exits, c)
 		}
 	}
@@ -466,7 +468,7 @@ func minFloat(a, b float64) float64 {
 
 func parseFloat(s string) float64 {
 	var v float64
-	fmt.Sscanf(s, "%f", &v)
+	_, _ = fmt.Sscanf(s, "%f", &v)
 	return v
 }
 

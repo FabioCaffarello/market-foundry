@@ -168,9 +168,9 @@ func projectChainToReview(chain *CompositeExecutionChain) *DecisionReviewBundle 
 	// Inputs: signal evidence as recorded by the decision (decision.Signals carries the
 	// decision-owned record of which signals contributed). The signal event from the chain
 	// provides the event_id and timestamp of the originating signal.
-	if len(d.Decision.Signals) > 0 || chain.Signal != nil {
+	if len(d.Signals) > 0 || chain.Signal != nil {
 		inputs := &ReviewInputs{
-			Signals: d.Decision.Signals,
+			Signals: d.Signals,
 		}
 		if chain.Signal != nil {
 			inputs.EventID = chain.Signal.EventID
@@ -194,7 +194,7 @@ func projectChainToReview(chain *CompositeExecutionChain) *DecisionReviewBundle 
 		Final:      d.Final,
 		EventID:    d.EventID,
 		At:         d.OccurredAt,
-		Metadata:   d.Decision.Metadata,
+		Metadata:   d.Metadata,
 	}
 
 	// Resolution: strategy derived.
@@ -215,7 +215,7 @@ func projectChainToReview(chain *CompositeExecutionChain) *DecisionReviewBundle 
 			Direction:      string(st.Direction),
 			Confidence:     st.Confidence,
 			DecisionInputs: refs,
-			Parameters:     st.Strategy.Parameters,
+			Parameters:     st.Parameters,
 			EventID:        st.EventID,
 			At:             st.OccurredAt,
 		}
@@ -256,8 +256,8 @@ func projectChainToReview(chain *CompositeExecutionChain) *DecisionReviewBundle 
 			FilledQuantity: e.FilledQuantity,
 			Status:         string(e.Status),
 			Final:          e.Final,
-			CorrelationID:  e.ExecutionIntent.CorrelationID,
-			CausationID:    e.ExecutionIntent.CausationID,
+			CorrelationID:  e.CorrelationID,
+			CausationID:    e.CausationID,
 			EventID:        e.EventID,
 			At:             e.OccurredAt,
 		}

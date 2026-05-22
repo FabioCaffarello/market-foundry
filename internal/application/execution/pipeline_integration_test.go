@@ -1,6 +1,7 @@
 package execution_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 )
 
 // TestPipeline_EvaluateSimulateEmit validates the full derive-side pipeline:
-//   risk primitives → PaperOrderEvaluator → PaperFillSimulator → PaperOrderSubmittedEvent
+//
+//	risk primitives → PaperOrderEvaluator → PaperFillSimulator → PaperOrderSubmittedEvent
+//
 // This is the exact sequence executed by PaperOrderEvaluatorActor.onRiskAssessed.
 func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 	const (
@@ -330,7 +333,7 @@ func TestPipeline_VenueAdapter_FullChain_DeriveToFill(t *testing.T) {
 
 	// Step 4: Execute-side — venue adapter submits order via PaperVenueAdapter.
 	venue := appexec.NewPaperVenueAdapter(0)
-	receipt, prob := venue.SubmitOrder(nil, ports.VenueOrderRequest{Intent: submitEvent.ExecutionIntent})
+	receipt, prob := venue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: submitEvent.ExecutionIntent})
 	if prob != nil {
 		t.Fatalf("venue submit failed: %s", prob.Message)
 	}
@@ -428,7 +431,7 @@ func TestPipeline_VenueAdapter_NoAction_NoFillRecord(t *testing.T) {
 
 	// Submit to venue adapter.
 	venue := appexec.NewPaperVenueAdapter(0)
-	receipt, prob := venue.SubmitOrder(nil, ports.VenueOrderRequest{Intent: intent})
+	receipt, prob := venue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("venue submit failed: %s", prob.Message)
 	}
@@ -483,7 +486,7 @@ func TestPipeline_StalenessGuard_Integration(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
 	freshIntent, _ = sim.SimulateFill(freshIntent)
 	venue := appexec.NewPaperVenueAdapter(0)
-	receipt, prob := venue.SubmitOrder(nil, ports.VenueOrderRequest{Intent: freshIntent})
+	receipt, prob := venue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: freshIntent})
 	if prob != nil {
 		t.Fatalf("fresh intent should pass venue: %s", prob.Message)
 	}
@@ -498,10 +501,10 @@ func TestPipeline_StatusPropagation_IntentAndResult(t *testing.T) {
 	ts := time.Now().UTC()
 
 	cases := []struct {
-		name       string
-		intent     *domainexec.ExecutionIntent
-		result     *domainexec.ExecutionIntent
-		wantProp   string
+		name     string
+		intent   *domainexec.ExecutionIntent
+		result   *domainexec.ExecutionIntent
+		wantProp string
 	}{
 		{
 			name:     "both nil → none",
@@ -603,7 +606,7 @@ func TestPipeline_MultiSymbol_FillIsolation(t *testing.T) {
 			}
 
 			// Submit to venue.
-			receipt, prob := venue.SubmitOrder(nil, ports.VenueOrderRequest{Intent: intent})
+			receipt, prob := venue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 			if prob != nil {
 				t.Fatalf("%s/%d: venue submit failed: %s", tc.symbol, tf, prob.Message)
 			}

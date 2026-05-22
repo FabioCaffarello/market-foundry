@@ -131,7 +131,7 @@ func (uc *GetEffectivenessSummaryUseCase) Execute(ctx context.Context, query Eff
 		if chains[i].Execution == nil {
 			continue
 		}
-		if pairedCorrs[chains[i].Execution.ExecutionIntent.CorrelationID] {
+		if pairedCorrs[chains[i].Execution.CorrelationID] {
 			continue
 		}
 		attr := effectiveness.Classify(chains[i].Execution.ExecutionIntent)

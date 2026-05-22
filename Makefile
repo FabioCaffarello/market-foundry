@@ -19,7 +19,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 .PHONY: help docs bootstrap \
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
-	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
+	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint lint-go \
 	check check-deep verify repo-consistency-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery smoke-compose-wiring smoke-e2e-multi-binary smoke-failure-isolation smoke-live-dry-run smoke-segmented-compose smoke-spot-ingest smoke-unified-coexistence smoke-spot-venue-live smoke-futures-venue-live smoke-e2e-unified-spot smoke-e2e-unified-futures smoke-endurance-soak smoke-runtime-preflight smoke-backup-restore smoke-backup-offhost \
 	ci-analytical ci-smoke ci-preflight ci-wait-ready seed seed-multi seed-spot seed-spot-multi seed-unified seed-unified-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
@@ -107,8 +107,10 @@ bootstrap: ## Validate local prerequisites and repository entrypoints for the of
 
 check: repo-consistency-check quality-gate ## Pre-code guard rail (consistency + fast quality gate).
 check-deep: repo-consistency-check quality-gate-deep ## Full validation profile for significant changes; not a substitute for `make smoke*`.
-verify: test repo-consistency-check quality-gate ## Post-change validation: Go tests plus consistency and fast quality gate.
+verify: test repo-consistency-check quality-gate lint-go ## Post-change validation: Go tests plus consistency, fast quality gate, and Go lint.
 lint: check ## Alias for `make check`.
+lint-go: ## Run golangci-lint across all workspace modules.
+	@./scripts/lint-go.sh
 repo-consistency-check: ## Run lightweight repository consistency checks.
 	@./scripts/repository-consistency-check.sh
 tdd: $(RACCOON_BIN) ## Show raccoon impact-driven validation guidance for current changes.

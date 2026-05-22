@@ -782,14 +782,6 @@ func TestS416_FuturesVenueLive_ServerError_Retryable(t *testing.T) {
 
 func boolPtr(b bool) *bool { return &b }
 
-// s416FuturesVenueLive_parsedPrice extracts average price from receipt for assertion.
-func s416FuturesVenueLive_parsedPrice(receipt ports.VenueOrderReceipt) string {
-	if len(receipt.Intent.Fills) == 0 {
-		return ""
-	}
-	return receipt.Intent.Fills[0].Price
-}
-
 // s416SegmentForSource validates the segment routing table.
 func TestS416_SegmentForSource_Futures(t *testing.T) {
 	seg := settings.SegmentForSource("binancef")

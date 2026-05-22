@@ -84,7 +84,7 @@ func (uc *VerifySessionUseCase) Execute(ctx context.Context, query SessionVerify
 	var operator string
 	scope := execution.DefaultVerificationScope()
 	if uc.sessionReader != nil {
-		reply, _ := uc.sessionReader.Execute(ctx, SessionGetQuery{SessionID: query.SessionID})
+		reply, _ := uc.sessionReader.Execute(ctx, SessionGetQuery(query))
 		if reply.Session != nil {
 			operator = reply.Session.Operator
 			scope = deriveVerificationScope(reply.Session)
@@ -449,9 +449,9 @@ func (uc *VerifySessionUseCase) checkScopeContainment(ctx context.Context, scope
 	}
 
 	result.Evidence = map[string]any{
-		"total_executions":  total,
-		"out_of_scope":      outOfScope,
-		"allowed_symbols":   scope.Symbols,
+		"total_executions": total,
+		"out_of_scope":     outOfScope,
+		"allowed_symbols":  scope.Symbols,
 	}
 
 	if outOfScope == 0 {

@@ -18,6 +18,7 @@ package execute
 //   - DI-4 Q4: Does the safety gate pipeline accept fresh derive-produced events?
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -219,10 +220,10 @@ func TestE2E_DeriveSeverityScaling_FlowsToExecution(t *testing.T) {
 	ts := time.Date(2026, 3, 22, 10, 3, 0, 0, time.UTC)
 
 	severityCases := []struct {
-		name               string
-		severity           string
-		wantConfidence     string
-		wantDecSeverity    string
+		name            string
+		severity        string
+		wantConfidence  string
+		wantDecSeverity string
 	}{
 		{"high", "high", "0.8500", "high"},
 		{"moderate", "moderate", "0.7650", "moderate"},
@@ -381,7 +382,7 @@ func TestE2E_FullPipeline_DeriveToVenueFill(t *testing.T) {
 
 	// Step 3: Venue adapter submits (paper).
 	venue := appexec.NewPaperVenueAdapter(0)
-	receipt, prob := venue.SubmitOrder(nil, ports.VenueOrderRequest{Intent: intent})
+	receipt, prob := venue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("venue submit failed: %s", prob.Message)
 	}

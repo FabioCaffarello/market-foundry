@@ -1,7 +1,6 @@
 package risk
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -90,11 +89,3 @@ func lookupSeverityFactor(severity string, factorMap map[string]float64) float64
 	return 1.0
 }
 
-// buildStrategyTypeRationaleFragment returns a rationale fragment describing
-// the strategy-type and severity adjustments applied.
-func buildStrategyTypeRationaleFragment(strategyType string, confidenceFactor float64, severityAdjustment string) string {
-	if severityAdjustment != "" {
-		return fmt.Sprintf("%s (confidence ×%.2f, %s)", strategyType, confidenceFactor, severityAdjustment)
-	}
-	return fmt.Sprintf("%s (confidence ×%.2f)", strategyType, confidenceFactor)
-}

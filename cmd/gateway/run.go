@@ -39,7 +39,7 @@ func Run(config settings.AppConfig) {
 	// Phase 2a: Create optional ClickHouse client for analytical queries.
 	chClient := buildAnalyticalClient(config, logger)
 	if chClient != nil {
-		defer chClient.Close()
+		defer func() { _ = chClient.Close() }()
 	}
 
 	// Phase 2b: Wire use cases from connections → route dependencies.

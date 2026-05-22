@@ -157,7 +157,7 @@ func TestGetLifecycleHistoryUseCase_LimitClamping(t *testing.T) {
 	_ = reply
 
 	// Over-limit should be clamped to 500 (not fail).
-	reply, prob = uc.Execute(context.Background(), analyticalclient.LifecycleHistoryQuery{
+	_, prob = uc.Execute(context.Background(), analyticalclient.LifecycleHistoryQuery{
 		Source:    "derive",
 		Symbol:    "btcusdt",
 		Timeframe: 60,

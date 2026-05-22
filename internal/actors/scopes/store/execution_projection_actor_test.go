@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"internal/adapters/nats/natsexecution"
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
 	"internal/shared/events"
@@ -59,14 +58,6 @@ func executionEvent(intent execution.ExecutionIntent) execution.PaperOrderSubmit
 	}
 }
 
-func execActor(store *mockExecutionStore, tracker *healthz.Tracker) *ExecutionProjectionActor {
-	return &ExecutionProjectionActor{
-		cfg:    ExecutionProjectionConfig{Bucket: "EXECUTION_PAPER_ORDER_LATEST", Tracker: tracker},
-		logger: slog.Default(),
-		store:  &natsexecution.KVStore{}, // will be overridden
-	}
-}
-
 // execActorWithMock builds an ExecutionProjectionActor that delegates to the mock store.
 // Since the actor's store field is a concrete *natsexecution.KVStore, we need
 // to test through the onExecution method which uses the store directly. We replace the
@@ -102,7 +93,7 @@ func (h *executionProjectionTestHarness) onExecution(msg executionReceivedMessag
 	}
 
 	// Gate 3: Delegate to mock store.
-	result, prob := h.store.Put(nil, intent)
+	result, prob := h.store.Put(context.Background(), intent)
 	if prob != nil {
 		h.actor.stats.errors.Add(1)
 		return

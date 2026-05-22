@@ -114,23 +114,9 @@ func (r *CompositeReader) QueryChainsBatch(ctx context.Context, source, symbol s
 // queryExecutionCorrelationIDs returns distinct correlation_ids from the executions
 // table matching the given filters, ordered by timestamp DESC.
 func (r *CompositeReader) queryExecutionCorrelationIDs(ctx context.Context, source, symbol string, timeframe int, since, until int64, limit int) ([]string, error) {
-	q := "SELECT DISTINCT correlation_id\nFROM executions\nWHERE source = ? AND symbol = ? AND timeframe = ? AND correlation_id != ''"
-	args := []any{source, symbol, uint32(timeframe)}
-
-	if since > 0 {
-		q += " AND timestamp >= ?"
-		args = append(args, time.Unix(since, 0))
-	}
-	if until > 0 {
-		q += " AND timestamp <= ?"
-		args = append(args, time.Unix(until, 0))
-	}
-
-	q += " ORDER BY max(timestamp) DESC LIMIT ?"
 	// ClickHouse requires GROUP BY for ORDER BY max() with DISTINCT.
-	// Rewrite: use GROUP BY instead of DISTINCT.
-	q = "SELECT correlation_id\nFROM executions\nWHERE source = ? AND symbol = ? AND timeframe = ? AND correlation_id != ''"
-	args = []any{source, symbol, uint32(timeframe)}
+	q := "SELECT correlation_id\nFROM executions\nWHERE source = ? AND symbol = ? AND timeframe = ? AND correlation_id != ''"
+	args := []any{source, symbol, uint32(timeframe)}
 
 	if since > 0 {
 		q += " AND timestamp >= ?"

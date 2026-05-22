@@ -11,6 +11,7 @@ package natsstrategy
 //   - DIQ-4: Does publisher produce correct NATS messages?
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -218,7 +219,7 @@ func TestDeduplicationKey_Uniqueness_DifferentSymbols(t *testing.T) {
 
 func TestPublishStrategy_NilPublisher_ReturnsUnavailable(t *testing.T) {
 	var p *Publisher
-	prob := p.PublishStrategy(nil, strategy.StrategyResolvedEvent{})
+	prob := p.PublishStrategy(context.Background(), strategy.StrategyResolvedEvent{})
 	if prob == nil {
 		t.Fatal("expected problem for nil publisher")
 	}
@@ -230,7 +231,7 @@ func TestPublishStrategy_NilPublisher_ReturnsUnavailable(t *testing.T) {
 func TestPublishStrategy_NilJetStream_ReturnsUnavailable(t *testing.T) {
 	p := NewPublisher("nats://fake", "binancef", DefaultRegistry())
 	// p.js is nil because Start() was not called.
-	prob := p.PublishStrategy(nil, strategy.StrategyResolvedEvent{})
+	prob := p.PublishStrategy(context.Background(), strategy.StrategyResolvedEvent{})
 	if prob == nil {
 		t.Fatal("expected problem for unstarted publisher")
 	}

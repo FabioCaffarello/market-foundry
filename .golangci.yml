@@ -1,0 +1,94 @@
+# golangci-lint v2.x configuration for market-foundry.
+#
+# Adopts v2.x default linters (errcheck, govet, ineffassign,
+# staticcheck, unused) with exclusion rules for common test-code
+# patterns that don't indicate bugs.
+#
+# Adopted in P2.2.1 of Phase 2 (environment hardening). Complements
+# raccoon-cli (architecture enforcement) by adding traditional Go
+# lint coverage.
+
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    errcheck:
+      # Functions whose error returns are uninteresting at any call
+      # site under the conventions used in this repo.
+      exclude-functions:
+        - fmt.Fprintln
+        - fmt.Fprintf
+        - fmt.Fprint
+        - (net/http.ResponseWriter).Write
+
+  exclusions:
+    rules:
+      # Test files use JSON encoders to build fixture payloads where
+      # the encode error cannot occur (buffer destination). Treat as
+      # test noise rather than per-line nolint.
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `\\(\\*encoding/json\\.Encoder\\)\\.Encode`"
+
+      # Test files routinely ignore returns from environment and
+      # filesystem setup/teardown helpers.
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `os\\.(Setenv|Unsetenv|Mkdir|MkdirAll|WriteFile|Remove|RemoveAll)`"
+
+      # fmt.Sscanf parses numeric fields in test fixtures where a
+      # parse failure surfaces as the zero value and the assertion
+      # then catches the divergence.
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `fmt\\.Sscanf`"
+
+      # Venue acceptance tests submit and query orders on the SDK
+      # adapter and assert state via separate observation paths;
+      # the SubmitOrder/QueryOrder return is consumed by the
+      # assertion, not the call site.
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `[a-zA-Z]+\\.(SubmitOrder|QueryOrder)`"
+
+      # Test shutdown helpers (supervisor Halt/Close, listener Close,
+      # json.Unmarshal in fixture assertions) where the failure mode
+      # is surfaced by the surrounding assertion.
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `(listener|s)\\.(Close|Halt)`"
+      - path: _test\.go$
+        linters:
+          - errcheck
+        text: "Error return value of `json\\.Unmarshal`"
+
+      # Defer-close cleanup of database/sql rows and HTTP response
+      # bodies is a Go convention; the iteration error is surfaced
+      # via rows.Err() and the response Read result, not Close.
+      - linters:
+          - errcheck
+        text: "Error return value of `rows\\.Close`"
+      - linters:
+          - errcheck
+        text: "Error return value of `(resp|r)\\.Body\\.Close`"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

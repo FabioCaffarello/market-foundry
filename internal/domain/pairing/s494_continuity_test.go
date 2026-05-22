@@ -504,12 +504,13 @@ func TestMatchFIFO_CrossSessionPreservesTemporalOrdering(t *testing.T) {
 	var paired, unmatched int
 	var pairedEntryCorr string
 	for _, rt := range roundTrips {
-		if rt.State == StatePaired {
+		switch rt.State {
+		case StatePaired:
 			paired++
 			if rt.Entry != nil {
 				pairedEntryCorr = rt.Entry.CorrelationID
 			}
-		} else if rt.State == StateUnmatchedEntry {
+		case StateUnmatchedEntry:
 			unmatched++
 		}
 	}

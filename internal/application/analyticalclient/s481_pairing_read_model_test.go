@@ -16,15 +16,15 @@ import (
 // filledChainWithSide creates a chain with fills and the given side.
 func filledChainWithSide(corrID string, side execution.Side, price, qty, fee, costBasis string, ts time.Time) *analyticalclient.CompositeExecutionChain {
 	chain := fullChain(corrID)
-	chain.Execution.ExecutionIntent.Side = side
-	chain.Execution.ExecutionIntent.Status = "filled"
-	chain.Execution.ExecutionIntent.FilledQuantity = qty
-	chain.Execution.ExecutionIntent.CorrelationID = corrID
-	chain.Execution.ExecutionIntent.Timestamp = ts
-	chain.Execution.ExecutionIntent.Fills = []execution.FillRecord{
+	chain.Execution.Side = side
+	chain.Execution.Status = "filled"
+	chain.Execution.FilledQuantity = qty
+	chain.Execution.CorrelationID = corrID
+	chain.Execution.Timestamp = ts
+	chain.Execution.Fills = []execution.FillRecord{
 		{Price: price, Quantity: qty, Fee: fee, FeeAsset: "USDT", CostBasis: costBasis, Timestamp: ts},
 	}
-	chain.Execution.ExecutionIntent.Risk = execution.RiskInput{
+	chain.Execution.Risk = execution.RiskInput{
 		Type:             "rsi_oversold",
 		Disposition:      "approved",
 		Confidence:       "0.85",
@@ -156,8 +156,8 @@ func TestGetPairing_Batch_StateFilter(t *testing.T) {
 func TestGetPairing_Batch_RejectedExcluded(t *testing.T) {
 	now := time.Now()
 	rejected := fullChain("corr-rej")
-	rejected.Execution.ExecutionIntent.Status = "rejected"
-	rejected.Execution.ExecutionIntent.Timestamp = now
+	rejected.Execution.Status = "rejected"
+	rejected.Execution.Timestamp = now
 
 	reader := &stubCompositeReader{
 		chains: []analyticalclient.CompositeExecutionChain{*rejected},

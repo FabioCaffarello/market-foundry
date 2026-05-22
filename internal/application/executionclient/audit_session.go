@@ -67,7 +67,7 @@ func (uc *AuditSessionUseCase) Execute(ctx context.Context, query SessionAuditQu
 
 	// Phase 1: Fetch session metadata.
 	if uc.sessionReader != nil {
-		reply, prob := uc.sessionReader.Execute(ctx, SessionGetQuery{SessionID: query.SessionID})
+		reply, prob := uc.sessionReader.Execute(ctx, SessionGetQuery(query))
 		if prob != nil {
 			return SessionAuditReply{}, problem.New(problem.NotFound, "session not found: "+prob.Message)
 		}
@@ -82,7 +82,7 @@ func (uc *AuditSessionUseCase) Execute(ctx context.Context, query SessionAuditQu
 
 	// Phase 2: Run PO verification.
 	if uc.verifyUseCase != nil {
-		vReply, vProb := uc.verifyUseCase.Execute(ctx, SessionVerifyQuery{SessionID: query.SessionID})
+		vReply, vProb := uc.verifyUseCase.Execute(ctx, SessionVerifyQuery(query))
 		if vProb == nil {
 			bundle.Verification = &vReply.Report
 			bundle.Consistency.VerificationRan = true

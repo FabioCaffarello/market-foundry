@@ -16,9 +16,9 @@ import (
 // filledChainWithContext builds a chain with specified decision/strategy context.
 func filledChainWithContext(corrID, decisionType, strategyType, severity string) *analyticalclient.CompositeExecutionChain {
 	chain := filledChain(corrID)
-	chain.Execution.ExecutionIntent.Risk.Type = decisionType
-	chain.Execution.ExecutionIntent.Risk.StrategyType = strategyType
-	chain.Execution.ExecutionIntent.Risk.DecisionSeverity = severity
+	chain.Execution.Risk.Type = decisionType
+	chain.Execution.Risk.StrategyType = strategyType
+	chain.Execution.Risk.DecisionSeverity = severity
 	return chain
 }
 
@@ -223,7 +223,7 @@ func TestGetEffectivenessSummary_EmptyResult(t *testing.T) {
 func TestGetEffectivenessSummary_RejectedExcluded(t *testing.T) {
 	c1 := filledChain("corr-ok")
 	c2 := fullChain("corr-rej")
-	c2.Execution.ExecutionIntent.Status = "rejected"
+	c2.Execution.Status = "rejected"
 
 	reader := &stubCompositeReader{chains: []analyticalclient.CompositeExecutionChain{*c1, *c2}}
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
@@ -268,9 +268,9 @@ func TestGetEffectivenessSummary_PreAggregationFilter(t *testing.T) {
 func TestGetEffectivenessSummary_WinRateComputation(t *testing.T) {
 	// Create chains with round-trip pairs for actual win/loss classification.
 	entry := filledChain("corr-win-entry")
-	entry.Execution.ExecutionIntent.Status = "filled"
-	entry.Execution.ExecutionIntent.Side = execution.SideBuy
-	entry.Execution.ExecutionIntent.Fills = []execution.FillRecord{
+	entry.Execution.Status = "filled"
+	entry.Execution.Side = execution.SideBuy
+	entry.Execution.Fills = []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.00", FeeAsset: "USDT", CostBasis: "5000.00", Timestamp: time.Now()},
 	}
 
@@ -301,11 +301,11 @@ func TestGetEffectivenessSummary_WinRateComputation(t *testing.T) {
 
 func TestGetEffectivenessSummary_TotalFeesAccumulated(t *testing.T) {
 	c1 := filledChain("corr-fee1")
-	c1.Execution.ExecutionIntent.Fills = []execution.FillRecord{
+	c1.Execution.Fills = []execution.FillRecord{
 		{Price: "50000", Quantity: "0.1", Fee: "1.50", FeeAsset: "USDT", CostBasis: "5000", Timestamp: time.Now()},
 	}
 	c2 := filledChain("corr-fee2")
-	c2.Execution.ExecutionIntent.Fills = []execution.FillRecord{
+	c2.Execution.Fills = []execution.FillRecord{
 		{Price: "50000", Quantity: "0.1", Fee: "2.00", FeeAsset: "USDT", CostBasis: "5000", Timestamp: time.Now()},
 	}
 

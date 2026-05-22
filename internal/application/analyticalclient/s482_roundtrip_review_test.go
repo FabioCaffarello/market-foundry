@@ -321,8 +321,8 @@ func TestGetRoundTripReview_SummaryReconciliationCounts(t *testing.T) {
 // Verify rejected chains are excluded from review.
 func TestGetRoundTripReview_RejectedExcluded(t *testing.T) {
 	rejected := filledChainWithSide("corr-rv-rej", "buy", "50000.00", "0.1", "0.50", "5000.00", time.Now())
-	rejected.Execution.ExecutionIntent.Status = execution.Status("rejected")
-	rejected.Execution.ExecutionIntent.Fills = nil
+	rejected.Execution.Status = execution.Status("rejected")
+	rejected.Execution.Fills = nil
 
 	reader := &stubCompositeReader{
 		chains: []analyticalclient.CompositeExecutionChain{*rejected},

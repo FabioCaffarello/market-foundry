@@ -48,19 +48,6 @@ func fillEvent(intent execution.ExecutionIntent, venueOrderID string) execution.
 	}
 }
 
-// mockIntentStore is a mock for intent KV lookups used in RC-1/RC-2 tests.
-type mockIntentStore struct {
-	intents map[string]*execution.ExecutionIntent
-}
-
-func (m *mockIntentStore) Get(_ context.Context, source, symbol string, timeframe int) (*execution.ExecutionIntent, *problem.Problem) {
-	key := source + "." + symbol + "." + string(rune(timeframe+'0'))
-	if intent, ok := m.intents[key]; ok {
-		return intent, nil
-	}
-	return nil, nil
-}
-
 // fillActorDirect builds a FillProjectionActor that delegates to a mock store for testing.
 // No intent store — RC-1/RC-2 gates are disabled.
 func fillActorDirect(store *mockExecutionStore, tracker *healthz.Tracker) *fillProjectionTestHarness {
@@ -96,7 +83,7 @@ func (h *fillProjectionTestHarness) onFill(msg fillReceivedMessage) {
 	// See fillActorWithIntentStore for RC tests.
 
 	// Gate 3: Delegate to mock store.
-	result, prob := h.store.Put(nil, intent)
+	result, prob := h.store.Put(context.Background(), intent)
 	if prob != nil {
 		h.actor.stats.errors.Add(1)
 		return
