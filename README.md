@@ -79,3 +79,10 @@ New to the project? Read these in order:
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for PR rules,
 authorized expansion protocol, and the "Specifically for AI agents"
 section.
+
+## License
+
+This project is licensed under the **PolyForm Noncommercial 1.0.0**.
+See [LICENSE](LICENSE) for full terms. Commercial use is not permitted.
+
+For security reports, see [SECURITY.md](SECURITY.md).

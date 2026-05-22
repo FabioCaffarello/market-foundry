@@ -200,6 +200,28 @@ archaeology.
 
 ## Recently resolved
 
+### LICENSE adopted + SECURITY.md added (Phase 3.1)
+
+**Resolved** by creating `LICENSE` and `SECURITY.md` in the repository
+root. Closes P0 finding #1 from the P3.0 environment audit (LICENSE
+absent) and finding #11 (no SECURITY.md).
+
+The license is **PolyForm Noncommercial 1.0.0** — designed for solo
+developers wanting to forbid commercial use while keeping source
+visible. Permits personal use, research, education, hobby projects, and
+evaluation. Compatible with the Go module proxy, no impact on
+dependency tooling. Reference:
+<https://polyformproject.org/licenses/noncommercial/1.0.0/>.
+
+`SECURITY.md` documents how to report vulnerabilities to a personal
+project: out-of-band via the maintainer email, no SLA, no bounty, scope
+limited to this repository's own code.
+
+`README.md` gained a final "License" section linking both files.
+Source files were intentionally **not** annotated with per-file headers
+— the `LICENSE` file alone is legally sufficient and a 400+ file diff
+was not justified by the cosmetic gain. May be revisited later.
+
 ### `docs/legacy/` removed definitively (Phase 2.Y)
 
 **Resolved** by `git rm -rf docs/legacy/` and updating active
