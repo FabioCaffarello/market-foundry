@@ -200,6 +200,44 @@ archaeology.
 
 ## Recently resolved
 
+### Editor configs and tool-versions added (Phase 3.7)
+
+**Resolved** by adding three universal config files at the repo root.
+Closes P3.0 audit P1 finding "editor/IDE configs absent".
+
+- **`.editorconfig`**: cross-editor formatting standard. Go uses tabs
+  (gofmt convention) and Makefiles use tabs (POSIX requirement); most
+  other file types use 2-space indent with LF line endings, UTF-8,
+  trailing-whitespace trim, and final newline. Markdown intentionally
+  keeps trailing whitespace (line-break syntax). Editors with native
+  or plugin EditorConfig support (VS Code, GoLand, vim, emacs, etc.)
+  pick it up automatically.
+
+- **`.gitattributes`**: git-level file handling. Forces LF line
+  endings for tracked text files (cross-platform consistency); marks
+  common binary extensions to prevent accidental diff/merge
+  corruption; flags `go.sum` and `Cargo.lock` as
+  `linguist-generated=true` so GitHub's language stats exclude them;
+  marks `docs/**` and `*.md` as `linguist-documentation`. Pre-adoption
+  CRLF audit confirmed zero tracked text files had CRLF endings — no
+  re-checkout churn expected.
+
+- **`.tool-versions`**: version manifest for [asdf](https://asdf-vm.com)
+  and [mise](https://mise.jdx.dev). Currently pins:
+  - `golang 1.25.7` (sourced from `go.work`)
+  - `rust 1.90.0` (sourced from `tools/raccoon-cli/rust-toolchain.toml`)
+  - `golangci-lint 2.12.2` (locally validated; v2.x major series
+    pinned in `.golangci.yml`'s `version: "2"`; CI uses the
+    golangci-lint-action default since no explicit pin)
+
+  Tools without asdf/mise plugins (`lefthook`, `shellcheck`) install
+  separately via `brew` or `go install`.
+
+**Not included (deferred)**:
+- `.vscode/` — per-user IDE choice. Can be added in P3.7.1 if a VS
+  Code workspace is desired.
+- `.idea/` — same rationale.
+
 ### Shellcheck safety fixes + P3.0 audit retraction (Phase 3.5.safety)
 
 **Resolved** by re-investigating P3.0's "scripts safety" finding via

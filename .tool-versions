@@ -1,0 +1,29 @@
+# .tool-versions — version manifest for asdf, mise, and similar tools
+#
+# Adopted in P3.7 of Phase 3 (environment hardening).
+#
+# Reference: https://asdf-vm.com / https://mise.jdx.dev
+#
+# Versions sourced from canonical project files:
+# - golang: go.work
+# - rust: tools/raccoon-cli/rust-toolchain.toml
+# - golangci-lint: locally validated version compatible with the
+#   v2.x major series pinned in .golangci.yml ('version: "2"').
+#   CI uses golangci/golangci-lint-action@v6 with the action's
+#   default version (not explicitly pinned); update here as the
+#   tested baseline drifts.
+#
+# Install via asdf:
+#   asdf install
+#
+# Or via mise (recommended modern alternative):
+#   mise install
+#
+# Tools without asdf/mise plugin (lefthook, shellcheck) install separately:
+#   brew install lefthook shellcheck
+#   or
+#   go install github.com/evilmartians/lefthook@latest
+
+golang 1.25.7
+rust 1.90.0
+golangci-lint 2.12.2
