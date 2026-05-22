@@ -710,6 +710,100 @@ Specific mistakes documented to avoid repetition:
    `version:` pinning), creating drift between local-tested and
    CI-executed versions.
 
+### Audit and investigation patterns
+
+These patterns emerged from Phase 4.1 audit work. Each is grounded
+in a real near-miss or catch — not aspirational advice. Apply
+during code review, before commits, and especially before
+recommending deletions or "alignment" fixes.
+
+#### Audit recommendations are deletions-in-disguise
+
+If an audit says "remove X" or "delete Y", apply the same cross-
+reference rigor as actual deletion. Grep code, configs, Makefile,
+docs for active references — especially for items whose purpose
+isn't obvious from their location alone. Examples: empty-looking
+directories that turn out to be load-bearing for Makefile targets;
+`.gitignore` shims that turn out to be deliberate "preserve empty
+dir" patterns.
+
+P4.0's pre-audit caught a near-miss: a recommendation to
+`rm -rf backups/` would have destroyed 96 files of operational
+ClickHouse backup data and broken 6 Makefile targets.
+Pause-and-report stopped the action before damage; verifying
+references is the rule the near-miss established.
+
+#### Read analyzer logic, not just its output
+
+Before prescribing a "mechanical alignment" fix between two
+components flagged by a static check, verify they're the same kind
+of mechanism:
+
+- **Static table ↔ static table**: probably mechanical alignment
+  (e.g., adding an entry).
+- **Static table ↔ scanner output**: investigate what the scanner
+  discovers; the fix may require a source code change, not a table
+  edit.
+- **Scanner ↔ scanner**: investigate both; may need ground-truth
+  identification before any change.
+
+Reading the analyzer's actual Rust source clarifies which case
+applies. Output alone is insufficient. P4.1.3.a's pause-and-report
+caught this exact gap: the prompt assumed `contract-audit` had a
+hardcoded table when it was a real cross-reference scanner.
+
+#### Static enforcement rules should match architectural intent
+
+A blanket rule that's stricter than the relevant ADR creates two
+problems: false positives flag legitimate code, AND the rule's lax
+shape may still miss real violations.
+
+P4.1.3.c made this visible. A "cmd → domain import forbidden" rule
+overshoots ADR-0005's "cmd sees everything" and yet missed the
+real boundary concern (function-call invocation). The refined rule
+— flagging only function calls, permitting type references —
+aligned both with ADR intent and with day-to-day code reality.
+
+When writing or refining a static check, articulate the
+architectural primitive being enforced (composition vs invocation,
+type vs value, layer-bound vs layer-crossing) and design the
+predicate around that primitive, not its rough approximation.
+
+#### CI red status accumulates technical debt invisibly
+
+When CI is red for any reason, every subsequent commit erodes
+signal value. New failures hide under the existing red status.
+Phase 4.1's SHA-pinning migration revealed two latent failures
+(`golangci-lint-action` v6 args silently ignored on v9, plus 11
+quality-gate-ci warnings promoted to errors) that had accumulated
+since P3.3 — masked by the workflow-rejection layer.
+
+Operational implication: restoring green CI takes priority over
+adding new work on a red baseline. Even when the existing red
+status is "known and accepted", treat it as opaque debt —
+investigate before proceeding with substantial code work.
+
+#### Distinguish process debt from regression
+
+When a scanner flags an existing violation that surfaced for the
+first time, the question to answer is: did the code change
+recently, or did the visibility change?
+
+If the code is stable and the violation has existed for a while,
+that's **process debt**: the scanner caught what should have been
+caught earlier. No regression. Fix forward; no `git log` archaeology
+needed.
+
+If the code changed recently and broke an invariant, that's
+**regression**. Identify the culprit commit; consider revert as
+well as forward fix.
+
+The two need different fix strategies. Conflating them leads to
+unnecessary archaeology, or worse, suppressing the check when the
+underlying invariant is sound. P4.1.2 framed all 11 quality-gate-ci
+findings as process debt before any fix attempt, which kept the
+P4.1.3 sub-prompts focused on the right kind of intervention.
+
 ### Anti-patterns to avoid
 
 - **Reframe to fit**: if a prompt's premise doesn't match reality,

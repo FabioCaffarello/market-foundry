@@ -208,6 +208,77 @@ archaeology.
 
 ## Recently resolved
 
+### Phase 4.1 wave — CI restoration + quality gate cleanup
+
+**Resolved** by 9 sub-prompts that took CI from red to fully green
+on the quality-gate-ci job, clearing all 11 ci-profile warnings
+surfaced after the Phase 4.1 SHA pinning migration lifted the
+workflow-rejection layer that had masked latent failures since P3.3.
+
+Sub-prompt summary:
+
+- **P4.0** — documental hygiene sweep (DOC-1 through DOC-5) plus the
+  P0-6 `SC2206` fix in `scripts/utils/lib.sh` that P3.5.safety had
+  missed (scope was `scripts/*.sh`, not the `utils/` subtree).
+- **P4.1** — CI workflow SHA pinning migration. 6 actions converted
+  from tag refs (`@v4`, `@v5`) to commit SHAs. Branch protection
+  rule `sha_pinning_required` (enabled in P3.3) became enforceable.
+  Commit `4b5f14c`.
+- **P4.1.1** — `golangci-lint-action` v6 → v9. The v9 binary takes
+  `install-only` instead of the v6 `args` form; the v6 args were
+  silently ignored on v9 (latent CI red). Commits `83e222e`,
+  `899f4b5`.
+- **P4.1.2** — Read-only investigation of `make quality-gate-ci`.
+  Surfaced 11 pre-existing warnings now severity-promoted to errors
+  by the `ci` profile (`tools/raccoon-cli/src/gate/mod.rs`). No
+  fixes; categorisation only.
+- **P4.1.3.a** — `drift-detect` `CANONICAL_STREAMS` aligned with
+  the current `internal/adapters/nats/natsexecution/registry.go`
+  set. G6.2: same pattern as the G6 fix at `557a508`, for streams
+  added later. Commit `7ea24cd`.
+- **P4.1.3.a'** — `contract-audit` alignment for the
+  SessionLifecycle event: subject pattern widening, move from the
+  ad-hoc `session_lifecycle_event.go` into the canonical
+  `events.go`, addition of the `Metadata` field required by the
+  domain event convention. Commit `41966a7`.
+- **P4.1.3.b** — `_test.go` exemption added to the `deploy-boundary`
+  check in `tools/raccoon-cli/src/analyzers/arch_guard.rs`. Tests
+  asserting on canonical deploy paths is legitimate behaviour;
+  extracting to constants would create indirection just to satisfy
+  a scanner. Commit `6f9efd5`.
+- **P4.1.3.c.i** — Read-only `cmd-boundary` mini-investigation.
+  3 of 4 violations were TYPE-ONLY (composition wiring), 1 was
+  MIXED (a single `execution.ComputeEffectiveMode` call from
+  `cmd/execute/run.go` used for startup logging). Verdict: rule
+  overshoots ADR-0005's "cmd sees everything" and is inconsistent
+  with the application-client public contracts.
+- **P4.1.3.c.ii** — `cmd-boundary` rule refined to flag domain
+  function invocations only, permitting type/constant/struct-literal
+  references. Implementation: text-pattern detection seeded by the
+  codeintel `ProjectIndex` (functions known from the parsed AST).
+  Go side adds `internal/application/executionclient/compute_effective_mode.go`
+  wrapping the domain function; `cmd/execute/run.go` routes through
+  the wrapper. Commit `25839ea`.
+
+Quality-gate-ci error count across the wave:
+**11 → 9 → 7 → 4 → 0**.
+
+First fully-green `make quality-gate-ci` since P3.3 (`5830fc9`).
+
+Process notes:
+
+- The 11 errors were process debt (latent failures surfacing as the
+  workflow-rejection layer cleared), not regressions. The same
+  warnings had been present and unreported for many commits; only
+  the `ci` profile severity promotion made them visible.
+- Two CI jobs remain red as of `25839ea`: **Integration Tests** and
+  **Smoke Analytical E2E**. These pre-existed the Phase 4.1 wave
+  and were surfaced when the SHA-pinning rejection cleared. P4.1.5
+  will investigate (read-only) before any fix attempt.
+
+Institutional knowledge captured in `docs/CONTRIBUTING.md` →
+"Audit and investigation patterns" (P4.1.4).
+
 ### CONTRIBUTING.md expansion + README refresh (Phase 3.9)
 
 **Resolved** by codifying Phase 1+2+3 institutional knowledge in
@@ -686,7 +757,7 @@ Each phase has a clear exit criterion.
 | **Phase 1D** | PR-based governance + G6 resolution | **CLOSED** (root files consolidated, .github/ templates, drift_detect.rs realigned) |
 | **Phase 2** | Environment hardening (CI, Docker, scripts, Makefile cleanup) | **CLOSED** (11 sub-prompts; golangci-lint baseline, Dependabot, CI hardening, Docker contexts, Rust toolchain pinning) |
 | **Phase 3** | Public-repo hygiene (license, security, hooks, editor configs, AI agent automation) | **CLOSED** (2026-05-22; 10 sub-prompts executed, 2 deferred. See "Phase 3 — closed summary" below.) |
-| Phase 4 | TBD — to be scoped after owner's zip-based deep audit | Next |
+| Phase 4 | CI restoration + P0 follow-through deferred from Phase 3 | **IN PROGRESS** (wave 4.1 closed 2026-05-22 — quality gate green; waves 4.2–4.5 ahead) |
 | Phase 5+ | Subsequent waves (feature work; first capabilities likely include backtesting) | Future |
 
 Phase 1A subdivision (status at time of this doc):
@@ -765,25 +836,102 @@ Surprises caught during Phase 3 via pause-and-report:
 
 ## Phase 4 outlook
 
-Phase 3 is closed. The owner's next action is a zip-based deep audit
-in a dedicated session; Phase 4 scope is determined from that audit.
-The candidates below are recommendations to inform the audit, not
-commitments.
+Phase 4 is in progress. The 4.1 wave (CI restoration + quality gate
+cleanup) closed on 2026-05-22 with quality-gate-ci green (commit
+`25839ea`). Subsequent waves address code-side P0 items deferred
+from Phase 3, with read-only investigation interleaved before each
+fix.
 
-### Outstanding work (P0 deferred from Phase 3)
+### Outstanding work (post P4.1)
 
-1. **CI workflow SHA pinning migration**. P3.3 enabled
-   `sha_pinning_required` in repo settings; workflow actions are
-   still tag-pinned (`actions/checkout@v4`, etc.) so CI is currently
-   RED on push. Migrate to SHA refs to restore green CI.
-2. **Dependabot security PRs**. 6 alerts surfaced after P3.3 toggles
-   enabled (3 high, 1 moderate, 2 low). Review and merge.
-3. **Monitor golangci-lint pin drift via Dependabot** (DOC-3 reframe).
-   Previously listed as "CI version pinning needed". Audit verified
-   `.github/workflows/ci.yml:179-182` already pins
-   `version: v2.12.2` matching `.tool-versions`. Real ongoing task:
-   when Dependabot bumps `golangci-lint-action@v6 → @v9`, verify the
-   underlying lint binary version is bumped in lockstep.
+1. **Integration Tests + Smoke Analytical E2E still red** (P4.1.5
+   scope). Pre-existing failures surfaced when the SHA-pinning
+   workflow-rejection layer lifted. Cause unknown — likely
+   environmental or service-container related. Read-only
+   investigation before any fix attempt.
+2. **`rate_limiter` test + `Close` lifecycle** (P0-2 / P4.2). Token-
+   bucket rate limiter in `internal/application/execution/` has no
+   shutdown semantics and no dedicated test. Surfaced in P3.0.
+3. **`context.Background()` propagation in actors** (P0-3 / P4.3).
+   Several actor scopes start background goroutines from
+   `context.Background()` rather than threading a parent context
+   for graceful shutdown.
+4. **Kill switch fail-open decision** (P0-5 / P4.4). When the gate
+   KV is unreachable, current behaviour is fail-open. Decide
+   whether to keep, invert, or split per-segment.
+5. **Dependabot security PRs** (P0-4 / P4.5). 6 alerts open since
+   P3.3 (3 high, 1 moderate, 2 low). Triage and merge.
+
+### Phase 4 design-meta candidates (deferred)
+
+Six architectural questions surfaced during the Phase 4.1 wave.
+Captured here so context isn't lost; not blocking. Each deserves
+a dedicated discussion session when energy returns and the
+tactical P0 work (P4.2–P4.5) has informed the strategic view.
+
+The queue is the artifact; resolution is future work.
+
+#### M1 — Auto-derive `CANONICAL_STREAMS` from Go AST
+
+`tools/raccoon-cli/src/analyzers/drift_detect.rs` mirrors the stream
+catalogue declared in `internal/adapters/nats/natsexecution/registry.go`.
+Drift has hit twice (G6, G6.2) when new streams shipped without the
+mirror being updated. A codegen step deriving `CANONICAL_STREAMS`
+from the Go AST would eliminate the G-class drift surface
+permanently.
+
+#### M2 — `EventSpec.Subject` "prefix as published subject" convention
+
+The `contract-audit` `event-stream-coverage` check treats
+`EventSpec.Subject` as the literal published subject. Several
+publishers (e.g., `PublishExecution`) append context tokens to the
+spec prefix at publish time, so `Subject` is in practice a prefix.
+3 of 4 execution publishers happen to align with their stream
+wildcards by coincidence of prefix lengths; the SessionLifecycle
+event surfaced because it did not. Extend the scanner to understand
+prefix-then-context, removing the latent risk in EventSpecs that
+pass only by happenstance.
+
+#### M3 — Document raccoon-cli profile semantics
+
+The `fast`, `ci`, and `deep` profiles run the same check set; `ci`
+promotes warnings to errors and prefixes them with `[ci]`. The
+mapping is hardcoded in `tools/raccoon-cli/src/gate/mod.rs` with no
+external config and no user-facing documentation. Surface this in
+`tools/raccoon-cli/README.md` or `docs/operations/` so the
+promotion rule is discoverable rather than discovered.
+
+#### M4 — `walk_go_files` doc-vs-reality cleanup
+
+The doc comment on `walk_go_files` in `arch_guard.rs` claims
+"non-test, non-vendor", but the function filters only `vendor/`.
+The test-file filter lives inside `check_deploy_boundary`'s closure
+(P4.1.3.b). Not a bug today (only deploy-boundary calls
+`walk_go_files`), but a trap for future callers. Either align the
+doc with the behaviour or move the filter into `walk_go_files`
+and remove it from the closure.
+
+#### M5 — Application clients exposing domain types in public contracts
+
+`executionclient` and `monitoringclient` return and accept domain
+types directly in their public APIs (e.g.,
+`SessionListReply.Sessions []execution.Session`). This is why `cmd/`
+must import `internal/domain/*` for composition wiring — the
+clients don't hide domain behind DTOs. ADR-0005's "cmd sees
+everything" makes the current state defensible; the question is
+whether an anti-corruption boundary between application and its
+consumers would be net positive (more isolation, more boilerplate,
+more test surface). May spawn a sub-ADR.
+
+#### M6 — ADR-0005 clarification: composition vs invocation
+
+ADR-0005 says "cmd sees everything". P4.1.3.c.ii clarified what
+that means in practice: cmd may reference domain types for
+composition, but should not invoke domain functions directly
+(those are routed through application clients). Add a companion
+note to ADR-0005, or amend it in place, articulating the
+composition-vs-invocation distinction so the refined raccoon-cli
+rule and the ADR speak the same language.
 
 ### Available work (P1/P2, opt-in)
 
