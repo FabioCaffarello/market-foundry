@@ -83,23 +83,24 @@ help: ## Show grouped help and common variables.
 	@printf "  %-24s %s\n" "SMOKE_WAIT=180" "Override wait/flush time for smoke scripts."
 	@printf "  %-24s %s\n" "FLUSH_WAIT=180" "Legacy wait override for analytical/operational/restart smokes."
 
-docs: ## Show primary docs for workflows, targets, and tooling.
-	@printf "Primary docs\n"
-	@printf "  README.md\n"
-	@printf "  DEVELOPMENT.md\n"
-	@printf "  docs/README.md\n"
-	@printf "  docs/product/README.md\n"
-	@printf "  docs/product/owners.md\n"
-	@printf "  docs/development/README.md\n"
-	@printf "  docs/development/owners.md\n"
-	@printf "  docs/development/workflow.md\n"
-	@printf "  docs/development/repository-map.md\n"
-	@printf "  docs/development/commands-and-proofs.md\n"
-	@printf "  docs/development/stages-and-governance.md\n"
-	@printf "  docs/tooling/README.md\n"
-	@printf "  docs/architecture/README.md\n"
-	@printf "  docs/stages/INDEX.md\n"
-	@printf "  docs/archive/README.md\n"
+docs: ## Show entry points to project documentation.
+	@printf "Primary entry points:\n"
+	@printf "  README.md                  Project overview and where-to-start.\n"
+	@printf "  DEVELOPMENT.md             Build, test, run quick-reference.\n"
+	@printf "  CLAUDE.md                  AI assistant operating protocols.\n"
+	@printf "  AGENTS.md                  General agent contributing notes.\n"
+	@printf "\nCanonical docs (in docs/):\n"
+	@printf "  docs/README.md             Documentation index.\n"
+	@printf "  docs/ARCHITECTURE.md       System architecture and layer sovereignty.\n"
+	@printf "  docs/RUNTIME.md            Binaries, streams, durables, ports, subjects.\n"
+	@printf "  docs/HTTP-API.md           Gateway HTTP API surface.\n"
+	@printf "  docs/DEVELOPMENT.md        Detailed development workflow.\n"
+	@printf "  docs/RESUMPTION.md         Current state, recent changes, open gaps.\n"
+	@printf "  docs/CONTRIBUTING.md       PR workflow and contributor protocols.\n"
+	@printf "  docs/GLOSSARY.md           Domain vocabulary.\n"
+	@printf "  docs/domain/README.md      Per-domain canonical docs.\n"
+	@printf "  docs/operations/README.md  Operational runbooks.\n"
+	@printf "  docs/decisions/README.md   Architecture Decision Records (ADRs).\n"
 
 ##@ Core Workflow
 bootstrap: ## Validate local prerequisites and repository entrypoints for the official workflow.
@@ -266,11 +267,11 @@ seed-spot-multi: ## Seed configctl with the Spot multi-symbol configuration.
 	@echo "Seeding configctl (multi-symbol, source=binances)..."
 	@SOURCE=binances ./scripts/seed-configctl.sh --multi-symbol
 
-seed-unified: ## S400: Seed configctl with merged Spot+Futures bindings (single config).
+seed-unified: ## Seed configctl with merged Spot+Futures bindings (single config).
 	@echo "Seeding configctl (unified, sources=binancef+binances)..."
 	@./scripts/seed-configctl.sh --merge
 
-seed-unified-multi: ## S400: Seed configctl with merged Spot+Futures multi-symbol bindings.
+seed-unified-multi: ## Seed configctl with merged Spot+Futures multi-symbol bindings.
 	@echo "Seeding configctl (unified multi-symbol, sources=binancef+binances)..."
 	@./scripts/seed-configctl.sh --merge --multi-symbol
 
@@ -325,15 +326,15 @@ smoke-analytical: ## Canonical specialized proof for the analytical write/read p
 	@echo "Running analytical layer E2E integration proof..."
 	@./scripts/smoke-analytical-e2e.sh
 
-smoke-round-trip: ## S317: Full persistence round-trip proof (adapter → NATS → ClickHouse → HTTP).
+smoke-round-trip: ## Full persistence round-trip proof (adapter → NATS → ClickHouse → HTTP).
 	@echo "Running full persistence round-trip smoke (S317)..."
 	@./scripts/smoke-round-trip.sh
 
-smoke-live-stack: ## Canonical live stack smoke: venue path + persistence + composite + kill-switch (S335).
+smoke-live-stack: ## Canonical live stack smoke: venue path + persistence + composite + kill-switch.
 	@echo "Running canonical live stack smoke (S335)..."
 	@./scripts/smoke-live-stack.sh
 
-smoke-activation: ## S340+S341+S342+S343: Activation smoke — acceptance transitions + controlled live path + extended observation.
+smoke-activation: ## Activation smoke — acceptance transitions + controlled live path + extended observation.
 	@echo "Running activation smoke (S340+S341+S342+S343)..."
 	@./scripts/smoke-activation.sh
 
@@ -341,7 +342,7 @@ smoke-operational: ## Canonical specialized proof for OS-process/container opera
 	@echo "Running OS-process operational smoke (S279)..."
 	@./scripts/smoke-os-process-operational.sh
 
-smoke-composed: ## S330: Composed pipeline operational smoke (no stack needed).
+smoke-composed: ## Composed pipeline operational smoke (no stack needed).
 	@echo "Running composed pipeline smoke (S330)..."
 	@./scripts/smoke-composed-pipeline.sh
 
@@ -349,63 +350,63 @@ smoke-restart-recovery: ## Canonical specialized proof for restart/recovery beha
 	@echo "Running restart and recovery smoke..."
 	@./scripts/smoke-restart-recovery.sh
 
-smoke-compose-wiring: ## S372: Compose-level orchestration wiring validation (boot, streams, consumers, connectivity).
+smoke-compose-wiring: ## Compose-level orchestration wiring validation (boot, streams, consumers, connectivity).
 	@echo "Running compose-level wiring validation (S372)..."
 	@./scripts/smoke-compose-wiring.sh
 
-smoke-e2e-multi-binary: ## S373: End-to-end multi-binary pipeline proof (derive→NATS→execute→store→gateway).
+smoke-e2e-multi-binary: ## End-to-end multi-binary pipeline proof (derive→NATS→execute→store→gateway).
 	@echo "Running end-to-end multi-binary pipeline proof (S373)..."
 	@./scripts/smoke-e2e-multi-binary.sh
 
-smoke-failure-isolation: ## S374: Multi-binary failure isolation proof (restart one, others survive).
+smoke-failure-isolation: ## Multi-binary failure isolation proof (restart one, others survive).
 	@echo "Running multi-binary failure isolation proof (S374)..."
 	@./scripts/smoke-failure-isolation-multi-binary.sh
 
-smoke-live-listening: ## S378: Compose live exchange listening proof (real trades, paper mode).
+smoke-live-listening: ## Compose live exchange listening proof (real trades, paper mode).
 	@echo "Running compose live exchange listening proof (S378)..."
 	@./scripts/smoke-live-exchange-listening.sh
 
-smoke-live-dry-run: ## S380: End-to-end live-listen + dry-run proof (live data → dry-run fill → read/explain).
+smoke-live-dry-run: ## End-to-end live-listen + dry-run proof (live data → dry-run fill → read/explain).
 	@echo "Running end-to-end live-listen + dry-run proof (S380)..."
 	@./scripts/smoke-e2e-live-listen-dry-run.sh
 
-smoke-segmented-compose: ## S394: Compose-level segmented Binance proof (Futures/Spot configs, dry-run, segment isolation).
+smoke-segmented-compose: ## Compose-level segmented Binance proof (Futures/Spot configs, dry-run, segment isolation).
 	@echo "Running segmented compose proof (S394)..."
 	@./scripts/smoke-segmented-compose.sh
 
-smoke-spot-ingest: ## S397: Spot ingest binding seed and runtime projection validation.
+smoke-spot-ingest: ## Spot ingest binding seed and runtime projection validation.
 	@echo "Running Spot ingest binding seed proof (S397)..."
 	@./scripts/smoke-spot-ingest-binding.sh
 
-smoke-unified-coexistence: ## S402: Single-compose coexistence proof (Spot+Futures unified config, dry-run, isolation).
+smoke-unified-coexistence: ## Single-compose coexistence proof (Spot+Futures unified config, dry-run, isolation).
 	@echo "Running single-compose coexistence proof (S402)..."
 	@./scripts/smoke-unified-coexistence.sh
 
-smoke-spot-venue-live: ## S405: Spot real venue acceptance/fill proof (unit tests, no compose needed).
+smoke-spot-venue-live: ## Spot real venue acceptance/fill proof (unit tests, no compose needed).
 	@echo "Running Spot real venue acceptance/fill proof (S405)..."
 	@./scripts/smoke-spot-venue-live.sh
 
-smoke-futures-venue-live: ## S416: Futures real venue acceptance/fill proof (unit tests, no compose needed).
+smoke-futures-venue-live: ## Futures real venue acceptance/fill proof (unit tests, no compose needed).
 	@echo "Running Futures real venue acceptance/fill proof (S416)..."
 	@./scripts/smoke-futures-venue-live.sh
 
-smoke-e2e-unified-spot: ## S408: Unified compose E2E proof for Spot segment. Requires: make up && make seed-unified
+smoke-e2e-unified-spot: ## Unified compose E2E proof for Spot segment. Requires: make up && make seed-unified
 	@echo "Running unified compose E2E proof for Spot segment (S408)..."
 	@./scripts/smoke-e2e-unified-spot.sh
 
-smoke-e2e-unified-futures: ## S419: Unified compose E2E proof for Futures segment. Requires: make up && make seed-unified
+smoke-e2e-unified-futures: ## Unified compose E2E proof for Futures segment. Requires: make up && make seed-unified
 	@echo "Running unified compose E2E proof for Futures segment (S419)..."
 	@./scripts/smoke-e2e-unified-futures.sh
 
-smoke-endurance-soak: ## S412: Endurance soak and persistence hardening proof. Phases 1-4: no compose. Phases 5-8: make up && make seed-unified
+smoke-endurance-soak: ## Endurance soak and persistence hardening proof. Phases 1-4: no compose. Phases 5-8: make up && make seed-unified
 	@echo "Running endurance soak and persistence hardening proof (S412)..."
 	@./scripts/smoke-endurance-soak.sh
 
-smoke-runtime-preflight: ## S419: Consolidated runtime smoke & Futures preflight (stackless). No compose needed.
+smoke-runtime-preflight: ## Consolidated runtime smoke & Futures preflight (stackless). No compose needed.
 	@echo "Running consolidated runtime smoke & Futures preflight (S419)..."
 	@./scripts/smoke-unified-runtime-preflight.sh
 
-smoke-backup-restore: ## S435: ClickHouse backup/restore proof. Requires ClickHouse running.
+smoke-backup-restore: ## ClickHouse backup/restore proof. Requires ClickHouse running.
 	@echo "Running ClickHouse backup/restore proof (S435)..."
 	@$(LOAD_LOCAL_ENV) \
 	./scripts/smoke-clickhouse-backup-restore.sh
@@ -532,12 +533,12 @@ ch-backup-auto: ## Automated backup + off-host replication. Set BACKUP_OFFHOST_T
 	@$(LOAD_LOCAL_ENV) \
 	./scripts/clickhouse-scheduled-backup.sh
 
-smoke-backup-offhost: ## S440: Automated backup + off-host replication proof. Requires ClickHouse running.
+smoke-backup-offhost: ## Automated backup + off-host replication proof. Requires ClickHouse running.
 	@echo "Running automated backup + off-host replication proof (S440)..."
 	@$(LOAD_LOCAL_ENV) \
 	./scripts/smoke-automated-backup-offhost.sh
 
 ##@ Post-Operation Verification
-po-verify: ## S461: Run automated PO checks. SESSION_ID=<id> --json --save
+po-verify: ## Run automated PO checks. SESSION_ID=<id> --json --save
 	@$(LOAD_LOCAL_ENV) \
 	./scripts/po-verify.sh $(if $(SESSION_ID),--session-id $(SESSION_ID),) $(PO_FLAGS)
