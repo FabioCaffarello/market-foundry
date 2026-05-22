@@ -1,6 +1,10 @@
 package execution
 
-import "internal/shared/events"
+import (
+	"time"
+
+	"internal/shared/events"
+)
 
 // ── Paper Family Events ──────────────────────────────────────────
 //
@@ -85,3 +89,52 @@ type VenueOrderRejectedEvent struct {
 
 func (e VenueOrderRejectedEvent) EventName() events.Name         { return EventVenueOrderRejected }
 func (e VenueOrderRejectedEvent) EventMetadata() events.Metadata { return e.Metadata }
+
+// ── Session Lifecycle Events ────────────────────────────────────
+//
+// Owner: execute binary.
+// Stream: SESSION_LIFECYCLE_EVENTS (execution.session.lifecycle.{status}).
+// Consumers: gateway (verification trigger).
+//
+// S490: SessionLifecycleEvent is published when a session transitions to a
+// terminal state (closed, halted), triggering automated verification
+// downstream. Unlike the Paper/Venue families above, this event does not
+// flow through the in-process Event dispatcher — it is published directly
+// to JetStream by the execute binary and consumed by gateway. It therefore
+// implements only EventName() to satisfy registry alignment; Metadata is
+// not currently carried (correlation IDs flow via the consumer trigger
+// path, not the event payload).
+
+const (
+	// EventSessionLifecycle is emitted by execute when a session reaches a terminal status.
+	EventSessionLifecycle events.Name = "session_lifecycle"
+)
+
+// SessionLifecycleEvent is published when a session transitions to a terminal state.
+// S490: Event-driven trigger for automated verification.
+type SessionLifecycleEvent struct {
+	// Metadata carries correlation/causation IDs when available. The session
+	// terminator currently publishes without a correlation context; consumers
+	// tolerate a zero Metadata. Reserved for future end-to-end tracing.
+	Metadata events.Metadata `json:"metadata"`
+
+	SessionID  string        `json:"session_id"`
+	Status     SessionStatus `json:"status"`
+	Operator   string        `json:"operator,omitempty"`
+	HaltReason string        `json:"halt_reason,omitempty"`
+	ClosedAt   time.Time     `json:"closed_at"`
+
+	// Config snapshot for routing and scope derivation.
+	VenueType string   `json:"venue_type"`
+	DryRun    bool     `json:"dry_run"`
+	Segments  []string `json:"segments,omitempty"`
+}
+
+func (e SessionLifecycleEvent) EventName() events.Name         { return EventSessionLifecycle }
+func (e SessionLifecycleEvent) EventMetadata() events.Metadata { return e.Metadata }
+
+// DeduplicationKey returns a unique key for JetStream message deduplication.
+// One event per session per terminal status transition.
+func (e SessionLifecycleEvent) DeduplicationKey() string {
+	return "session-lifecycle:" + e.SessionID + ":" + string(e.Status)
+}

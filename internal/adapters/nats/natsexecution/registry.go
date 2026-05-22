@@ -175,11 +175,14 @@ func DefaultRegistry() Registry {
 			Subject: "execution.session.lifecycle",
 			Type:    "execution.session.v1.lifecycle",
 			Stream: natskit.StreamSpec{
-				Name:     "SESSION_LIFECYCLE_EVENTS",
-				Subjects: []string{"execution.session.lifecycle.>"},
+				Name: "SESSION_LIFECYCLE_EVENTS",
+				// Filter includes the base subject for spec/stream consistency
+				// plus the producer pattern. publisher.go PublishSessionLifecycle
+				// always appends `.{status}`; the base is not actively published.
+				Subjects: []string{"execution.session.lifecycle", "execution.session.lifecycle.>"},
 				Storage:  jetstream.FileStorage,
-				MaxAge:   168 * time.Hour,          // 7 days — verification can run late
-				MaxBytes: 16 * 1024 * 1024,         // 16 MB — small events, bounded count
+				MaxAge:   168 * time.Hour,  // 7 days — verification can run late
+				MaxBytes: 16 * 1024 * 1024, // 16 MB — small events, bounded count
 			},
 		},
 
