@@ -193,9 +193,8 @@ func TestS373_MultiBinaryPipeline_DeriveToExecuteToFill(t *testing.T) {
 	if strategyTracker.Counter("evaluated_actionable").Load() < 1 {
 		t.Fatalf("[S373-MB-1] strategy consumer evaluated_actionable < 1")
 	}
-	if adapterTracker.Counter("filled").Load() < 1 {
-		t.Fatalf("[S373-MB-1] venue adapter filled < 1")
-	}
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), 1, 2*time.Second,
+		"[S373-MB-1] venue adapter filled < 1")
 
 	t.Logf("[S373-MB-1] fill: venue_order_id=%s side=%s status=%s simulated=%v",
 		fill.VenueOrderID, fill.ExecutionIntent.Side, fill.ExecutionIntent.Status,

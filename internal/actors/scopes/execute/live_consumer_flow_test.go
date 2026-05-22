@@ -309,15 +309,15 @@ func TestLiveConsumerFlow_RealSupervisorDeliversToActor(t *testing.T) {
 	t.Logf("[consumer-tracker] events=%d", consumerEvents)
 
 	// === VALIDATE: Health tracker metrics (adapter side) ===
-	processedCount := adapterTracker.Counter("processed").Load()
-	filledCount := adapterTracker.Counter("filled").Load()
-	if processedCount < 1 {
-		t.Fatalf("[adapter-tracker] expected processed >= 1, got %d", processedCount)
-	}
-	if filledCount < 1 {
-		t.Fatalf("[adapter-tracker] expected filled >= 1, got %d", filledCount)
-	}
-	t.Logf("[adapter-tracker] processed=%d filled=%d", processedCount, filledCount)
+	// Counters are set by the actor goroutine AFTER PublishFill returns; the
+	// NATS subscriber callback above can unblock the test before the actor
+	// reaches the Add(1). Eventually-poll over synchronous reads.
+	eventuallyAtLeast(t, adapterTracker.Counter("processed"), 1, 2*time.Second,
+		"[adapter-tracker] expected processed >= 1")
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), 1, 2*time.Second,
+		"[adapter-tracker] expected filled >= 1")
+	t.Logf("[adapter-tracker] processed=%d filled=%d",
+		adapterTracker.Counter("processed").Load(), adapterTracker.Counter("filled").Load())
 
 	// === VALIDATE: Fill event Metadata.ID is unique ===
 	if fill.Metadata.ID == "" {
@@ -413,9 +413,8 @@ func TestLiveConsumerFlow_ConsumerRestartPreservesDurableState(t *testing.T) {
 	}
 	t.Logf("[phase 2] fill received after restart: %s", fill2.VenueOrderID)
 
-	if tracker2.Counter("filled").Load() < 1 {
-		t.Fatalf("phase 2: expected filled >= 1, got %d", tracker2.Counter("filled").Load())
-	}
+	eventuallyAtLeast(t, tracker2.Counter("filled"), 1, 2*time.Second,
+		"phase 2: expected filled >= 1")
 
 	t.Log("[s333/LF-2] PASS — durable consumer resumes after supervisor restart")
 }
@@ -562,10 +561,9 @@ func TestLiveConsumerFlow_MultipleEventsProcessedSequentially(t *testing.T) {
 		}
 	}
 
-	// Verify tracker counts.
-	if adapterTracker.Counter("filled").Load() < int64(eventCount) {
-		t.Fatalf("[adapter] expected filled >= %d, got %d", eventCount, adapterTracker.Counter("filled").Load())
-	}
+	// Verify tracker counts (eventually — counter trails NATS fill publish).
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), int64(eventCount), 2*time.Second,
+		fmt.Sprintf("[adapter] expected filled >= %d", eventCount))
 	t.Logf("[adapter] processed=%d filled=%d", adapterTracker.Counter("processed").Load(), adapterTracker.Counter("filled").Load())
 
 	t.Log("[s333/LF-4] PASS — multiple events processed through real actor pipeline")

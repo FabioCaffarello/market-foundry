@@ -240,15 +240,15 @@ func TestEndToEndSlice_StrategyEventProducesFillThroughRealSupervisor(t *testing
 		strategyTracker.Counter("received").Load(), evaluated, actionable)
 
 	// === Health tracker evidence: venue adapter ===
-	processedCount := adapterTracker.Counter("processed").Load()
-	filledCount := adapterTracker.Counter("filled").Load()
-	if processedCount < 1 {
-		t.Fatalf("[E2E-1/tracker] adapter processed < 1: %d", processedCount)
-	}
-	if filledCount < 1 {
-		t.Fatalf("[E2E-1/tracker] adapter filled < 1: %d", filledCount)
-	}
-	t.Logf("[E2E-1/tracker] adapter: processed=%d filled=%d", processedCount, filledCount)
+	// Counters are set by the actor goroutine AFTER PublishFill returns; the
+	// NATS subscriber callback above can unblock the test before the actor
+	// reaches the Add(1). Eventually-poll over synchronous reads.
+	eventuallyAtLeast(t, adapterTracker.Counter("processed"), 1, 2*time.Second,
+		"[E2E-1/tracker] adapter processed < 1")
+	eventuallyAtLeast(t, adapterTracker.Counter("filled"), 1, 2*time.Second,
+		"[E2E-1/tracker] adapter filled < 1")
+	t.Logf("[E2E-1/tracker] adapter: processed=%d filled=%d",
+		adapterTracker.Counter("processed").Load(), adapterTracker.Counter("filled").Load())
 
 	t.Log("[s362/E2E-1] PASS — full domain-to-venue vertical slice proven: strategy → actor → fill → NATS")
 }
