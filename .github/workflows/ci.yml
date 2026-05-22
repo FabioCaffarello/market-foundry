@@ -100,18 +100,25 @@ jobs:
         # (no `command:` / `args:` keys). Using `docker run` lets us pass
         # `-js` to the entrypoint to enable JetStream, which
         # `internal/adapters/nats/natsexecution`'s KV usage requires.
+        #
+        # `--network host` (not `-p HOST:CONTAINER`) because GHA
+        # ubuntu-latest runners don't reliably surface published ports
+        # on the runner's localhost — `services:` does that networking
+        # implicitly; raw `docker run -p` does not. Host networking
+        # binds the container directly to the runner's namespace.
         run: |
           set -x
           docker pull nats:2.10.18-alpine
           docker run -d --name nats \
-            -p 4222:4222 \
-            -p 8222:8222 \
+            --network host \
             nats:2.10.18-alpine \
             -js
           docker ps --filter name=nats
-          # Wait for NATS readiness. Use curl with explicit --max-time so a
-          # probe cannot exceed 2 seconds. Wall-clock budget: 15 × 2s probe
-          # + 15 × 2s sleep ≤ 60 seconds.
+          # Brief grace before probing (NATS startup is ~5ms but the
+          # docker create + start chain can lag by a second).
+          sleep 2
+          # Wait for NATS readiness. curl --max-time 2 hard-bounds each
+          # probe; loop wall-clock ≤ 60s.
           for i in $(seq 1 15); do
             if curl -fsS --max-time 2 http://127.0.0.1:8222/healthz >/dev/null 2>&1; then
               echo "NATS ready after ${i} polls"
@@ -119,9 +126,28 @@ jobs:
             fi
             sleep 2
           done
-          echo "NATS failed to become ready within 60 seconds"
-          docker ps -a --filter name=nats
-          docker logs nats || true
+
+          echo "=== NATS failed to become ready within 60 seconds. Diagnostics: ==="
+          echo ""
+          echo "--- docker ps --filter name=nats ---"
+          docker ps --filter name=nats || true
+          echo ""
+          echo "--- docker logs nats (tail 40) ---"
+          docker logs --tail 40 nats || true
+          echo ""
+          echo "--- docker inspect nats (network) ---"
+          docker inspect nats --format '{{json .HostConfig.NetworkMode}}' || true
+          docker inspect nats --format '{{json .NetworkSettings}}' || true
+          echo ""
+          echo "--- Ports listening on runner ---"
+          ss -tlnp 2>/dev/null | head -20 || netstat -tlnp 2>/dev/null | head -20 || true
+          echo ""
+          echo "--- Verbose curl probe (one attempt) ---"
+          set +e
+          curl -v --max-time 3 http://127.0.0.1:8222/healthz 2>&1 | head -20
+          curl_rc=$?
+          set -e
+          echo "curl exit code: $curl_rc"
           exit 1
 
       - name: Run integration tests (NATS via docker run)
