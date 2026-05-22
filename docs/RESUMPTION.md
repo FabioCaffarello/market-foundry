@@ -66,9 +66,9 @@ deployment, not just local default.
 The handler also requires a `SourcePathConfigProvider` implementation;
 no concrete implementation exists in the repository today.
 
-**Source:** documented as gap WG-1 in
-`docs/legacy/architecture/strategy-signal-integration-evidence-matrix-residual-gaps-and-next-ceremony.md`.
-The doc is in legacy; the gap is still real.
+**Source:** originally documented as gap WG-1 in the pre-reset
+strategy-signal integration evidence matrix (retired in P2.Y; recoverable
+via `git log`). The gap itself is still real.
 
 **Fix:** in `cmd/gateway/` (likely `compose.go`), provide a
 `SourcePathConfigProvider` implementation and call
@@ -200,6 +200,40 @@ archaeology.
 
 ## Recently resolved
 
+### `docs/legacy/` removed definitively (Phase 2.Y)
+
+**Resolved** by `git rm -rf docs/legacy/` and updating active
+cross-references. The 1712 files preserved under the original
+"C+Y+Q — preserve legacy in-repo" decision were deleted; owner chose
+no tag and no archive branch, trusting `git log` for recovery.
+
+Cumulative consultation rate of legacy material during Phases 1A
+through 2.X.1 was zero, demonstrating documental sufficiency of the
+new topology. Removing the tree also takes ~17 MB off git operations,
+IDE indexing, and GitHub web UI.
+
+Cross-references corrected in the same commit:
+
+- `scripts/bootstrap-check.sh` — `required_paths` array realigned from
+  15 legacy entries to the current Phase 1A topology (root docs + the
+  three subdir READMEs). The "Next Steps" tail message also updated.
+  This was the **10th instance** of the stale-validation-infrastructure
+  pattern observed since the reset (`.opencode/`, the original 500-line
+  `repository-consistency-check.sh`, `AGENTS.md`, root `DEVELOPMENT.md`,
+  root `README.md`, CI workflow blast-radius visibility,
+  `raccoon-cli drift_detect.rs` const tables, `scripts/stage-tooling.sh`,
+  the 4 orphan P2.X.1 smokes, and now `bootstrap-check.sh`).
+- `scripts/repository-consistency-check.sh` — narrative comment.
+- `tools/raccoon-cli/src/analyzers/drift_detect.rs` — 2 rustdoc comments.
+- `deploy/configs/execute-mainnet-live.jsonc` — removed dangling
+  `// See: docs/legacy/...` pointer (authorized scope expansion).
+- `docs/RESUMPTION.md`, `docs/DEVELOPMENT.md`, `CLAUDE.md`, `AGENTS.md`,
+  `README.md` — narrative refs and reading-map rows.
+
+For any future need to inspect pre-reset material, use
+`git log -- docs/legacy/<path>` or `git show <SHA>:docs/legacy/<path>`
+against the parent of the P2.Y commit.
+
 ### G6 — `raccoon-cli drift-detect` against old topology (Phase 1D.4)
 
 **Resolved** by rewriting 6 const tables in
@@ -208,7 +242,7 @@ Phase 1A topology:
 
 - `SIGNAL_DOCS`, `DECISION_DOCS`, `STRATEGY_DOCS`, `RISK_DOCS`,
   `EXECUTION_DOCS` collapsed from 7–30 paths each (pre-reset granular
-  family architecture design docs that moved to `docs/legacy/`) to
+  family architecture design docs, retired in P1A.1) to
   1 path each (`docs/domain/<x>.md`).
 - `ARCH_DOCS` rewritten from 27 pre-reset arch docs to 8 canonical
   root docs (`docs/ARCHITECTURE.md`, `docs/RUNTIME.md`,
@@ -252,9 +286,9 @@ cross-refs") was inaccurate. P1B uncovered the truth in three layers:
 2. **`scripts/repository-consistency-check.sh`** had ~7 checks failing
    because the script was hardcoded against the pre-reset docs topology
    (`docs/product/`, `docs/architecture/`, `docs/development/`,
-   `docs/stages/`, `docs/archive/`, `docs/tooling/`) which moved to
-   `docs/legacy/` in P1A.1. The script was never updated during Phase
-   1A because the failure was misattributed to `.opencode/`.
+   `docs/stages/`, `docs/archive/`, `docs/tooling/`) which was
+   restructured in P1A.1. The script was never updated during Phase 1A
+   because the failure was misattributed to `.opencode/`.
    **Resolved** in P1B by replacement with a minimal stub aligned with
    the current Phase 1A topology (`scripts/repository-consistency-check.sh`,
    ~100 lines).
@@ -358,8 +392,8 @@ Phase 1A subdivision (status at time of this doc):
 
 | Sub-phase | Goal | Status |
 |---|---|---|
-| P1A.1 | Move docs/ → docs/legacy/ + new scaffolding | Done |
-| P1A.2 | docs/README, docs/legacy/README, docs/GLOSSARY | Done |
+| P1A.1 | Restructure docs/ topology + new scaffolding (legacy tree later retired in P2.Y) | Done |
+| P1A.2 | docs/README, docs/GLOSSARY | Done |
 | P1A.3 | docs/ARCHITECTURE.md | Done |
 | P1A.4a | Runtime inventory (read-only, /tmp) | Done |
 | P1A.4b | docs/RUNTIME.md | Done |

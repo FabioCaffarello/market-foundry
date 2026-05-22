@@ -4,13 +4,12 @@
 #
 # The previous 500+ line implementation was tied to the pre-reset topology
 # (docs/product/, docs/architecture/, docs/development/, docs/stages/,
-# docs/archive/, docs/tooling/) which was moved to docs/legacy/ in P1A.1.
-# That stale script reported 9 failing checks for 17 prompts; only 1 of
-# the 9 was actually about .opencode/. The other 8 were the script itself
-# pinned to paths that no longer existed. See docs/RESUMPTION.md G3.
+# docs/archive/, docs/tooling/). That stale script reported 9 failing
+# checks for 17 prompts; only 1 of the 9 was actually about .opencode/.
+# The other 8 were the script itself pinned to paths that no longer
+# existed. See docs/RESUMPTION.md G3.
 #
-# This stub validates the current Phase 1A docs topology. A full rewrite
-# of the consistency-check infrastructure is deferred to P1D.
+# This stub validates the current Phase 1A docs topology.
 
 set -euo pipefail
 
@@ -22,9 +21,9 @@ usage() {
     cat <<'EOF'
 Usage: ./scripts/repository-consistency-check.sh [--help]
 
-Runs lightweight checks aligned with the Phase 1A documentation topology:
+Runs lightweight checks aligned with the current documentation topology:
   - root-level docs/*.md entrypoints present
-  - docs/ subdirectories present
+  - docs/decisions/, docs/domain/, docs/operations/ subdirectories present
   - minimum population in decisions/, domain/, operations/
   - no WIP markers leaking into finished root docs
 EOF
@@ -86,7 +85,7 @@ for doc in README ARCHITECTURE RUNTIME HTTP-API DEVELOPMENT RESUMPTION CONTRIBUT
 done
 
 # Subdirectories (Phase 1A)
-for sub in decisions domain operations legacy; do
+for sub in decisions domain operations; do
     check "subdir docs/${sub}/" "" check_dir_exists "docs/${sub}"
 done
 

@@ -60,22 +60,18 @@ required_paths=(
     "Makefile"
     "README.md"
     "DEVELOPMENT.md"
+    "CLAUDE.md"
     "docs/README.md"
-    "docs/legacy/product/README.md"
-    "docs/legacy/product/owners.md"
-    "docs/legacy/product/system-overview.md"
-    "docs/legacy/development/README.md"
-    "docs/legacy/development/owners.md"
-    "docs/legacy/development/workflow.md"
-    "docs/legacy/development/repository-map.md"
-    "docs/legacy/development/commands-and-proofs.md"
-    "docs/legacy/development/stages-and-governance.md"
-    "docs/legacy/operations/README.md"
-    "docs/legacy/tooling/README.md"
-    "docs/legacy/architecture/README.md"
-    "docs/legacy/architecture/information-system-governance-and-classification.md"
-    "docs/legacy/stages/INDEX.md"
-    "docs/legacy/archive/README.md"
+    "docs/ARCHITECTURE.md"
+    "docs/RUNTIME.md"
+    "docs/HTTP-API.md"
+    "docs/DEVELOPMENT.md"
+    "docs/RESUMPTION.md"
+    "docs/CONTRIBUTING.md"
+    "docs/GLOSSARY.md"
+    "docs/domain/README.md"
+    "docs/operations/README.md"
+    "docs/decisions/README.md"
     "deploy/compose/docker-compose.yaml"
     "deploy/envs/local.env"
     "tools/raccoon-cli/Cargo.toml"
@@ -124,6 +120,7 @@ Troubleshooting first steps:
   - make logs SERVICE=gateway
 
 Canonical lifecycle docs:
-  - docs/legacy/development/workflow.md
-  - docs/legacy/development/commands-and-proofs.md
+  - docs/DEVELOPMENT.md
+  - docs/RESUMPTION.md
+  - docs/CONTRIBUTING.md
 EOF

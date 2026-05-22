@@ -11,7 +11,6 @@
   //
   // WARNING: THIS CONFIG SUBMITS REAL ORDERS ON MAINNET.
   // Do NOT use this config without completing the full pre-session checklist.
-  // See: docs/legacy/architecture/live-trading-enablement-scope-constraints-stop-conditions-and-non-goals.md
   //
   // Required pre-session:
   //   1. Kill-switch cycle test passes (kill-switch-ops.sh cycle)

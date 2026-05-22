@@ -23,8 +23,8 @@ For human contributors, see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 Previously, `AGENTS.md` carried operational instructions and references
 to the pre-reset documentation topology (`docs/architecture/*`,
-`docs/tooling/*`, etc.). After the Phase 1A documentation reset, those
-paths moved to `docs/legacy/...` and the references became stale.
+`docs/tooling/*`, etc.). After the Phase 1A documentation reset those
+references became stale.
 
 Rather than maintain two parallel documents (AGENTS.md and CLAUDE.md)
 that would drift apart, this file is now a shim pointing to the

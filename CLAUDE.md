@@ -213,4 +213,3 @@ protocol".
 | Architecture decisions | [docs/decisions/](docs/decisions/README.md) |
 | Domain deep dives | [docs/domain/](docs/domain/README.md) |
 | Terminology | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
-| Historical material | [docs/legacy/](docs/legacy/README.md) |

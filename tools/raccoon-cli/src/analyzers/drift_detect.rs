@@ -37,8 +37,8 @@ const CANONICAL_STREAMS: &[&str] = &[
 const DEFUNCT_NAMES: &[&str] = &["emulator", "validator"];
 
 /// Canonical root-level docs that must exist (Phase 1A topology).
-/// Pre-reset docs/architecture/* design docs moved to docs/legacy/architecture/
-/// in P1A.1 (commit 407c723); active surface is now the consolidated root files.
+/// Pre-reset docs/architecture/* design docs were retired in P1A.1
+/// (commit 407c723); active surface is the consolidated root files.
 const ARCH_DOCS: &[&str] = &[
     "docs/ARCHITECTURE.md",
     "docs/RUNTIME.md",
@@ -57,8 +57,8 @@ const PROHIBITED_STREAMS: &[(&str, &str)] = &[(
 )];
 
 /// Active signal-domain doc (Phase 1A topology). Per-family design docs
-/// moved to docs/legacy/architecture/ in P1A.1; consolidated into one
-/// domain doc per Phase 1A.6.
+/// were retired in P1A.1 and consolidated into one domain doc per
+/// Phase 1A.6.
 const SIGNAL_DOCS: &[&str] = &["docs/domain/signal.md"];
 
 /// Expected signal NATS subjects that must exist in source.

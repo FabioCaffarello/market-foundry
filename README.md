@@ -72,7 +72,6 @@ New to the project? Read these in order:
 | Architecture decisions | [docs/decisions/README.md](docs/decisions/README.md) |
 | Domain deep dives | [docs/domain/README.md](docs/domain/README.md) |
 | Terminology | [docs/GLOSSARY.md](docs/GLOSSARY.md) |
-| Historical material | [docs/legacy/README.md](docs/legacy/README.md) |
 | AI agent instructions | [CLAUDE.md](CLAUDE.md) |
 
 ## Contributing

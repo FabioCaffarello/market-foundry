@@ -306,7 +306,7 @@ naming, doc topology). Most failures are:
 
 - Broken Markdown link in a doc that was moved
 - Reference to an old path (e.g., `docs/architecture/...` when the
-  doc has moved to `docs/legacy/architecture/...`)
+  doc has been retired and consolidated into a root-level doc)
 - Stage report not indexed
 
 Read the actual error message — `raccoon-cli` is usually specific.
