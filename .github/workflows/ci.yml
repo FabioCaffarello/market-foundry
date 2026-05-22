@@ -112,7 +112,7 @@ jobs:
           docker run -d --name nats \
             --network host \
             nats:2.10.18-alpine \
-            -js
+            -js -m 8222
           docker ps --filter name=nats
           # Brief grace before probing (NATS startup is ~5ms but the
           # docker create + start chain can lag by a second).
