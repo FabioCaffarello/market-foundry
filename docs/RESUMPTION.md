@@ -7,7 +7,15 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Phase 1D closed — G6 resolved (raccoon-cli drift_detect.rs aligned with Phase 1A topology); `make verify` PASSES for the first time since P1A.1**.
+Last meaningful state change: **Phase 3 CLOSED (2026-05-22)** — 10
+sub-prompts executed (P3.0–P3.10, including P3.5.safety), 2 retired
+or deferred (P3.6, P3.5.cleanup). Repository is public, non-commercial
+licensed (PolyForm NC 1.0.0), with branch protection, security
+toggles, lefthook hooks, editor configs, populated `.claude/`
+automation, and a substantially expanded `docs/CONTRIBUTING.md`.
+`make verify` GREEN locally; CI is currently RED due to P3.3's
+SHA-pinning enforcement on still-tag-pinned workflow actions —
+first task for Phase 4. See "Phase 4 outlook" below.
 
 ---
 
@@ -675,9 +683,10 @@ Each phase has a clear exit criterion.
 | **Phase 1B** | Exterminate `.opencode/` | **CLOSED** (G6 escalated; see Recently resolved) |
 | **Phase 1C** | Build `.claude/` agentic layer | **CLOSED** (CLAUDE.md + .claude/ structure built) |
 | **Phase 1D** | PR-based governance + G6 resolution | **CLOSED** (root files consolidated, .github/ templates, drift_detect.rs realigned) |
-| Phase 2 | Environment hardening (CI, Docker, scripts, Makefile cleanup) | Pending — next |
-| Phase 3 | First feature wave (most likely: backtesting — see N1) | Future |
-| Phase 4+ | Subsequent waves (PnL aggregation, multi-exchange, etc.) | Future |
+| **Phase 2** | Environment hardening (CI, Docker, scripts, Makefile cleanup) | **CLOSED** (11 sub-prompts; golangci-lint baseline, Dependabot, CI hardening, Docker contexts, Rust toolchain pinning) |
+| **Phase 3** | Public-repo hygiene (license, security, hooks, editor configs, AI agent automation) | **CLOSED** (2026-05-22; 10 sub-prompts executed, 2 deferred. See "Phase 3 — closed summary" below.) |
+| Phase 4 | TBD — to be scoped after owner's zip-based deep audit | Next |
+| Phase 5+ | Subsequent waves (feature work; first capabilities likely include backtesting) | Future |
 
 Phase 1A subdivision (status at time of this doc):
 
@@ -697,28 +706,104 @@ Phase 1A subdivision (status at time of this doc):
 | P1A.8 | Initial ADRs under docs/decisions/ | Done |
 | P1A.9 | docs/CONTRIBUTING.md | Done |
 
+### Phase 3 — closed summary
+
+Goal: engineering excellence for solo dev + Claude Code in a public
+repo.
+
+| Sub-phase | Status | Outcome |
+|---|---|---|
+| P3.0 | ✓ | Environment audit (1345 lines, 13 sections) |
+| P3.1 | ✓ | LICENSE (PolyForm NC 1.0.0) + SECURITY.md |
+| P3.2 | ✓ | .gitignore hardened (17 → 184 lines, 6 categories) |
+| P3.3 | ✓ partial | Branch protection + security toggles; fork lockdown blocked by GitHub personal-tier policy (mitigated by `collaborators_only` PR policy + LICENSE) |
+| P3.4 | ✓ | lefthook + custom shell `commit-msg` validator |
+| P3.5.safety | ✓ | 7 shellcheck SC2086/SC2206 fixes; P3.0 "missing set -e" finding retracted (all 41 scripts already had `set -euo pipefail`) |
+| P3.7 | ✓ | `.editorconfig`, `.gitattributes`, `.tool-versions` |
+| P3.8 | ✓ | `.claude/` commands (5) + agent templates (2) |
+| P3.9 | ✓ | `docs/CONTRIBUTING.md` expansion ("For AI agents — institutional knowledge"); README refresh |
+| P3.10 | ✓ | Closing audit + this RESUMPTION refresh |
+| P3.5.cleanup | ⏿ | Deferred (cosmetic — 28 minor shellcheck issues + 32 SC1091) |
+| P3.6 | ⏿ | Retired (audit premise was wrong) |
+
+Key lessons institutionalized (in `docs/CONTRIBUTING.md` under
+"For AI agents — institutional knowledge"):
+
+- 5-step pause-and-report protocol with 5 worked examples.
+- Project-declared vs tool-environment version distinction.
+- Audit-heuristic validation (heuristics like `head -N | grep` miss
+  content beyond the inspection window — validate with dedicated
+  tools).
+- Cross-platform shell quirks (quoting, `sed -i` macOS vs Linux).
+- Atomic commits per concern.
+
+Surprises caught during Phase 3 via pause-and-report:
+
+- **P3.3**: GitHub personal-tier doesn't allow fork disable; mitigated
+  by collaborator-only PR policy + LICENSE.
+- **P3.5**: P3.0 finding "39/39 scripts missing `set -e`" was wrong
+  — audit grepped only `head -10`; all 41 scripts already had
+  `set -euo pipefail` declared after the header comment block.
+  Retracted in P3.5.safety; replaced by shellcheck-based audit that
+  surfaced 7 real safety issues (SC2086/SC2206), all fixed.
+- **P3.7**: golangci-lint not pinned in CI (uses
+  `golangci-lint-action@v6` default), creating drift potential with
+  `.tool-versions`.
+
 ---
 
-## Concrete next step
+## Phase 4 outlook
 
-Phase 1 is closed. The immediate next step is **Phase 2 —
-environment hardening**. Candidate scope (to be refined in its own
-prompt):
+Phase 3 is closed. The owner's next action is a zip-based deep audit
+in a dedicated session; Phase 4 scope is determined from that audit.
+The candidates below are recommendations to inform the audit, not
+commitments.
 
-- CI workflow review (currently 7 jobs in `.github/workflows/ci.yml`,
-  no Dependabot, no separate lint job, no caching beyond raccoon-cli).
-- Docker image hygiene (multi-stage builds, base image policy, layer
-  cache).
-- Scripts audit (`scripts/*.sh` — what's used by which Make targets;
-  prune the unused).
-- Makefile cleanup (D4 — stage-tagged smoke targets that are dead
-  weight: `smoke-compose-wiring`, `smoke-failure-isolation`,
-  `smoke-live-listening`, etc.).
-- D2/D3 surface debt (`execute` config sprawl with `s449` namespace
-  residue; configctl singular vs plural subject ambiguity).
+### Outstanding work (P0 deferred from Phase 3)
 
-`make verify` is green. Any new red on `make verify` after Phase 1D.4
-is a real regression — not historical debt.
+1. **CI workflow SHA pinning migration**. P3.3 enabled
+   `sha_pinning_required` in repo settings; workflow actions are
+   still tag-pinned (`actions/checkout@v4`, etc.) so CI is currently
+   RED on push. Migrate to SHA refs to restore green CI.
+2. **Dependabot security PRs**. 6 alerts surfaced after P3.3 toggles
+   enabled (3 high, 1 moderate, 2 low). Review and merge.
+3. **golangci-lint CI version pinning**. Workflow uses action
+   default; `.tool-versions` pins 2.12.2 explicitly. Drift potential.
+
+### Available work (P1/P2, opt-in)
+
+- Code-side audit of `internal/` and `cmd/` (Phase 3 was
+  environment-only).
+- Test coverage analysis (current ratio ≈ 0.71; ~288 test files vs
+  ~402 prod files).
+- Security deep dive post the P3.3 toggles (real residual exposure?).
+- Performance audit (compose stack startup, smoke duration trends).
+- **P3.5.cleanup**: 28 minor shellcheck issues + 32 SC1091 (source-
+  path directives). Cosmetic.
+- **P3.7.1**: `.vscode/` configs if owner uses VS Code.
+- **P3.8.1**: `.claude/hooks/` if a concrete pattern surfaces.
+
+### Architectural decisions registry (Phase 3)
+
+For session orientation; full ADRs are in `docs/decisions/`.
+
+| Decision | Source |
+|---|---|
+| License: PolyForm Noncommercial 1.0.0 | P3.1; LICENSE + SECURITY.md |
+| Pre-commit framework: lefthook (Go-based, no Node) | P3.4; `lefthook.yml` |
+| Commit message convention: custom shell validator (no commitlint) | P3.4; `scripts/validate-commit-msg.sh` |
+| Editor formatting standard: EditorConfig | P3.7; `.editorconfig` |
+| Line-ending normalization: LF everywhere via `.gitattributes` | P3.7 |
+| Tool-version manifest: `.tool-versions` (asdf/mise compatible) | P3.7 |
+| Branch protection: 3 required status checks, linear history, no force-push | P3.3; `docs/operations/github-settings.md` |
+| Security toggles: secret scanning + push protection + dependabot + private-vuln-reporting | P3.3 |
+| Actions: SHA pinning required (workflow migration pending) | P3.3 |
+| Issue/PR templates: kept (4 templates from pre-Phase 3) | Pre-P3 |
+| AI agent automation: `.claude/commands/` (5) + `.claude/agents/` (2) | P3.8 |
+| Institutional knowledge: `docs/CONTRIBUTING.md` "For AI agents" section | P3.9 |
+
+`make verify` is green locally. Any new red on `make verify` is a
+real regression — not historical debt.
 
 ---
 
