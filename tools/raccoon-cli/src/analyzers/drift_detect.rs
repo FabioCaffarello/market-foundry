@@ -31,6 +31,8 @@ const CANONICAL_STREAMS: &[&str] = &[
     "RISK_EVENTS",
     "EXECUTION_EVENTS",
     "EXECUTION_FILL_EVENTS",
+    "EXECUTION_REJECTION_EVENTS",
+    "SESSION_LIFECYCLE_EVENTS",
 ];
 
 /// Old service names that should no longer appear in active code.
