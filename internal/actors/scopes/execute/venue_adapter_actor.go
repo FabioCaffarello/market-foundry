@@ -333,6 +333,26 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	}
 
 	// Publish fill event.
+	//
+	// Note: Counter("filled") is incremented AFTER PublishFill below. This
+	// creates a sub-microsecond observability window: a subscriber receiving
+	// the fill via NATS may read Counter("filled") as 0 if it reads before
+	// the actor's mailbox processes the increment.
+	//
+	// Current consumers tolerate this:
+	//   - In-actor logStats() reads (same mailbox; race-free by construction).
+	//   - HTTP /statusz reads (multi-ms HTTP timing dominates the race window).
+	//   - Prometheus /metrics uses a separate counter set; not affected.
+	//
+	// Tests synchronize via the eventuallyAtLeast helper (P4.1.8).
+	//
+	// Future production consumers with sub-millisecond timing requirements
+	// would need: (a) dual-semantic counter (submit_attempted vs
+	// submit_succeeded), OR (b) actor reorder with compensating rollback
+	// on publish failure. See docs/RESUMPTION.md M7 (design-meta).
+	//
+	// Decision context: P4.1.8.c investigation; Option (C) accepted per
+	// current production patterns.
 	fillEvent := domainexec.VenueOrderFilledEvent{
 		Metadata: events.NewMetadata().
 			WithCorrelationID(msg.Event.Metadata.CorrelationID).

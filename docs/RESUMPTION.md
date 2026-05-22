@@ -259,6 +259,45 @@ Sub-prompt summary:
   Go side adds `internal/application/executionclient/compute_effective_mode.go`
   wrapping the domain function; `cmd/execute/run.go` routes through
   the wrapper. Commit `25839ea`.
+- **P4.1.5 / P4.1.6.a*** — NATS+JetStream infrastructure restoration
+  for the Integration Tests job. Services-block startup was unreliable
+  on the GitHub runner; switched to `docker run --network host` with
+  the NATS monitor bound on port 8222 (`-m 8222`). Commits `d2238a0`,
+  `5c8d0ff`.
+- **P4.1.7** — Domain failure triage on the integration suite once
+  NATS came up. Surfaced a P3 counter race: tests asserted on
+  `tracker.Counter("filled")` immediately after the actor published
+  the fill, but the counter was incremented after publish, leaving
+  a sub-microsecond window for the read to miss the increment.
+- **P4.1.8** — `eventuallyAtLeast` poll helper introduced and applied
+  across 11 test sites that read execute-scope counters synchronously
+  after a publish. Commit `81a2319`.
+- **P4.1.8.a** — Suite timeout extension. The newly-polling tests
+  pushed the suite above the 10-min default; bumped `-timeout 18m`
+  in the Makefile target and the CI workflow timeout to 20 min.
+  Commit `a5fff7c`.
+- **P4.1.8.b** — Defensive completion: 5 additional counter-read
+  sites identified during the scan-and-catch-up pass were converted
+  to the helper. Commit `a378117`.
+- **P4.1.8.c** — Read-only investigation of the counter-ordering
+  question raised in the architect META review ("is the helper a
+  band-aid for an actor-ordering bug?"). Findings: 11 non-test
+  counter readers, all intra-actor self-reads (race-free by
+  Hollywood single-threaded mailbox); only external surface is HTTP
+  `/statusz`, whose multi-ms timing dominates the ~500µs race
+  window; Prometheus uses a separate counter set. No current
+  production consumer can observe the invariant violation. Owner
+  decision: **Option (C)** — accept helper, defer actor reorder,
+  document the trade-off.
+- **P4.1.8.d** — P4.1.8 wave closure. Counter-ordering decision
+  documented in `internal/actors/scopes/execute/venue_adapter_actor.go`;
+  M7 ("dual-semantic counter for pre-publish vs post-publish
+  observability") added to the design-meta queue; `-short` flag
+  added to the Makefile `test-integration` target so the existing
+  `testing.Short()` guards on 6 endurance/extended-observation
+  tests become active in PR CI, dropping the suite from ~18m to
+  ~1-2m. Long-running tests remain runnable locally without
+  `-short`, or in a future nightly schedule.
 
 Quality-gate-ci error count across the wave:
 **11 → 9 → 7 → 4 → 0**.
@@ -932,6 +971,31 @@ composition, but should not invoke domain functions directly
 note to ADR-0005, or amend it in place, articulating the
 composition-vs-invocation distinction so the refined raccoon-cli
 rule and the ADR speak the same language.
+
+#### M7 — Dual-semantic counter for pre-publish vs post-publish observability
+
+`Counter("filled")` (and analogous counters in execute-scope actors)
+is incremented AFTER the NATS publish that signals the same event.
+This creates a sub-microsecond observability window where subscribers
+see the published event before the counter reflects it.
+
+Current consumers tolerate this: HTTP `/statusz` timing dominates the
+race; intra-actor `logStats()` reads are race-free by Hollywood's
+single-threaded mailbox; Prometheus `/metrics` uses a separate counter
+set. P4.1.8 added an `eventuallyAtLeast` helper for test consumers.
+
+**Candidate work**: introduce dual-semantic counters — e.g.,
+`submit_attempted` (incremented before publish) and `submit_succeeded`
+(incremented after publish ack). Tests synchronize on
+`submit_attempted` for pre-publish observability; production `/statusz`
+keeps `submit_succeeded` for honest post-publish accounting.
+
+**When to revisit**: if new production observability surfaces require
+sub-millisecond timing (real-time dashboards, alerting on counter
+rates), or if cross-actor counter reads emerge.
+
+Decision context: P4.1.8.c investigation; Option (C) accepted in
+P4.1.8.d (keep eventually-poll helper, skip actor reorder).
 
 ### Available work (P1/P2, opt-in)
 
