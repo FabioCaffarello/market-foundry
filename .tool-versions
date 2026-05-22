@@ -1,4 +1,4 @@
-# .tool-versions — version manifest for asdf, mise, and similar tools
+<!-- # .tool-versions — version manifest for asdf, mise, and similar tools
 #
 # Adopted in P3.7 of Phase 3 (environment hardening).
 #
@@ -22,7 +22,7 @@
 # Tools without asdf/mise plugin (lefthook, shellcheck) install separately:
 #   brew install lefthook shellcheck
 #   or
-#   go install github.com/evilmartians/lefthook@latest
+#   go install github.com/evilmartians/lefthook@latest -->
 
 golang 1.25.7
 rust 1.90.0
