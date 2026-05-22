@@ -1,10 +1,56 @@
-.DS_Store
+# Docker build context exclusions
+#
+# Goal: minimize Docker build context size and avoid invalidating
+# layer cache when irrelevant files change. The Go service builder
+# only needs: go.work, all go.mod / go.sum files, and the source
+# trees under cmd/, internal/, codegen/.
+#
+# Expanded in P2.5 of Phase 2 (environment hardening).
+
+# Git
 .git
 .gitignore
+.gitattributes
+
+# Build outputs
 bin/
+tmp/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Test outputs
+coverage/
+*.coverprofile
+*.coverage
+
+# Deploy state (not needed during Go build; mounted by compose at runtime)
+deploy/clickhouse/
 deploy/compose/
 deploy/configs/
+deploy/envs/
+deploy/migrations/
 deploy/nats/
-tmp/
+
+# Documentation (no //go:embed reads .md files in this repo)
+docs/
+*.md
+
+# CI / agent / tooling infrastructure (not part of binary build)
+.github/
+.claude/
+scripts/
+tools/
+backups/
+
+# Local artifacts
 zip/
-*.log
+
+# Misc
+.envrc
+.tool-versions
