@@ -22,7 +22,6 @@ repository workflow contract.
 | `smoke-*.sh` | `make smoke*` | operational proofs and targeted runtime validation |
 | `smoke-activation.sh` | `make smoke-activation` | activation acceptance proof against the control surface |
 | `diag-check.sh` | `make diag` | first-line diagnosis summary |
-| `stage-tooling.sh` | `make stage-*` | lightweight stage scaffolding, continuity status, and checks |
 | `codegen-*.sh` | `make codegen-*` | codegen integrity and equivalence checks |
 | `utils/` | internal helper layer | shared shell helpers used by other scripts |
 
@@ -38,6 +37,6 @@ repository workflow contract.
   label that status clearly in docs rather than letting it look canonical by
   accident.
 - Keep this file short; canonical contributor guidance belongs in
-  [`../docs/development/commands-and-proofs.md`](../docs/development/commands-and-proofs.md).
+  [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md).
 - If a script becomes a public workflow entrypoint, update this file, the
   Makefile help text, and the relevant operations doc in the same change.

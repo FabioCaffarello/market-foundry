@@ -20,7 +20,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	tidy test test-unit test-integration test-clickhouse test-behavioral test-behavioral-roundtrip \
 	build docker-build compose-config up down restart logs ps clean \
 	raccoon-build raccoon-test quality-gate quality-gate-ci quality-gate-deep lint \
-	check check-deep verify repo-consistency-check stage-help stage-scaffold stage-status stage-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery smoke-compose-wiring smoke-e2e-multi-binary smoke-failure-isolation smoke-live-dry-run smoke-segmented-compose smoke-spot-ingest smoke-unified-coexistence smoke-spot-venue-live smoke-futures-venue-live smoke-e2e-unified-spot smoke-e2e-unified-futures smoke-endurance-soak smoke-runtime-preflight smoke-backup-restore smoke-backup-offhost \
+	check check-deep verify repo-consistency-check smoke-help smoke smoke-multi smoke-analytical smoke-round-trip smoke-live-stack smoke-activation smoke-composed smoke-operational smoke-restart-recovery smoke-compose-wiring smoke-e2e-multi-binary smoke-failure-isolation smoke-live-dry-run smoke-segmented-compose smoke-spot-ingest smoke-unified-coexistence smoke-spot-venue-live smoke-futures-venue-live smoke-e2e-unified-spot smoke-e2e-unified-futures smoke-endurance-soak smoke-runtime-preflight smoke-backup-restore smoke-backup-offhost \
 	ci-analytical ci-smoke ci-preflight ci-wait-ready seed seed-multi seed-spot seed-spot-multi seed-unified seed-unified-multi live live-check live-multi live-multi-check \
 	diag coverage-map tdd arch-guard drift-detect snapshot recommend snapshot-diff baseline-drift briefing \
 	migrate-up migrate-status migrate-validate \
@@ -79,10 +79,6 @@ help: ## Show grouped help and common variables.
 	@printf "  %-24s %s\n" "TARGETS=path1,path2" "Input set for raccoon briefing/recommend."
 	@printf "  %-24s %s\n" "SNAP1=before SNAP2=after" "Inputs for snapshot-diff."
 	@printf "  %-24s %s\n" "BASELINE=baseline.json" "Input for baseline-drift."
-	@printf "  %-24s %s\n" "STAGE_ID=C15" "Stage id used by stage-scaffold/stage-check."
-	@printf "  %-24s %s\n" "STAGE_SLUG=stage-tooling" "Stage report slug used by stage-scaffold/stage-status/stage-check."
-	@printf "  %-24s %s\n" "STAGE_TITLE=Title" "Stage report title used by stage-scaffold."
-	@printf "  %-24s %s\n" "STAGE_REQUIRE=path1,path2" "Extra artifact paths used by stage-status/stage-check."
 	@printf "  %-24s %s\n" "BASE_URL=http://127.0.0.1:8080" "Override the gateway base URL used by smoke scripts."
 	@printf "  %-24s %s\n" "SMOKE_WAIT=180" "Override wait/flush time for smoke scripts."
 	@printf "  %-24s %s\n" "FLUSH_WAIT=180" "Legacy wait override for analytical/operational/restart smokes."
@@ -115,14 +111,6 @@ verify: test repo-consistency-check quality-gate ## Post-change validation: Go t
 lint: check ## Alias for `make check`.
 repo-consistency-check: ## Run lightweight repository consistency checks.
 	@./scripts/repository-consistency-check.sh
-stage-help: ## Show the stage tooling helper usage and supported inputs.
-	@./scripts/stage-tooling.sh help
-stage-scaffold: ## Create a lightweight stage report scaffold (`STAGE_ID`, `STAGE_SLUG`, `STAGE_TITLE`).
-	@./scripts/stage-tooling.sh scaffold
-stage-status: ## Show continuity status and next actions for one active stage.
-	@./scripts/stage-tooling.sh status
-stage-check: ## Validate one active stage (`STAGE_ID` and optional `STAGE_SLUG`/`STAGE_REPORT`/`STAGE_REQUIRE`).
-	@./scripts/stage-tooling.sh check
 tdd: $(RACCOON_BIN) ## Show raccoon impact-driven validation guidance for current changes.
 	$(RACCOON_BIN) --project-root . change tdd
 
