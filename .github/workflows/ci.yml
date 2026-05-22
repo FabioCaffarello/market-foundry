@@ -84,17 +84,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    services:
-      nats:
-        image: nats:2.10.18-alpine
-        options: >-
-          --health-cmd "wget -qO- http://127.0.0.1:8222/healthz || exit 1"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-        ports:
-          - 4222:4222
-          - 8222:8222
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
 
@@ -106,10 +95,36 @@ jobs:
             **/go.sum
             go.work
 
-      - name: Run integration tests (NATS service container)
+      - name: Start NATS with JetStream enabled
+        run: |
+          docker run -d --name nats \
+            -p 4222:4222 \
+            -p 8222:8222 \
+            nats:2.10.18-alpine \
+            -js
+          # GHA services: schema does not support overriding container
+          # CMD (no `command:` / `args:` keys). Using `docker run` lets us
+          # pass `-js` to the entrypoint to enable JetStream, which
+          # `internal/adapters/nats/natsexecution`'s KV usage requires.
+          for i in $(seq 1 15); do
+            if wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1; then
+              echo "NATS ready after ${i} polls"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "NATS failed to become ready within 30 seconds"
+          docker logs nats || true
+          exit 1
+
+      - name: Run integration tests (NATS via docker run)
         run: make test-integration
         env:
           NATS_URL: nats://localhost:4222
+
+      - name: Stop NATS container
+        if: always()
+        run: docker rm -f nats 2>/dev/null || true
 
   smoke-composed:
     name: Smoke Composed Pipeline
