@@ -69,7 +69,7 @@ CANDLE_POLL_INTERVAL="${CANDLE_POLL_INTERVAL:-5}"
 # Default symbols and timeframes.
 DEFAULT_SYMBOL="${DEFAULT_SYMBOL:-btcusdt}"
 DEFAULT_SOURCE="${DEFAULT_SOURCE:-binancef}"
-ALL_TIMEFRAMES=(${ALL_TIMEFRAMES:-60 300 900 3600})
+read -ra ALL_TIMEFRAMES <<< "${ALL_TIMEFRAMES:-60 300 900 3600}"
 
 # ClickHouse defaults (overridable per environment).
 CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-9000}"

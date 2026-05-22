@@ -87,6 +87,38 @@ itself; the smoke verifies the round-trip.
 For long-term retention beyond the local directory, copy or sync to
 external storage (S3, NAS, etc.) via your own scheduling.
 
+### `backups/` directory tracking (shim pattern)
+
+The `backups/` directory exists in the working tree with this layout:
+
+```
+backups/
+├── clickhouse/
+│   ├── .gitignore       (TRACKED, content: `*` then `!.gitignore`)
+│   └── .gitkeep         (TRACKED, preserves empty dir)
+├── logs/.gitignore      (TRACKED, same shim pattern)
+└── sessions/.gitignore  (TRACKED, same shim pattern)
+```
+
+The `.gitignore` shims use the pattern `*` followed by `!.gitignore`,
+meaning: **ignore all files in this dir except `.gitignore` itself**.
+
+This preserves the empty directory layout in git (so Makefile targets
+like `make ch-backup-list`, `make ch-backup-auto`, and the scheduled-
+backup script find them when checking out fresh), while keeping backup
+contents local-only — they are operator artifacts, not source.
+
+If you see these shims missing from your working tree, restore them
+from git (`git checkout -- backups/`) — they're load-bearing for the
+backup workflow.
+
+**Do NOT add `backups/` itself to `.gitignore`.** Doing so prevents
+git from tracking the shims and breaks the operational pattern. (This
+was almost recommended by an external audit in P4.0 pre-work; pause-
+and-report caught it before execution. The audit had observed a
+transient zip-state where the shims were locally deleted, but did not
+cross-reference `Makefile` or this document.)
+
 ---
 
 ## NATS backup

@@ -1,4 +1,4 @@
-<!-- # .tool-versions — version manifest for asdf, mise, and similar tools
+# .tool-versions — version manifest for asdf, mise, and similar tools
 #
 # Adopted in P3.7 of Phase 3 (environment hardening).
 #
@@ -7,11 +7,10 @@
 # Versions sourced from canonical project files:
 # - golang: go.work
 # - rust: tools/raccoon-cli/rust-toolchain.toml
-# - golangci-lint: locally validated version compatible with the
-#   v2.x major series pinned in .golangci.yml ('version: "2"').
-#   CI uses golangci/golangci-lint-action@v6 with the action's
-#   default version (not explicitly pinned); update here as the
-#   tested baseline drifts.
+# - golangci-lint: pinned at v2.12.2 in .github/workflows/ci.yml
+#   (golangci-lint-action@v6 with explicit `version: v2.12.2`) AND
+#   the v2.x major series is pinned in .golangci.yml (`version: "2"`).
+#   Keep this manifest in sync with the CI pin.
 #
 # Install via asdf:
 #   asdf install
@@ -22,7 +21,7 @@
 # Tools without asdf/mise plugin (lefthook, shellcheck) install separately:
 #   brew install lefthook shellcheck
 #   or
-#   go install github.com/evilmartians/lefthook@latest -->
+#   go install github.com/evilmartians/lefthook@latest
 
 golang 1.25.7
 rust 1.90.0

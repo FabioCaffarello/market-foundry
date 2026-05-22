@@ -326,9 +326,10 @@ Closes P3.0 audit P1 finding "editor/IDE configs absent".
   and [mise](https://mise.jdx.dev). Currently pins:
   - `golang 1.25.7` (sourced from `go.work`)
   - `rust 1.90.0` (sourced from `tools/raccoon-cli/rust-toolchain.toml`)
-  - `golangci-lint 2.12.2` (locally validated; v2.x major series
-    pinned in `.golangci.yml`'s `version: "2"`; CI uses the
-    golangci-lint-action default since no explicit pin)
+  - `golangci-lint 2.12.2` (pinned in `.github/workflows/ci.yml` via
+    `golangci-lint-action@v6` with explicit `version: v2.12.2`; the
+    v2.x major series is also pinned in `.golangci.yml`'s
+    `version: "2"`. Keep this manifest in sync with the CI pin.)
 
   Tools without asdf/mise plugins (`lefthook`, `shellcheck`) install
   separately via `brew` or `go install`.
@@ -746,9 +747,19 @@ Surprises caught during Phase 3 via pause-and-report:
   `set -euo pipefail` declared after the header comment block.
   Retracted in P3.5.safety; replaced by shellcheck-based audit that
   surfaced 7 real safety issues (SC2086/SC2206), all fixed.
-- **P3.7**: golangci-lint not pinned in CI (uses
-  `golangci-lint-action@v6` default), creating drift potential with
-  `.tool-versions`.
+- **P3.7**: original claim that golangci-lint was "not pinned in CI"
+  was wrong — `.github/workflows/ci.yml:179-182` explicitly pins
+  `version: v2.12.2` on `golangci-lint-action@v6`, matching
+  `.tool-versions`. Drift is zero. Corrected in P4.0 (see DOC-3
+  erratum below); ongoing task is **monitoring drift** when
+  Dependabot bumps the action wrapper (e.g., `@v6 → @v9`) without
+  necessarily bumping the underlying lint binary.
+- **P3.5.safety scope omission** (caught by P4.0 pre-audit, DOC-4):
+  shellcheck audit covered `scripts/*.sh` but not `scripts/utils/*.sh`.
+  One real SC2206 in `scripts/utils/lib.sh` was missed at the time
+  and fixed in P4.0 alongside the documental sweep. Methodology drift,
+  not a new pattern — the same rule should have been applied to all
+  `.sh` files, not the top-level only.
 
 ---
 
@@ -767,8 +778,12 @@ commitments.
    RED on push. Migrate to SHA refs to restore green CI.
 2. **Dependabot security PRs**. 6 alerts surfaced after P3.3 toggles
    enabled (3 high, 1 moderate, 2 low). Review and merge.
-3. **golangci-lint CI version pinning**. Workflow uses action
-   default; `.tool-versions` pins 2.12.2 explicitly. Drift potential.
+3. **Monitor golangci-lint pin drift via Dependabot** (DOC-3 reframe).
+   Previously listed as "CI version pinning needed". Audit verified
+   `.github/workflows/ci.yml:179-182` already pins
+   `version: v2.12.2` matching `.tool-versions`. Real ongoing task:
+   when Dependabot bumps `golangci-lint-action@v6 → @v9`, verify the
+   underlying lint binary version is bumped in lockstep.
 
 ### Available work (P1/P2, opt-in)
 
