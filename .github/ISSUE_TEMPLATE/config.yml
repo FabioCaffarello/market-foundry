@@ -1,0 +1,17 @@
+# Configuration for GitHub issue templates.
+# See https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+
+blank_issues_enabled: true
+
+contact_links:
+  - name: Current state and known gaps
+    url: https://github.com/FabioCaffarello/market-foundry/blob/main/docs/RESUMPTION.md
+    about: Before opening an issue, check the canonical current-state document for known gaps (G1-G6) and deliberate non-features.
+
+  - name: Contributing guide
+    url: https://github.com/FabioCaffarello/market-foundry/blob/main/docs/CONTRIBUTING.md
+    about: Operating protocols, PR workflow, and contribution rules.
+
+  - name: Architecture decisions
+    url: https://github.com/FabioCaffarello/market-foundry/blob/main/docs/decisions/README.md
+    about: ADRs documenting structural decisions. Useful before proposing changes that touch architecture.
