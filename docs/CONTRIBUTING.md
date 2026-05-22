@@ -348,6 +348,32 @@ not avoid it.
 
 ---
 
+## Claude Code automation
+
+The `.claude/` directory hosts automation surfaces for Claude Code
+sessions, codifying patterns proven repetitive across Phase 1+2 work.
+
+- `.claude/commands/`: slash commands invocable as `/<name>` in a
+  session.
+  - `/check-clean` — pre-action verification (working tree + baseline).
+  - `/check-refs <path>` — comprehensive ref search before deletion.
+  - `/inventory <area>` — structured inventory production.
+  - `/audit <area>` — read-only investigation skeleton.
+  - `/version-check` — version consistency across canonical files.
+- `.claude/agents/`: agent role templates.
+  - `investigation-agent` — read-only investigator with structured
+    output.
+  - `execution-agent` — scoped executor with explicit pause-and-report
+    protocol.
+- `.claude/settings.json`: session-level config (currently minimal).
+- `.claude/hooks/`: empty (Claude Code hooks remain exploratory).
+
+See `.claude/README.md` for the full index and philosophy. These
+surfaces are descriptive helpers — `CLAUDE.md` (repo root) remains
+the canonical operating instructions for Claude sessions.
+
+---
+
 ## Authorized expansion protocol
 
 The single most important protocol in this repository.

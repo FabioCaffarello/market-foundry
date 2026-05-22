@@ -200,6 +200,51 @@ archaeology.
 
 ## Recently resolved
 
+### `.claude/` automation surfaces populated (Phase 3.8)
+
+**Resolved** by populating `.claude/commands/` and `.claude/agents/`
+with content codifying Phase 1+2 patterns. Closes P3.0 audit P1
+finding "`.claude/` commands/agents/hooks empty".
+
+Commands added (5 slash commands in `.claude/commands/`):
+
+- **`/check-clean`** — pre-action verification (working tree clean +
+  `make verify` / `make bootstrap` PASS). Used at session start.
+- **`/check-refs <path>`** — cross-reference search across source,
+  config, docs, Makefile, CI before deletion or rename. Prevents the
+  stale-infrastructure-post-restructure pattern that surfaced
+  repeatedly in Phase 1+2.
+- **`/inventory <area>`** — structured inventory production (files,
+  sizes, last-modified dates, subdirs). Used as foundation for
+  fact-dense work in P1A, P2.X, P3.0.
+- **`/audit <area>`** — read-only investigation skeleton with
+  P0/P1/P2/P3 severity buckets and explicit "stop at recommendations"
+  rule. Template for P3.0-style audits.
+- **`/version-check`** — version consistency across `go.work`,
+  `tools/raccoon-cli/rust-toolchain.toml`, `.tool-versions`, and CI.
+
+Agent templates added (2 in `.claude/agents/`):
+
+- **`investigation-agent`** — read-only investigator with structured
+  output and severity categorization.
+- **`execution-agent`** — scoped executor with explicit 5-step
+  pause-and-report protocol (codifies lessons from P2.3, P2.Y, P3.3,
+  P3.5.safety where pause-and-report caught factual divergence
+  between premise and reality).
+
+Hooks (`.claude/hooks/`) **not** added in P3.8: Claude Code hooks
+feature remains exploratory; populated only when concrete repeated
+needs surface. Possible follow-up as P3.8.1 or Phase 4.
+
+Updated:
+- `.claude/README.md`: added "Available commands" and "Available
+  agent templates" sections; updated philosophy paragraph.
+- `docs/CONTRIBUTING.md`: added "Claude Code automation" section
+  between "Git hooks (lefthook)" and "Authorized expansion protocol".
+
+`CLAUDE.md` (repo root) is unchanged — already robust post-P1C; the
+new automation complements rather than replaces it.
+
 ### Editor configs and tool-versions added (Phase 3.7)
 
 **Resolved** by adding three universal config files at the repo root.
