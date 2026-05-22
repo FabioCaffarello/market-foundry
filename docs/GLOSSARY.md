@@ -25,8 +25,12 @@ A class of events flowing through one stream. Current families:
 `strategy`, `risk`, `execution`.
 
 **Surface**
-The plane a message belongs to: `events`, `control`, `query`, or
-`projection`. Used in NATS subject taxonomy.
+The plane a message belongs to in NATS subject taxonomy. Common planes:
+`events` (published facts), `control` (commands), `query` (request/reply),
+`projection` (KV refresh). The execution domain adds `fill`, `rejection`,
+`session`, `activation` for lifecycle specifics. The configctl domain
+currently uses both `events` and `event` (singular) in parallel —
+transitional, see [`RUNTIME.md`](RUNTIME.md).
 
 **Domain**
 The business area a piece of code belongs to. Domains live under

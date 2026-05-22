@@ -99,10 +99,10 @@ Current streams and their writers:
 | EVIDENCE_EVENTS | derive | store, writer |
 | SIGNAL_EVENTS | derive | store, writer |
 | DECISION_EVENTS | derive | store, writer |
-| STRATEGY_EVENTS | derive | store, writer |
+| STRATEGY_EVENTS | derive | store, writer, execute |
 | RISK_EVENTS | derive | store, writer |
 | EXECUTION_EVENTS | derive | store, writer, execute |
-| EXECUTION_FILL_EVENTS | execute | store |
+| EXECUTION_FILL_EVENTS | execute | store, writer |
 | EXECUTION_REJECTION_EVENTS | execute | store, writer |
 | SESSION_LIFECYCLE_EVENTS | execute | gateway |
 
