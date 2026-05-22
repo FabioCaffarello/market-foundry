@@ -1,11 +1,162 @@
-*.zip
-*.env
-bin
-target
-trace-pack-*
-references
+# .gitignore for market-foundry
+#
+# Organized by category. See P3.2 commit message for context.
+# Adopted in Phase 3 environment hardening (public repo edition).
 
-# Compiled service binaries at repo root (build artifacts, not source).
+# ============================================================================
+# A. Secrets and credentials (CRITICAL for public repo)
+# ============================================================================
+
+# Environment files (only .env.example variants should be tracked)
+# *.env catches the root .env plus any <name>.env (e.g. deploy/envs/local.env).
+# The .env.* variants below cover the named-suffix conventions that *.env
+# does not match (e.g. .env.local ends in .local, not .env).
+*.env
+.env.local
+.env.*.local
+.env.local.*
+.env.development
+.env.production
+.env.staging
+
+# Credential files
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+credentials
+credentials.json
+credentials.yml
+credentials.yaml
+
+# SSH keys
+id_rsa
+id_dsa
+id_ed25519
+id_ecdsa
+*.id_rsa
+known_hosts
+
+# Cloud provider credentials
+.aws/
+.gcp/
+.azure/
+
+# Generic secret stores
+.secrets/
+secrets/
+*.token
+*.secret
+
+# Netrc and similar
+.netrc
+.npmrc
+
+# ============================================================================
+# B. Local development artifacts
+# ============================================================================
+
+# Build outputs
+bin/
+build/
+dist/
+out/
+
+# Coverage outputs
+coverage/
+*.coverprofile
+*.cov
+coverage.txt
+coverage.html
+coverage.xml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Local archives / zips
+zip/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Project-specific transient artifacts
+trace-pack-*
+references/
+
+# ============================================================================
+# C. Editor / OS metadata (per-developer, not project-relevant)
+# ============================================================================
+
+# Vim swap files
+*.swp
+*.swo
+*.swn
+.*.swp
+
+# Backup files
+*~
+*.bak
+*.orig
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Note: .vscode/ and .idea/ are NOT excluded. If owner uses them and
+# wants configs versioned, they remain tracked. Override with explicit
+# .vscode/settings.json or .idea/runConfigurations/ in those dirs.
+
+# ============================================================================
+# D. Runtime artifacts
+# ============================================================================
+
+# Logs
+*.log
+logs/
+
+# Core dumps
+core
+core.*
+
+# Go test binaries (rare but should ignore)
+*.test
+*.prof
+
+# ============================================================================
+# E. Tool-specific
+# ============================================================================
+
+# Rust
+tools/raccoon-cli/target/
+**/target/
+
+# Go vendored deps (we use modules)
+# vendor/   # uncomment if vendoring is ever used
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================================
+# F. Compiled service binaries at repo root
+# ============================================================================
+#
+# `go build ./cmd/<name>/` drops a binary in the repo root by default.
+# `make build` places them under bin/ instead (covered by section B),
+# but these guards prevent accidental commits from direct `go build`.
+
 /configctl
 /derive
 /execute
@@ -14,3 +165,20 @@ references
 /store
 /writer
 /migrate
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# Patterns intentionally NOT excluded:
+# - .vscode/, .idea/         (per-developer choice — owner may version)
+# - deploy/compose/, deploy/configs/, deploy/nats/  (these ARE tracked
+#                            and represent canonical configuration)
+# - go.work, go.work.sum     (Go workspace files are tracked)
+# - .golangci.yml            (lint config IS tracked)
+# - .github/                 (CI workflows ARE tracked)
+# - .claude/                 (Claude Code config IS tracked)
+#
+# Patterns excluded that may seem surprising:
+# - .env.example IS allowed (no negation needed; .env.example doesn't
+#                            match .env directly).

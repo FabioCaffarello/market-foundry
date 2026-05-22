@@ -200,6 +200,40 @@ archaeology.
 
 ## Recently resolved
 
+### `.gitignore` hardened (Phase 3.2)
+
+**Resolved** by expanding `.gitignore` from 17 lines (minimal) to ~180
+lines organized in six categories with explanatory comments. Closes
+P3.0 audit P0 finding #5 (.gitignore missing critical patterns for
+a public repository).
+
+The new file groups patterns by intent:
+
+- **A. Secrets and credentials** (P0 for public repo): `*.env`,
+  `.env.local`, `.env.*.local`, `.env.production`, etc.; `*.key`,
+  `*.pem`, `*.p12`, `*.pfx`, `*.crt`; `credentials`, `credentials.json`,
+  `credentials.yml`; SSH keys (`id_rsa`, `id_ed25519`, ...); cloud
+  configs (`.aws/`, `.gcp/`, `.azure/`); generic stores (`.secrets/`,
+  `secrets/`, `*.token`, `*.secret`); `.netrc`, `.npmrc`.
+- **B. Build artifacts**: `bin/`, `build/`, `dist/`, `out/`, coverage
+  outputs, tmp/, archives. Preserves project-specific patterns
+  `trace-pack-*` and `references/`.
+- **C. Editor/OS metadata**: vim swap, backup files, `.DS_Store`,
+  `Thumbs.db`. `.vscode/` and `.idea/` intentionally NOT excluded
+  (per-developer choice).
+- **D. Runtime**: `*.log`, core dumps, `*.test`, `*.prof`.
+- **E. Tool-specific**: Rust `target/`, Node `node_modules/`, Python
+  caches.
+- **F. Compiled service binaries at repo root**: the original
+  `/configctl`, `/derive`, `/execute`, `/gateway`, `/ingest`, `/store`,
+  `/writer`, `/migrate` guards preserved verbatim — `go build ./cmd/<x>`
+  drops the binary in the repo root by default.
+
+Audit before modification confirmed zero existing tracked files match
+new secret patterns, and the tracked file count (979) is preserved.
+The previous `*.env` pattern was retained so `deploy/envs/local.env`
+remains ignored.
+
 ### LICENSE adopted + SECURITY.md added (Phase 3.1)
 
 **Resolved** by creating `LICENSE` and `SECURITY.md` in the repository
