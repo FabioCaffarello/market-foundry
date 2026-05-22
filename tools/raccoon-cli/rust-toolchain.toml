@@ -1,0 +1,10 @@
+# Pinned Rust toolchain version for raccoon-cli.
+# Adopted in P2.3 of Phase 2 (environment hardening).
+#
+# Both local development (cargo) and CI (dtolnay/rust-toolchain@stable)
+# respect this file. Update by editing the channel value and verifying
+# `cargo build --release` and `cargo test` pass.
+
+[toolchain]
+channel = "1.90.0"
+components = ["rustfmt", "clippy"]
