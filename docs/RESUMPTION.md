@@ -298,6 +298,18 @@ Sub-prompt summary:
   tests become active in PR CI, dropping the suite from ~18m to
   ~1-2m. Long-running tests remain runnable locally without
   `-short`, or in a future nightly schedule.
+- **P4.1.6.b** — Smoke Analytical E2E moved out of PR CI to a
+  dedicated workflow (`.github/workflows/smoke-analytical.yml`)
+  with `workflow_dispatch` (manual via `gh workflow run
+  smoke-analytical.yml`) and `schedule: cron '0 6 * * *'` (daily
+  06:00 UTC) triggers. Architectural rationale: PR CI is a
+  fast-feedback loop; integration tests against external services
+  (live Binance WSS) don't belong there. Job definition preserved
+  verbatim (same steps, SHA pins, env vars, timeout); only the
+  trigger surface changed. M8 (synthetic seeder pre-requisite for
+  restoring smoke-analytical to PR CI) and M9 (log-error scan
+  robustness — current warn-vs-error grep missed the silent failure
+  mode) added to the design-meta queue.
 
 Quality-gate-ci error count across the wave:
 **11 → 9 → 7 → 4 → 0**.
@@ -996,6 +1008,41 @@ rates), or if cross-actor counter reads emerge.
 
 Decision context: P4.1.8.c investigation; Option (C) accepted in
 P4.1.8.d (keep eventually-poll helper, skip actor reorder).
+
+#### M8 — Synthetic data path for analytical surface
+
+The analytical pipeline (`writer` → ClickHouse → `gateway` queries)
+depends on live Binance Futures WSS data via `ingest`. CI runners
+typically cannot reach Binance (network egress / geo-blocking on
+GitHub Actions). Smoke Composed Pipeline works around this with
+Go-level synthetic data, but Smoke Analytical needs the full stack
+plus the live feed.
+
+**Candidate work**: introduce a synthetic ingester (or synthetic
+data injection point upstream of `writer`) that emits the same
+downstream events `ingest` would produce. Would unblock smoke-
+analytical for PR CI.
+
+**Status**: smoke-analytical deferred to scheduled/manual workflow
+(P4.1.6.b) until the synthetic seeder exists.
+
+#### M9 — CI log-error scan robustness
+
+The "Scan for error-level logs" step in the smoke-analytical
+workflow greps for `"level":"error"` only. Warn-level logs (e.g.,
+`ingest` unable to reach an external service surfacing as `warn`,
+not `error`) escape detection. The step PASSED even when the
+end-to-end pipeline produced no data, contributing to false
+confidence in the CI signal.
+
+**Candidate work**: extend the scan to flag warn-level too, OR add
+a health-endpoint assertion (writer `active_trackers`, gateway
+readiness counters), OR fail-fast when upstream produces no events
+within a fixed window.
+
+**When to revisit**: pre-requisite for restoring smoke-analytical
+to PR CI alongside M8 (synthetic seeder). Without M9, the restored
+job would silently pass on broken pipelines again.
 
 ### Available work (P1/P2, opt-in)
 

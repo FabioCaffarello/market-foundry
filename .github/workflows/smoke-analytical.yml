@@ -1,0 +1,90 @@
+name: Smoke Analytical E2E (scheduled / manual)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 06:00 UTC (~03:00 BRT). Catches drift without
+    # blocking PR CI. Smoke Analytical depends on live Binance
+    # Futures WSS data via ingest, which GHA runners typically
+    # cannot reach (network egress / geo-blocking).
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25.7"
+
+jobs:
+  smoke-analytical:
+    name: Smoke Analytical E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff  # v5.6.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            **/go.sum
+            go.work
+
+      - name: Build service binaries
+        run: make build
+
+      - name: Materialize compose env file for CI runner
+        run: cp deploy/envs/local.env.example deploy/envs/local.env
+
+      - name: Start stack (compose up)
+        run: make up
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Wait for infrastructure readiness
+        run: ./scripts/ci-wait-ready.sh --timeout 120
+
+      - name: Seed configctl
+        run: make seed
+
+      - name: Wait for writer flush
+        run: sleep ${WRITER_FLUSH_WAIT:-120}
+        env:
+          WRITER_FLUSH_WAIT: "120"
+
+      - name: Run smoke-analytical E2E
+        run: make smoke-analytical
+
+      - name: Scan for error-level logs
+        if: always()
+        run: |
+          echo "--- Error log scan ---"
+          ERROR_COUNT=$(docker compose -f deploy/compose/docker-compose.yaml logs --no-log-prefix 2>/dev/null | grep -c '"level":"error"' || echo "0")
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "WARNING: Found $ERROR_COUNT error-level log entries"
+            docker compose -f deploy/compose/docker-compose.yaml logs --no-log-prefix 2>/dev/null | grep '"level":"error"' | tail -10
+          else
+            echo "No error-level log entries found"
+          fi
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=200 > /tmp/compose-logs.txt 2>&1
+          echo "--- Writer logs ---"
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=100 writer 2>&1 || true
+          echo "--- Gateway logs ---"
+          docker compose -f deploy/compose/docker-compose.yaml logs --tail=100 gateway 2>&1 || true
+
+      - name: Upload logs artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: compose-logs
+          path: /tmp/compose-logs.txt
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: make down
