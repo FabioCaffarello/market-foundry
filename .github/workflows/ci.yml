@@ -96,24 +96,31 @@ jobs:
             go.work
 
       - name: Start NATS with JetStream enabled
+        # GHA services: schema does not support overriding container CMD
+        # (no `command:` / `args:` keys). Using `docker run` lets us pass
+        # `-js` to the entrypoint to enable JetStream, which
+        # `internal/adapters/nats/natsexecution`'s KV usage requires.
         run: |
+          set -x
+          docker pull nats:2.10.18-alpine
           docker run -d --name nats \
             -p 4222:4222 \
             -p 8222:8222 \
             nats:2.10.18-alpine \
             -js
-          # GHA services: schema does not support overriding container
-          # CMD (no `command:` / `args:` keys). Using `docker run` lets us
-          # pass `-js` to the entrypoint to enable JetStream, which
-          # `internal/adapters/nats/natsexecution`'s KV usage requires.
+          docker ps --filter name=nats
+          # Wait for NATS readiness. Use curl with explicit --max-time so a
+          # probe cannot exceed 2 seconds. Wall-clock budget: 15 × 2s probe
+          # + 15 × 2s sleep ≤ 60 seconds.
           for i in $(seq 1 15); do
-            if wget -qO- http://127.0.0.1:8222/healthz >/dev/null 2>&1; then
+            if curl -fsS --max-time 2 http://127.0.0.1:8222/healthz >/dev/null 2>&1; then
               echo "NATS ready after ${i} polls"
               exit 0
             fi
             sleep 2
           done
-          echo "NATS failed to become ready within 30 seconds"
+          echo "NATS failed to become ready within 60 seconds"
+          docker ps -a --filter name=nats
           docker logs nats || true
           exit 1
 
