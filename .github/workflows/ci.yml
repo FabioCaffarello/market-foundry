@@ -180,7 +180,7 @@ jobs:
         with:
           version: v2.12.2
           install-mode: binary
-          args: --version
+          install-only: true
 
       - name: Run lint-go (iterates workspace modules)
         run: ./scripts/lint-go.sh
