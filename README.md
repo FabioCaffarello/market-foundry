@@ -8,10 +8,16 @@ trading capabilities are built.
 
 ## Current state
 
+**Early-stage personal project.** Active development by a single
+maintainer. Not production-ready; no API stability guarantees.
+
 End-to-end paper-mode pipeline runs against Binance WebSocket data.
 Eight binaries plus a Rust CLI for architecture enforcement. For
 details, known gaps, and the next concrete step, see
 [docs/RESUMPTION.md](docs/RESUMPTION.md).
+
+External contributions are not accepted at this stage. For security
+reports, see [SECURITY.md](SECURITY.md).
 
 ## What this repository contains
 
@@ -76,13 +82,22 @@ New to the project? Read these in order:
 
 ## Contributing
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for PR rules,
-authorized expansion protocol, and the "Specifically for AI agents"
-section.
+External contributions are not accepted at this stage. For
+maintainers and AI agents working on the repository:
+
+- [`CLAUDE.md`](CLAUDE.md) — operating protocols for Claude Code
+  sessions.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — PR rules,
+  authorized expansion protocol, and the "For AI agents
+  (institutional knowledge)" section codifying Phase 1+2+3 lessons.
+- [`.claude/`](.claude/README.md) — automation surfaces (slash
+  commands, agent templates).
 
 ## License
 
-This project is licensed under the **PolyForm Noncommercial 1.0.0**.
-See [LICENSE](LICENSE) for full terms. Commercial use is not permitted.
+PolyForm Noncommercial 1.0.0. See [LICENSE](LICENSE) for full terms.
 
-For security reports, see [SECURITY.md](SECURITY.md).
+- Permitted: personal use, research, education, hobby projects.
+- Not permitted: commercial use of any kind.
+
+For security reports: [SECURITY.md](SECURITY.md).

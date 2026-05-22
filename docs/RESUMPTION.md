@@ -200,6 +200,53 @@ archaeology.
 
 ## Recently resolved
 
+### CONTRIBUTING.md expansion + README refresh (Phase 3.9)
+
+**Resolved** by codifying Phase 1+2+3 institutional knowledge in
+`docs/CONTRIBUTING.md` and refining `README.md` for a public-visitor
+audience. Closes P3.0 audit P1 findings "CONTRIBUTING missing AI
+agent protocols (depth)" and "README gaps for public visitor".
+
+`docs/CONTRIBUTING.md` expansion (existing "Specifically for AI
+agents" section renamed to **"For AI agents (institutional
+knowledge)"** and substantially extended):
+
+- Preamble framing the section as "cumulative knowledge base — what
+  we've learned the hard way" complementary to `CLAUDE.md`.
+- Existing 4 subsections preserved (Read these documents first;
+  Apply the protocols rigorously; Commit messages: explicit about
+  provenance; When in doubt).
+- New subsections added:
+  - **Operating philosophy** (3 priority-ordered principles).
+  - **Pause-and-report protocol (5 steps)** with a table of 5 worked
+    examples from P2.3, P2.Y, P3.3, P3.5, P3.7.
+  - **Common patterns** (working-tree verification, cross-ref search,
+    inventory-first, atomic commits per concern; each cross-linked
+    to its `.claude/commands/` slash command).
+  - **Validation discipline** (project-vs-tool versions; audit-
+    heuristic validation; format pre-commit checks).
+  - **Cross-platform quirks** (shell quoting; `sed -i` macOS vs Linux).
+  - **Lessons learned (Phase 1+2+3 errata)** — 5 specific mistakes
+    documented to avoid repetition.
+  - **Anti-patterns to avoid** (reframe-to-fit; aggregate concerns;
+    trust narrative reference; skip validation; bypass safety hooks).
+
+`README.md` refresh (conservative — no full rewrite):
+
+- "Current state" section now leads with "Early-stage personal
+  project. Active development by a single maintainer. Not
+  production-ready; no API stability guarantees." plus an explicit
+  "External contributions are not accepted at this stage" note with
+  SECURITY.md pointer.
+- "Contributing" section reframed for maintainers and AI agents
+  with explicit pointers to `CLAUDE.md`, `docs/CONTRIBUTING.md`,
+  and `.claude/`.
+- "License" section refined with explicit permitted/not-permitted
+  bullets (personal use vs commercial use).
+
+`CLAUDE.md` unchanged — already robust post-P1C; `CONTRIBUTING.md`
+expansion complements rather than duplicates.
+
 ### `.claude/` automation surfaces populated (Phase 3.8)
 
 **Resolved** by populating `.claude/commands/` and `.claude/agents/`

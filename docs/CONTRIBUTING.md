@@ -495,10 +495,14 @@ typos and broken links.
 
 ---
 
-## Specifically for AI agents
+## For AI agents (institutional knowledge)
 
 If you are an AI agent (Claude Code, another agent) executing a task
-on this repository:
+on this repository, this section is the **cumulative knowledge base**
+— what we've learned the hard way across Phase 1+2+3 work.
+
+`CLAUDE.md` (repo root) describes session-level operating protocols.
+This section complements it; it does not replace it.
 
 ### Read these documents first
 
@@ -534,6 +538,191 @@ When AI-driven, commit messages should:
 Pause and ask. The cost of one extra clarification turn is much
 less than the cost of an incorrect autonomous decision that requires
 unwinding.
+
+### Operating philosophy
+
+Three principles, in priority order:
+
+1. **Honest over impressive**: report what is, not what would sound
+   confident. "I'm not sure" beats "Confirmed!" without evidence.
+2. **Investigate before execute**: structure-shaping changes are
+   preceded by inventory or audit phases. Producing structured
+   `/tmp/<topic>.md` artifacts is normal and expected.
+3. **Atomic per concern**: one commit = one responsibility. Multiple
+   concerns produce multiple commits, even if they happen in one
+   session.
+
+### Pause-and-report protocol (5 steps)
+
+When reality diverges from the prompt's premise (different file
+count, different structure, different state), follow:
+
+1. **Pause** — stop applying changes immediately.
+2. **Report** — summarize what was expected vs what was found, with
+   concrete evidence (paths, line numbers, exit codes).
+3. **Options** — provide owner with 2–4 distinct paths forward
+   (A/B/C/D), each with tradeoffs.
+4. **Wait** — do not proceed without explicit direction.
+5. **Proceed** — only after authorization. Reference the chosen
+   option in the eventual commit message.
+
+This protocol caught real divergences in Phase 1+2+3:
+
+| Sub-phase | Divergence caught |
+|---|---|
+| P2.3 | `GO_VERSION` premise was about toolchain, not project-declared |
+| P2.Y | `docs/legacy/` refs still active in `scripts/bootstrap-check.sh` |
+| P3.3 | GitHub fork lockdown blocked by personal-tier platform policy |
+| P3.5 | "Scripts missing `set -e`" audit finding was wrong (all 41 had `set -euo pipefail`) |
+| P3.7 | `golangci-lint` version not pinned in CI workflow (action default) |
+
+Without pause-and-report, each would have led to broken or
+mis-prioritized work.
+
+### Common patterns
+
+#### Pre-action working tree verification
+
+Every significant action begins with:
+
+```bash
+git status --porcelain          # must be empty
+git fetch origin
+git rev-list --count origin/main..HEAD   # must be 0
+make verify                     # must PASS
+```
+
+The slash command `/check-clean` (in `.claude/commands/`) wraps
+this. If any check fails, stop and report.
+
+#### Cross-reference search before deletion
+
+Before deleting or renaming any tracked path, search comprehensively
+for active references across source code, config files, docs,
+Makefile, and CI workflows. The slash command `/check-refs <path>`
+wraps this.
+
+This pattern surfaced repeatedly in Phase 1+2 as
+stale-infrastructure-post-restructure (orientation/validation
+breaks after a rename or deletion that missed a reference).
+
+#### Inventory-first for fact-dense changes
+
+When a change touches dense factual surface (file lists, version
+declarations, configuration matrices), produce a structured
+inventory first to `/tmp/<topic>-inventory.md`, then transform from
+inventory. Used in P1A.4a (runtime inventory), P1A.6a (domain
+inventory), P2.X.0 (scripts inventory), P3.0 (full environment
+audit). The slash command `/inventory <area>` wraps this.
+
+#### Atomic commits per concern
+
+If a session naturally splits into multiple concerns (e.g., "fix
+bug A and refactor B"), produce multiple commits — one per
+concern. Sessions producing one gargantuan commit covering
+everything are a signal of merged concerns.
+
+### Validation discipline
+
+#### Distinguish project-declared vs tool-environment version
+
+When verifying versions, identify the source of truth:
+
+| Source | Authoritative for |
+|---|---|
+| `go.work` | Go workspace version |
+| `go.mod` per module | Go module version (typically matches workspace) |
+| `tools/raccoon-cli/rust-toolchain.toml` | Rust version |
+| `.tool-versions` | asdf/mise manifest (consumes the above) |
+| `.github/workflows/ci.yml` | CI runtime version |
+| Local toolchain | Whatever is installed (may legitimately differ) |
+
+P2.3 mistake: investigation reported "go.work says 1.25.7, toolchain
+says 1.26.2" and treated it as drift-to-fix. Reality: the toolchain
+was newer than the workspace declaration, which is fine. The
+slash command `/version-check` wraps cross-validation.
+
+#### Audit-heuristic validation
+
+When an audit reports "X% missing convention Y" where Y is widely
+adopted, **double-check before remediating**.
+
+Heuristics like `head -N | grep` miss content beyond the first N
+lines. For findings about widely-adopted conventions (`set -e`,
+`gofmt`, etc.), validate with a dedicated tool (`shellcheck`,
+`gofmt -l`, `cargo clippy`, etc.) before planning work.
+
+P3.5 mistake: audit claimed "39/39 scripts missing `set -e`".
+Reality: all 41 had `set -euo pipefail` after the header comment
+block (declared at lines 7–49). The audit's `head -10 | grep`
+missed it. P3.5 was re-scoped to use shellcheck and surfaced 7
+real safety issues instead.
+
+#### Format validation pre-commit
+
+`lefthook.yml` validates YAML/TOML/JSON, trailing whitespace, and
+gofmt at commit time. Don't bypass without reason; CI re-checks
+every push.
+
+### Cross-platform quirks
+
+#### Shell quoting
+
+Word-splitting differs between zsh and bash. Prefer:
+
+- Quote variables: `"$VAR"` not `$VAR`.
+- Use `read -ra ARRAY <<< "$VAR"` for array splitting (vs the
+  word-splitting `ARRAY=($VAR)` pattern flagged by shellcheck SC2206).
+- For dynamic list generation, prefer Python (more predictable
+  across shells).
+
+#### `sed -i` macOS vs Linux
+
+macOS BSD `sed` requires an extension arg; GNU `sed` does not:
+
+```bash
+# Portable wrapper
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "$@"
+else
+    sed -i "$@"
+fi
+```
+
+Or just use Python for in-place edits — fewer cross-platform
+surprises.
+
+### Lessons learned (Phase 1+2+3 errata)
+
+Specific mistakes documented to avoid repetition:
+
+1. **P2.3** — Don't conflate toolchain-environment with
+   project-declared versions. They can legitimately differ.
+2. **P2.Y** — Refs to legacy paths can survive in unexpected places
+   (e.g., bootstrap validators). Cross-search broader than
+   "obvious" locations.
+3. **P3.3** — GitHub features have tier limits. Personal public
+   repos can't disable forks via UI/API. Verify platform
+   constraints before planning remediation.
+4. **P3.5** — Heuristic audits (`head | grep`) can miss content
+   beyond the inspection window. Validate with dedicated tools.
+5. **P3.7** — CI workflows can use action defaults (no explicit
+   `version:` pinning), creating drift between local-tested and
+   CI-executed versions.
+
+### Anti-patterns to avoid
+
+- **Reframe to fit**: if a prompt's premise doesn't match reality,
+  don't reframe reality to make the prompt valid. Pause and report.
+- **Aggregate concerns**: don't bundle unrelated changes into one
+  commit "because they're small". Atomic per concern.
+- **Trust narrative reference**: documentation describing past state
+  may be outdated. Verify against current files before relying on
+  doc claims.
+- **Skip validation**: never declare success without `make verify`.
+- **Bypass safety hooks** (`--no-verify`, `--no-gpg-sign`) without
+  owner authorization. If a hook fails, investigate and fix; don't
+  paper over.
 
 ---
 
