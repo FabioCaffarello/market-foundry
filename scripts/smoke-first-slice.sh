@@ -95,7 +95,7 @@ while [[ $ELAPSED -lt $WAIT_SECONDS ]]; do
         break
     fi
 
-    sleep $POLL_INTERVAL
+    sleep "$POLL_INTERVAL"
     ELAPSED=$((ELAPSED + POLL_INTERVAL))
     echo -n "."
 done

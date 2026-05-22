@@ -200,6 +200,49 @@ archaeology.
 
 ## Recently resolved
 
+### Shellcheck safety fixes + P3.0 audit retraction (Phase 3.5.safety)
+
+**Resolved** by re-investigating P3.0's "scripts safety" finding via
+`shellcheck` and applying targeted fixes for the real issues surfaced.
+Closes P3.0 audit P0 finding "scripts safety" with corrected scope.
+
+P3.0 audit had claimed **"39/39 scripts MISSING `set -e`"**. That
+finding is **retracted**: re-investigation found all 41 scripts already
+have `set -euo pipefail` (the audit's heuristic `head -10 | grep`
+missed the directive which appears after the header comment block,
+typically lines 7–49). Real safety state is broadly safe.
+
+Shellcheck 0.11.0 across all 41 scripts surfaced 106 issues:
+- **71 (67%) false positives**: SC2015 (`A && B || C` used for logging),
+  SC1091 (dynamic `source` paths shellcheck can't statically resolve).
+- **28 (26%) minor cleanups**: SC2034 (unused vars), SC2329 (dead
+  functions), SC2155 (declare+assign), SC2064 (trap quoting), SC2012/
+  SC2010 (`ls` vs `find`), SC2153, SC2001. Cosmetic — not safety risks.
+  Deferred to optional P3.5.cleanup.
+- **7 (7%) real safety issues**: 5 × SC2086 (word splitting on
+  unquoted variables) + 2 × SC2206 (array assignment via word
+  splitting). **Fixed in this phase**:
+  - `scripts/diag-check.sh:183` — `exit "$ERRORS"`
+  - `scripts/live-pipeline-activate.sh:116` — `sleep "$POLL_INTERVAL"`
+  - `scripts/live-pipeline-activate.sh:402` — `exit "$ERRORS"`
+  - `scripts/smoke-compose-wiring.sh:492` — `exit "$ERRORS"`
+  - `scripts/smoke-first-slice.sh:98` — `sleep "$POLL_INTERVAL"`
+  - `scripts/smoke-multi-symbol.sh:77–78` — `read -ra` instead of
+    `ARRAY=($VAR)` for `SYMBOLS` and `TIMEFRAMES`.
+
+Total post-fix shellcheck issue count: 99 (= 106 − 7), all warnings
+or notes, zero errors.
+
+P3.6 (scripts safety — group 2) is **retired** as no-op: it was based
+on the same incorrect "missing set -e" premise.
+
+Lesson institutionalized: audit heuristics like `head -N | grep` can
+miss content beyond the first N lines. For findings about widely-
+adopted conventions (`set -e`, `gofmt`, etc.), validate with a
+dedicated tool (`shellcheck`, `gofmt -l`, `cargo clippy`, etc.) before
+planning remediation. Pause-and-report on audit divergence caught this
+before any unnecessary work shipped.
+
 ### lefthook adopted for pre-commit and commit-msg validation (Phase 3.4)
 
 **Resolved** by introducing [lefthook](https://lefthook.dev/) as the

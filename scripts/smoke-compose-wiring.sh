@@ -489,4 +489,4 @@ else
     print_smoke_diagnosis_hints "make up"
 fi
 
-exit $ERRORS
+exit "$ERRORS"

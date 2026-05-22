@@ -74,8 +74,8 @@ EOF
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="${SOURCE:-binancef}"
-SYMBOLS=(${SMOKE_SYMBOLS:-btcusdt ethusdt})
-TIMEFRAMES=(${SMOKE_TIMEFRAMES:-60 300 900 3600})
+read -ra SYMBOLS <<< "${SMOKE_SYMBOLS:-btcusdt ethusdt}"
+read -ra TIMEFRAMES <<< "${SMOKE_TIMEFRAMES:-60 300 900 3600}"
 WAIT_SECONDS="${SMOKE_WAIT:-90}"
 SETUP_HINT="make up && make seed-multi"
 

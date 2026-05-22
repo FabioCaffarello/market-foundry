@@ -180,4 +180,4 @@ else
     echo -e "${RED}${BOLD}${ERRORS} issue(s) detected.${NC}"
 fi
 
-exit $ERRORS
+exit "$ERRORS"

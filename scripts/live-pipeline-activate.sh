@@ -113,7 +113,7 @@ for line in sys.stdin:
         if [[ "$status" == "healthy" ]]; then
             break
         fi
-        sleep $POLL_INTERVAL
+        sleep "$POLL_INTERVAL"
         elapsed=$((elapsed + POLL_INTERVAL))
         echo -n "."
     done
@@ -399,4 +399,4 @@ echo "  make live-multi            # full multi-symbol pipeline activation"
 echo "  make down                  # stop everything"
 echo ""
 
-exit $ERRORS
+exit "$ERRORS"
