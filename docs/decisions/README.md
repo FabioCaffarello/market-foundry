@@ -43,11 +43,16 @@ typo fixes and broken-link corrections are fine.)
 | [0004](0004-raccoon-cli-static-enforcement.md) | raccoon-cli for static architecture enforcement | Accepted |
 | [0005](0005-layer-sovereignty.md) | Layer sovereignty enforced statically | Accepted |
 
-### Operational decisions and constraints (P1A.8b — pending)
+### Operational decisions and constraints (P1A.8b)
 
-ADRs 0006-0011 will cover configctl as lifecycle authority, paper
-venue adapter as default safe mode, single-writer invariant, subject
-taxonomy, httprouter trie constraints, and pairing no-OMS boundary.
+| # | Title | Status |
+|---|---|---|
+| [0006](0006-configctl-lifecycle-authority.md) | configctl as lifecycle authority | Accepted |
+| [0007](0007-paper-venue-default.md) | paper venue adapter as default safe mode | Accepted |
+| [0008](0008-single-writer-invariant.md) | Single-writer invariant per stream and KV bucket | Accepted |
+| [0009](0009-subject-taxonomy.md) | NATS subject taxonomy with verb-last pattern | Accepted |
+| [0010](0010-httprouter-trie-constraints.md) | httprouter trie constraints respected | Accepted |
+| [0011](0011-no-oms-expansion-pairing.md) | No OMS expansion in pairing and effectiveness | Accepted |
 
 ## Adding new ADRs
 
