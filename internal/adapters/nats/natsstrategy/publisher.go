@@ -3,6 +3,7 @@ package natsstrategy
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/strategy"
@@ -80,8 +81,28 @@ func (p *Publisher) PublishStrategy(ctx context.Context, event strategy.Strategy
 
 	dedupKey := event.Strategy.DeduplicationKey()
 
-	if _, err := p.js.Publish(ctx, subject, data, jetstream.WithMsgID(dedupKey)); err != nil {
+	ack, err := p.js.Publish(ctx, subject, data, jetstream.WithMsgID(dedupKey))
+	if err != nil {
 		return problem.Wrap(err, problem.Unavailable, "publish strategy event")
+	}
+	if ack != nil && ack.Duplicate {
+		// JetStream returned PubAck with Duplicate=true: the message was
+		// already in the stream's deduplication window and was dropped
+		// without delivery. Surface this so silent event loss is visible.
+		// Counter increment is intentionally omitted to keep blast radius
+		// to a single file — Publisher has no tracker today; adding one
+		// requires constructor changes across 15 callsites (P4.1.10
+		// scope note: counter omission authorised by prompt).
+		slog.Default().Warn("strategy event deduplicated (silent drop)",
+			"component", "natsstrategy.Publisher",
+			"msg_id", dedupKey,
+			"subject", subject,
+			"stream", ack.Stream,
+			"type", event.Strategy.Type,
+			"source", event.Strategy.Source,
+			"symbol", event.Strategy.Symbol,
+			"timeframe", event.Strategy.Timeframe,
+		)
 	}
 
 	return nil

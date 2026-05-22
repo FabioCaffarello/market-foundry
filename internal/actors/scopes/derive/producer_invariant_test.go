@@ -389,7 +389,10 @@ func TestTI_DeduplicationKey_DeterministicFromStrategy(t *testing.T) {
 	pub.waitFor(t, 1, 2*time.Second)
 	s := pub.messages()[0].(publishStrategyMessage).Event.Strategy
 
-	wantKey := fmt.Sprintf("strat:mean_reversion_entry:binancef:btcusdt:60:%d", ts.Unix())
+	// P4.1.10: dedup key precision is nanoseconds (was seconds);
+	// prevents silent JetStream dedup drops under rapid same-second
+	// publishes.
+	wantKey := fmt.Sprintf("strat:mean_reversion_entry:binancef:btcusdt:60:%d", ts.UnixNano())
 	gotKey := s.DeduplicationKey()
 	if gotKey != wantKey {
 		t.Errorf("TI-2: dedup key want %s, got %s", wantKey, gotKey)

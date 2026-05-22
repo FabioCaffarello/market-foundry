@@ -198,8 +198,10 @@ func TestStrategy_DeduplicationKey(t *testing.T) {
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}
-	// Verify the unix timestamp suffix matches.
-	expectedSuffix := fmt.Sprintf("%d", ts.Unix())
+	// Verify the nanosecond timestamp suffix matches (P4.1.10:
+	// precision raised from Unix() to UnixNano() to prevent silent
+	// dedup drops under rapid same-second publishes).
+	expectedSuffix := fmt.Sprintf("%d", ts.UnixNano())
 	if got[len(prefix):] != expectedSuffix {
 		t.Fatalf("expected suffix %q, got %q", expectedSuffix, got[len(prefix):])
 	}

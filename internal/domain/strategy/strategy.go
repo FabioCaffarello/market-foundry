@@ -91,6 +91,12 @@ func (s Strategy) PartitionKey() string {
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
+// Nanosecond precision is required so multiple resolutions within the same
+// wall-clock second produce distinct Nats-Msg-Id values. With whole-second
+// precision (the prior behaviour) JetStream's 2-minute Duplicate Window
+// silently dropped same-second siblings — diagnosed in P4.1.9.
+// Production kline cadence is ≥1s so the bug was latent, but rapid-publish
+// integration tests and any future sub-second producers depend on this.
 func (s Strategy) DeduplicationKey() string {
-	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.Symbol, s.Timeframe, s.Timestamp.Unix())
+	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.Symbol, s.Timeframe, s.Timestamp.UnixNano())
 }
