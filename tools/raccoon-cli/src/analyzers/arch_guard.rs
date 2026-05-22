@@ -512,6 +512,16 @@ fn check_deploy_boundary(project_root: &Path) -> CheckResult {
     let mut findings = Vec::new();
 
     walk_go_files(&internal_dir, &mut |file_path| {
+        // Exempt _test.go: tests legitimately reference canonical deploy paths
+        // in assertions/fixtures. The rule's intent — "production code shouldn't
+        // hardcode deploy paths" — does not apply to tests.
+        if file_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.ends_with("_test.go"))
+        {
+            return;
+        }
         if let Ok(content) = std::fs::read_to_string(file_path) {
             let rel = file_path
                 .strip_prefix(project_root)
@@ -1333,6 +1343,30 @@ type G interface{}
             .find(|c| c.name == "deploy-boundary")
             .unwrap();
         assert_eq!(check.status, CheckStatus::Pass);
+    }
+
+    #[test]
+    fn deploy_path_in_test_file_is_exempt() {
+        let dir = tempfile::tempdir().unwrap();
+        scaffold(dir.path());
+
+        fs::write(
+            dir.path().join("internal/shared/settings/loader_test.go"),
+            "package settings\n\nvar path = \"deploy/configs/server.jsonc\"\n",
+        )
+        .unwrap();
+
+        let report = analyze(dir.path()).unwrap();
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "deploy-boundary")
+            .unwrap();
+        assert_eq!(
+            check.status,
+            CheckStatus::Pass,
+            "_test.go files must be exempt from deploy-boundary"
+        );
     }
 
     // ── Port contract leaks (Rule 9 — NEW semantic) ─────────────────────
