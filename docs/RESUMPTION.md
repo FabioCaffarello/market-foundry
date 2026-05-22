@@ -7,7 +7,7 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Phase 1A documentation reset (in progress)**.
+Last meaningful state change: **Phase 1B closed — `.opencode/` exterminated; stale repository-consistency-check.sh replaced**.
 
 ---
 
@@ -37,7 +37,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | FAIL on 9 cross-reference checks (see "Known gaps") |
+| `make verify` | FAIL — `quality-gate` reports 61 errors from `raccoon-cli drift-detect` against missing `docs/architecture/*.md` (see G6). `make test` and `repo-consistency-check` both PASS. |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |
@@ -99,20 +99,6 @@ do work.
 **Status:** unclear whether this is intentional design (some signals
 are analytical-only) or oversight. No documented decision either way.
 
-### G3 — `make verify` fails on 9 cross-reference checks
-
-These are link rot from the documentation reset. The `.opencode/`
-directory still references paths under `docs/architecture/`,
-`docs/development/`, `docs/operations/`, etc., which have moved to
-`docs/legacy/...`.
-
-**Status:** transient. P1B will delete `.opencode/` entirely, which
-resolves all 9 failures.
-
-**Workaround in the meantime:** `make verify` failures on these
-specific checks are expected. Confirm the failure is **only** in
-`.opencode/` cross-refs before treating it as a real problem.
-
 ### G4 — HTTP authentication
 
 There is **no authentication** on any gateway endpoint. The default
@@ -138,6 +124,28 @@ lists each dep gate.
 dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
+
+### G6 — `raccoon-cli drift-detect` hardcoded against old topology
+
+`tools/raccoon-cli/src/analyzers/drift_detect.rs` contains 91 hardcoded
+references to `docs/architecture/*.md` files, asserting the presence of
+family architecture design docs (signal, decision, strategy, risk,
+execution) that never existed in the working tree. The analyzer was
+designed to enforce a future state.
+
+After the Phase 1A reset, `docs/architecture/` (subdir) no longer
+exists — replaced by `docs/ARCHITECTURE.md` (singular file) and
+`docs/domain/` (subdir of 11 docs).
+
+**Effect:** `make quality-gate` fails with 61 errors, which propagates
+to `make verify` failing.
+
+**Resolution path:** rewrite or remove the `drift_detect.rs` analyzer
+to align with the Phase 1A docs topology. This is non-trivial Rust
+work and is scoped for P1D (governance) or P2 (environment hardening),
+not P1B.
+
+**Status:** known debt; documented; `make verify` red until resolved.
 
 ---
 
@@ -210,14 +218,46 @@ smoke-restart-recovery, smoke-help) and move the stage-tagged ones
 out — either delete, or relocate to `scripts/historical/` for
 archaeology.
 
+---
+
+## Recently resolved (Phase 1B)
+
+### G3 — `make verify` cross-references (originally framed as 9 failures from `.opencode/`)
+
+The original framing of G3 ("9 failures, all from `.opencode/`
+cross-refs") was inaccurate. P1B uncovered the truth in three layers:
+
+1. **`.opencode/` directory** existed and had 1 cross-reference check
+   failing. **Resolved** by deletion in P1B.
+
+2. **`scripts/repository-consistency-check.sh`** had ~7 checks failing
+   because the script was hardcoded against the pre-reset docs topology
+   (`docs/product/`, `docs/architecture/`, `docs/development/`,
+   `docs/stages/`, `docs/archive/`, `docs/tooling/`) which moved to
+   `docs/legacy/` in P1A.1. The script was never updated during Phase
+   1A because the failure was misattributed to `.opencode/`.
+   **Resolved** in P1B by replacement with a minimal stub aligned with
+   the current Phase 1A topology (`scripts/repository-consistency-check.sh`,
+   ~100 lines).
+
+3. **`tools/raccoon-cli/src/analyzers/drift_detect.rs`** is a separate
+   failing layer (61 errors) that was invisible in the original
+   framing. **Escalated as G6**, not resolved in P1B (out of scope —
+   `tools/` was off-limits).
+
+**Net effect:** P1B resolved two of the three underlying layers.
+`make verify` is still red because of G6. The "9 failures from
+`.opencode/`" narrative was triply wrong (count of root causes,
+attribution of the root, and missing an entirely separate failing
+layer) and is corrected here so future readers learn from the error
+rather than inherit it.
+
 ### D5 — `.opencode/` directory still present
 
-The `.opencode/` directory was the navigation layer for an external
-agent tool. It is structurally minimal and intentionally bounded,
-but it is being retired in favor of the new `.claude/` layer (P1C).
-
-**Resolution path:** P1B will delete `.opencode/` entirely. The 9
-failing `make verify` checks (G3) resolve at the same moment.
+**Resolved** by P1B. The directory was the navigation layer for an
+external agent tool (OpenCode CLI). It has been deleted in its
+entirety (37 files). The agentic layer will be rebuilt from scratch
+in P1C using the Anthropic ecosystem (CLAUDE.md root + `.claude/`).
 
 ---
 
@@ -287,11 +327,11 @@ Each phase has a clear exit criterion.
 | Phase | Goal | Status |
 |---|---|---|
 | **Phase 0** | Unblock — fix git limbo, align Go version, get smoke passing | **CLOSED** (commits up to 8900694, mid-May 2026) |
-| **Phase 1A** | Documentation reset — move legacy, write new docs | **IN PROGRESS** (this document is part of P1A.5b) |
-| Phase 1B | Exterminate `.opencode/` | Pending — depends on P1A complete |
-| Phase 1C | Build `.claude/` agentic layer | Pending — depends on P1B |
-| Phase 1D | PR-based governance (PR template, CONTRIBUTING, issue templates) | Pending — depends on P1C |
-| Phase 2 | Environment hardening (CI, Docker, scripts, Makefile cleanup) | Pending — depends on P1 closed |
+| **Phase 1A** | Documentation reset — move legacy, write new docs | **CLOSED** (17 sub-prompts, 36 docs, May 2026) |
+| **Phase 1B** | Exterminate `.opencode/` | **CLOSED** (G6 escalated; see Recently resolved) |
+| Phase 1C | Build `.claude/` agentic layer | Pending — next |
+| Phase 1D | PR-based governance (PR template, CONTRIBUTING, issue templates) | Pending — depends on P1C; also owns G6 resolution candidate |
+| Phase 2 | Environment hardening (CI, Docker, scripts, Makefile cleanup) | Pending — depends on P1 closed; also owns G6 resolution candidate |
 | Phase 3 | First feature wave (most likely: backtesting — see N1) | Future |
 | Phase 4+ | Subsequent waves (PnL aggregation, multi-exchange, etc.) | Future |
 
@@ -307,46 +347,35 @@ Phase 1A subdivision (status at time of this doc):
 | P1A.4b.1 | Errata correcting ARCHITECTURE.md and GLOSSARY.md | Done |
 | P1A.4c | docs/HTTP-API.md | Done |
 | P1A.5a | docs/DEVELOPMENT.md | Done |
-| P1A.5b | docs/RESUMPTION.md (this document) | **In progress** |
-| P1A.6 | Nine domain docs under docs/domain/ | Pending |
-| P1A.7 | Operations docs under docs/operations/ | Pending |
-| P1A.8 | Initial ADRs under docs/decisions/ | Pending |
-| P1A.9 | docs/CONTRIBUTING.md | Pending |
+| P1A.5b | docs/RESUMPTION.md (this document) | Done |
+| P1A.6 | Domain docs under docs/domain/ | Done |
+| P1A.7 | Operations docs under docs/operations/ | Done |
+| P1A.8 | Initial ADRs under docs/decisions/ | Done |
+| P1A.9 | docs/CONTRIBUTING.md | Done |
 
 ---
 
 ## Concrete next step
 
-The immediate next step is **P1A.6 — write the nine domain docs**:
+The immediate next step is **P1C — build the `.claude/` agentic
+layer** using the Anthropic ecosystem (CLAUDE.md root + `.claude/`
+directory). This replaces the `.opencode/` navigation layer that was
+deleted in P1B.
 
-```
-docs/domain/
-  README.md           (overview of the nine + six internal domains)
-  observation.md
-  evidence.md
-  signal.md
-  decision.md
-  strategy.md
-  risk.md
-  execution.md
-  effectiveness.md
-  pairing.md
-```
+P1C scope (to be refined in its own prompt):
+- Write `CLAUDE.md` at the repository root with concise, project-
+  specific guidance for Claude Code.
+- Create `.claude/` directory structure with agent definitions, slash
+  commands, and any project-local skills relevant to market-foundry
+  work.
+- Wire it together so the agentic layer is discoverable from a fresh
+  clone without reading the whole `docs/` tree.
 
-Each domain doc should follow a consistent structure:
-- What this domain models
-- Key types (struct names, what they carry)
-- Event flow (what stream this domain reads from, writes to)
-- Validation rules
-- Known patterns (FamilyProcessor for derive domains, etc.)
-- Reading further (cross-refs to RUNTIME.md, HTTP-API.md)
+After P1C: **P1D** (PR-based governance) opens. G6 (raccoon-cli
+drift-detect) is a candidate for resolution in either P1D or P2.
 
-Each is moderate-sized (~150-250 lines). Best executed as one
-inventory prompt (P1A.6a) followed by one writing prompt per
-domain group, similar to how P1A.4 was structured.
-
-After P1A.6 comes P1A.7 (operations), P1A.8 (ADRs), P1A.9
-(CONTRIBUTING). Then P1A closes and P1B opens.
+`make verify` will remain red until G6 is addressed. This is
+documented debt, not regression.
 
 ---
 
