@@ -1035,12 +1035,20 @@ fix.
      green for all three; Integration Tests flake (the documented
      `TestControlledActivation_FullLifecycle` / `TestRealVenueActivation_FullLifecycle`
      timing flake) ignored as non-required, non-regression.
-   - P4.5.b (NEXT): routine minor/patch batch — 8 PRs (#7, #9, #10,
-     #11, #12, #13, #14, #15). All rebase + likely auto-merge after
-     CI clears.
-   - P4.5.c (after P4.5.b): 5 majors — 4 GitHub Actions (#2, #3, #4,
-     #6) + ureq 2→3 Rust (#8). Actions PRs may auto-recover via
-     rebase (see M19); ureq requires manual code review.
+   - P4.5.b (closed 2026-05-23): minor/patch batch — 8 PRs (#7, #9,
+     #11, #10, #13, #15, #12, #14) rebased + merged sequentially.
+     Order grouped 3 cargo singletons → 3 standalone gomod →
+     in-module pair (#12/#14 share `internal/adapters/nats/go.mod`).
+     All 8 cleared required CI (Unit Tests + Quality Gate + Go Lint);
+     Integration Tests flake non-blocking per P4.5.a posture. No
+     genuine test failures; no mirror-pair conflicts (Dependabot
+     rebase-on-trigger handles each PR against current main).
+     `go.work.sum` picked up transitive checksums for the
+     `golang.org/x/{net,sync,term,text,tools,mod}` and otel/metric
+     families pulled in by the nats.go/clickhouse-go bumps.
+   - P4.5.c (NEXT): 5 majors — 4 GitHub Actions (#2, #3, #4, #6) +
+     ureq 2→3 Rust (#8). Actions PRs may auto-recover via rebase
+     (see M19); ureq requires manual code review.
 
 ### Phase 4 design-meta candidates (deferred)
 
