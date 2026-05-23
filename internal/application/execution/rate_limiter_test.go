@@ -3,6 +3,7 @@ package execution_test
 import (
 	"context"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -32,18 +33,28 @@ func (b *blockingVenue) SubmitOrder(ctx context.Context, _ ports.VenueOrderReque
 	return okReceipt()
 }
 
-// waitForGoroutineDrop waits up to timeout for runtime.NumGoroutine() to
-// return to <= target. Returns the final count.
-func waitForGoroutineDrop(target int, timeout time.Duration) int {
+// hasGoroutineWithFunc scans the current goroutine stacks for a frame
+// matching the given substring. Used to assert presence/absence of the
+// rate limiter's background goroutine deterministically — runtime.NumGoroutine()
+// has too much noise (GC workers, finalizers, peer tests) for that.
+func hasGoroutineWithFunc(name string) bool {
+	buf := make([]byte, 1<<20)
+	n := runtime.Stack(buf, true)
+	return strings.Contains(string(buf[:n]), name)
+}
+
+// waitFor polls until cond returns true or timeout expires. Returns the
+// final result of cond().
+func waitFor(timeout time.Duration, cond func() bool) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		runtime.Gosched()
-		if n := runtime.NumGoroutine(); n <= target {
-			return n
+		if cond() {
+			return true
 		}
-		time.Sleep(5 * time.Millisecond)
+		runtime.Gosched()
+		time.Sleep(2 * time.Millisecond)
 	}
-	return runtime.NumGoroutine()
+	return cond()
 }
 
 // TestRateLimiter_AllowsBurstImmediately verifies the initial token bucket
@@ -275,25 +286,27 @@ func TestRateLimiter_MinimumBurst(t *testing.T) {
 
 // TestRateLimiter_Close_StopsGoroutine verifies the refill goroutine exits
 // after Close — the documented P0 leak motivating P4.2.
+//
+// We scan goroutine stacks for the RateLimiter.refillLoop frame rather
+// than comparing runtime.NumGoroutine() deltas: runtime workers, GC
+// finalizers, and peer-test goroutines all jitter the global count
+// enough to flake the latter approach on shared CI runners.
+const refillLoopFrame = "RateLimiter).refillLoop"
+
 func TestRateLimiter_Close_StopsGoroutine(t *testing.T) {
 	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
 		return okReceipt()
 	}}
-
-	before := runtime.NumGoroutine()
 	rl := execution.NewRateLimiter(venue, 2, 10*time.Millisecond)
 
-	// Sanity: construction should have spawned at least the refill loop.
-	during := runtime.NumGoroutine()
-	if during <= before {
-		t.Fatalf("expected goroutine count to increase after construction; before=%d during=%d", before, during)
+	if !waitFor(500*time.Millisecond, func() bool { return hasGoroutineWithFunc(refillLoopFrame) }) {
+		t.Fatal("expected refillLoop goroutine to be scheduled after construction")
 	}
 
 	rl.Close()
 
-	final := waitForGoroutineDrop(before, 500*time.Millisecond)
-	if final > before {
-		t.Fatalf("refill goroutine not cleaned up after Close: before=%d final=%d", before, final)
+	if !waitFor(500*time.Millisecond, func() bool { return !hasGoroutineWithFunc(refillLoopFrame) }) {
+		t.Fatal("refillLoop goroutine still present after Close")
 	}
 }
 
