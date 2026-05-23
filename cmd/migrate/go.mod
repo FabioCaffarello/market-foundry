@@ -2,7 +2,7 @@ module cmd/migrate
 
 go 1.25.7
 
-require github.com/ClickHouse/clickhouse-go/v2 v2.43.0
+require github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 
 require (
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
