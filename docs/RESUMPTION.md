@@ -7,15 +7,27 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Phase 3 CLOSED (2026-05-22)** — 10
-sub-prompts executed (P3.0–P3.10, including P3.5.safety), 2 retired
-or deferred (P3.6, P3.5.cleanup). Repository is public, non-commercial
-licensed (PolyForm NC 1.0.0), with branch protection, security
-toggles, lefthook hooks, editor configs, populated `.claude/`
-automation, and a substantially expanded `docs/CONTRIBUTING.md`.
-`make verify` GREEN locally; CI is currently RED due to P3.3's
-SHA-pinning enforcement on still-tag-pinned workflow actions —
-first task for Phase 4. See "Phase 4 outlook" below.
+Last meaningful state change: **Phase 4 CLOSED (2026-05-23)** —
+P0 backlog FULLY CLOSED (5/5 items: CI restoration via the P4.1
+wave, `rate_limiter` + `Close` lifecycle, `context.Background()`
+bounding, ControlGate fail-open posture formalized as ADR-0012,
+and the Dependabot triage wave). 12 ADRs total; 20 design-meta
+candidates queued (M1–M20, M19 closed during P4.5.c verification);
+~9 errata observations accumulated.
+
+`make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
+since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
+merges show the documented `TestControlledActivation_FullLifecycle`
+/ `TestRealVenueActivation_FullLifecycle` Integration Tests timing
+flake; these are non-required and non-blocking per branch protection
+(see Phase 4.5 narrative for full posture).
+
+Phase 5 OPENED (2026-05-23) — environment work, distinct from
+Phase 4's code/CI delivery. P5.0 audit (read-only, ~7 min wall-clock)
+categorized 12 findings across `.claude/`, prompt templates,
+operational tooling, and process debt; produced an 8-slot P5.x
+candidate roadmap pending owner direction. See "Phase 4 outlook"
+below for retrospective detail; Phase 5 narrative pending P5.1+.
 
 ---
 
@@ -908,8 +920,9 @@ Each phase has a clear exit criterion.
 | **Phase 1D** | PR-based governance + G6 resolution | **CLOSED** (root files consolidated, .github/ templates, drift_detect.rs realigned) |
 | **Phase 2** | Environment hardening (CI, Docker, scripts, Makefile cleanup) | **CLOSED** (11 sub-prompts; golangci-lint baseline, Dependabot, CI hardening, Docker contexts, Rust toolchain pinning) |
 | **Phase 3** | Public-repo hygiene (license, security, hooks, editor configs, AI agent automation) | **CLOSED** (2026-05-22; 10 sub-prompts executed, 2 deferred. See "Phase 3 — closed summary" below.) |
-| Phase 4 | CI restoration + P0 follow-through deferred from Phase 3 | **IN PROGRESS** (wave 4.1 closed 2026-05-22 — quality gate green; waves 4.2–4.5 ahead) |
-| Phase 5+ | Subsequent waves (feature work; first capabilities likely include backtesting) | Future |
+| Phase 4 | CI restoration + P0 follow-through deferred from Phase 3 | **CLOSED** (2026-05-23; P0 backlog 5/5 closed across P4.0–P4.5.c.ii; 12 ADRs, 20 M-candidates queued, 0 open Dependabot PRs, 0 open security advisories) |
+| Phase 5 | Environment work — `.claude/`, prompt templates, operational tooling, process-debt mitigation (distinct from feature work) | **IN PROGRESS** (P5.0 audit complete 2026-05-23; P5.1+ pending owner direction) |
+| Phase 6+ | Subsequent waves (feature work; first capabilities likely include backtesting) | Future |
 
 Phase 1A subdivision (status at time of this doc):
 
@@ -1027,11 +1040,16 @@ historical record.
 
 ### Outstanding work (post P4.1)
 
-1. **Integration Tests + Smoke Analytical E2E still red** (P4.1.5
-   scope). Pre-existing failures surfaced when the SHA-pinning
-   workflow-rejection layer lifted. Cause unknown — likely
-   environmental or service-container related. Read-only
-   investigation before any fix attempt.
+1. ✓ **Integration Tests + Smoke Analytical E2E** (P4.1.5 → P4.1.6
+   scope). Closed across the Phase 4.1 wave. Smoke Analytical E2E
+   deferred to a scheduled/manual workflow (P4.1.6.b, commit
+   `e91b863`); Integration Tests stabilized via the NATS docker-run
+   switch (P4.1.6.a..a.ii) and counter-race helpers (P4.1.8.a..d).
+   The documented `TestControlledActivation_FullLifecycle` /
+   `TestRealVenueActivation_FullLifecycle` 200 ms timing flake
+   remains visible on some intermediate Dependabot merges (per the
+   P4.5.a/b/c.ii closure narrative); non-required and non-blocking
+   per branch protection. CI 7/7 GREEN at `main` HEAD.
 2. ✓ **`rate_limiter` test + `Close` lifecycle** (P0-2 / P4.2).
    Closed 2026-05-23. 10 unit tests added (`rate_limiter_test.go`);
    `Close()` lifecycle wired at the 2 cmd/execute mainnet sites via
@@ -1103,10 +1121,11 @@ historical record.
 
 ### Phase 4 design-meta candidates (deferred)
 
-Six architectural questions surfaced during the Phase 4.1 wave.
-Captured here so context isn't lost; not blocking. Each deserves
-a dedicated discussion session when energy returns and the
-tactical P0 work (P4.2–P4.5) has informed the strategic view.
+Twenty architectural questions surfaced across the Phase 4 wave
+(M1–M20; M19 closed during P4.5.c verification). Captured here so
+context isn't lost; not blocking. Each deserves a dedicated
+discussion session — Phase 4 P0 work has now closed, so the
+strategic view is informed.
 
 The queue is the artifact; resolution is future work.
 
