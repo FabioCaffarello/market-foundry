@@ -61,6 +61,13 @@ func Run(config settings.AppConfig) {
 		logger.Error("build venue adapter", "error", err)
 		os.Exit(1)
 	}
+	// P4.2: release background goroutines owned by venue decorators
+	// (e.g. RateLimiter's refill loop) on shutdown.
+	defer func() {
+		for _, c := range venueResult.closers {
+			c()
+		}
+	}()
 
 	// S387: Build PriceSource from CANDLE_LATEST KV bucket for realistic fill prices.
 	// This closes the G1 gap from S384 — DryRunSubmitter and PaperVenueAdapter receive
@@ -185,11 +192,14 @@ func Run(config settings.AppConfig) {
 // The query port is used by Post200Reconciler (S322) for body-read-failure recovery.
 // S339: credentialState tracks whether venue credentials were loaded at startup.
 // S399: activeType records which adapter was selected (from segments or type).
+// P4.2: closers carries lifecycle teardown hooks (e.g. RateLimiter.Close) that
+// the caller must invoke on shutdown to release background goroutines.
 type venueAdapterResult struct {
 	submit          ports.VenuePort
 	query           ports.VenueQueryPort         // nil for adapters without query capability (e.g. paper)
 	credentialState domainexec.CredentialState
 	activeType      settings.VenueType           // S399: which adapter is active
+	closers         []func()                     // P4.2: invoke on shutdown
 }
 
 // buildVenueAdapter resolves the venue adapter from config.
@@ -218,18 +228,23 @@ func buildVenueAdapterFromSegments(config settings.AppConfig, logger *slog.Logge
 	router := appexec.NewSegmentRouter()
 	var lastType settings.VenueType
 	var lastCredState domainexec.CredentialState
+	var aggregatedClosers []func()
 	timeout := config.Venue.SubmitTimeoutDuration()
 
 	for _, seg := range enabledSegs {
 		adapterType := config.Venue.AdapterForSegment(seg)
 		result, err := buildVenueAdapterByType(adapterType, timeout)
 		if err != nil {
+			for _, c := range aggregatedClosers {
+				c()
+			}
 			return venueAdapterResult{}, fmt.Errorf("build adapter for segment %q: %w", seg, err)
 		}
 		router.Register(seg, result.submit)
 		if result.query != nil {
 			router.RegisterQuery(seg, result.query)
 		}
+		aggregatedClosers = append(aggregatedClosers, result.closers...)
 		lastType = result.activeType
 		lastCredState = result.credentialState
 	}
@@ -256,6 +271,7 @@ func buildVenueAdapterFromSegments(config settings.AppConfig, logger *slog.Logge
 		query:           router,
 		credentialState: credState,
 		activeType:      lastType,
+		closers:         aggregatedClosers,
 	}, nil
 }
 
@@ -307,6 +323,7 @@ func buildVenueAdapterByType(venueType settings.VenueType, submitTimeout time.Du
 			query:           adapter,
 			credentialState: domainexec.CredentialPresent,
 			activeType:      venueType,
+			closers:         []func(){rateLimited.Close},
 		}, nil
 
 	case settings.VenueTypeBinanceSpotMainnet:
@@ -321,6 +338,7 @@ func buildVenueAdapterByType(venueType settings.VenueType, submitTimeout time.Du
 			query:           adapter,
 			credentialState: domainexec.CredentialPresent,
 			activeType:      venueType,
+			closers:         []func(){rateLimited.Close},
 		}, nil
 
 	default:
