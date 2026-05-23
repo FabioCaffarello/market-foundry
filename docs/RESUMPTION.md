@@ -987,11 +987,43 @@ Surprises caught during Phase 3 via pause-and-report:
 
 ## Phase 4 outlook
 
-Phase 4 is in progress. The 4.1 wave (CI restoration + quality gate
-cleanup) closed on 2026-05-22 with quality-gate-ci green (commit
-`25839ea`). Subsequent waves address code-side P0 items deferred
-from Phase 3, with read-only investigation interleaved before each
-fix.
+Phase 4 essential delivery complete (2026-05-23). The 4.1 wave (CI
+restoration + quality gate cleanup) closed on 2026-05-22 with
+quality-gate-ci green (commit `25839ea`); P4.2–P4.5 closed all five
+P0 items deferred from Phase 3, with read-only investigation
+interleaved before each fix.
+
+**Phase 4 P0 backlog FULLY CLOSED** (5/5):
+
+| P0 item | Phase 4 prompt | Closure commit / date |
+|---|---|---|
+| P0-1 (CI restoration) | P4.0 + P4.1 wave (24+ sub-prompts) | b7eaa53, 2026-05-22 |
+| P0-2 (rate_limiter + Close) | P4.2 / P4.2.a | a6f0175, 2026-05-23 |
+| P0-3 (context bounding) | P4.3 / P4.3.a | 455f02e, 2026-05-23 |
+| P0-4 (Dependabot triage) | P4.5 / P4.5.a-c.ii | this commit, 2026-05-23 |
+| P0-5 (ControlGate fail-open) | P4.4 / P4.4.a | 7c2f09e, 2026-05-23 |
+
+**Cumulative artifacts shipped during Phase 4**:
+
+- 12 ADRs (added ADR-0012 for ControlGate fail-open posture).
+- 20 design-meta candidates (M1–M20, with M10 reserved gap;
+  M19 closed during P4.5.c verification).
+- ~9 errata observations across CONTRIBUTING/investigation patterns.
+- 7/7 CI consistently green on main.
+- 0 open Dependabot PRs.
+- 0 open security advisories.
+
+**Remaining Phase 4 work** (all discretionary):
+
+- **P4.X** — Tier E quality enhancements, opt-in (e.g., the ~60
+  hardcoded timeout literals deferred from P4.3.a — operational
+  tunability gap, not a bug).
+- **Phase 4 design-meta discussion** — full conversation across M1–M20
+  when momentum permits. Not blocking.
+
+The existing "Outstanding work" section below records each item's
+closure narrative for handoff context; preserved verbatim as
+historical record.
 
 ### Outstanding work (post P4.1)
 
@@ -1046,9 +1078,28 @@ fix.
      `go.work.sum` picked up transitive checksums for the
      `golang.org/x/{net,sync,term,text,tools,mod}` and otel/metric
      families pulled in by the nats.go/clickhouse-go bumps.
-   - P4.5.c (NEXT): 5 majors — 4 GitHub Actions (#2, #3, #4, #6) +
-     ureq 2→3 Rust (#8). Actions PRs may auto-recover via rebase
-     (see M19); ureq requires manual code review.
+   - P4.5.c (closed 2026-05-23): 5 majors — 4 GitHub Actions (#6,
+     #2, #3, #4) + ureq 2→3 (#8). Two phases:
+       * **Phase 1** (verification + investigation, ~10 min):
+         rebased PR #6 to test M19 hypothesis. Result: post-rebase
+         diff was SHA-style with version comment
+         (`actions/checkout@de0fac2e... # v6.0.2`); 8 sites in ci.yml +
+         1 in smoke-analytical.yml all updated. M19 verified
+         **self-correcting**; closed. ureq surface inventory: 1
+         file (`tools/raccoon-cli/src/smoke/api.rs`), 6 call sites,
+         3 patterns, ~25 LOC. Recommendation: migrate.
+       * **Phase 2** (execution): merged #6 as validation; sequential
+         rebase + merge for #2 (actions/cache 4→5), #3 (actions/setup-go
+         5→6), #4 (actions/upload-artifact 4→7) — all four landed
+         SHA-pinned with version comments. ureq 2→3 migrated in api.rs
+         (header/StatusCode/Agent.config_builder().timeout_global/body_mut
+         .read_json) preserving ApiClient public interface. PR #8 closed
+         in favor of combined Cargo.toml + source commit.
+   - **Phase 4.5 wave fully closed.** Final state: 0 open Dependabot
+     PRs, 0 open security advisories.
+   - **Phase 4 P0 backlog FULLY CLOSED** (5/5 items: P4.2 rate_limiter,
+     P4.3 context bounding, P4.4 ControlGate ADR-0012, P4.5 Dependabot
+     wave, and P4.0/P4.1 wave covering CI infrastructure restoration).
 
 ### Phase 4 design-meta candidates (deferred)
 
@@ -1356,29 +1407,29 @@ keeping `nil_bucket` and `key_not_found` fail-open) would be the
 smallest semantic step away from current posture; worth considering
 once counter data exists.
 
-#### M19 — Dependabot SHA-pinning behavior verification
+#### M19 — Dependabot SHA-pinning behavior verification — CLOSED
 
 P4.5 investigation flagged "GitHub Actions in Dependabot" as a
-structural friction: PRs reference v-tags (`@v5`) which the
-SHA-pinning policy rejects. P4.5.a's deeper inspection showed
+potential structural friction: PRs reference v-tags (`@v5`) which the
+SHA-pinning policy rejects. P4.5.a's deeper inspection hypothesized
 the friction is largely self-correcting on rebase — Dependabot
 preserves the existing workflow file's pin style, so once the PR
 is rebased onto a base where actions are SHA-pinned (post-P4.1),
 the regenerated diff is SHA-style and passes CI.
 
-**Candidate work**: verify this behavior end-to-end during P4.5.c
-(GitHub Actions majors #2, #3, #4, #6). If `@dependabot rebase`
-produces SHA-pinned + version-commented updates, no further work
-is needed; close M19 confirmed. If Dependabot reverts to tag-style
-after rebase (e.g., on a major bump where the version comment is
-out of sync), investigate adding a per-ecosystem option, custom
-post-PR-action that converts tags to SHAs, or moving Actions out
-of Dependabot entirely.
+**Verified in P4.5.c Phase 1 (2026-05-23) via PR #6 rebase test**:
+- Pre-rebase diff: `-uses: actions/checkout@v4` / `+uses: actions/checkout@v6`
+  (tag-style, generated against pre-pinning base).
+- Post-rebase diff: `-uses: actions/checkout@34e1148... # v4.3.1` /
+  `+uses: actions/checkout@de0fac2e... # v6.0.2` (SHA-style with version
+  comment, generated against current SHA-pinned base).
+- 8 sites in `ci.yml` + 1 in `smoke-analytical.yml` updated automatically.
+- All 4 Actions PRs (#6/#2/#3/#4) merged in P4.5.c with the same
+  rebase pattern; each preserved SHA-pinning.
 
-**Why deferred**: outcome of P4.5.c determines whether this is a
-finished investigation or a real piece of work. P4.5 initial report
-flagged it as a confirmed friction; P4.5.a re-evaluated it as
-"probably-resolved-by-rebase". Verification, not yet action.
+**Outcome**: no config change required. Future Dependabot Actions PRs
+will be auto-mergeable after a single `@dependabot rebase` comment.
+M19 closes.
 
 #### M20 — Dependabot dedup for manually-applied upgrades
 

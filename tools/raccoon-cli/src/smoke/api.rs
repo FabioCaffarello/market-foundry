@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::time::Duration;
+use ureq::Agent;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -7,22 +8,31 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 pub struct ApiClient {
     base_url: String,
     correlation_id: String,
+    agent: Agent,
 }
 
 impl ApiClient {
     pub fn new(base_url: &str, run_id: &str) -> Self {
+        // ureq 3.x: timeouts are configured on the Agent (not per-call).
+        // A single agent is reused across requests, sharing the connection
+        // pool and the timeout configuration.
+        let agent: Agent = Agent::config_builder()
+            .timeout_global(Some(REQUEST_TIMEOUT))
+            .build()
+            .into();
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             correlation_id: format!("raccoon-smoke-{run_id}"),
+            agent,
         }
     }
 
     /// GET /healthz
     pub fn healthz(&self) -> Result<u16, String> {
         let url = format!("{}/healthz", self.base_url);
-        match ureq::get(&url).timeout(REQUEST_TIMEOUT).call() {
-            Ok(resp) => Ok(resp.status()),
-            Err(ureq::Error::Status(code, _)) => Ok(code),
+        match self.agent.get(&url).call() {
+            Ok(resp) => Ok(resp.status().as_u16()),
+            Err(ureq::Error::StatusCode(code)) => Ok(code),
             Err(e) => Err(format!("healthz request failed: {e}")),
         }
     }
@@ -30,9 +40,9 @@ impl ApiClient {
     /// GET /readyz
     pub fn readyz(&self) -> Result<u16, String> {
         let url = format!("{}/readyz", self.base_url);
-        match ureq::get(&url).timeout(REQUEST_TIMEOUT).call() {
-            Ok(resp) => Ok(resp.status()),
-            Err(ureq::Error::Status(code, _)) => Ok(code),
+        match self.agent.get(&url).call() {
+            Ok(resp) => Ok(resp.status().as_u16()),
+            Err(ureq::Error::StatusCode(code)) => Ok(code),
             Err(e) => Err(format!("readyz request failed: {e}")),
         }
     }
@@ -158,27 +168,31 @@ impl ApiClient {
     }
 
     fn post_json(&self, url: &str, body: &Value) -> Result<Value, String> {
-        let resp = ureq::post(url)
-            .set("Content-Type", "application/json")
-            .set("Accept", "application/json")
-            .set("X-Correlation-ID", &self.correlation_id)
-            .timeout(REQUEST_TIMEOUT)
+        let mut resp = self
+            .agent
+            .post(url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("X-Correlation-ID", &self.correlation_id)
             .send_json(body.clone())
             .map_err(|e| format!("POST {url} failed: {e}"))?;
 
-        resp.into_json::<Value>()
+        resp.body_mut()
+            .read_json::<Value>()
             .map_err(|e| format!("failed to parse response from {url}: {e}"))
     }
 
     fn get_json(&self, url: &str) -> Result<Value, String> {
-        let resp = ureq::get(url)
-            .set("Accept", "application/json")
-            .set("X-Correlation-ID", &self.correlation_id)
-            .timeout(REQUEST_TIMEOUT)
+        let mut resp = self
+            .agent
+            .get(url)
+            .header("Accept", "application/json")
+            .header("X-Correlation-ID", &self.correlation_id)
             .call()
             .map_err(|e| format!("GET {url} failed: {e}"))?;
 
-        resp.into_json::<Value>()
+        resp.body_mut()
+            .read_json::<Value>()
             .map_err(|e| format!("failed to parse response from {url}: {e}"))
     }
 }
