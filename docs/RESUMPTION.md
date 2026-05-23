@@ -1020,8 +1020,27 @@ fix.
    counter with 5 reason labels so the silent failure mode is
    monitorable. No semantic change. Future hybrid strategies
    deferred as M16/M17/M18 pending counter data.
-5. **Dependabot security PRs** (P0-4 / P4.5). 6 alerts open since
-   P3.3 (3 high, 1 moderate, 2 low). Triage and merge.
+5. ◐ **Dependabot security PRs** (P0-4 / P4.5). Triage closed 2026-05-23;
+   security wave closed same day:
+   - P4.5 investigation: 17 open PRs identified, all 1 day old. Six
+     open security advisories cluster cleanly to 3 PRs (#16/#17/#18).
+     All 17 PRs share one root cause — bases predate the P4.1
+     SHA-pinning migration. Triage shape is 3 archetype waves, not
+     17 individual reviews.
+   - P4.5.a (closed 2026-05-23): closed obsolete PR #5
+     (golangci-lint-action — already applied via P4.1.1); rebased +
+     merged security PRs #16 (otel /clickhouse), #18 (otel /migrate),
+     #17 (rustls-webpki /raccoon-cli). All 6 security advisories
+     closed. Required CI checks (Unit Tests, Quality Gate, Go Lint)
+     green for all three; Integration Tests flake (the documented
+     `TestControlledActivation_FullLifecycle` / `TestRealVenueActivation_FullLifecycle`
+     timing flake) ignored as non-required, non-regression.
+   - P4.5.b (NEXT): routine minor/patch batch — 8 PRs (#7, #9, #10,
+     #11, #12, #13, #14, #15). All rebase + likely auto-merge after
+     CI clears.
+   - P4.5.c (after P4.5.b): 5 majors — 4 GitHub Actions (#2, #3, #4,
+     #6) + ureq 2→3 Rust (#8). Actions PRs may auto-recover via
+     rebase (see M19); ureq requires manual code review.
 
 ### Phase 4 design-meta candidates (deferred)
 
@@ -1225,6 +1244,65 @@ the check would be a guard, not a hotfix. Bundle with M2/M11 when
 the broader "publish-side / consume-side contract validation" work
 is scoped.
 
+#### M13 — NATS header-extracted deadlines (responder layer)
+
+P4.3.a fixed the unbounded `context.Background()` in
+`natskit/request_reply_responder.go` by adding a configurable
+`requestTimeout` field (default 5s). The alternative considered but
+deferred was extracting the deadline from NATS request headers
+(e.g., a `Nats-Expected-Deadline` header), allowing callers to
+specify per-request bounds. More honest deadline propagation from
+HTTP through gateway through actor handler.
+
+**Candidate work**: define a header convention; update
+`RequestReplyResponder` to honor the header if present, falling
+back to its configured default otherwise; update gateway emitters
+to populate the header from the HTTP request's deadline.
+
+**Why deferred**: the configurable default is sufficient for current
+operations; per-request deadline propagation matters more for
+externally-driven load patterns we don't have yet. Single timeout
+field in `ControlResponderConfig` adequate today.
+
+#### M14 — Per-use-case ControlRouter timeouts
+
+`ControlRouterActor` uses a single `RequestTimeout` for every
+use-case dispatch (P4.3.a `handlerContext` helper). Some use cases
+are heavier than others — `compileConfig` involves JSON Schema
+validation; `getConfig` is a single KV read. A single timeout
+forces compromise: large enough for the slow case, looser than
+needed for the fast case.
+
+**Candidate work**: extend `ControlRouterConfig` with optional
+per-use-case overrides; `handlerContext` accepts a use-case
+identifier and applies the appropriate timeout per operation.
+
+**Why deferred**: single timeout adequate for current operations
+(none yet exhibit measurable timeout-driven friction). Pull into
+scope only when a specific use case routinely hits the global cap.
+
+#### M15 — Custom raccoon-cli context analyzer
+
+P4.3.a enabled the standard `contextcheck` golangci-lint linter
+to flag bare `context.Background()` patterns. `contextcheck` catches
+generic Go patterns but doesn't understand the Hollywood mailbox
+boundary: it can't distinguish a legitimate fresh-context creation
+(actor handler that has no caller context) from an accidental one
+(handler that has a context but ignores it). The 3 `//nolint:contextcheck`
+suppressions added in P4.3.a are project-specific rules that
+contextcheck cannot express.
+
+**Candidate work**: extend `tools/raccoon-cli`'s `arch-guard`
+analyzer with project-specific context flow rules — e.g., "inside
+a `Receive(c *actor.Context)` method, fresh `context.Background()`
+is allowed; inside a function that takes `ctx context.Context`,
+deriving from `Background()` requires a justification annotation".
+
+**Why deferred**: `contextcheck` + `//nolint` comments are
+sufficient today (3 known suppressions, all with rationale). The
+custom analyzer earns its keep only if more Hollywood-boundary
+patterns surface that contextcheck cannot classify correctly.
+
 #### M16 — ControlGate cached state with staleness threshold (H1)
 
 P4.4 design discussion option H1, deferred at P4.4.a in favour of
@@ -1269,6 +1347,49 @@ strict fail-closed only on `kv_error` + `ctx_timeout` + `unmarshal_error`,
 keeping `nil_bucket` and `key_not_found` fail-open) would be the
 smallest semantic step away from current posture; worth considering
 once counter data exists.
+
+#### M19 — Dependabot SHA-pinning behavior verification
+
+P4.5 investigation flagged "GitHub Actions in Dependabot" as a
+structural friction: PRs reference v-tags (`@v5`) which the
+SHA-pinning policy rejects. P4.5.a's deeper inspection showed
+the friction is largely self-correcting on rebase — Dependabot
+preserves the existing workflow file's pin style, so once the PR
+is rebased onto a base where actions are SHA-pinned (post-P4.1),
+the regenerated diff is SHA-style and passes CI.
+
+**Candidate work**: verify this behavior end-to-end during P4.5.c
+(GitHub Actions majors #2, #3, #4, #6). If `@dependabot rebase`
+produces SHA-pinned + version-commented updates, no further work
+is needed; close M19 confirmed. If Dependabot reverts to tag-style
+after rebase (e.g., on a major bump where the version comment is
+out of sync), investigate adding a per-ecosystem option, custom
+post-PR-action that converts tags to SHAs, or moving Actions out
+of Dependabot entirely.
+
+**Why deferred**: outcome of P4.5.c determines whether this is a
+finished investigation or a real piece of work. P4.5 initial report
+flagged it as a confirmed friction; P4.5.a re-evaluated it as
+"probably-resolved-by-rebase". Verification, not yet action.
+
+#### M20 — Dependabot dedup for manually-applied upgrades
+
+P4.5 surpresa #2: when a dependency is upgraded manually (e.g.,
+P4.1.1 bumped `golangci-lint-action` 6→9 via direct workflow edit),
+Dependabot does not auto-close the corresponding open PR. Manual
+close required (done in P4.5.a for PR #5). With weekly Dependabot
+cadence + 17 PRs from a single sync, a similar drift on multiple
+PRs is plausible.
+
+**Candidate work**: investigate whether Dependabot has a config
+option to detect "target version already at or beyond what is on
+the default branch" and auto-close. Alternatively, a small post-merge
+GitHub Action that closes any open Dependabot PR whose target
+version is now ≤ main's current pin.
+
+**Why deferred**: low frequency to date (1 known instance, #5).
+Worth revisiting if the pattern recurs after the routine batch
+(P4.5.b) or after future manual upgrades.
 
 ### Available work (P1/P2, opt-in)
 
