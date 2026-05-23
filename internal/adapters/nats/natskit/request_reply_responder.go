@@ -3,16 +3,18 @@ package natskit
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/nats-io/nats.go"
 )
 
 // RequestReplyResponder subscribes to control routes and handles request/reply.
 type RequestReplyResponder struct {
-	url    string
-	routes []ControlRoute
-	nc     *nats.Conn
-	subs   []*nats.Subscription
+	url            string
+	routes         []ControlRoute
+	requestTimeout time.Duration
+	nc             *nats.Conn
+	subs           []*nats.Subscription
 }
 
 func NewRequestReplyResponder(url string, routes []ControlRoute) *RequestReplyResponder {
@@ -20,6 +22,16 @@ func NewRequestReplyResponder(url string, routes []ControlRoute) *RequestReplyRe
 		url:    url,
 		routes: append([]ControlRoute(nil), routes...),
 	}
+}
+
+// WithRequestTimeout overrides the per-message handler timeout used to
+// bound each route dispatch. Zero or negative values keep
+// DefaultRequestTimeout. Returns the receiver for chaining.
+func (r *RequestReplyResponder) WithRequestTimeout(d time.Duration) *RequestReplyResponder {
+	if r != nil && d > 0 {
+		r.requestTimeout = d
+	}
+	return r
 }
 
 func (r *RequestReplyResponder) Start() error {
@@ -35,6 +47,11 @@ func (r *RequestReplyResponder) Start() error {
 		return err
 	}
 
+	timeout := r.requestTimeout
+	if timeout <= 0 {
+		timeout = DefaultRequestTimeout
+	}
+
 	subs := make([]*nats.Subscription, 0, len(r.routes))
 	for _, route := range r.routes {
 		route := route
@@ -43,7 +60,10 @@ func (r *RequestReplyResponder) Start() error {
 				return
 			}
 
-			reply, replyErr := route.Handler(context.Background(), msg.Data)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			reply, replyErr := route.Handler(ctx, msg.Data)
 			if replyErr != nil {
 				return
 			}

@@ -16,6 +16,11 @@ import (
 // defaultFillPrice is used when no PriceSource is configured or when the lookup fails.
 const defaultFillPrice = "0"
 
+// priceLookupTimeout bounds the price-source read on the dry-run fill
+// path. Price lookups are KV reads and should be fast; a stalled
+// PriceSource must not block order fills.
+const priceLookupTimeout = 2 * time.Second
+
 // DryRunSubmitter is a VenuePort decorator that intercepts all venue submissions
 // and produces auditable dry-run receipts without contacting any real venue.
 //
@@ -97,7 +102,14 @@ func (d *DryRunSubmitter) SubmitOrder(_ context.Context, req ports.VenueOrderReq
 	}
 
 	// Produce a simulated fill identical in shape to a real venue fill.
-	fillPrice := d.resolvePrice(context.Background(), intent.Source, intent.Symbol, intent.Timeframe)
+	// The price lookup uses a fresh bounded context rather than inheriting
+	// the caller's: SubmitOrder discards its ctx parameter (the venue
+	// decorator boundary is intentional — fills must not fail just because
+	// the upstream call was cancelled), so a stalled PriceSource is bounded
+	// here independently.
+	priceCtx, priceCancel := context.WithTimeout(context.Background(), priceLookupTimeout)
+	fillPrice := d.resolvePrice(priceCtx, intent.Source, intent.Symbol, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	priceCancel()
 
 	filled := intent
 	filled.Status = domainexec.StatusFilled

@@ -398,7 +398,7 @@ func (s *HealthServer) computePhase() string {
 // HandleDiagz serves the /diagz diagnostic summary endpoint.
 // It provides a machine-readable overview of the runtime's diagnostic state
 // without exposing operational data or domain secrets.
-func (s *HealthServer) HandleDiagz(w http.ResponseWriter, _ *http.Request) {
+func (s *HealthServer) HandleDiagz(w http.ResponseWriter, r *http.Request) {
 	diag := map[string]any{
 		"runtime":        s.runtime,
 		"phase":          s.computePhase(),
@@ -409,10 +409,11 @@ func (s *HealthServer) HandleDiagz(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	// Readiness check summary.
+	ctx := r.Context()
 	checks := make([]map[string]any, 0, len(s.checks))
 	for _, c := range s.checks {
 		entry := map[string]any{"name": c.Name}
-		if err := c.Check(context.Background()); err != nil {
+		if err := c.Check(ctx); err != nil {
 			entry["status"] = "fail"
 			entry["error"] = err.Error()
 		} else {

@@ -17,6 +17,7 @@ run:
 linters:
   default: none
   enable:
+    - contextcheck
     - errcheck
     - govet
     - ineffassign

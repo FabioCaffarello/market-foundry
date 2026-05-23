@@ -59,7 +59,8 @@ func (a *ControlResponderActor) Receive(c *actor.Context) {
 			natskit.NewTypedControlRoute(a.cfg.Registry.CompileConfig, a.cfg.Source, a.handleCompileConfig),
 			natskit.NewTypedControlRoute(a.cfg.Registry.ActivateConfig, a.cfg.Source, a.handleActivateConfig),
 		}
-		responder := natskit.NewRequestReplyResponder(a.cfg.URL, routes)
+		responder := natskit.NewRequestReplyResponder(a.cfg.URL, routes).
+			WithRequestTimeout(a.cfg.RequestTimeout)
 		if err := responder.Start(); err != nil {
 			a.logger.Error("start control responder", "error", err)
 			c.Engine().Poison(c.PID())

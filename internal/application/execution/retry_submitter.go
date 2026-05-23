@@ -196,7 +196,7 @@ func (r *RetrySubmitter) SubmitOrder(ctx context.Context, req ports.VenueOrderRe
 		r.incCounter("retry_attempts")
 
 		// Check kill switch between attempts — abort if halted.
-		if r.isHalted() {
+		if r.isHalted(ctx) {
 			r.logWarn("retry halted by kill switch", "attempts", attempt)
 			r.incCounter("retry_halted")
 			return ports.VenueOrderReceipt{}, r.annotateHalted(lastProblem, attempt)
@@ -222,14 +222,16 @@ func (r *RetrySubmitter) SubmitOrder(ctx context.Context, req ports.VenueOrderRe
 }
 
 // isHalted checks the kill switch. Returns false if no checker is configured
-// (fail-open) or if the check times out.
-func (r *RetrySubmitter) isHalted() bool {
+// (fail-open) or if the check times out. The caller's ctx is honored — the
+// halt probe is bounded by min(2s, caller deadline) so a halted retry loop
+// cannot outrun the outer SubmitOrder deadline.
+func (r *RetrySubmitter) isHalted(ctx context.Context) bool {
 	if r.haltChecker == nil {
 		return false
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	return r.haltChecker.IsHalted(ctx)
+	return r.haltChecker.IsHalted(probeCtx)
 }
 
 // annotate enriches the final problem with retry metadata for observability.

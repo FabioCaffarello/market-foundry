@@ -5,6 +5,11 @@ import "time"
 // DefaultSetupTimeout is the timeout used for JetStream setup operations.
 const DefaultSetupTimeout = 10 * time.Second
 
+// DefaultRequestTimeout is the bound applied to request/reply handler
+// dispatch when no per-responder override is configured. NATS callbacks
+// do not carry a Go context, so responders must construct their own.
+const DefaultRequestTimeout = 5 * time.Second
+
 // ErrorType identifies the kind of NATS error for metrics.
 type ErrorType string
 

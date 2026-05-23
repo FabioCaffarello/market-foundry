@@ -14,6 +14,10 @@ import (
 // paperDefaultFillPrice is used when no PriceSource is configured or lookup fails.
 const paperDefaultFillPrice = "0"
 
+// paperPriceLookupTimeout bounds the price-source read on the paper fill
+// path. A stalled PriceSource must not block paper-mode order fills.
+const paperPriceLookupTimeout = 2 * time.Second
+
 // PaperVenueAdapter implements ports.VenuePort for simulated (paper) venue execution.
 // It instantly accepts and fills orders without contacting any exchange.
 // All fills are marked as simulated. Used by the execute binary in paper mode.
@@ -53,7 +57,12 @@ func (a *PaperVenueAdapter) SubmitOrder(_ context.Context, req ports.VenueOrderR
 		time.Sleep(a.fillDelay)
 	}
 
-	fillPrice := a.resolvePrice(context.Background(), intent.Source, intent.Symbol, intent.Timeframe)
+	// Fresh bounded context — SubmitOrder discards its ctx parameter (paper
+	// adapter must not fail just because upstream was cancelled); the
+	// price-source read is bounded here independently.
+	priceCtx, priceCancel := context.WithTimeout(context.Background(), paperPriceLookupTimeout)
+	fillPrice := a.resolvePrice(priceCtx, intent.Source, intent.Symbol, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	priceCancel()
 
 	filled := intent
 	filled.Status = domainexec.StatusFilled

@@ -51,34 +51,54 @@ func (a *ControlRouterActor) Receive(c *actor.Context) {
 	case actor.Started:
 		a.logger.Info("configctl control router started")
 	case createDraftMessage:
-		reply, prob := a.createDraft.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Command)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.createDraft.Execute(ctx, msg.Command)
+		cancel()
 		a.reply(c, createDraftResult{Reply: reply, Prob: prob})
 	case getConfigMessage:
-		reply, prob := a.getConfig.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Query)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.getConfig.Execute(ctx, msg.Query)
+		cancel()
 		a.reply(c, getConfigResult{Reply: reply, Prob: prob})
 	case getActiveConfigMessage:
-		reply, prob := a.getActive.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Query)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.getActive.Execute(ctx, msg.Query)
+		cancel()
 		a.reply(c, getActiveConfigResult{Reply: reply, Prob: prob})
 	case listActiveRuntimeProjectionsMessage:
-		reply, prob := a.listRuntimeProjections.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Query)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.listRuntimeProjections.Execute(ctx, msg.Query)
+		cancel()
 		a.reply(c, listActiveRuntimeProjectionsResult{Reply: reply, Prob: prob})
 	case listActiveIngestionBindingsMessage:
-		reply, prob := a.listIngestionBindings.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Query)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.listIngestionBindings.Execute(ctx, msg.Query)
+		cancel()
 		a.reply(c, listActiveIngestionBindingsResult{Reply: reply, Prob: prob})
 	case listConfigsMessage:
-		reply, prob := a.listConfigs.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Query)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.listConfigs.Execute(ctx, msg.Query)
+		cancel()
 		a.reply(c, listConfigsResult{Reply: reply, Prob: prob})
 	case validateDraftMessage:
-		reply, prob := a.validateDraft.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Command)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.validateDraft.Execute(ctx, msg.Command)
+		cancel()
 		a.reply(c, validateDraftResult{Reply: reply, Prob: prob})
 	case validateConfigMessage:
-		reply, prob := a.validateConfig.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Command)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.validateConfig.Execute(ctx, msg.Command)
+		cancel()
 		a.reply(c, validateConfigResult{Reply: reply, Prob: prob})
 	case compileConfigMessage:
-		reply, prob := a.compileConfig.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Command)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.compileConfig.Execute(ctx, msg.Command)
+		cancel()
 		a.reply(c, compileConfigResult{Reply: reply, Prob: prob})
 	case activateConfigMessage:
-		reply, prob := a.activateConfig.Execute(requestctx.WithCorrelationID(context.Background(), msg.CorrelationID), msg.Command)
+		ctx, cancel := a.handlerContext(msg.CorrelationID)
+		reply, prob := a.activateConfig.Execute(ctx, msg.Command)
+		cancel()
 		a.reply(c, activateConfigResult{Reply: reply, Prob: prob})
 	default:
 		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {
@@ -86,6 +106,19 @@ func (a *ControlRouterActor) Receive(c *actor.Context) {
 		}
 		a.logger.Warn("configctl control router: unknown message", "type", fmt.Sprintf("%T", msg))
 	}
+}
+
+// handlerContext builds a bounded context for a use-case dispatch. The
+// Hollywood mailbox boundary does not carry the caller's context, so the
+// router must construct its own; this applies cfg.RequestTimeout (or a
+// 5s fallback) and attaches the correlation ID from the message envelope.
+func (a *ControlRouterActor) handlerContext(correlationID string) (context.Context, context.CancelFunc) {
+	timeout := a.cfg.RequestTimeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	return requestctx.WithCorrelationID(ctx, correlationID), cancel
 }
 
 func (a *ControlRouterActor) ensureDefaults(c *actor.Context) {

@@ -63,7 +63,7 @@ func (r *Post200Reconciler) SubmitOrder(ctx context.Context, req ports.VenueOrde
 	queryCtx, cancel := context.WithTimeout(context.Background(), r.queryTimeout)
 	defer cancel()
 
-	recovered, queryProb := r.query.QueryOrder(queryCtx, clientOrderID, req.Intent.Symbol)
+	recovered, queryProb := r.query.QueryOrder(queryCtx, clientOrderID, req.Intent.Symbol) //nolint:contextcheck // fresh ctx is deliberate — original ctx may have expired triggering this recovery path
 	if queryProb != nil {
 		// Recovery failed. Return original error enriched with recovery failure info.
 		return receipt, prob.
