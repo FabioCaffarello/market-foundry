@@ -12,6 +12,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 const namespace = "marketfoundry"
@@ -115,6 +116,18 @@ var (
 			Help:      "Whether the execution gate is active (1) or halted (0).",
 		},
 	)
+
+	executionGateReadFailuresTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "execution",
+			Name:      "gate_read_failures_total",
+			Help: "Total ControlGate IsHalted read failures by reason. " +
+				"IsHalted returns false on these (fail-open per ADR 0012); " +
+				"this counter surfaces the failure mode for monitoring.",
+		},
+		[]string{"reason"},
+	)
 )
 
 func init() {
@@ -128,6 +141,7 @@ func init() {
 		executionGateChecksTotal,
 		executionIntentsTotal,
 		executionGateStatus,
+		executionGateReadFailuresTotal,
 	)
 }
 
@@ -209,6 +223,31 @@ func IncStrategyEvaluation(strategyType, outcome string) {
 // Canonical verdicts: "allowed", "blocked".
 func IncGateCheck(gate, verdict string) {
 	executionGateChecksTotal.WithLabelValues(gate, verdict).Inc()
+}
+
+// GateReadFailureReason enumerates the canonical reasons for an
+// IsHalted read failure. See ADR 0012.
+const (
+	GateReadFailureNilBucket   = "nil_bucket"
+	GateReadFailureKeyNotFound = "key_not_found"
+	GateReadFailureCtxTimeout  = "ctx_timeout"
+	GateReadFailureKVError     = "kv_error"
+	GateReadFailureUnmarshal   = "unmarshal_error"
+)
+
+// IncGateReadFailure increments the gate read failure counter. Each
+// failure mode in ControlKVStore.IsHalted maps to one canonical reason
+// label so operators can distinguish transient KV outages from missing
+// keys, parse errors, and uninitialized buckets.
+func IncGateReadFailure(reason string) {
+	executionGateReadFailuresTotal.WithLabelValues(reason).Inc()
+}
+
+// GateReadFailureCount returns the current counter value for the given
+// reason label. Exported so cross-module tests can verify counter
+// behavior without taking a direct prometheus dependency.
+func GateReadFailureCount(reason string) float64 {
+	return testutil.ToFloat64(executionGateReadFailuresTotal.WithLabelValues(reason))
 }
 
 // IncExecutionIntent increments the execution intent counter.

@@ -54,6 +54,12 @@ typo fixes and broken-link corrections are fine.)
 | [0010](0010-httprouter-trie-constraints.md) | httprouter trie constraints respected | Accepted |
 | [0011](0011-no-oms-expansion-pairing.md) | No OMS expansion in pairing and effectiveness | Accepted |
 
+### Phase 4 decisions
+
+| # | Title | Status |
+|---|---|---|
+| [0012](0012-control-gate-fail-open-posture.md) | ControlGate fail-open posture | Accepted |
+
 ## Adding new ADRs
 
 When you make a structural decision worth documenting:

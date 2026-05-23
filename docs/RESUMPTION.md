@@ -1000,16 +1000,26 @@ fix.
    workflow-rejection layer lifted. Cause unknown — likely
    environmental or service-container related. Read-only
    investigation before any fix attempt.
-2. **`rate_limiter` test + `Close` lifecycle** (P0-2 / P4.2). Token-
-   bucket rate limiter in `internal/application/execution/` has no
-   shutdown semantics and no dedicated test. Surfaced in P3.0.
-3. **`context.Background()` propagation in actors** (P0-3 / P4.3).
-   Several actor scopes start background goroutines from
-   `context.Background()` rather than threading a parent context
-   for graceful shutdown.
-4. **Kill switch fail-open decision** (P0-5 / P4.4). When the gate
-   KV is unreachable, current behaviour is fail-open. Decide
-   whether to keep, invert, or split per-segment.
+2. ✓ **`rate_limiter` test + `Close` lifecycle** (P0-2 / P4.2).
+   Closed 2026-05-23. 10 unit tests added (`rate_limiter_test.go`);
+   `Close()` lifecycle wired at the 2 cmd/execute mainnet sites via
+   a `closers []func()` field on `venueAdapterResult`. P4.2.a fixed
+   a downstream goroutine-assertion flake. CI 7/7 green.
+3. ✓ **`context.Background()` propagation in actors** (P0-3 / P4.3).
+   Closed 2026-05-23. Reframed: Hollywood deliberately drops context
+   at the mailbox boundary, so the right shape was "bound fresh
+   Background with WithTimeout + config", not "propagate caller ctx".
+   P4.3.a bounded 14 unbounded sites + enabled the `contextcheck`
+   linter for prevention. Surfaced M13/M14/M15 (see design-meta).
+4. ✓ **Kill switch fail-open decision** (P0-5 / P4.4 + P4.4.a).
+   Closed 2026-05-23. Investigation reframed P0-5 as documentation +
+   observability gap, not semantic gap — the audit's "kill switch" is
+   the codebase's ControlGate, with fail-open intentionally chosen
+   and protected by 8-layer defense-in-depth. P4.4.a formalized the
+   posture as ADR-0012 and added `gate_read_failures_total`
+   counter with 5 reason labels so the silent failure mode is
+   monitorable. No semantic change. Future hybrid strategies
+   deferred as M16/M17/M18 pending counter data.
 5. **Dependabot security PRs** (P0-4 / P4.5). 6 alerts open since
    P3.3 (3 high, 1 moderate, 2 low). Triage and merge.
 
@@ -1214,6 +1224,51 @@ re-discovered piecemeal in future waves.
 the check would be a guard, not a hotfix. Bundle with M2/M11 when
 the broader "publish-side / consume-side contract validation" work
 is scoped.
+
+#### M16 — ControlGate cached state with staleness threshold (H1)
+
+P4.4 design discussion option H1, deferred at P4.4.a in favour of
+documenting the current fail-open posture (ADR-0012) and adding
+observability (`gate_read_failures_total`). The cached-state variant
+would memoize the last successful gate read in process memory and
+serve it during transient KV failures, falling back to fail-closed
+only after a configured staleness threshold (e.g., 30s). Combines
+availability of pure fail-open with the safety of fail-closed
+during sustained outages.
+
+**Why deferred**: requires operational data from the new counter
+before the threshold can be chosen non-arbitrarily. A non-zero
+`kv_error` or `ctx_timeout` rate at scale would make this concrete;
+a flat-zero rate confirms M16 is unnecessary.
+
+#### M17 — ControlGate conditional fail-closed (H2)
+
+P4.4 H2: bifurcate the IsHalted contract by adapter mode.
+`AdapterVenue` + `CredentialPresent` callers would fail-closed
+(safety prioritized on the live path); paper / dry-run callers
+would keep the current fail-open. Matches the risk surface (only
+the live + creds path can cause real harm) to the safety posture.
+
+**Why deferred**: adds a second code path with mode-conditional
+semantics; subtle bugs possible around mode transitions. Need
+M16's operational data first to judge whether the simpler
+single-path posture has a real cost.
+
+#### M18 — ControlGate `ErrKeyNotFound` distinction (H3)
+
+P4.4 H3: split today's "any read failure = fail-open" into
+"first-boot (no operator write yet) = fail-open by design" vs
+"real read failure = different posture". With the counter in place,
+operators can already see `key_not_found` separately from
+`kv_error` / `ctx_timeout` / `unmarshal_error`. M18 would change
+behaviour on the latter three categories independently of the
+first.
+
+**Why deferred**: composes with M16/M17. Choosing M18 alone (e.g.,
+strict fail-closed only on `kv_error` + `ctx_timeout` + `unmarshal_error`,
+keeping `nil_bucket` and `key_not_found` fail-open) would be the
+smallest semantic step away from current posture; worth considering
+once counter data exists.
 
 ### Available work (P1/P2, opt-in)
 

@@ -3,10 +3,12 @@ package natsexecution
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
+	"internal/shared/metrics"
 	"internal/shared/problem"
 
 	"github.com/nats-io/nats.go"
@@ -154,10 +156,31 @@ func (s *ControlKVStore) PutDimensions(ctx context.Context, dims execution.Activ
 }
 
 // IsHalted reads the gate and returns true if execution is halted.
-// Returns false (active) on any error (fail-open).
+// Returns false (active) on any error (fail-open) and increments the
+// gate_read_failures_total counter so the silent failure mode is
+// monitorable. See ADR 0012 for the posture rationale.
 func (s *ControlKVStore) IsHalted(ctx context.Context) bool {
-	gate, prob := s.Get(ctx)
-	if prob != nil {
+	if s == nil || s.bucket == nil {
+		metrics.IncGateReadFailure(metrics.GateReadFailureNilBucket)
+		return false
+	}
+
+	entry, err := s.bucket.Get(ctx, ControlKey)
+	if err != nil {
+		switch {
+		case errors.Is(err, jetstream.ErrKeyNotFound):
+			metrics.IncGateReadFailure(metrics.GateReadFailureKeyNotFound)
+		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			metrics.IncGateReadFailure(metrics.GateReadFailureCtxTimeout)
+		default:
+			metrics.IncGateReadFailure(metrics.GateReadFailureKVError)
+		}
+		return false
+	}
+
+	var gate execution.ControlGate
+	if err := json.Unmarshal(entry.Value(), &gate); err != nil {
+		metrics.IncGateReadFailure(metrics.GateReadFailureUnmarshal)
 		return false
 	}
 	return gate.IsHalted()
