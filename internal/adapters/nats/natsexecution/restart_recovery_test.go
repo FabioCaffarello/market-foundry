@@ -74,16 +74,14 @@ func rrBuildEvent(t *testing.T, ts time.Time, corrID string) execution.PaperOrde
 
 func TestRestartRecovery_DurableConsumer_ResumesFromLastACK(t *testing.T) {
 	url := natsURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	// Use a unique durable name to avoid test interference.
 	durableName := fmt.Sprintf("rr1-consumer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable: durableName,
-		Event:   registry.PaperOrderSubmitted,
-		AckWait: 30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	// Phase 1: Start publisher and consumer, deliver 3 events, ACK all.
 	pub := natsexecution.NewPublisher(url, "binancef", registry)
@@ -307,15 +305,13 @@ func TestRestartRecovery_KVProjection_PersistsAcrossRestart(t *testing.T) {
 
 func TestRestartRecovery_PublisherReconnect_DeliversToRestartedConsumer(t *testing.T) {
 	url := natsURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("rr4-consumer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable: durableName,
-		Event:   registry.PaperOrderSubmitted,
-		AckWait: 30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	// Phase 1: Start publisher1 and consumer, deliver one event.
 	pub1 := natsexecution.NewPublisher(url, "binancef", registry)
@@ -381,15 +377,13 @@ func TestRestartRecovery_PublisherReconnect_DeliversToRestartedConsumer(t *testi
 
 func TestRestartRecovery_FullCycle_PublishRestartResumeNoLoss(t *testing.T) {
 	url := natsURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("rr5-consumer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable: durableName,
-		Event:   registry.PaperOrderSubmitted,
-		AckWait: 30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	pub := natsexecution.NewPublisher(url, "binancef", registry)
 	if err := pub.Start(); err != nil {
@@ -553,15 +547,13 @@ func TestRestartRecovery_ExecuteRestart_SafetyGateReReadsKV(t *testing.T) {
 
 func TestRestartRecovery_DedupBoundary_RepublishedEventsIdempotent(t *testing.T) {
 	url := natsURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("rr7-consumer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable: durableName,
-		Event:   registry.PaperOrderSubmitted,
-		AckWait: 30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	pub := natsexecution.NewPublisher(url, "binancef", registry)
 	if err := pub.Start(); err != nil {
@@ -668,16 +660,14 @@ func TestRestartRecovery_MultiBinary_DeriveRestartExecuteSurvives(t *testing.T) 
 
 func TestRestartRecovery_WriterConsumerDurable_ResumesStreamPosition(t *testing.T) {
 	url := natsURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	// Simulates writer consumer behavior: consume from stream, track position.
 	durableName := fmt.Sprintf("rr9-writer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable: durableName,
-		Event:   registry.PaperOrderSubmitted,
-		AckWait: 30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	pub := natsexecution.NewPublisher(url, "binancef", registry)
 	if err := pub.Start(); err != nil {

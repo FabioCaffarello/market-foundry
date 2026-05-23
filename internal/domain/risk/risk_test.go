@@ -146,7 +146,8 @@ func TestRiskAssessment_DeduplicationKey(t *testing.T) {
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}
-	expectedSuffix := fmt.Sprintf("%d", ts.Unix())
+	// P4.1.11.a: dedup key precision raised to UnixNano (see risk.go doc).
+	expectedSuffix := fmt.Sprintf("%d", ts.UnixNano())
 	if got[len(prefix):] != expectedSuffix {
 		t.Fatalf("expected suffix %q, got %q", expectedSuffix, got[len(prefix):])
 	}

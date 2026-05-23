@@ -310,6 +310,100 @@ Sub-prompt summary:
   restoring smoke-analytical to PR CI) and M9 (log-error scan
   robustness — current warn-vs-error grep missed the silent failure
   mode) added to the design-meta queue.
+- **P4.1.10** — Strategy dedup key precision fix. P4.1.9
+  investigation (read-only) diagnosed three persistently-failing
+  rapid-publish family tests (S380-DR-4, S373-MB-2/phase-2,
+  E2E-2/phase-2) as a domain-layer bug: `Strategy.DeduplicationKey()`
+  used `Timestamp.Unix()` (whole-second precision), so multiple
+  publishes within a single wall-clock second produced identical
+  `Nats-Msg-Id` values and were silently dropped by JetStream's
+  2-minute Duplicate Window. Production was unaffected (kline cadence
+  ≥1s never exercises this); tests tripped the bug because they
+  publish siblings in tight loops. Fix: switch to `Timestamp.UnixNano()`.
+  Also added `PubAck.Duplicate` warn-log surfacing in
+  `internal/adapters/nats/natsstrategy/publisher.go` so future
+  similar bugs are not silent (the operational blind spot P4.1.9
+  noted as surpresa #2). Bug introduced in commit `fa8f04a5`
+  ("initial quick start") and was latent through Phases 1–3 and
+  most of Phase 4 — surfaced only after P4.1 lifted CI SHA-pinning
+  rejection. Counter increment for `dedup_dropped` was intentionally
+  omitted to keep blast radius to a single file (Publisher has no
+  tracker field; wiring one would change the constructor signature
+  across 15 callsites).
+- **P4.1.11** — Time-capped abbreviated investigation (5:20 min
+  finish vs 20-min cap) of a newly-visible writerpipeline failure
+  that surfaced once P4.1.10 unmasked the prior layer. Found the
+  same Subject-as-prefix mismatch pattern as P4.1.3.a'
+  SessionLifecycle: 9 test sites across two files
+  (`writerpipeline/restart_recovery_test.go` and
+  `natsexecution/restart_recovery_test.go`) build `ConsumerSpec` by
+  hand using the bare `registry.PaperOrderSubmitted` EventSpec
+  (subject `execution.events.paper_order.submitted`, no wildcard).
+  The consumer fallback at `natsexecution/consumer.go:79` then sets
+  `FilterSubject` to that bare value, which does not match
+  publishers' qualified subjects
+  (`execution.events.paper_order.submitted.{source}.{symbol}.{timeframe}`).
+  Production paths use helper specs
+  (`ExecuteStrategyMeanReversionEntryConsumer`,
+  `ExecuteVenueMarketOrderIntakeConsumer`) that supply the `.>`
+  wildcard form, which is why production and family tests were
+  unaffected. Investigation report captured at
+  `/tmp/p4.1.11-writerpipeline-investigation.md` (173 lines).
+- **P4.1.11.a** — Bundled three-part fix that closes the Phase 4.1
+  wave. Initial scope (subject-filter helper) discovered two more
+  pre-existing layers during local repro; each was the **same bug
+  class as an earlier wave fix**, not a genuinely new architectural
+  concern, so they were folded into the same commit rather than
+  spawning further sub-prompts:
+
+  1. **Subject filter** — new
+     `WriterPaperOrderExecutionConsumerForTest(durable string)`
+     helper in `internal/adapters/nats/natsexecution/registry.go`
+     mirroring the codegen-managed `WriterPaperOrderExecutionConsumer()`
+     but accepting a caller-supplied durable. 9 spec construction
+     sites updated across `writerpipeline/restart_recovery_test.go`
+     (4) and `natsexecution/restart_recovery_test.go` (5);
+     `natskit` import dropped from the writerpipeline test (no
+     longer referenced). Same root-cause class as P4.1.3.a'
+     SessionLifecycle subject mismatch.
+  2. **Test-isolation reset** — new
+     `ResetExecutionEventsStreamForTest(url string)` helper in the
+     same registry file. Best-effort `js.DeleteStream` of
+     `EXECUTION_EVENTS` at the top of each affected test so the
+     shared NATS container (re-used across tests in the integration
+     suite) does not replay one test's events into a later test's
+     fresh durable. 9 reset calls inserted. The same
+     `JSErrCodeStreamNotFound` swallow pattern as production
+     `consumer.go` is used for the "first run, nothing to delete"
+     case.
+  3. **DeduplicationKey precision (completion of P4.1.10)** —
+     P4.1.10 fixed `Strategy.DeduplicationKey()` (Unix → UnixNano)
+     because the family tests it targeted only published
+     strategies. The same `Timestamp.Unix()` precision bug existed
+     in `ExecutionIntent`, `Decision`, `RiskAssessment`, and
+     `Signal` (4 sibling timestamp-keyed types in
+     `internal/domain/`). The restart_recovery tests publish
+     `PaperOrderSubmittedEvent` which embeds `ExecutionIntent` —
+     so the same silent JetStream Duplicate-Window drop reappeared
+     for tests that publish siblings within a wall-clock second.
+     All 4 sibling impls switched to `UnixNano()`; 4 unit-test
+     format assertions updated (`execution_test.go`,
+     `decision_test.go`, `risk_test.go`,
+     `signal_test.go` — the last required adding `fmt` to its
+     imports since the previous hardcoded literal was replaced
+     with `fmt.Sprintf`). Production cadence (kline ≥1s) keeps
+     this latent for all four types in prod; the latency surfaces
+     only under tight-loop test publishes.
+
+  Cumulative effect: Phase 4.1 wave fully closes; PR CI returns
+  to 7/7 GREEN. M11 (subject-filter validation in `consumer.go:79`
+  fallback) added to the design-meta queue as the architectural
+  follow-up — the test-side helper prevents the manifestation but
+  the fallback path remains a quiet footgun for any future test
+  that bypasses production helpers. M12 (audit all timestamp-keyed
+  `DeduplicationKey` impls in one pass when new domain types are
+  added) is the systemic lesson — patching one type at a time
+  cost three sub-prompts when the recipe was identical.
 
 Quality-gate-ci error count across the wave:
 **11 → 9 → 7 → 4 → 0**.
@@ -322,10 +416,16 @@ Process notes:
   workflow-rejection layer cleared), not regressions. The same
   warnings had been present and unreported for many commits; only
   the `ci` profile severity promotion made them visible.
-- Two CI jobs remain red as of `25839ea`: **Integration Tests** and
-  **Smoke Analytical E2E**. These pre-existed the Phase 4.1 wave
-  and were surfaced when the SHA-pinning rejection cleared. P4.1.5
-  will investigate (read-only) before any fix attempt.
+- Both formerly-red CI jobs are now resolved end-to-end:
+  **Smoke Analytical E2E** moved off PR CI by P4.1.6.b (now on
+  schedule/manual); **Integration Tests** restored to GREEN by the
+  chain P4.1.5 → P4.1.6.a* → P4.1.7 → P4.1.8.* → P4.1.10 → P4.1.11.a.
+  The wave revealed three layered, pre-existing failure classes
+  (counter-ordering races, rapid-publish dedup precision, and
+  subject-filter wildcard mismatch) that had been masked by earlier
+  workflow-rejection layers. Each layer surfaced only when the layer
+  above it cleared — see the per-P4.1.x entries above for the
+  per-class root causes.
 
 Institutional knowledge captured in `docs/CONTRIBUTING.md` →
 "Audit and investigation patterns" (P4.1.4).
@@ -1043,6 +1143,77 @@ within a fixed window.
 **When to revisit**: pre-requisite for restoring smoke-analytical
 to PR CI alongside M8 (synthetic seeder). Without M9, the restored
 job would silently pass on broken pipelines again.
+
+#### M11 — Subject-filter validation in NATS consumer fallback
+
+`internal/adapters/nats/natsexecution/consumer.go:79` falls back to
+`c.spec.Event.Subject` (bare base subject) when `FilterSubjects` is
+not supplied on the `ConsumerSpec`. If the bare base subject has no
+`.>` (or `.*` etc.) wildcard suffix and the publisher writes at
+qualified sub-subjects, NATS JetStream silently delivers zero
+messages to the consumer — the producer side is the same channel,
+but the subscription pattern never matches.
+
+P4.1.11 found 9 test sites across `writerpipeline` and
+`natsexecution` integration tests that hit exactly this fallback
+with the bare `registry.PaperOrderSubmitted` EventSpec
+(`execution.events.paper_order.submitted`) while publishers wrote to
+`execution.events.paper_order.submitted.{source}.{symbol}.{timeframe}`.
+The tests were latent through the entire project history until
+P4.1.10 unmasked them; production paths were safe because they go
+through helper specs that supply the wildcard form.
+
+This is the consumer-side counterpart to **M2**
+(`EventSpec.Subject` "prefix as published subject" convention).
+M2 closes the publisher-side scanner gap; M11 closes the consumer-
+side runtime gap. Same underlying convention; different enforcement
+surface.
+
+**Candidate work**: at `consumer.go:79`, validate the subject
+pattern before binding the consumer. If the spec's `Event.Subject`
+contains no wildcard segment AND the publisher's known
+`Event.Subject` convention is "prefix-then-context" (M2-aware), emit
+a startup-time warning (or a panic in `_test.go`-compiled builds)
+so future tests bypassing production helpers cannot silently miss
+events. The check could also live in `natskit.NewConsumerSpec`
+factory or in a separate static-analysis check; design choice is
+open.
+
+**Why deferred**: P4.1.11.a fix (single helper, 9 call sites)
+prevents the specific manifestation. Defensive runtime validation
+is broader architectural work that needs the M2 scanner design
+finalised first (so both sides apply the same prefix-vs-context
+heuristic).
+
+#### M12 — Sweep all timestamp-keyed `DeduplicationKey` impls atomically
+
+P4.1.10 fixed `Strategy.DeduplicationKey()` (Unix → UnixNano) when
+the family tests it targeted surfaced the silent JetStream Duplicate-
+Window drop. P4.1.11.a then had to extend the same recipe to
+`ExecutionIntent`, `Decision`, `RiskAssessment`, and `Signal` once
+the writerpipeline + natsexecution restart_recovery tests exercised
+those types. Each was the *identical* one-line fix. The pattern is
+clear: any `DeduplicationKey` method that interpolates
+`Timestamp.Unix()` is latent — production cadence (kline ≥1s) hides
+it for current callers, but any new tight-loop producer (test or
+future code) will re-discover the bug.
+
+Two `DeduplicationKey` impls are exempt because they don't use a
+timestamp suffix: `SessionLifecycleEvent.DeduplicationKey()`
+(session-id + status) and `ObservationTrade.DeduplicationKey()`
+(source + tradeID).
+
+**Candidate work**: add a quality-gate / raccoon-cli check that
+flags any `DeduplicationKey` implementation containing
+`Timestamp.Unix()` (without `Nano`). Alternatively, a domain test
+that asserts no `DeduplicationKey` collides for two distinct
+sub-second siblings. Either prevents the recipe from being
+re-discovered piecemeal in future waves.
+
+**Why deferred**: the four sibling impls were fixed in P4.1.11.a;
+the check would be a guard, not a hotfix. Bundle with M2/M11 when
+the broader "publish-side / consume-side contract validation" work
+is scoped.
 
 ### Available work (P1/P2, opt-in)
 

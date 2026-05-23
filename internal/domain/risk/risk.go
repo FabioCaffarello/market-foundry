@@ -106,6 +106,7 @@ func (r RiskAssessment) PartitionKey() string {
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
+// Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
 func (r RiskAssessment) DeduplicationKey() string {
-	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.Symbol, r.Timeframe, r.Timestamp.Unix())
+	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.Symbol, r.Timeframe, r.Timestamp.UnixNano())
 }

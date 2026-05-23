@@ -188,7 +188,10 @@ func TestExecutionIntent_DeduplicationKey(t *testing.T) {
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}
-	expectedSuffix := fmt.Sprintf("%d", ts.Unix())
+	// P4.1.11.a: dedup key precision raised from Unix() to UnixNano()
+	// across ExecutionIntent/Decision/Risk/Signal to complete the
+	// P4.1.10 Strategy fix (same root cause, same recipe).
+	expectedSuffix := fmt.Sprintf("%d", ts.UnixNano())
 	if got[len(prefix):] != expectedSuffix {
 		t.Fatalf("expected suffix %q, got %q", expectedSuffix, got[len(prefix):])
 	}

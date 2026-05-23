@@ -1,6 +1,9 @@
 package natsexecution
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"internal/adapters/nats/natskit"
@@ -237,6 +240,78 @@ func WriterPaperOrderExecutionConsumer() natskit.ConsumerSpec {
 }
 
 // codegen:end consumer_spec family=paper_order
+
+// ResetExecutionEventsStreamForTest best-effort deletes the EXECUTION_EVENTS
+// JetStream stream so each test starts with a clean slate.
+//
+// CI shares a single NATS container across all tests in the integration
+// suite. Without reset, events published by an earlier test remain in the
+// stream; a later test's freshly-created durable consumer would replay the
+// full history (consumer's start position is sequence 1 by default), which
+// breaks tests that assert exact event counts or correlation IDs.
+//
+// Safe to call even if the stream does not exist yet — the first test of
+// a run finds nothing to delete; subsequent publisher.Start() /
+// consumer.Start() calls recreate the stream via CreateOrUpdateStream.
+//
+// P4.1.11.a added this after the subject-filter fix unmasked stream-state
+// pollution between the 9 restart_recovery test sites in writerpipeline
+// and natsexecution packages.
+func ResetExecutionEventsStreamForTest(url string) error {
+	nc, err := natskit.Connect(url)
+	if err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	defer nc.Close()
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		return fmt.Errorf("jetstream: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), natskit.DefaultSetupTimeout)
+	defer cancel()
+
+	if err := js.DeleteStream(ctx, "EXECUTION_EVENTS"); err != nil {
+		var jsErr jetstream.JetStreamError
+		if errors.As(err, &jsErr) {
+			if apiErr := jsErr.APIError(); apiErr != nil && apiErr.ErrorCode == jetstream.JSErrCodeStreamNotFound {
+				return nil
+			}
+		}
+		return fmt.Errorf("delete stream EXECUTION_EVENTS: %w", err)
+	}
+	return nil
+}
+
+// WriterPaperOrderExecutionConsumerForTest is the integration-test variant
+// of WriterPaperOrderExecutionConsumer that accepts a caller-supplied
+// durable name. Tests need unique durables for isolation (e.g.,
+// "wr1-writer-<UnixNano>") which the codegen helper cannot supply.
+//
+// The Event.Subject uses the wildcard form ("execution.events.paper_order.submitted.>")
+// so the consumer's FilterSubject (which falls through from spec.Event.Subject
+// at consumer.go:79 when FilterSubjects is empty) matches publishers'
+// qualified subjects (e.g., "execution.events.paper_order.submitted.binancef.btcusdt.60").
+//
+// P4.1.11 found 9 test sites in writerpipeline + natsexecution that constructed
+// a ConsumerSpec by hand using the bare-subject EventSpec (registry.PaperOrderSubmitted)
+// and silently received 0 events because the bare subject did not match
+// the publisher's qualified subject.
+func WriterPaperOrderExecutionConsumerForTest(durable string) natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: durable,
+		Event: natskit.EventSpec{
+			Subject: "execution.events.paper_order.submitted.>",
+			Type:    "execution.events.v1.paper_order_submitted",
+			Stream: natskit.StreamSpec{
+				Name: "EXECUTION_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
 
 // ── Paper Family Consumer ─────────────────────────────────────────
 

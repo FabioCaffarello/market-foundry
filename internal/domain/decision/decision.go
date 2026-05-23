@@ -102,6 +102,7 @@ func (d Decision) PartitionKey() string {
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
+// Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
 func (d Decision) DeduplicationKey() string {
-	return fmt.Sprintf("dec:%s:%s:%s:%d:%d", d.Type, d.Source, d.Symbol, d.Timeframe, d.Timestamp.Unix())
+	return fmt.Sprintf("dec:%s:%s:%s:%d:%d", d.Type, d.Source, d.Symbol, d.Timeframe, d.Timestamp.UnixNano())
 }

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	natsexecution "internal/adapters/nats/natsexecution"
-	natskit "internal/adapters/nats/natskit"
 	appexec "internal/application/execution"
 	"internal/domain/execution"
 	"internal/shared/events"
@@ -92,15 +91,13 @@ func wrBuildEvent(t *testing.T, ts time.Time, corrID string) execution.PaperOrde
 
 func TestWriterRestart_ConsumerStarter_ResumesFromDurablePosition(t *testing.T) {
 	url := wrNATSURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("wr1-writer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable:    durableName,
-		Event:      registry.PaperOrderSubmitted,
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	starter := NewExecutionStarter(registry)
 
@@ -207,15 +204,13 @@ func TestWriterRestart_ConsumerStarter_ResumesFromDurablePosition(t *testing.T) 
 
 func TestWriterRestart_RowMapping_ConsistentAcrossRestart(t *testing.T) {
 	url := wrNATSURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("wr2-writer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable:    durableName,
-		Event:      registry.PaperOrderSubmitted,
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	starter := NewExecutionStarter(registry)
 
@@ -295,6 +290,9 @@ func TestWriterRestart_RowMapping_ConsistentAcrossRestart(t *testing.T) {
 
 func TestWriterRestart_BufferLoss_InFlightRedelivered(t *testing.T) {
 	url := wrNATSURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	// This test proves: if the consumer ACKs a message but the inserter buffer
@@ -305,12 +303,7 @@ func TestWriterRestart_BufferLoss_InFlightRedelivered(t *testing.T) {
 	// the event WILL be redelivered on restart.
 
 	durableName := fmt.Sprintf("wr3-writer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable:    durableName,
-		Event:      registry.PaperOrderSubmitted,
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	pub := natsexecution.NewPublisher(url, "binancef", registry)
 	if err := pub.Start(); err != nil {
@@ -375,15 +368,13 @@ func TestWriterRestart_BufferLoss_InFlightRedelivered(t *testing.T) {
 
 func TestWriterRestart_MultipleCycles_ConvergesToCorrectTotal(t *testing.T) {
 	url := wrNATSURL(t)
+	if err := natsexecution.ResetExecutionEventsStreamForTest(url); err != nil {
+		t.Fatalf("reset EXECUTION_EVENTS stream: %v", err)
+	}
 	registry := natsexecution.DefaultRegistry()
 
 	durableName := fmt.Sprintf("wr4-writer-%d", time.Now().UnixNano())
-	spec := natskit.ConsumerSpec{
-		Durable:    durableName,
-		Event:      registry.PaperOrderSubmitted,
-		AckWait:    30 * time.Second,
-		MaxDeliver: 5,
-	}
+	spec := natsexecution.WriterPaperOrderExecutionConsumerForTest(durableName)
 
 	starter := NewExecutionStarter(registry)
 

@@ -55,6 +55,7 @@ func (s Signal) PartitionKey() string {
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
+// Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
 func (s Signal) DeduplicationKey() string {
-	return fmt.Sprintf("sig:%s:%s:%s:%d:%d", s.Type, s.Source, s.Symbol, s.Timeframe, s.Timestamp.Unix())
+	return fmt.Sprintf("sig:%s:%s:%s:%d:%d", s.Type, s.Source, s.Symbol, s.Timeframe, s.Timestamp.UnixNano())
 }

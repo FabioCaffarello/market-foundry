@@ -207,6 +207,11 @@ func (e ExecutionIntent) PartitionKey() string {
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
+// Nanosecond precision mirrors Strategy.DeduplicationKey (see P4.1.10):
+// whole-second precision causes silent JetStream Duplicate-Window drops
+// when siblings publish within the same wall-clock second. Production
+// is safe (kline cadence ≥1s) but rapid-publish integration tests
+// (writerpipeline + natsexecution restart_recovery) require precision.
 func (e ExecutionIntent) DeduplicationKey() string {
-	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.Symbol, e.Timeframe, e.Timestamp.Unix())
+	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.Symbol, e.Timeframe, e.Timestamp.UnixNano())
 }
