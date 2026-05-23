@@ -3,7 +3,7 @@ module internal/adapters/nats
 go 1.25.7
 
 require (
-	github.com/fxamacker/cbor/v2 v2.9.0
+	github.com/fxamacker/cbor/v2 v2.9.2
 	github.com/nats-io/nats.go v1.49.0
 )
 
