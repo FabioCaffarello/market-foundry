@@ -279,6 +279,53 @@ A `make smoke*` target that exercises an end-to-end path with a real
 stack (compose up + seed + probes). The canonical operational
 proof-of-record.
 
+**Proto schema**
+A schema defined using Protocol Buffers v3, living under
+`proto/<family>/v<n>/<name>.proto`. Each schema is registered in
+`proto/registry.json` and generates Go types under
+`internal/shared/contracts/<family>/v<n>/` (the boundary established
+by [ADR-0018](decisions/0018-protobuf-contract-layer.md); generated
+Go is tracked in Onda H-3.b, gitignored during H-3.a).
+
+**buf**
+The Protocol Buffers tooling suite — `buf lint`, `buf generate`,
+`buf breaking` — driven by `proto/buf.yaml` and `proto/buf.gen.yaml`.
+See [buf.build](https://buf.build) for upstream docs. Foundry pins
+buf ≥ 1.50.0 (`make bootstrap` validates); current locally-validated
+version is 1.68.4. Introduced in Onda H-3.a (Fase Wire). The three
+Makefile entrypoints are `make proto-lint`, `make proto-gen`,
+`make proto-breaking`.
+
+**Schema registry**
+The canonical inventory of proto schemas, kept at
+`proto/registry.json`. Each entry maps `(type, version)` to its
+`.proto` file path and target Go message symbol. The registry is the
+source-of-truth that links the envelope's `(type, version)` pair
+([ADR-0017](decisions/0017-event-envelope-and-versioning.md)) to a
+concrete decoder. Static validation that registry ↔ `.proto` ↔
+generated Go stays in sync is the raccoon-cli `check proto`
+analyzer's job (delivered in Onda H-3.b per
+[ADR-0018](decisions/0018-protobuf-contract-layer.md) acceptance
+criterion 5).
+
+**Schema status (`registry.json`)**
+Classification of the evolutionary state of a proto schema,
+**independent of the status of the ADR that governs it**. Values:
+
+- `draft` — schema may change while the governing ADR is `Proposed`
+  or while the schema has no runtime consumer.
+- `stable` — schema has at least one runtime consumer and breaking
+  changes require a version bump per
+  [ADR-0018](decisions/0018-protobuf-contract-layer.md) PROTO-G2.
+- `deprecated` — schema has been superseded by a newer version;
+  consumers should migrate.
+
+The status of a schema and the status of its governing ADR evolve
+on independent timelines: a schema can be `draft` even after its
+ADR is `Accepted` (no runtime consumer yet), and an ADR can be
+`Proposed` while its schemas are `draft` (the H-3.a state for
+envelope v1 and marketdata.trade v1).
+
 ---
 
 ## Other
