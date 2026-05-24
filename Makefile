@@ -28,7 +28,7 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	codegen-check codegen-test codegen-integrated codegen-equivalence codegen-validate-all codegen-status \
 	stack-up stack-down stack-restart stack-logs \
 	po-verify \
-	proto-lint proto-gen proto-breaking
+	proto-lint proto-gen proto-breaking proto-check
 
 define RUN_IN_MODULES
 	@MODULE='$(MODULE)' ./scripts/utils/for-each-module.sh $(1)
@@ -120,7 +120,7 @@ install-hooks: ## Install git hooks via lefthook (requires `lefthook` on PATH).
 
 check: repo-consistency-check quality-gate ## Pre-code guard rail (consistency + fast quality gate).
 check-deep: repo-consistency-check quality-gate-deep ## Full validation profile for significant changes; not a substitute for `make smoke*`.
-verify: test repo-consistency-check quality-gate lint-go ## Post-change validation: Go tests plus consistency, fast quality gate, and Go lint.
+verify: test repo-consistency-check quality-gate proto-lint lint-go ## Post-change validation: Go tests plus consistency, fast quality gate, proto lint, and Go lint.
 lint: check ## Alias for `make check`.
 lint-go: ## Run golangci-lint across all workspace modules.
 	@./scripts/lint-go.sh
@@ -139,19 +139,21 @@ recommend: $(RACCOON_BIN) ## Generate raccoon validation recommendations from di
 	$(RACCOON_BIN) --project-root . change recommend $(TARGETS)
 
 ##@ Proto Schemas
-# Added in Onda H-3.a (Fase Wire). See PROGRAM-0002 and ADR-0018.
-# Targets operate against proto/buf.yaml and proto/buf.gen.yaml.
-# NOT yet part of `make verify` — composition into the verify gate
-# arrives in Onda H-3.b alongside the raccoon-cli `check proto`
-# analyzer (per ADR-0018 acceptance criterion 5).
-proto-lint: ## Run `buf lint` over proto/. STANDARD + COMMENTS rule set.
+# Initially added in Onda H-3.a (Fase Wire). See PROGRAM-0002 and
+# ADR-0018. proto-lint joined `make verify` in Onda H-3.b alongside
+# the raccoon-cli `check proto` analyzer (which runs automatically
+# within `make quality-gate`).
+proto-lint: ## Run `buf lint` over proto/. STANDARD + COMMENTS rule set. Part of `make verify` since Onda H-3.b.
 	@cd proto && buf lint
 
-proto-gen: ## Run `buf generate` over proto/. Emits *.pb.go under internal/shared/contracts/ (gitignored in H-3.a; tracked in H-3.b).
-	@cd proto && buf generate
+proto-gen: ## Run `buf generate` over proto/. Emits *.pb.go under internal/shared/contracts/ (tracked since Onda H-3.b).
+	@PATH="$$(go env GOPATH)/bin:$$PATH" && cd proto && buf generate
 
 proto-breaking: ## Run `buf breaking` against the main branch. WIRE_JSON rule set. Tolerates "baseline empty" on initial introduction of proto/.
 	@./scripts/proto-breaking.sh
+
+proto-check: $(RACCOON_BIN) ## Run raccoon-cli check proto (registry ↔ .proto ↔ generated Go sync, per ADR-0018).
+	$(RACCOON_BIN) --project-root . check proto
 
 ##@ Go And Test
 tidy: ## Run `go mod tidy` across workspace modules.

@@ -59,6 +59,26 @@ if [[ "$BUF_LOWER" != "$BUF_MIN_VERSION" ]]; then
 fi
 pass "buf version $BUF_CURRENT_VERSION >= $BUF_MIN_VERSION"
 
+# protoc-gen-go version gate — pinned at v1.36.8 to match the
+# google.golang.org/protobuf runtime declared in internal/shared/go.mod.
+# Plugin-to-runtime version pairing eliminates wire-format compatibility
+# bugs. See docs/DEVELOPMENT.md → "External tooling" → "protoc-gen-go".
+PROTOC_GEN_GO_REQUIRED_VERSION="v1.36.8"
+PROTOC_GEN_GO_BIN="$(go env GOPATH)/bin/protoc-gen-go"
+if [[ ! -x "${PROTOC_GEN_GO_BIN}" ]]; then
+    # Fall back to PATH lookup before failing — contributors may have
+    # installed via a non-default GOPATH.
+    if ! command -v protoc-gen-go >/dev/null 2>&1; then
+        die "protoc-gen-go not found. Install: 'go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_REQUIRED_VERSION}'. Required by 'make proto-gen' (ADR-0018 acceptance criterion 4)."
+    fi
+    PROTOC_GEN_GO_BIN="protoc-gen-go"
+fi
+PROTOC_GEN_GO_CURRENT_VERSION="$("${PROTOC_GEN_GO_BIN}" --version 2>&1 | awk '{print $NF}')"
+if [[ "${PROTOC_GEN_GO_CURRENT_VERSION}" != "${PROTOC_GEN_GO_REQUIRED_VERSION}" ]]; then
+    die "protoc-gen-go version ${PROTOC_GEN_GO_CURRENT_VERSION} != required ${PROTOC_GEN_GO_REQUIRED_VERSION}. Reinstall: 'go install google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO_REQUIRED_VERSION}'. The pinned version matches google.golang.org/protobuf in internal/shared/go.mod; mismatches cause subtle wire-format bugs."
+fi
+pass "protoc-gen-go version ${PROTOC_GEN_GO_CURRENT_VERSION} (pinned)"
+
 phase "Docker Availability"
 
 if docker info >/dev/null 2>&1; then
