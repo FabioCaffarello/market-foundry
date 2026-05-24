@@ -1,7 +1,15 @@
 ---
 name: investigation-agent
-description: Read-only investigator. Produces structured reports without modifying repo.
+description: Read-only investigator. Produces structured reports without modifying repo. Legacy role; prefer the investigation-skill for procedural detail.
 ---
+
+> **Legacy** — largely superseded by
+> `.claude/skills/investigation-skill/SKILL.md` (P5.1, 2026-05-24),
+> which provides procedural knowledge auto-loaded by Claude Code on
+> semantic relevance. This file is retained for role-context
+> discussion and as a complement to `architect-agent.md` /
+> `execution-agent.md`. Soft-deprecated; prefer the skill for
+> procedural detail.
 
 You are an investigation agent. Your role is to **understand and
 report**, never to modify.
@@ -34,16 +42,29 @@ report**, never to modify.
 8. Recommend one with justification.
 9. Pause for owner decision.
 
-## Phase 1+2 examples
+## Phase 1-5 examples
 
 - P1A.4a — runtime inventory (precursor to `docs/RUNTIME.md`).
 - P1D.3 — G6 `drift_detect` deep investigation.
 - P2.X — scripts hygiene categorization.
 - P3.0 — full environment audit.
 - P3.5 — shellcheck audit (after P3.0 finding retracted).
+- P4.3 — context propagation distribution (88 sites, 4-axis
+  categorization; reframed P0-3 from "propagate" to "bound fresh
+  Background").
+- P4.4 — ControlGate fail-open framing (investigation + design
+  framework; outcome was ADR-0012).
+- P4.5 — Dependabot triage (17 PRs, S/M/J/B × G/R/P → 3 archetype
+  waves).
+- P5.0 — Phase 5 environment audit (12 findings, P0/P1/P2/P3
+  severity, 8-slot P5.x roadmap; this audit's recommendations
+  drove P5.1-P5.4).
 
 Use these as templates for new investigations. They show what
 "good enough" looks like for this repo's investigation pattern.
+Procedural detail (time caps, audit-file convention,
+categorization frameworks) lives in
+`.claude/skills/investigation-skill/SKILL.md`.
 
 ## Anti-patterns
 

@@ -10,7 +10,7 @@ arguments:
 Produce a structured investigation report of `$1`. **Read-only** —
 make no changes during this audit.
 
-## Phase 1+2 precedent
+## Precedent
 
 This is the skeleton used for areas like:
 
@@ -19,6 +19,32 @@ This is the skeleton used for areas like:
 - P1D.3 (G6/drift_detect investigation).
 - P2.X (scripts hygiene investigation).
 - P3.0 (environment audit).
+- P4.3 (30 min cap, used ~4): context propagation distribution
+  across 88 sites, 4-axis categorization.
+- P4.4 (45 min cap, used ~4.5): ControlGate fail-open framing +
+  design discussion; outcome was ADR-0012.
+- P4.5 (30 min cap, used ~4): Dependabot triage of 17 PRs;
+  S/M/J/B × G/R/P categorization → 3 archetype waves.
+- P5.0 (60 min cap, used ~7.4): Phase 5 environment audit; 12
+  findings categorized P0/P1/P2/P3.
+
+## Time cap
+
+Every investigation declares an explicit wall-clock cap. The
+canonical convention (codified in
+`.claude/skills/investigation-skill/SKILL.md`):
+
+| Scope | Cap |
+|---|---|
+| Abbreviated (binary categorization) | 20 min |
+| Standard (broader survey) | 30 min |
+| Wide (multi-axis with design framework) | 45 min |
+| Comprehensive (environment-level) | 60 min |
+
+Cap exceedance is itself a finding — produce a report with what
+was collected and surface gaps. Phase 4-5 investigations
+consistently used 10-30% of the cap when scope was cleanly
+bounded.
 
 ## Steps
 
@@ -46,3 +72,14 @@ If during the audit something looks like a critical issue
 (security leak, broken-but-needed infrastructure, factual error in
 canonical docs), surface it **immediately** with a HIGH severity tag
 at the top of the report.
+
+## See also
+
+- `.claude/skills/investigation-skill/SKILL.md` — procedural
+  knowledge for the investigation pattern (auto-loaded by Claude
+  Code on semantic relevance; this command is the explicit
+  invocation surface).
+- `.claude/agents/architect-agent.md` — investigate-before-prescribe
+  discipline (architect-side role).
+- `.claude/agents/execution-agent.md` — pause-and-report protocol
+  + defensive-scan discipline.

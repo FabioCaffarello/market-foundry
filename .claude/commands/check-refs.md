@@ -13,9 +13,12 @@ code, configuration, documentation, Makefile, and CI workflows.
 ## Why
 
 Deletion or rename without a ref-check is the leading cause of broken
-validation/orientation infrastructure. Phase 1+2 surfaced multiple
+validation/orientation infrastructure. Phase 1-4 surfaced multiple
 instances where stale-infrastructure-post-restructure caused
-verification or onboarding to silently fail.
+verification or onboarding to silently fail — most recently the
+P4.0 `backups/` near-miss (a recommendation to `rm -rf backups/`
+would have destroyed 96 files of operational data and broken 6
+Makefile targets; the pre-audit ref-check stopped the action).
 
 ## Search
 

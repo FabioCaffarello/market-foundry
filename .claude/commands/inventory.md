@@ -12,9 +12,11 @@ changes. Saves output to `/tmp/inventory-<sanitized-name>.md`.
 
 ## Why
 
-Phase 1+2 work consistently used "inventory-first" as the foundation
+Phase 1-5 work consistently used "inventory-first" as the foundation
 for fact-dense changes. Producing a structured ground-truth snapshot
-before transformation prevents drift between premise and reality.
+before transformation prevents drift between premise and reality
+(see e.g. P1A.4a runtime inventory, P4.5 Dependabot triage,
+P5.0 environment audit).
 
 ## Run
 
