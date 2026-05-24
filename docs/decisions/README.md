@@ -68,6 +68,12 @@ typo fixes and broken-link corrections are fine.)
 | [0014](0014-defensive-scan-discipline.md) | Defensive-scan discipline | Accepted |
 | [0015](0015-wave-closure-discipline.md) | Wave-closure discipline | Accepted |
 
+### Fase Harvest decisions
+
+| # | Title | Status |
+|---|---|---|
+| [0016](0016-harvest-from-market-raccoon.md) | Harvest from market-raccoon — selective wave protocol | Accepted |
+
 ## Adding new ADRs
 
 When you make a structural decision worth documenting:

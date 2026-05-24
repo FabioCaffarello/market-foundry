@@ -31,6 +31,36 @@ below for retrospective detail; Phase 5 narrative pending P5.1+.
 
 ---
 
+## Fase Harvest
+
+**Fase Harvest aberta (2026-05-24)** sob protocolo P1–P8 — ver
+[`../CLAUDE.md`](../CLAUDE.md) → "Fase Harvest" para a versão
+canônica dos princípios. Programa de Fundação tracked em
+[`programs/PROGRAM-0001-foundation.md`](programs/PROGRAM-0001-foundation.md)
+(Status: `Active`); decisão de adoção em
+[`decisions/0016-harvest-from-market-raccoon.md`](decisions/0016-harvest-from-market-raccoon.md)
+(Status: `Accepted`).
+
+Wave protocol — uma onda por vez (P4):
+
+| Onda | Estado | Escopo |
+|------|--------|--------|
+| **H-0** | **Atual** (esta entrega) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest", `.claude/settings.json` (`RACCOON_REFERENCE_PATH`), RESUMPTION marcado. |
+| **H-1** | Destravada ao fechamento de H-0 | Práticas operacionais: TRUTH-MAP, AUTHORITY-MAP, runtime-invariants, SLOs canônicos. |
+| **H-2** | Bloqueada por H-1 | Sete ADRs de fundação (0017–0023). Sem código de produto novo. |
+
+Capacidades futuras (H-3+) — cliente Odin (H-12+, em `client/`),
+TimescaleDB (provável H-10), insights/replay/multi-venue/proto
+layer/observability — são escopadas no momento em que cada onda
+abre. Esta seção registra apenas o estado atual do programa
+Foundation; o roadmap detalhado vive em PROGRAM-0001.
+
+`market-raccoon` (em `$RACCOON_REFERENCE_PATH`) permanece read-only
+referência consultiva; nenhum arquivo é copiado, capacidades são
+reescritas no foundry.
+
+---
+
 ## Current functional state
 
 The system runs end-to-end in paper (dry-run) mode against Binance

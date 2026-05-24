@@ -31,11 +31,18 @@ When starting work on this repository, read in this order:
 1. **The prompt or task you received** — your immediate context.
 2. **[docs/RESUMPTION.md](docs/RESUMPTION.md)** — current state, known
    gaps, next concrete step. Always start here.
-3. **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — operational rules,
+3. **The active PROGRAM** if one is in flight — see
+   [docs/programs/](docs/programs/README.md) for the convention.
+   Currently active:
+   [PROGRAM-0001 — Harvest Foundation](docs/programs/PROGRAM-0001-foundation.md).
+4. **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — operational rules,
    PR workflow, "Specifically for AI agents" section.
-4. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system shape and
+5. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system shape and
    structural principles.
-5. **Specific docs your task needs** (e.g., domain docs, HTTP-API,
+6. **"Fase Harvest" section below** if your task touches the current
+   harvest from `market-raccoon`. The eight principles P1–P8 are the
+   permanent protocol for that work.
+7. **Specific docs your task needs** (e.g., domain docs, HTTP-API,
    runtime, operations).
 
 Time investment: 5-10 minutes for documents 2-3 minimum, on every
@@ -122,6 +129,114 @@ See [docs/decisions/0005-layer-sovereignty.md](docs/decisions/0005-layer-soverei
 
 ---
 
+## Fase Harvest
+
+market-foundry is in the **Harvest phase**: a structured, multi-onda
+program that consults the sibling `market-raccoon` repository
+(`$RACCOON_REFERENCE_PATH` =
+`/Volumes/OWC Express 1M2/Develop/market-raccoon`, set in
+`.claude/settings.json`) as a **read-only reference** while
+re-implementing selected capabilities natively inside the foundry.
+
+Phase tracker:
+[PROGRAM-0001 — Harvest Foundation](docs/programs/PROGRAM-0001-foundation.md).
+Decision of record:
+[ADR-0016 — Harvest from market-raccoon](docs/decisions/0016-harvest-from-market-raccoon.md).
+Convention for PRDs:
+[docs/programs/README.md](docs/programs/README.md).
+
+### Princípios P1–P8
+
+These eight principles are the **canonical, permanent protocol** for
+the Harvest. They are not specific to any single onda; they govern
+every onda of the program. Treat them with the same weight as the
+"Core operating protocols" section above.
+
+#### P1 — Foundry é ground truth; raccoon é referência consultiva
+
+A estrutura atual do `market-foundry` (8 binários, ADRs existentes,
+layer sovereignty enforced, RESUMPTION.md como state-truth) é o
+ponto de partida. O `market-raccoon` é lido para informar decisões,
+nunca para servir de base de migração. **Nenhum arquivo do raccoon
+é copiado; capacidades são reescritas dentro do foundry respeitando
+layer sovereignty.**
+
+#### P2 — Raccoon path é estritamente read-only
+
+`$RACCOON_REFERENCE_PATH` pode ser lido livremente, nunca
+modificado. **Cada leitura é justificada**: declare antes de abrir
+qualquer arquivo do raccoon qual decisão específica essa leitura
+informa. Sem essa fricção, "browsing" vira "copying" silenciosamente.
+
+#### P3 — Toda capacidade portada passa por documento primeiro
+
+Sequência obrigatória, sem exceção:
+
+```
+leitura (raccoon + foundry, read-only)
+  → documento (PRD da Fase, ou ADR de decisão)
+  → implementação (código novo no foundry)
+  → analyzer raccoon-cli (quando aplicável)
+  → gate (make verify GREEN + RESUMPTION atualizado no commit)
+```
+
+Nenhum passo é pulável. A sequência é a disciplina.
+
+#### P4 — Uma onda por vez, fechamento explícito antes da próxima
+
+Mesmo com ritmo de revisão alto, ondas **não paralelizam**. A
+próxima onda só abre quando a anterior fecha com todas as entregas
+completas, `make verify` GREEN, RESUMPTION atualizado, e aprovação
+explícita do maintainer. Custo de fechamento serializado é baixo;
+custo de conflito documental é alto.
+
+#### P5 — Cada onda evolui raccoon-cli quando adiciona invariante
+
+Se a onda adiciona uma invariante arquitetural (ex.: "todo evento
+tem envelope versionado"), a onda **também entrega um analyzer
+`raccoon-cli`** que valida estaticamente essa invariante. Sem
+isso, a invariante vira intenção sem enforcement — exatamente o
+modo de falha que
+[ADR-0004](docs/decisions/0004-raccoon-cli-static-enforcement.md)
+existe para prevenir.
+
+#### P6 — Pause-and-report ativo durante a onda inteira
+
+Se encontrar blocker fora do escopo da onda atual, discrepância
+entre doc e código, capacidade do raccoon que parece relevante mas
+não está nesta onda, ou ambiguidade sobre como mapear conceito do
+raccoon para layer do foundry — **pare, reporte concisamente,
+apresente opções A/B/C/D, espere direção**. Não decida
+silenciosamente. Especialização da
+[ADR-0013](docs/decisions/0013-pause-and-report-protocol.md) para
+a superfície do Harvest.
+
+#### P7 — Sem perda de disciplina documental
+
+PRDs e ADRs criados nas ondas referenciam-se entre si. RESUMPTION é
+o sentinel — sempre reflete o estado real. **TRUTH-MAP (instalado
+em H-1) cruzará claim × ADR/PRD × code anchor × test anchor.**
+Nenhum documento criado pode declarar capacidade que o código ainda
+não entregou. Status `Draft` é tolerado para PRDs em formação;
+status `Accepted` em ADR exige código entregue — **exceto ADRs de
+fundação H-2**, que aceitam decisões antes do código que as
+implementa, **desde que o ADR liste critérios explícitos de quando
+promover**.
+
+#### P8 — Cliente Odin está mapeado, não esquecido
+
+O cliente Odin/WASM entra no programa Harvest como **Onda H-12+**,
+dentro de `client/` no próprio foundry. Até lá, **nada de cliente é
+antecipado**. A Onda H-11 (Delivery WS) é desenhada considerando
+que o consumidor canônico será o cliente Odin do mesmo repo, mas
+sem código de cliente. Os cinco binários extras do raccoon
+(`portfolio`, `strategist`, `signals-separado`, `executor`,
+`validator`) **não retornam** — capacidades equivalentes são
+absorvidas pelos 8 owners existentes (ver
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → "Binary boundaries").
+
+---
+
 ## Essential commands
 
 For complete daily workflow, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
@@ -168,6 +283,13 @@ that don't exist. From [docs/RESUMPTION.md](docs/RESUMPTION.md):
 - **No market-making primitives.**
 - **No machine learning pipeline.**
 - **No HTTP authentication.** Loopback binding is the access control.
+- **No raccoon-style auxiliary binaries.** `portfolio`, `strategist`,
+  `signals-separado`, `executor`, `validator` exist in
+  `market-raccoon` but are **permanent non-scope** here. Capabilities
+  with equivalent intent are absorbed by the existing 8 owners (see
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → "Binary boundaries");
+  there will be no new long-running binaries introduced to mirror the
+  raccoon's `cmd/` shape.
 
 If asked to use any of these, clarify with the user before proceeding.
 
@@ -205,6 +327,7 @@ protocol".
 | If you want | Go to |
 |---|---|
 | Current state and gaps | [docs/RESUMPTION.md](docs/RESUMPTION.md) |
+| Active program (PRD) | [docs/programs/](docs/programs/README.md) |
 | Operating rules and protocols | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
 | System architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Runtime topology | [docs/RUNTIME.md](docs/RUNTIME.md) |
