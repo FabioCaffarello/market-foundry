@@ -74,6 +74,28 @@ typo fixes and broken-link corrections are fine.)
 |---|---|---|
 | [0016](0016-harvest-from-market-raccoon.md) | Harvest from market-raccoon — selective wave protocol | Accepted |
 
+### Fase Harvest — Foundation ADRs (Proposed)
+
+Foundation ADRs delivered in **Onda H-2**. Each ADR codifies a
+structural decision before the implementing code lands; each carries
+an explicit "Promoção para Accepted" section naming the onda that
+ships the supporting code and flips the status. While `Proposed`,
+these ADRs are T3 (Evolutionary) per
+[`../AUTHORITY.md`](../AUTHORITY.md); they become T1 (Canonical) on
+promotion. The hybrid status — design recorded now, code-grounded
+acceptance later — is the P7 mechanism for "no aspirational claims"
+(I9 in [`../operations/runtime-invariants.md`](../operations/runtime-invariants.md)).
+
+| # | Title | Status | Promoted by |
+|---|---|---|---|
+| [0017](0017-event-envelope-and-versioning.md) | Event envelope and versioning | Proposed | Onda H-3 |
+| [0018](0018-protobuf-contract-layer.md) | Protobuf contract layer | Proposed | Onda H-3 |
+| [0019](0019-deterministic-replay-time-invariants.md) | Deterministic replay and time invariants | Proposed | Onda H-4 |
+| [0020](0020-sequencing-and-time-normalization.md) | Sequencing and time normalization | Proposed | Onda H-4 |
+| [0021](0021-canonical-instrument-and-venue-model.md) | Canonical instrument and venue model | Proposed | Onda H-6 |
+| [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Proposed | Onda H-7 |
+| [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
+
 ## Adding new ADRs
 
 When you make a structural decision worth documenting:

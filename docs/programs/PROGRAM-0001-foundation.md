@@ -30,7 +30,7 @@ código de produto novo é entregue em H-0/H-1/H-2.
 |------|------------------|---------------------|
 | **H-0** | Setup do Harvest | ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P9; P9 added as H-1 erratum), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`), RESUMPTION marcado |
 | **H-1** | Práticas operacionais | TRUTH-MAP, AUTHORITY-MAP, runtime-invariants, SLOs canônicos (todos em formato nativo do foundry; sem cópia do raccoon) |
-| **H-2** | Fundação ADR | Sete ADRs (0017–0023) consolidando decisões estruturais herdadas/refinadas da experiência raccoon, sem código de produto novo |
+| **H-2** | Fundação ADR | Sete ADRs (0017–0023) consolidando decisões estruturais herdadas/refinadas da experiência raccoon, sem código de produto novo. Entregues com status `Proposed`; cada ADR carrega seção "Promoção para Accepted" nomeando a onda subsequente que ship o código e flipa o status. |
 
 Ondas posteriores (H-3 e além) portam capacidades específicas
 (insights, replay, multi-venue, proto layer, observability,
@@ -90,31 +90,49 @@ verdadeiros simultaneamente:
 - [ ] Ondas H-0, H-1, H-2 fechadas. Cada onda registrou
   fechamento explícito com `make verify` GREEN e RESUMPTION
   atualizado no commit de fechamento.
-- [ ] ADRs 0016 + 0017 + 0018 + 0019 + 0020 + 0021 + 0022 + 0023
-  publicados com status `Accepted` (oito ADRs no total).
+- [ ] ADR-0016 publicado com status `Accepted` (entregue em H-0).
+- [ ] ADRs 0017–0023 publicados com status `Proposed` (entregues em
+  H-2). Cada ADR é promovido a `Accepted` pela onda subsequente que
+  ship o código que a implementa, conforme a seção "Promoção para
+  Accepted" do próprio ADR. A Fase Foundation **não** depende da
+  promoção a `Accepted` desses sete; a promoção é responsabilidade
+  da onda implementadora (H-3, H-4, H-6, H-7, H-10).
 - [ ] TRUTH-MAP e AUTHORITY-MAP ativos no foundry (H-1), em
   formato nativo (não copiado do raccoon).
 - [ ] `runtime-invariants` documentadas com analyzer `raccoon-cli`
   associado quando aplicável (P5).
 - [ ] SLOs canônicos do programa documentados em `docs/operations/`
   ou equivalente (H-1).
-- [ ] PROGRAM-0001 transita para `Closed` na entrega final; entrada
-  Changelog correspondente.
+- [ ] PROGRAM-0001 transita para `Closed` na entrega final de H-2;
+  entrada Changelog correspondente.
 
 ---
 
 ## ADRs esperados na Fase
 
-| ADR | Escopo | Onda | Status esperado ao fechar a Fase |
-|-----|--------|------|-----------------------------------|
+| ADR | Escopo | Onda | Status ao fechar a Fase Foundation |
+|-----|--------|------|-------------------------------------|
 | 0016 | Harvest from market-raccoon — protocolo da Fase | H-0 | Accepted |
-| 0017–0023 | Sete ADRs de fundação consolidando decisões estruturais (escopo específico definido em H-2 antes da abertura) | H-2 | Accepted |
+| 0017 | Event envelope and versioning | H-2 | Proposed (→ Accepted em H-3) |
+| 0018 | Protobuf contract layer | H-2 | Proposed (→ Accepted em H-3) |
+| 0019 | Deterministic replay and time invariants | H-2 | Proposed (→ Accepted em H-4) |
+| 0020 | Sequencing and time normalization | H-2 | Proposed (→ Accepted em H-4) |
+| 0021 | Canonical instrument and venue model | H-2 | Proposed (→ Accepted em H-6) |
+| 0022 | Multi-venue normalization policy | H-2 | Proposed (→ Accepted em H-7) |
+| 0023 | Storage tier roadmap | H-2 | Proposed (parcial: H-9; total: H-10) |
 
-Critério de promoção `Draft → Accepted` para ADRs de fundação H-2:
-permitido aceitar antes do código que os implementa, **desde que** o
-ADR liste o critério de promoção subsequente (e.g., "promove para
-implementado quando onda H-N entregar o componente X com analyzer Y
-verde") — P7 da Fase Harvest.
+Política operativa de status: cada ADR H-2 é entregue como
+`Proposed` na onda H-2, com seção "Promoção para Accepted" listando
+critério explícito de promoção. A onda implementadora subsequente
+flipa o status para `Accepted` no mesmo commit que ship o código.
+Esta política realiza o P7 da Fase Harvest ("Status `Accepted` em
+ADR exige código entregue — exceto ADRs de fundação H-2, que
+aceitam decisões antes do código que as implementa, desde que o
+ADR liste critérios explícitos de quando promover") via o sub-caso
+mais conservador: `Proposed` em H-2; `Accepted` quando o código
+existe. Se uma onda futura **não** ship o código (ex.: ADR-0023
+depende de triggers empíricos), o ADR pode permanecer `Proposed`
+indefinidamente — estado válido, não pendência.
 
 ---
 
@@ -177,3 +195,12 @@ portada é decidida em ondas posteriores (H-3+), não nesta PRD.
   splitting natural — ver Changelog do ADR-0016). H-1 fecha esse
   drift no mesmo PR que entrega TRUTH-MAP / AUTHORITY /
   runtime-invariants / SLO.
+- **2026-05-24** — **H-2 entregue**: sete ADRs de fundação (0017–
+  0023) publicados com status `Proposed`. Política operativa de
+  status clarificada: cada ADR é promovido a `Accepted` pela onda
+  implementadora subsequente, no commit que ship o código; a Fase
+  Foundation pode fechar enquanto os sete ADRs permanecem
+  `Proposed`. ADR-0023 (storage tier) admite permanência indefinida
+  em `Proposed` caso nenhum trigger empírico (T1/T2/T3) dispare.
+  Lands no PR de fechamento de H-2 alongside TRUTH-MAP /
+  AUTHORITY / RESUMPTION / GLOSSARY updates.

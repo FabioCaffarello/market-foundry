@@ -131,6 +131,30 @@ the test is human discipline backed by `make verify` gates.
 | Wave-closure discipline | [ADR-0015](decisions/0015-wave-closure-discipline.md) | — | — | Documentation | Closure-signal recognition; M-list captures deferred debt. |
 | Fase Harvest under P1–P9 | [ADR-0016](decisions/0016-harvest-from-market-raccoon.md), [PROGRAM-0001](programs/PROGRAM-0001-foundation.md) | [`../CLAUDE.md`](../CLAUDE.md) → "Fase Harvest" (canonical P1–P9) | — | Documentation | Wave protocol; enforced by maintainer + branch protection (P9). |
 
+### Planned capabilities — Foundation ADRs (Proposed)
+
+Capabilities whose **decisions** are recorded in Foundation ADRs
+(0017–0023, delivered in Onda H-2) but whose **code** has not yet
+shipped. Each ADR is T3 (Evolutionary) per
+[`AUTHORITY.md`](AUTHORITY.md) until promoted to `Accepted` by the
+onda that ships the supporting code. Code anchors and test anchors
+become real (and the Status flips from `Planned` to `Implemented`)
+in the same commit that promotes the ADR's `Status` field.
+
+ADR-0023 may legitimately remain `Planned` indefinitely if its
+empirical triggers (T1/T2/T3) do not fire; that is a documented
+steady state, not pending work.
+
+| Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
+|---|---|---|---|---|---|
+| Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | TODO (Onda H-3 — `internal/shared/contracts/envelope/`) | TODO (Onda H-3) | Planned | Coexists with legacy transport envelope (`internal/shared/envelope/`); legacy retired only after all 11 streams migrate. |
+| Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | TODO (Onda H-3 — `proto/`, `internal/shared/contracts/`) | TODO (Onda H-3 — `make proto-gate`) | Planned | Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. |
+| Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | TODO (Onda H-4 — `internal/shared/replay/`, ports for clock/random) | TODO (Onda H-4 — golden tests + N=50 byte-stability) | Planned | Backs the "backtest = production" thesis; enforced statically by raccoon-cli `check determinism` (per P5). |
+| Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | TODO (Onda H-4 — `internal/shared/sequencer/`, KV bucket `SEQUENCER_STATE_LATEST`) | TODO (Onda H-4 — monotonicity unit tests + gap-detection counter) | Planned | Stream key = `(venue, instrument, event_type)`; owner per ADR-0008 single-writer. |
+| Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
+| Multi-venue normalization policy (Capabilities + `check venue-parity`) | [ADR-0022](decisions/0022-multi-venue-normalization-policy.md) | TODO (Onda H-7 — adapter `Capabilities()`; `/venues/capabilities` HTTP route; raccoon-cli `check venue-parity`) | TODO (Onda H-7 — `cmd/gateway/boot_test.go` entry; analyzer tests) | Planned | First non-Binance adapter is typically Bybit; route registration updates the gateway boot test per ADR-0010. |
+| Storage tier roadmap (Stage 1 → Stage 2 with empirical triggers) | [ADR-0023](decisions/0023-storage-tier-roadmap.md) | Stage 1: existing ClickHouse + KV (no new code); Stage 2 TODO (Onda H-10 — `internal/adapters/storage/timescale/`) | Stage 1: existing analytical + projection tests; Stage 2 TODO (Onda H-10) | Planned (partial) | Stage 1 active today on existing ClickHouse + KV. Stage 2 (TimescaleDB) opens only when triggers T1/T2/T3 fire; may remain `Planned` indefinitely. |
+
 ### Gate (verification surface)
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
@@ -192,7 +216,8 @@ a TRUTH-MAP row either.
 - NATS streams declared: **11**.
 - NATS adapter registry files: **8** (one per writer family).
 - Go test files under `internal/` and `cmd/`: **~289**.
-- ADRs published: **16** (0001–0016, all `Accepted`).
+- ADRs published: **23** (0001–0016 `Accepted`; 0017–0023 `Proposed`,
+  delivered in Onda H-2 of the Fase Harvest).
 - PRDs published: **1** (PROGRAM-0001, `Active`).
 - `make verify` checks executed: **84** (across 6 active analyzers).
 
@@ -208,3 +233,12 @@ a TRUTH-MAP row either.
   with active gaps (G1, G2, D1, D3, D4 in RESUMPTION) explicitly
   listed in "Capabilities sem TRUTH cobertura" rather than
   silently omitted.
+- **2026-05-24** — Onda H-2 closure: seven new ADRs (0017–0023,
+  Foundation ADRs, `Proposed`) added under the new "Planned
+  capabilities — Foundation ADRs (Proposed)" section. Each row
+  declares the implementing onda (H-3, H-4, H-6, H-7, or H-10)
+  that promotes the ADR and fills in real code/test anchors.
+  ADR-0023's Stage 1 (ClickHouse + KV) is the active topology;
+  Stage 2 (TimescaleDB) is conditional on empirical triggers and
+  may remain `Planned` indefinitely. Summary count updated:
+  16 → 23 ADRs published.

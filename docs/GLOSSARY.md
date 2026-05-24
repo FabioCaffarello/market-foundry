@@ -43,6 +43,37 @@ The rule that imports flow strictly inward:
 `domain → application → adapters → actors → interfaces → cmd`.
 Enforced automatically by `raccoon-cli arch-guard`.
 
+**Venue**
+An exchange (or exchange-family product) the foundry can source
+market data from or route orders to. Per
+[ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md),
+the `Venue` enum is the canonical identifier
+(`binance`, `binancef`, `bybit`, `coinbase`, `hyperliquid`,
+`kraken`, `krakenf`). Carried at the envelope level
+(ADR-0017) so cross-venue capabilities route without payload
+inspection.
+
+**Canonical instrument**
+The foundry-internal identity of a tradable instrument, defined in
+[ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md)
+as `CanonicalInstrument{Base, Quote, Contract}` where `Contract`
+is one of `spot`, `usdtfutures`, `coinfutures`, `perpetual`.
+Identical structure across every venue; venue-native nuances (lot
+sizes, tick sizes) live in adapter-side metadata, not in the
+canonical identity. Domain layer (`internal/domain/`) never
+handles venue-native symbol formats; normalization happens at the
+adapter boundary via `ToCanonical` / `FromCanonical`.
+
+**Storage tier**
+The class of persistent store a piece of data lives in. Per
+[ADR-0023](decisions/0023-storage-tier-roadmap.md), the foundry's
+**Stage 1** topology is two tiers: **hot / operational** (NATS KV
+projections, sub-5-ms latest-state reads) and **cold / analytical**
+(ClickHouse, time-range queries and aggregations). **Stage 2**
+(Onda H-10) adds TimescaleDB as a warm/operational tier when
+empirical triggers fire; until then, "storage tier" refers to the
+two-tier model.
+
 ---
 
 ## Binaries
@@ -104,14 +135,53 @@ translation, with no direct KV access.
 For every JetStream stream and KV bucket, exactly one binary or actor
 writes. Multiple readers are fine; multiple writers are forbidden.
 
-**Envelope**
-Standard wrapper for all NATS messages. Carries `Kind`, `Type`,
-`Source`, `Subject`, `CorrelationID`, `CausationID`, `Timestamp`,
-and `Payload`.
+**Envelope (transport)**
+The generic NATS message wrapper in `internal/shared/envelope/`.
+Carries `Kind`, `Type`, `Source`, `Subject`, `CorrelationID`,
+`CausationID`, `Timestamp`, and `Payload`. Used for in-cluster RPC
+(commands, requests, replies) and for transport-level metadata on
+the event flow. Distinct from the **canonical event envelope** (see
+below), which adds domain-event fields (`venue`, `instrument`,
+`seq`, `idempotency_key`, etc.) for events on the 11 streams.
+
+**Canonical event envelope**
+The nine-field domain-event envelope decided in
+[ADR-0017](decisions/0017-event-envelope-and-versioning.md): `type`,
+`version`, `venue`, `instrument`, `ts_exchange`, `ts_ingest`, `seq`,
+`idempotency_key`, `payload`. Lives in
+`internal/shared/contracts/envelope/` once delivered by Onda H-3.
+The substrate for replay (ADR-0019), sequencing (ADR-0020), and
+multi-venue routing (ADR-0021/0022).
+
+**Wire format**
+The serialization codec of a payload on the mesh. Per
+[ADR-0018](decisions/0018-protobuf-contract-layer.md), protobuf is
+the primary wire format for the 11 streams (with JSON as fallback
+during per-stream migration); HTTP-API and control plane stay JSON.
+Codec choice is signaled at the envelope level via `content_type`
+and is **orthogonal** to schema `version` — a codec migration and a
+schema migration are independent concerns.
 
 **Deduplication key**
 Every published event carries a deterministic message ID derived from
 its content. JetStream uses it to discard duplicates within a window.
+
+**Sequencer**
+The component that produces a monotonic `seq` per stream key for
+events on the JetStream mesh. Per
+[ADR-0020](decisions/0020-sequencing-and-time-normalization.md), the
+Sequencer is owned by the single writer of each stream (preserving
+ADR-0008), persists state in NATS KV bucket `SEQUENCER_STATE_LATEST`,
+and guarantees monotonicity always (density best-effort across
+restart). `seq` is the canonical ordering source; consumers MUST NOT
+order by `ts_exchange` or `ts_ingest`.
+
+**Stream key**
+The tuple `(venue, instrument, event_type)` that the Sequencer
+(ADR-0020) keys monotonic counters by. Each combination has its
+own independent `seq` space; `seq(n+1) > seq(n)` holds within a key,
+never across keys. Cross-key ordering (e.g., cross-venue snapshots
+in H-9) is consumer-side merge logic, not a Sequencer concern.
 
 ---
 

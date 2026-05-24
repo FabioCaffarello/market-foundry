@@ -131,10 +131,13 @@ content as if it were T1.
 | Design-meta candidates | RESUMPTION → "design-meta candidates" (M-list) | Promote to ADR when discussion crystallises, otherwise stay deferred |
 | In-flight prompt scaffolds | Not currently in `docs/` (live in chat / `/tmp`) | Promote to PRD if they grow into a multi-onda effort |
 
-Note: currently the foundry has **zero `Status: Proposed` ADRs**
-on `main` — all 0001–0016 are `Accepted`. T3 exists as a
-structural slot for future use; if a Proposed ADR appears, it
-belongs here.
+Note: as of Onda H-2 closure (2026-05-24), the foundry has **seven
+`Status: Proposed` ADRs** on `main`: ADRs 0017–0023, the Foundation
+ADRs of the Fase Harvest. They are T3 until promoted to `Accepted`
+by their implementing ondas (H-3, H-4, H-6, H-7, H-10 per each
+ADR's "Promoção para Accepted" section). ADR-0023 may legitimately
+remain `Proposed` indefinitely if its empirical triggers do not
+fire. ADRs 0001–0016 remain `Accepted` (T1).
 
 ---
 
@@ -239,6 +242,7 @@ mapped to its tier.
 |---|---|---|
 | [`decisions/README.md`](decisions/README.md) | T2 | Index page |
 | `decisions/0001…0016-*.md` (16 files) | T1 | All Accepted ADRs |
+| `decisions/0017…0023-*.md` (7 files) | T3 | Foundation ADRs (Proposed) — promoted to T1 by implementing ondas H-3/H-4/H-6/H-7/H-10 |
 
 ### `programs/`
 
@@ -277,3 +281,11 @@ mapped to its tier.
   T4 has past-phase RESUMPTION sections and that is all.
   Companion to TRUTH-MAP (T1) and runtime-invariants (T1) in
   the same wave.
+- **2026-05-24** — Onda H-2 closure: seven new ADRs (0017–0023,
+  Foundation ADRs of the Fase Harvest) landed with `Status:
+  Proposed`. T3 now holds these seven entries; the file-to-tier
+  inventory and the T3-section note are updated to reflect this.
+  ADRs are promoted T3 → T1 by their implementing ondas (H-3,
+  H-4, H-6, H-7, H-10) in the commit that ships the supporting
+  code; ADR-0023 may legitimately remain T3 indefinitely if its
+  empirical triggers do not fire.
