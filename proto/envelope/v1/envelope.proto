@@ -1,0 +1,106 @@
+// Canonical event envelope for events on the 11 JetStream streams.
+//
+// See ADR-0017 (event envelope and versioning) for the architectural
+// decision. See PROGRAM-0002 (Fase Wire) for the delivery roadmap.
+//
+// Status (per proto/registry.json): draft.
+// This schema is stable in shape but has no runtime consumer yet;
+// promotion to "stable" status happens when a stream uses the
+// envelope in production (future phase).
+syntax = "proto3";
+
+package envelope.v1;
+
+option go_package = "internal/shared/contracts/envelope/v1";
+
+// Envelope wraps every domain event flowing through the foundry's
+// JetStream mesh. It carries the nine canonical fields defined by
+// ADR-0017: type, version, venue, instrument, ts_exchange,
+// ts_ingest, seq, idempotency_key, payload.
+//
+// Coexistence: the legacy transport envelope at
+// internal/shared/envelope/ continues to serve in-cluster RPC
+// (commands, requests, replies) and is NOT retired by ADR-0017.
+// The migration of the 11 streams from the legacy envelope to
+// this canonical envelope is execution of the architectural
+// decision and occurs in a future phase (see ADR-0017 erratum
+// 2026-05-25).
+message Envelope {
+  // Stable event type identifier (e.g., "observation.trade",
+  // "evidence.candle"). Type names are stable; a renamed event
+  // type is a new event type. See ADR-0017 → "Versioning rules".
+  string type = 1;
+
+  // Schema version of payload. Breaking changes to payload shape
+  // increment this field per ADR-0017. Consumers MUST support
+  // version N and N-1 during active migration windows.
+  int32 version = 2;
+
+  // Canonical venue identifier (e.g., "binance", "binancef",
+  // "bybit"). See ADR-0021 (canonical instrument and venue model)
+  // for the enum values; promoted to Accepted in Onda H-6.
+  string venue = 3;
+
+  // Canonical instrument identifier (string form). Format chosen
+  // for forward compatibility with ADR-0021's
+  // CanonicalInstrument.Symbol() method: "{BASE}/{QUOTE}-{CONTRACT}".
+  // Examples: "BTC/USDT-spot", "BTC/USDT-perpetual",
+  // "BTC/USD-coinfutures".
+  //
+  // Venue is NOT embedded here (it lives in the `venue` field
+  // above). When ADR-0021 is promoted to Accepted in Onda H-6,
+  // this field MAY be replaced by a structured CanonicalInstrument
+  // message; the string form was chosen to make that migration
+  // a drop-in replacement (string form already equals the output
+  // of the planned Symbol() method).
+  string instrument = 4;
+
+  // Exchange-provided timestamp in epoch nanoseconds. Absent
+  // when the venue does not provide one or for synthetic events.
+  // Uses `optional` to distinguish genuine absence from the
+  // literal value 0 (epoch 1970-01-01T00:00:00Z), removing the
+  // zero-as-sentinel ambiguity that a bare int64 carries.
+  //
+  // Consumers MUST NOT use ts_exchange for ordering, dedup, or
+  // windowing — those use `seq` per ADR-0017 and ADR-0019
+  // (deterministic replay invariant INV-D2). ts_exchange is
+  // advisory only.
+  optional int64 ts_exchange = 5;
+
+  // Local timestamp at the moment the event crossed the ingest
+  // binary's process boundary, in epoch nanoseconds. Always
+  // present (sourced from the clock.Clock port per ADR-0019
+  // INV-D1; never bypassed). Authoritative for TTL, telemetry,
+  // and operational reasoning.
+  int64 ts_ingest = 6;
+
+  // Monotonic sequence per stream key
+  // `(venue, instrument, event_type)` produced by the Sequencer
+  // (ADR-0020). Within a stream key, seq(n+1) > seq(n) always.
+  // The canonical ordering authority — consumers MUST order by
+  // seq, not by either timestamp.
+  int64 seq = 7;
+
+  // Stable deduplication key derived from
+  // (venue, instrument, type, seq). Survives transport-level
+  // redelivery and consumer retries. The exact hash algorithm
+  // and encoding are H-3.b implementation choices; the key MUST
+  // be deterministic per ADR-0019 INV-D3 (replay produces
+  // byte-identical output).
+  string idempotency_key = 8;
+
+  // Versioned payload, encoded per the wire format of ADR-0018.
+  // Decoder dispatches on (type, version) from this envelope
+  // plus the wire codec signaled at the envelope level. Empty
+  // bytes is a valid payload only when the event type's schema
+  // explicitly defines it.
+  bytes payload = 9;
+
+  // Reserved field ranges for future extension.
+  // Fields 1-9 are canonical per ADR-0017.
+  // Fields 10-99 reserved for minor extensions (additive,
+  // backward-compatible per ADR-0018 PROTO-G2).
+  // Fields 100-199 reserved for major architectural extensions
+  // governed by future ADRs.
+  reserved 100 to 199;
+}

@@ -147,8 +147,8 @@ steady state, not pending work.
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
-| Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | TODO (Onda H-3 — `internal/shared/contracts/envelope/`) | TODO (Onda H-3) | Planned | Coexists with legacy transport envelope (`internal/shared/envelope/`); legacy retired only after all 11 streams migrate. |
-| Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | TODO (Onda H-3 — `proto/`, `internal/shared/contracts/`) | TODO (Onda H-3 — `make proto-gate`) | Planned | Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. |
+| Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | Schema delivered: `proto/envelope/v1/envelope.proto:Envelope` (Onda H-3.a). Generated Go TODO (Onda H-3.b — `internal/shared/contracts/envelope/v1/envelope.pb.go`). | `make proto-lint` + `make proto-build` PASS for the schema (H-3.a). Round-trip Go test TODO (Onda H-3.b). | Planned (partial — schema shipped in H-3.a) | Skeleton shipped in H-3.a; generated Go + converter pending H-3.b. Stream migration is execution-of-decision (future phase) per the 2026-05-25 erratum. Coexists with legacy transport envelope (`internal/shared/envelope/`). |
+| Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Skeleton + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (Onda H-3.a). Generated Go boundary TODO (Onda H-3.b — `internal/shared/contracts/`). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (Onda H-3.a). `raccoon-cli check proto` analyzer TODO (Onda H-3.b). | Planned (partial — skeleton + tooling shipped in H-3.a) | Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. The three proto-* targets are NOT yet part of `make verify` — composition arrives in Onda H-3.b alongside `check proto`. |
 | Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | TODO (Onda H-4 — `internal/shared/replay/`, ports for clock/random) | TODO (Onda H-4 — golden tests + N=50 byte-stability) | Planned | Backs the "backtest = production" thesis; enforced statically by raccoon-cli `check determinism` (per P5). |
 | Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | TODO (Onda H-4 — `internal/shared/sequencer/`, KV bucket `SEQUENCER_STATE_LATEST`) | TODO (Onda H-4 — monotonicity unit tests + gap-detection counter) | Planned | Stream key = `(venue, instrument, event_type)`; owner per ADR-0008 single-writer. |
 | Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
@@ -242,3 +242,14 @@ a TRUTH-MAP row either.
   Stage 2 (TimescaleDB) is conditional on empirical triggers and
   may remain `Planned` indefinitely. Summary count updated:
   16 → 23 ADRs published.
+- **2026-05-25** — Onda H-3.a closure: rows for ADR-0017 and
+  ADR-0018 partially populated. ADR-0017 anchor now points to
+  `proto/envelope/v1/envelope.proto` (schema delivered in H-3.a);
+  generated Go and converter pending H-3.b. ADR-0018 anchor now
+  points to `proto/buf.yaml`, `proto/buf.gen.yaml`,
+  `proto/registry.json`, and the three `make proto-*` targets
+  (skeleton + tooling delivered in H-3.a); raccoon-cli `check
+  proto` analyzer pending H-3.b. Implementing onda labels for
+  both ADRs split H-3 → H-3.a / H-3.b per the 2026-05-25 erratum
+  to their "Promoção para Accepted" sections. ADR count
+  unchanged (23).

@@ -100,3 +100,4 @@ place.
 | # | Title | Status | Ondas |
 |---|---|---|---|
 | [0001](PROGRAM-0001-foundation.md) | Harvest Foundation | Active | H-0, H-1, H-2 |
+| [0002](PROGRAM-0002-wire.md) | Fase Wire — proto + replay + sequencer | Active | H-3.a, H-3.b, H-4 |

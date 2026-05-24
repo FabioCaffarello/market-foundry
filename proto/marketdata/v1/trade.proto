@@ -1,0 +1,67 @@
+// Pilot payload schema for the canonical event envelope (ADR-0017).
+//
+// This is the first non-envelope schema registered in
+// proto/registry.json and exercises the per-payload pattern that
+// ADR-0018 establishes: each event type lives under
+// proto/<family>/v<n>/<name>.proto with a `go_package` pointing
+// to the corresponding location under
+// internal/shared/contracts/<family>/v<n>/.
+//
+// See PROGRAM-0002 (Fase Wire) for the delivery roadmap.
+//
+// Status (per proto/registry.json): draft.
+// This schema has no runtime consumer yet; promotion to "stable"
+// status happens when an `ingest` adapter publishes trade events
+// wrapped in the canonical envelope in production (future phase
+// after Fase Wire).
+syntax = "proto3";
+
+package marketdata.v1;
+
+option go_package = "internal/shared/contracts/marketdata/v1";
+
+// TradeV1 carries a single executed trade. Used as payload for
+// envelopes whose `type` is "marketdata.trade" and whose
+// `version` is 1.
+//
+// Timestamps are NOT carried here — the canonical envelope
+// (ADR-0017) carries ts_exchange and ts_ingest as envelope-level
+// fields. Including them in the payload would duplicate state
+// and risk drift between envelope and payload time stamps.
+message TradeV1 {
+  // Execution price (quote-asset units per one base-asset unit,
+  // venue-normalized). Stored as double; precision concerns of
+  // floating-point arithmetic are the consumer's responsibility
+  // (typical consumers convert to decimal at the domain boundary).
+  double price = 1;
+
+  // Executed quantity (base-asset units, venue-normalized).
+  // Like `price`, stored as double; precision converted at the
+  // consumer's domain boundary if needed.
+  double quantity = 2;
+
+  // True when the buyer side was the aggressor (took liquidity);
+  // false when the seller was the aggressor. Encodes the side of
+  // the trade as a boolean rather than as a string (e.g.,
+  // "buy"/"sell") because every venue the foundry sources from
+  // can report this as a binary fact (Binance reports
+  // `isBuyerMaker` which inverts to `buyer_is_taker`; other
+  // venues report side string which converters normalize).
+  bool buyer_is_taker = 3;
+
+  // Venue-provided numeric trade identifier. Encoded as int64
+  // for the venues the foundry supports today (Binance Spot
+  // and Binance Futures both emit numeric IDs). If a future
+  // venue emits non-numeric trade IDs, a new payload version
+  // (TradeV2 with `string trade_id`) is added per ADR-0017
+  // versioning rules.
+  int64 trade_id = 4;
+
+  // Reserved field ranges for future extension, matching the
+  // partition convention in envelope/v1/envelope.proto.
+  // Fields 1-4 are canonical for TradeV1.
+  // Fields 5-99 reserved for minor additive extensions.
+  // Fields 100-199 reserved for major extensions governed by
+  // future ADRs.
+  reserved 100 to 199;
+}

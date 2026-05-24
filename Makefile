@@ -27,7 +27,8 @@ RACCOON_BIN := $(RACCOON_DIR)/target/release/raccoon-cli
 	ch-backup ch-restore ch-backup-list ch-backup-auto \
 	codegen-check codegen-test codegen-integrated codegen-equivalence codegen-validate-all codegen-status \
 	stack-up stack-down stack-restart stack-logs \
-	po-verify
+	po-verify \
+	proto-lint proto-gen proto-breaking
 
 define RUN_IN_MODULES
 	@MODULE='$(MODULE)' ./scripts/utils/for-each-module.sh $(1)
@@ -136,6 +137,21 @@ briefing: $(RACCOON_BIN) ## Generate a raccoon change briefing for `TARGETS=...`
 
 recommend: $(RACCOON_BIN) ## Generate raccoon validation recommendations from diff/baseline analysis.
 	$(RACCOON_BIN) --project-root . change recommend $(TARGETS)
+
+##@ Proto Schemas
+# Added in Onda H-3.a (Fase Wire). See PROGRAM-0002 and ADR-0018.
+# Targets operate against proto/buf.yaml and proto/buf.gen.yaml.
+# NOT yet part of `make verify` — composition into the verify gate
+# arrives in Onda H-3.b alongside the raccoon-cli `check proto`
+# analyzer (per ADR-0018 acceptance criterion 5).
+proto-lint: ## Run `buf lint` over proto/. STANDARD + COMMENTS rule set.
+	@cd proto && buf lint
+
+proto-gen: ## Run `buf generate` over proto/. Emits *.pb.go under internal/shared/contracts/ (gitignored in H-3.a; tracked in H-3.b).
+	@cd proto && buf generate
+
+proto-breaking: ## Run `buf breaking` against the main branch. WIRE_JSON rule set. Tolerates "baseline empty" on initial introduction of proto/.
+	@./scripts/proto-breaking.sh
 
 ##@ Go And Test
 tidy: ## Run `go mod tidy` across workspace modules.

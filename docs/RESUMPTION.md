@@ -50,10 +50,63 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 |------|--------|--------|
 | **H-0** | Fechada (PR #19 mergeada em `main` em `c762b8f`, 2026-05-24) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P8), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`). |
 | **H-1** | Fechada (PR #20 mergeada em `main` em `65f4c3f`, 2026-05-24) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
-| **H-2** | **Atual** (esta entrega) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora que flipa o status. |
-| **H-3** | Destravada após merge de H-2 em `main` (P9) | Wire — `proto/` skeleton + `proto/registry.json` + buf toolchain + `internal/shared/contracts/envelope/` + raccoon-cli `check proto` + uma stream migrada end-to-end (tipicamente `OBSERVATION_EVENTS`). Promove ADR-0017 e ADR-0018 para `Accepted`. |
+| **H-2** | Fechada (PR #21 mergeada em `main` em `a93f3d8`, 2026-05-24) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora. |
+| **H-3.a** | **Atual** (esta entrega) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
+| **H-3.b** | Destravada após merge de H-3.a em `main` (P9) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + converters + raccoon-cli `check proto` integrado em `make verify`. Promove ADR-0017 e ADR-0018 a `Accepted` (critérios revisados pela erratum H-3.a). |
+| **H-4** | Destravada após merge de H-3.b | Replay + Sequencer + determinism analyzer. `internal/shared/replay/`, ports clock/random, Sequencer com `SEQUENCER_STATE_LATEST` KV, raccoon-cli `check determinism`, goldens INV-D3/INV-D4. Promove ADR-0019 e ADR-0020. |
 
-Entregas H-2 (esta sessão):
+**Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
+**H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
+converters + analyzer) por escopo técnico — instalar tooling
+externo na mesma onda em que se gera código Go + se escreve
+analyzer Rust sobrecarrega revisão. Cada sub-onda é PR
+independente; ambas fechadas, ADR-0017 e ADR-0018 promovem em
+H-3.b. Divisão registrada em [PROGRAM-0002](programs/PROGRAM-0002-wire.md).
+
+**Erratum H-3.a**: como **commit 0** do PR H-3.a, ambas ADR-0017
+e ADR-0018 receberam erratum reescrevendo suas seções "Promoção
+para Accepted" para separar **decisão arquitetural** (contrato +
+tipos + analyzer, completável em H-3.b) de **execução de decisão**
+(migração runtime dos 11 streams, fase futura). Sem o erratum,
+H-3.b seria literal-incompatível com os critérios originais. O
+erratum também removeu `make proto-gate` dos critérios de
+aceitação de ADR-0018 — composição de targets é tooling, não
+arquitetura.
+
+Entregas H-3.a (esta sessão):
+
+- **Commit 0 (erratum)**: [`docs/decisions/0017-event-envelope-and-versioning.md`](decisions/0017-event-envelope-and-versioning.md)
+  e [`docs/decisions/0018-protobuf-contract-layer.md`](decisions/0018-protobuf-contract-layer.md)
+  — seção "Promoção para Accepted" de ambas reescrita; Changelog
+  adicionado. Sem mudança no status (ambas continuam `Proposed`).
+- [`docs/programs/PROGRAM-0002-wire.md`](programs/PROGRAM-0002-wire.md)
+  — PRD da Fase Wire (H-3.a / H-3.b / H-4), status `Active`.
+- `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json`,
+  `proto/envelope/v1/envelope.proto`,
+  `proto/marketdata/v1/trade.proto` — skeleton proto. `buf lint`
+  e `buf build` PASS sobre os dois schemas.
+- `Makefile` — três targets novos: `make proto-lint`,
+  `make proto-gen`, `make proto-breaking`. **NÃO** estão em
+  `make verify` ainda (composição arriva em H-3.b com analyzer
+  `check proto`).
+- `scripts/proto-breaking.sh` — wrapper que trata "baseline empty"
+  como PASS (relevante só na primeira introdução de `proto/`).
+- `scripts/bootstrap-check.sh` — valida presença de `buf` + versão
+  mínima 1.50.0 (foundry usa schema v2 que requer >= 1.32.0;
+  pinned 1.50.0 conservador).
+- `.tool-versions` — `buf 1.68.4` (validado localmente).
+- `docs/DEVELOPMENT.md` — Prerequisites lista `buf` + nova seção
+  "External tooling" com versões e referência a `protoc-gen-go`
+  (validação CI deferida a H-3.b).
+- `.gitignore` — nova seção G `internal/shared/contracts/**/*.pb.go`
+  TEMPORARY (H-3.a only; removida em H-3.b).
+- [`docs/TRUTH-MAP.md`](TRUTH-MAP.md) — rows de ADR-0017 e ADR-0018
+  parcialmente populadas (anchor real para skeleton; H-3.b
+  preenche generated + analyzer). Status: Planned (partial).
+- [`docs/GLOSSARY.md`](GLOSSARY.md) — termos novos: Proto schema,
+  buf, Schema registry, Schema status.
+
+Entregas H-2 (sessão anterior):
 
 - [`docs/decisions/0017-event-envelope-and-versioning.md`](decisions/0017-event-envelope-and-versioning.md)
   — envelope canônico de nove campos (type, version, venue,
