@@ -35,14 +35,19 @@ When starting work on this repository, read in this order:
    [docs/programs/](docs/programs/README.md) for the convention.
    Currently active:
    [PROGRAM-0001 — Harvest Foundation](docs/programs/PROGRAM-0001-foundation.md).
-4. **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — operational rules,
+4. **[docs/AUTHORITY.md](docs/AUTHORITY.md)** — document hierarchy
+   T1–T4. Tells you which doc to trust when two disagree.
+5. **[docs/TRUTH-MAP.md](docs/TRUTH-MAP.md)** — capability × ADR ×
+   code anchor × test anchor cross-reference. Use this to find
+   where any claim is grounded in code.
+6. **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** — operational rules,
    PR workflow, "Specifically for AI agents" section.
-5. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system shape and
+7. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — system shape and
    structural principles.
-6. **"Fase Harvest" section below** if your task touches the current
-   harvest from `market-raccoon`. The eight principles P1–P8 are the
+8. **"Fase Harvest" section below** if your task touches the current
+   harvest from `market-raccoon`. The nine principles P1–P9 are the
    permanent protocol for that work.
-7. **Specific docs your task needs** (e.g., domain docs, HTTP-API,
+9. **Specific docs your task needs** (e.g., domain docs, HTTP-API,
    runtime, operations).
 
 Time investment: 5-10 minutes for documents 2-3 minimum, on every
@@ -145,9 +150,9 @@ Decision of record:
 Convention for PRDs:
 [docs/programs/README.md](docs/programs/README.md).
 
-### Princípios P1–P8
+### Princípios P1–P9
 
-These eight principles are the **canonical, permanent protocol** for
+These nine principles are the **canonical, permanent protocol** for
 the Harvest. They are not specific to any single onda; they govern
 every onda of the program. Treat them with the same weight as the
 "Core operating protocols" section above.
@@ -234,6 +239,27 @@ sem código de cliente. Os cinco binários extras do raccoon
 `validator`) **não retornam** — capacidades equivalentes são
 absorvidas pelos 8 owners existentes (ver
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → "Binary boundaries").
+
+#### P9 — Toda alteração ao foundry passa por Pull Request
+
+Cada onda entrega via branch dedicada (`feat/h-N-<slug>`); merge em
+`main` é feito pelo **maintainer humano**, não por agentes. Agentes
+(Claude Code ou outros) **não fazem self-merge nem push direto em
+branches protegidas**. A próxima onda só abre após **merge** da
+anterior em `main`, não apenas após "completion" local — isto
+estende P4 (uma onda por vez) com requisito de incorporação real.
+
+Travas operacionais que sustentam P9:
+
+1. **PR humano com revisão substantiva** — maintainer lê diff antes
+   de mergear (não apenas aprova checks verdes).
+2. **Branch protection** em `main` — bloqueia push direto e merge
+   sem PR.
+3. **CI gates** — `make verify` + lefthook hooks GREEN são pré-
+   requisito para merge.
+4. **Pause-and-report do agente (P6)** — primeira camada; agente
+   reporta ao maintainer antes de fazer algo controverso, em vez
+   de descobrir no PR review.
 
 ---
 
@@ -328,8 +354,12 @@ protocol".
 |---|---|
 | Current state and gaps | [docs/RESUMPTION.md](docs/RESUMPTION.md) |
 | Active program (PRD) | [docs/programs/](docs/programs/README.md) |
+| Document hierarchy (T1–T4) and precedence | [docs/AUTHORITY.md](docs/AUTHORITY.md) |
+| Capability × code-anchor × test-anchor map | [docs/TRUTH-MAP.md](docs/TRUTH-MAP.md) |
 | Operating rules and protocols | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
 | System architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Runtime invariants (Top-10) | [docs/operations/runtime-invariants.md](docs/operations/runtime-invariants.md) |
+| Service-level objectives | [docs/operations/slo.md](docs/operations/slo.md) |
 | Runtime topology | [docs/RUNTIME.md](docs/RUNTIME.md) |
 | HTTP endpoints | [docs/HTTP-API.md](docs/HTTP-API.md) |
 | Daily workflow | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |

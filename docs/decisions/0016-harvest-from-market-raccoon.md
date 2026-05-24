@@ -53,13 +53,13 @@ consultative reference.** No file is copied; capabilities are
 re-implemented inside the foundry respecting layer sovereignty and
 existing invariants.
 
-The protocol is governed by eight principles (P1–P8), summarised
+The protocol is governed by nine principles (P1–P9), summarised
 below. The canonical full version lives in
 [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest" so it is loaded
 into every Claude session by default; this ADR captures the durable
 decision, not the operational expansion.
 
-### Princípios P1–P8 (resumo)
+### Princípios P1–P9 (resumo)
 
 - **P1 — Foundry é ground truth; raccoon é referência consultiva.**
   Nenhum arquivo do raccoon é copiado; capacidades são reescritas
@@ -82,9 +82,16 @@ decision, not the operational expansion.
 - **P8 — Cliente Odin está mapeado, não esquecido.** Entra como
   H-12+ dentro de `client/` no próprio foundry. Até lá, nada de
   cliente é antecipado.
+- **P9 — Toda alteração ao foundry passa por Pull Request.** Cada
+  onda entrega via branch dedicada; merge em `main` é feito pelo
+  maintainer humano, não por agentes. Próxima onda só abre após
+  merge da anterior (estende P4 com requisito de incorporação real).
+  Sustentado por branch protection, CI gates, lefthook hooks, e
+  pause-and-report (P6) como primeira camada.
 
 A versão completa (incluindo critérios de promoção de "Draft" →
-"Accepted" e tratamento explícito de ADRs de fundação H-2) vive em
+"Accepted", tratamento explícito de ADRs de fundação H-2, e as
+quatro travas operacionais de P9) vive em
 [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest".
 
 ### Programa Foundation (PROGRAM-0001)
@@ -171,7 +178,7 @@ ADRs and may evolve raccoon-cli with new analyzers per P5.
 - [PROGRAM-0001 — Harvest Foundation](../programs/PROGRAM-0001-foundation.md)
   — phase tracker for ondas H-0, H-1, H-2.
 - [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest" —
-  canonical P1–P8 expansion (loaded into every Claude session).
+  canonical P1–P9 expansion (loaded into every Claude session).
 - [`../RESUMPTION.md`](../RESUMPTION.md) → "Fase Harvest" — state
   sentinel; current onda and unblocked-next pointer.
 - [`../programs/README.md`](../programs/README.md) — PRD convention

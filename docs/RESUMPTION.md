@@ -33,21 +33,43 @@ below for retrospective detail; Phase 5 narrative pending P5.1+.
 
 ## Fase Harvest
 
-**Fase Harvest aberta (2026-05-24)** sob protocolo P1–P8 — ver
+**Fase Harvest aberta (2026-05-24)** sob protocolo P1–P9 — ver
 [`../CLAUDE.md`](../CLAUDE.md) → "Fase Harvest" para a versão
-canônica dos princípios. Programa de Fundação tracked em
+canônica dos princípios. P9 ("Toda alteração ao foundry passa por
+PR; maintainer humano faz o merge") foi adicionado durante H-1 como
+erratum do prompt H-0 que entregou apenas P1–P8. Programa de Fundação tracked em
 [`programs/PROGRAM-0001-foundation.md`](programs/PROGRAM-0001-foundation.md)
 (Status: `Active`); decisão de adoção em
 [`decisions/0016-harvest-from-market-raccoon.md`](decisions/0016-harvest-from-market-raccoon.md)
 (Status: `Accepted`).
 
-Wave protocol — uma onda por vez (P4):
+Wave protocol — uma onda por vez (P4); próxima onda abre após
+**merge** real em `main` (P9), não apenas após completion local.
 
 | Onda | Estado | Escopo |
 |------|--------|--------|
-| **H-0** | **Atual** (esta entrega) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest", `.claude/settings.json` (`RACCOON_REFERENCE_PATH`), RESUMPTION marcado. |
-| **H-1** | Destravada ao fechamento de H-0 | Práticas operacionais: TRUTH-MAP, AUTHORITY-MAP, runtime-invariants, SLOs canônicos. |
-| **H-2** | Bloqueada por H-1 | Sete ADRs de fundação (0017–0023). Sem código de produto novo. |
+| **H-0** | Fechada (PR #19 mergeada em `main` em `c762b8f`, 2026-05-24) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P8), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`). |
+| **H-1** | **Atual** (esta entrega) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
+| **H-2** | Destravada após merge de H-1 em `main` (P9) | Sete ADRs de fundação (0017–0023). Sem código de produto novo. |
+
+Entregas H-1 (nesta sessão):
+
+- [`docs/TRUTH-MAP.md`](TRUTH-MAP.md) — capability × ADR/PRD ×
+  code anchor × test anchor cross-reference (T1).
+- [`docs/AUTHORITY.md`](AUTHORITY.md) — hierarquia T1–T4 + regras
+  de precedência + inventário file-to-tier (T1).
+- [`docs/operations/runtime-invariants.md`](operations/runtime-invariants.md) —
+  Top-10 invariantes (I1–I10) com code enforcement, guardrail,
+  failure mode, rollback (T1).
+- [`docs/operations/slo.md`](operations/slo.md) — 4 fluxos
+  críticos (F1 ingest, F2 derive, F3 store-read, F4 writer);
+  SLI definidas, SLO targets propostos, alerting deferido para
+  H-5 (template T1, valores T2 após medição).
+- `CLAUDE.md` — "Fase Harvest" expandida para P1–P9 (erratum
+  P9), Reading order inclui AUTHORITY e TRUTH-MAP, Reading
+  further table estende com 4 novos pointers.
+- Erratum P9 propagado em ADR-0016, PROGRAM-0001, este RESUMPTION,
+  e — quando aplicável — `decisions/README.md`.
 
 Capacidades futuras (H-3+) — cliente Odin (H-12+, em `client/`),
 TimescaleDB (provável H-10), insights/replay/multi-venue/proto
@@ -1498,6 +1520,50 @@ version is now ≤ main's current pin.
 **Why deferred**: low frequency to date (1 known instance, #5).
 Worth revisiting if the pattern recurs after the routine batch
 (P4.5.b) or after future manual upgrades.
+
+#### M21 — TRUTH-MAP anchor validator (`raccoon-cli check truth-map`)
+
+**Origem:** avaliação em H-1 (2026-05-24).
+**Status:** Deferido com triggers de reabertura.
+
+**Contexto:** TRUTH-MAP entregue em H-1 com **~37 capability rows**
+e **~80 anchor strings** (code anchors + test anchors). Um analyzer
+estático que valida cada anchor (arquivo existe + símbolo presente)
+foi estimado em **~700 LoC Rust + ~150 LoC de testes + integração
+ao gate profile**, com risco médio-alto de false positives
+(sub-tests `t.Run(...)`, generics, build-tag-exclusive symbols).
+**Zero amostras empíricas de drift** existiam no momento da
+avaliação.
+
+**Decisão:** **P7** (sem perda de disciplina documental — TRUTH-MAP
+atualizado no commit que move o anchor) e **P9** (maintainer review
+em todo PR) são a **primeira camada**. Adiar o analyzer até evidência
+empírica de que a primeira camada é insuficiente.
+
+**Triggers de reabertura** (qualquer um basta):
+
+- **Quantitativo** — 3+ correções de anchor drift em PRs subsequentes
+  dentro de **6 ondas consecutivas**. Sinal: P7 manual +
+  maintainer review estão consistentemente falhando em catch.
+- **Qualitativo** — **1 incidente** onde TRUTH-MAP declarou
+  capability cujo code anchor já não existia em `main` (drift
+  silencioso passou maintainer review). Sinal: human review não
+  escala com complexidade crescente.
+- **Contextual** — TRUTH-MAP cresce acima de **~60 capability
+  rows** (atualmente ~37). Sinal: escala manual atingiu limite
+  cognitivo razoável de revisão.
+
+**Quando reaberto:** avaliar **versão completa** (~700 LoC,
+validação de file + symbol) versus **versão minimalista** (~200 LoC,
+apenas "file exists"; ~30% do valor por ~30% do custo) com dados
+reais sobre quais drift patterns ocorreram. A escolha do flavor
+depende de qual trigger disparou: quantitativo → minimal pode
+bastar; qualitativo ou contextual → versão completa provavelmente
+necessária.
+
+**Captura única:** este design-meta é a fonte canônica do
+deferimento. PROGRAM-0001, ADR-0016 e CLAUDE.md **não** repetem
+a entrada — sobrevive ao fechamento de PRD/Fase em um único lugar.
 
 ### Available work (P1/P2, opt-in)
 
