@@ -28,7 +28,7 @@ código de produto novo é entregue em H-0/H-1/H-2.
 
 | Onda | Escopo resumido | Entregas principais |
 |------|------------------|---------------------|
-| **H-0** | Setup do Harvest | ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P8), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`), RESUMPTION marcado |
+| **H-0** | Setup do Harvest | ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P9; P9 added as H-1 erratum), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`), RESUMPTION marcado |
 | **H-1** | Práticas operacionais | TRUTH-MAP, AUTHORITY-MAP, runtime-invariants, SLOs canônicos (todos em formato nativo do foundry; sem cópia do raccoon) |
 | **H-2** | Fundação ADR | Sete ADRs (0017–0023) consolidando decisões estruturais herdadas/refinadas da experiência raccoon, sem código de produto novo |
 
@@ -61,7 +61,7 @@ ela congela o protocolo sob o qual ele opera.
 
 ## Princípios governantes
 
-O programa Harvest opera sob o **protocolo P1–P8** documentado em
+O programa Harvest opera sob o **protocolo P1–P9** documentado em
 [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest". A versão
 canônica vive lá para ser carregada em toda sessão Claude; esta
 PRD apenas referencia.
@@ -76,6 +76,9 @@ Resumo de uma linha por princípio (fonte canônica é CLAUDE.md):
 - P6 — Pause-and-report ativo durante a onda inteira.
 - P7 — Sem perda de disciplina documental.
 - P8 — Cliente Odin mapeado, não esquecido (H-12+).
+- P9 — Toda alteração via PR; merge em `main` pelo maintainer
+  humano; próxima onda abre após merge real, não após completion
+  local (P9 adicionado em H-1 como erratum; ver Changelog).
 
 ---
 
@@ -150,7 +153,7 @@ portada é decidida em ondas posteriores (H-3+), não nesta PRD.
 ## Evidence
 
 - [`../decisions/0016-harvest-from-market-raccoon.md`](../decisions/0016-harvest-from-market-raccoon.md)
-- [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest" (P1–P8 canônico)
+- [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest" (P1–P9 canônico)
 - [`../RESUMPTION.md`](../RESUMPTION.md) → "Fase Harvest"
 - [`../programs/README.md`](README.md) — convenção PRD
 - [`../../.claude/settings.json`](../../.claude/settings.json) →
@@ -164,3 +167,13 @@ portada é decidida em ondas posteriores (H-3+), não nesta PRD.
   H-0/H-1/H-2 declared. ADRs 0016 + 0017–0023 expected. Lands as
   the H-0 closure artifact alongside ADR-0016 and CLAUDE.md →
   "Fase Harvest".
+- **2026-05-24** — **Erratum integrated with H-1**: protocolo
+  ampliado de **P1–P8 → P1–P9**. P9 ("Toda alteração ao foundry
+  passa por PR; maintainer humano faz o merge") adicionado ao
+  CLAUDE.md → "Fase Harvest" e propagado para ADR-0016, esta
+  PRD, RESUMPTION e `decisions/README.md`. O prompt H-1 já
+  referenciava P1–P9 como canônico, mas o prompt H-0 entregou
+  apenas P1–P8 (5 princípios do prompt expandidos para 8 via
+  splitting natural — ver Changelog do ADR-0016). H-1 fecha esse
+  drift no mesmo PR que entrega TRUTH-MAP / AUTHORITY /
+  runtime-invariants / SLO.
