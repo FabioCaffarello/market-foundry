@@ -79,6 +79,14 @@ commit-msg:
     validate-format:
       run: ./scripts/validate-commit-msg.sh {1}
 
+# Stage: post-commit (runs after `git commit` succeeds)
+# Warn-only checks that surface drift but don't block the commit.
+# Adopted in P5.3 of Phase 5 (environment work).
+post-commit:
+  commands:
+    resumption-drift:
+      run: ./scripts/check-resumption-drift.sh
+
 # Stage: pre-push (runs on `git push`)
 # Heavier validation. Catch issues before remote.
 # DISABLED by default (skip: true) — enable when ready for strict workflow.

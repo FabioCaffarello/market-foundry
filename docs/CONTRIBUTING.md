@@ -328,6 +328,13 @@ make install-hooks
 - **commit-msg**: conventional commit format
   (`type(scope?): description`) via
   `scripts/validate-commit-msg.sh`. Shell-only — no Node.js dep.
+- **post-commit**: `scripts/check-resumption-drift.sh` —
+  warn-only check (stderr, exit 0) that surfaces drift when a
+  commit references new `M<N>` design-meta identifiers but
+  doesn't update `docs/RESUMPTION.md` in the same commit.
+  Codifies P5.0 audit finding F4. Non-blocking by design;
+  upgrade to commit-msg or pre-push if warn-only proves
+  insufficient.
 - **pre-push**: `make lint-go` and `make verify` available but
   disabled by default (`skip: true`). Enable in `lefthook.yml` when
   you want stricter local pushes.
