@@ -51,9 +51,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-0** | Fechada (PR #19 mergeada em `main` em `c762b8f`, 2026-05-24) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P8), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`). |
 | **H-1** | Fechada (PR #20 mergeada em `main` em `65f4c3f`, 2026-05-24) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
 | **H-2** | Fechada (PR #21 mergeada em `main` em `a93f3d8`, 2026-05-24) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora. |
-| **H-3.a** | **Atual** (esta entrega) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
-| **H-3.b** | Destravada após merge de H-3.a em `main` (P9) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + converters + raccoon-cli `check proto` integrado em `make verify`. Promove ADR-0017 e ADR-0018 a `Accepted` (critérios revisados pela erratum H-3.a). |
-| **H-4** | Destravada após merge de H-3.b | Replay + Sequencer + determinism analyzer. `internal/shared/replay/`, ports clock/random, Sequencer com `SEQUENCER_STATE_LATEST` KV, raccoon-cli `check determinism`, goldens INV-D3/INV-D4. Promove ADR-0019 e ADR-0020. |
+| **H-3.a** | Fechada (PR #22 mergeada em `main` em `387811b`, 2026-05-25) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
+| **H-3.b** | **Atual** (esta entrega) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). **Promove ADR-0017 e ADR-0018 a `Accepted`** — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
+| **H-4** | Destravada após merge de H-3.b em `main` (P9) | Replay + Sequencer + determinism analyzer. `internal/shared/replay/`, ports clock/random, Sequencer com `SEQUENCER_STATE_LATEST` KV, raccoon-cli `check determinism`, goldens INV-D3/INV-D4. Promove ADR-0019 e ADR-0020. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -73,7 +73,66 @@ erratum também removeu `make proto-gate` dos critérios de
 aceitação de ADR-0018 — composição de targets é tooling, não
 arquitetura.
 
-Entregas H-3.a (esta sessão):
+Entregas H-3.b (esta sessão):
+
+- `internal/shared/contracts/doc.go` — scaffold do package boundary
+  per ADR-0018 (commit 1).
+- `internal/shared/contracts/envelope/v1/envelope.pb.go` +
+  `internal/shared/contracts/marketdata/v1/trade.pb.go` — código Go
+  gerado de `.proto` via `make proto-gen` com `protoc-gen-go v1.36.8`
+  (matching runtime). Tracked no repo; `.gitignore` section G removida
+  (commit 2).
+- `internal/shared/contracts/envelope/v1/envelope_test.go` — 3 testes
+  (round-trip, ts_exchange absent, byte-stability N=50 per INV-D4)
+  (commit 3).
+- `internal/shared/contracts/marketdata/v1/trade_test.go` — 2 testes
+  (round-trip, byte-stability) (commit 4).
+- `internal/shared/contracts/envelope/v1/converter.go` — `CanonicalEvent`
+  foundry-native domain projection do envelope canônico; `ToProto` +
+  `FromProto` com validation explícita dos 6 campos obrigatórios
+  (commit 5).
+- `internal/shared/contracts/envelope/v1/converter_test.go` — 4 testes
+  top-level + 13 sub-tests cobrindo round-trip, absence semantics,
+  validation bidirecional (commit 5).
+- `tools/raccoon-cli/src/analyzers/check_proto.rs` — novo analyzer
+  Rust (595 LoC). Level B + Level C smoke (sync registry/proto/Go +
+  PROTO-G3 domain boundary). 9 unit tests (commit 6).
+- `tools/raccoon-cli/src/cli/mod.rs` + `application/mod.rs` +
+  `gate/mod.rs` — wire do analyzer no CLI dispatch e no quality-gate
+  pipeline. Subcommand `raccoon-cli check proto` disponível (commit 7).
+- `Makefile` — `make verify` agora invoca `proto-lint`; novo target
+  `make proto-check`; `make proto-gen` prepended PATH com
+  `$(go env GOPATH)/bin` para encontrar `protoc-gen-go` (commit 7).
+- `scripts/bootstrap-check.sh` — valida `protoc-gen-go` presence +
+  versão exata v1.36.8 (pin matching runtime). Mensagem clara de
+  install em caso de mismatch (commit 7).
+- `docs/DEVELOPMENT.md` — entry para `protoc-gen-go` em External
+  tooling table; nova subsection com install command + pin rationale
+  (commit 7).
+- `internal/shared/go.mod` — `google.golang.org/protobuf v1.36.8`
+  promovido de indirect para direct dep (`go mod tidy` após adicionar
+  primeiro consumer em `envelope_test.go`).
+- `docs/decisions/0017-event-envelope-and-versioning.md` — Status
+  `Proposed → Accepted`; Changelog entry "Promoted to Accepted"
+  (commit 8).
+- `docs/decisions/0018-protobuf-contract-layer.md` — Status
+  `Proposed → Accepted`; Changelog entry (commit 8).
+- `docs/TRUTH-MAP.md` — rows de ADR-0017/0018 atualizadas para
+  `Implemented` com anchors reais (zero TODOs); seção
+  "Planned capabilities — Foundation ADRs (Proposed)" renomeada para
+  "Foundation ADRs — delivery state (mixed)" refletindo divisão entre
+  Accepted (0017, 0018) e Proposed (0019, 0020, 0021, 0022, 0023);
+  Summary count revisado (0001–0018 Accepted; 0019–0023 Proposed).
+- `docs/GLOSSARY.md` — novo termo `Converter` no Tooling section
+  documentando o pattern proto ↔ domain.
+
+**Marco**: H-3.b é a **primeira promoção de ADR Proposed→Accepted da
+Fase Harvest**. Estabelece o pattern operacional de "promover no mesmo
+commit que entrega o último critério" — verificado: ADRs 0017/0018
+flipam status no commit 8, no mesmo PR que os critérios 3/4 (0017) e
+4/5 (0018) são entregues nos commits 2-7.
+
+Entregas H-3.a (sessão anterior):
 
 - **Commit 0 (erratum)**: [`docs/decisions/0017-event-envelope-and-versioning.md`](decisions/0017-event-envelope-and-versioning.md)
   e [`docs/decisions/0018-protobuf-contract-layer.md`](decisions/0018-protobuf-contract-layer.md)

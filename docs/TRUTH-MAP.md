@@ -131,24 +131,26 @@ the test is human discipline backed by `make verify` gates.
 | Wave-closure discipline | [ADR-0015](decisions/0015-wave-closure-discipline.md) | — | — | Documentation | Closure-signal recognition; M-list captures deferred debt. |
 | Fase Harvest under P1–P9 | [ADR-0016](decisions/0016-harvest-from-market-raccoon.md), [PROGRAM-0001](programs/PROGRAM-0001-foundation.md) | [`../CLAUDE.md`](../CLAUDE.md) → "Fase Harvest" (canonical P1–P9) | — | Documentation | Wave protocol; enforced by maintainer + branch protection (P9). |
 
-### Planned capabilities — Foundation ADRs (Proposed)
+### Foundation ADRs — delivery state (mixed)
 
-Capabilities whose **decisions** are recorded in Foundation ADRs
-(0017–0023, delivered in Onda H-2) but whose **code** has not yet
-shipped. Each ADR is T3 (Evolutionary) per
-[`AUTHORITY.md`](AUTHORITY.md) until promoted to `Accepted` by the
-onda that ships the supporting code. Code anchors and test anchors
-become real (and the Status flips from `Planned` to `Implemented`)
-in the same commit that promotes the ADR's `Status` field.
+Foundation ADRs delivered in Onda H-2 (`0017–0023`). Initially all
+seven landed as `Proposed` (T3 per [`AUTHORITY.md`](AUTHORITY.md))
+with placeholder code/test anchors; each is promoted to `Accepted`
+(T1) by the onda that ships the supporting code, in the same
+commit that flips the `Status` field.
 
-ADR-0023 may legitimately remain `Planned` indefinitely if its
-empirical triggers (T1/T2/T3) do not fire; that is a documented
-steady state, not pending work.
+Current state (post-Onda H-3.b, 2026-05-25):
+- **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 — promoted
+  jointly by Onda H-3.b (first promotion of the Fase Harvest).
+- **Proposed** (T3, `Planned`): ADR-0019, ADR-0020 (promoted by
+  H-4); ADR-0021 (H-6); ADR-0022 (H-7); ADR-0023 (H-9 partial /
+  H-10 full, may remain `Proposed` indefinitely if empirical
+  triggers T1/T2/T3 never fire).
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
-| Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | Schema delivered: `proto/envelope/v1/envelope.proto:Envelope` (Onda H-3.a). Generated Go TODO (Onda H-3.b — `internal/shared/contracts/envelope/v1/envelope.pb.go`). | `make proto-lint` + `make proto-build` PASS for the schema (H-3.a). Round-trip Go test TODO (Onda H-3.b). | Planned (partial — schema shipped in H-3.a) | Skeleton shipped in H-3.a; generated Go + converter pending H-3.b. Stream migration is execution-of-decision (future phase) per the 2026-05-25 erratum. Coexists with legacy transport envelope (`internal/shared/envelope/`). |
-| Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Skeleton + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (Onda H-3.a). Generated Go boundary TODO (Onda H-3.b — `internal/shared/contracts/`). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (Onda H-3.a). `raccoon-cli check proto` analyzer TODO (Onda H-3.b). | Planned (partial — skeleton + tooling shipped in H-3.a) | Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. The three proto-* targets are NOT yet part of `make verify` — composition arrives in Onda H-3.b alongside `check proto`. |
+| Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | Proto schema: `proto/envelope/v1/envelope.proto:Envelope` (H-3.a). Generated Go: `internal/shared/contracts/envelope/v1/envelope.pb.go:Envelope` (H-3.b). Converter + domain projection: `internal/shared/contracts/envelope/v1/converter.go:CanonicalEvent`, `…:ToProto`, `…:FromProto` (H-3.b). | `make proto-lint` (H-3.a). `internal/shared/contracts/envelope/v1/envelope_test.go:TestEnvelopeRoundTrip`, `…:TestEnvelopeRoundTrip_TsExchangeAbsent`, `…:TestEnvelopeByteStability` (H-3.b). `internal/shared/contracts/envelope/v1/converter_test.go:TestRoundTrip_AllFieldsPresent`, `…:TestRoundTrip_TsExchangeAbsent`, `…:TestToProto_RequiredFieldValidation`, `…:TestFromProto_RequiredFieldValidation` (H-3.b). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Coexists with legacy transport envelope (`internal/shared/envelope/`); stream migration is execution-of-decision (future phase) per the 2026-05-25 erratum. |
+| Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Schemas + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (H-3.a). Generated Go boundary: `internal/shared/contracts/` (H-3.b — `envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked, gitignored entry G removed). Analyzer: `tools/raccoon-cli/src/analyzers/check_proto.rs:analyze` (H-3.b). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (H-3.a). `make proto-check` + `raccoon-cli check proto` analyzer with 9 unit tests (H-3.b). `make verify` invokes both `proto-lint` and `check proto` (via `quality-gate`). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. `protoc-gen-go` pinned at v1.36.8 in `scripts/bootstrap-check.sh` matching the runtime in `internal/shared/go.mod`. |
 | Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | TODO (Onda H-4 — `internal/shared/replay/`, ports for clock/random) | TODO (Onda H-4 — golden tests + N=50 byte-stability) | Planned | Backs the "backtest = production" thesis; enforced statically by raccoon-cli `check determinism` (per P5). |
 | Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | TODO (Onda H-4 — `internal/shared/sequencer/`, KV bucket `SEQUENCER_STATE_LATEST`) | TODO (Onda H-4 — monotonicity unit tests + gap-detection counter) | Planned | Stream key = `(venue, instrument, event_type)`; owner per ADR-0008 single-writer. |
 | Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
@@ -216,8 +218,9 @@ a TRUTH-MAP row either.
 - NATS streams declared: **11**.
 - NATS adapter registry files: **8** (one per writer family).
 - Go test files under `internal/` and `cmd/`: **~289**.
-- ADRs published: **23** (0001–0016 `Accepted`; 0017–0023 `Proposed`,
-  delivered in Onda H-2 of the Fase Harvest).
+- ADRs published: **23** (0001–0018 `Accepted`; 0019–0023 `Proposed`,
+  Foundation ADRs delivered in Onda H-2; 0017+0018 promoted by
+  Onda H-3.b).
 - PRDs published: **1** (PROGRAM-0001, `Active`).
 - `make verify` checks executed: **84** (across 6 active analyzers).
 
@@ -253,3 +256,12 @@ a TRUTH-MAP row either.
   both ADRs split H-3 → H-3.a / H-3.b per the 2026-05-25 erratum
   to their "Promoção para Accepted" sections. ADR count
   unchanged (23).
+- **2026-05-25** — Onda H-3.b closure: **first ADR promotions of
+  the Fase Harvest**. ADR-0017 and ADR-0018 flipped
+  `Proposed` → `Accepted`; rows updated with real code/test
+  anchors (no TODOs); status moved from `Planned` to
+  `Implemented`. Section "Planned capabilities — Foundation ADRs
+  (Proposed)" renamed to "Foundation ADRs — delivery state
+  (mixed)" to reflect that the section now holds entries in two
+  states (Accepted/Implemented vs Proposed/Planned). Summary count
+  updated: 0001–0018 Accepted; 0019–0023 Proposed.
