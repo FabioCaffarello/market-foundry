@@ -35,16 +35,21 @@ skeletons, version sync checks).
 
 ## Available agent templates
 
-Agent role definitions in `agents/`:
+Agent role definitions in `agents/`. The architect/executor split is
+the institutional posture for this repository's two-agent
+collaboration model.
 
 | Agent | Purpose |
 |---|---|
-| `investigation-agent` | Read-only investigator; produces structured reports without modifying repo |
-| `execution-agent` | Scoped executor following pause-and-report protocol |
+| `architect-agent` | Scoping, framing, decision discipline. Codifies the Phase 4 "investigate before prescribe, defer mechanism to executor" pattern. |
+| `execution-agent` | Scoped executor following pause-and-report protocol; defensive-scan-after-fix discipline. |
+| `investigation-agent` | Legacy read-only investigator role (largely superseded by `investigation-skill`; preserved for orientation). |
 
-These are templates documenting how Phase 1+2 distinguished
-read-only investigation from scoped execution. They are descriptive,
-not enforced — but useful as orientation when spawning sub-agents.
+These are templates documenting how Phase 1-4 evolved the role split.
+They are descriptive, not enforced — but useful as orientation when
+spawning sub-agents. The architect-agent file was added in P5.2
+(2026-05-24) to codify the discipline patterns observed across
+~50 Phase 4 sub-prompts (~10 mistake catches).
 
 ## Available skills
 
