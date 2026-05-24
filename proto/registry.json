@@ -1,0 +1,21 @@
+{
+  "_coverage_note": "Onda H-3.a initial entries: canonical envelope (ADR-0017) + marketdata.trade pilot. Status taxonomy ('draft' / 'stable' / 'deprecated') is independent of the governing ADR's status — see docs/GLOSSARY.md → 'Schema status'. Both entries here start as 'draft' because no runtime consumer exists yet; promotion to 'stable' happens when a stream uses the schema in production (future phase, not Fase Wire).",
+  "schemas": [
+    {
+      "type": "envelope",
+      "version": 1,
+      "proto_file": "envelope/v1/envelope.proto",
+      "message": "envelope.v1.Envelope",
+      "status": "draft",
+      "introduced_at": "2026-05-25"
+    },
+    {
+      "type": "marketdata.trade",
+      "version": 1,
+      "proto_file": "marketdata/v1/trade.proto",
+      "message": "marketdata.v1.TradeV1",
+      "status": "draft",
+      "introduced_at": "2026-05-25"
+    }
+  ]
+}

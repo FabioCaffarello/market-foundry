@@ -1,0 +1,26 @@
+# buf.yaml — market-foundry proto module configuration.
+#
+# Adopted in Onda H-3.a (Fase Wire). Governs lint and breaking-change
+# detection for the proto/ tree. See ADR-0018 (protobuf contract layer)
+# and PROGRAM-0002 (Fase Wire).
+#
+# Tooling: github.com/bufbuild/buf >= 1.50.0 (see docs/DEVELOPMENT.md).
+#
+# Targets that invoke this file:
+#   make proto-lint       (added in Onda H-3.a)
+#   make proto-breaking   (added in Onda H-3.a)
+#   make proto-gen        (added in Onda H-3.a; uses buf.gen.yaml)
+
+version: v2
+
+modules:
+  - path: .
+
+lint:
+  use:
+    - STANDARD
+    - COMMENTS
+
+breaking:
+  use:
+    - WIRE_JSON

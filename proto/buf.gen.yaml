@@ -1,0 +1,31 @@
+# buf.gen.yaml — market-foundry proto code generation configuration.
+#
+# Adopted in Onda H-3.a (Fase Wire). Declares the Go code generator
+# that emits .pb.go files under internal/shared/contracts/ from
+# .proto schemas in this tree.
+#
+# Output path: ../internal/shared/contracts (boundary per ADR-0018;
+# generated code MUST NOT live elsewhere — internal/domain/ stays
+# proto-free, enforced statically by raccoon-cli `check proto` in
+# Onda H-3.b).
+#
+# Plugin: protoc-gen-go (local). Foundry does NOT use protoc-gen-
+# go-grpc (no internal gRPC services), protoc-gen-validate, or
+# protoc-gen-grpc-gateway. The generator surface stays minimal and
+# matches ADR-0018's acceptance criteria.
+#
+# In Onda H-3.a:
+#   - This file is exercised manually (`make proto-gen` runs locally).
+#   - protoc-gen-go is NOT validated by scripts/bootstrap-check.sh
+#     yet; that validation lands in Onda H-3.b when `make proto-gen`
+#     enters the CI path.
+#   - Generated *.pb.go files are gitignored (see .gitignore section
+#     G); they become tracked artifacts in Onda H-3.b.
+
+version: v2
+
+plugins:
+  - local: protoc-gen-go
+    out: ../internal/shared/contracts
+    opt:
+      - paths=source_relative
