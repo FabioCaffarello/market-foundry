@@ -49,33 +49,69 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | Onda | Estado | Escopo |
 |------|--------|--------|
 | **H-0** | Fechada (PR #19 mergeada em `main` em `c762b8f`, 2026-05-24) | Setup do Harvest: ADR-0016, PROGRAM-0001, CLAUDE.md → "Fase Harvest" (P1–P8), `.claude/settings.json` (`RACCOON_REFERENCE_PATH`). |
-| **H-1** | **Atual** (esta entrega) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
-| **H-2** | Destravada após merge de H-1 em `main` (P9) | Sete ADRs de fundação (0017–0023). Sem código de produto novo. |
+| **H-1** | Fechada (PR #20 mergeada em `main` em `65f4c3f`, 2026-05-24) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
+| **H-2** | **Atual** (esta entrega) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora que flipa o status. |
+| **H-3** | Destravada após merge de H-2 em `main` (P9) | Wire — `proto/` skeleton + `proto/registry.json` + buf toolchain + `internal/shared/contracts/envelope/` + raccoon-cli `check proto` + uma stream migrada end-to-end (tipicamente `OBSERVATION_EVENTS`). Promove ADR-0017 e ADR-0018 para `Accepted`. |
 
-Entregas H-1 (nesta sessão):
+Entregas H-2 (esta sessão):
 
-- [`docs/TRUTH-MAP.md`](TRUTH-MAP.md) — capability × ADR/PRD ×
-  code anchor × test anchor cross-reference (T1).
-- [`docs/AUTHORITY.md`](AUTHORITY.md) — hierarquia T1–T4 + regras
-  de precedência + inventário file-to-tier (T1).
-- [`docs/operations/runtime-invariants.md`](operations/runtime-invariants.md) —
-  Top-10 invariantes (I1–I10) com code enforcement, guardrail,
-  failure mode, rollback (T1).
-- [`docs/operations/slo.md`](operations/slo.md) — 4 fluxos
-  críticos (F1 ingest, F2 derive, F3 store-read, F4 writer);
-  SLI definidas, SLO targets propostos, alerting deferido para
-  H-5 (template T1, valores T2 após medição).
-- `CLAUDE.md` — "Fase Harvest" expandida para P1–P9 (erratum
-  P9), Reading order inclui AUTHORITY e TRUTH-MAP, Reading
-  further table estende com 4 novos pointers.
-- Erratum P9 propagado em ADR-0016, PROGRAM-0001, este RESUMPTION,
-  e — quando aplicável — `decisions/README.md`.
+- [`docs/decisions/0017-event-envelope-and-versioning.md`](decisions/0017-event-envelope-and-versioning.md)
+  — envelope canônico de nove campos (type, version, venue,
+  instrument, ts_exchange, ts_ingest, seq, idempotency_key,
+  payload) para eventos no mesh JetStream. **Status: Proposed**;
+  promovido por H-3.
+- [`docs/decisions/0018-protobuf-contract-layer.md`](decisions/0018-protobuf-contract-layer.md)
+  — proto como wire format primário do mesh; JSON fallback; buf
+  tooling; boundary `internal/shared/contracts/`. **Status:
+  Proposed**; promovido por H-3.
+- [`docs/decisions/0019-deterministic-replay-time-invariants.md`](decisions/0019-deterministic-replay-time-invariants.md)
+  — quatro invariantes determinísticas (INV-D1 pureza domínio,
+  INV-D2 ordering por seq, INV-D3 replay byte-idêntico, INV-D4
+  byte-stability em N=50 runs). **Status: Proposed**; promovido
+  por H-4.
+- [`docs/decisions/0020-sequencing-and-time-normalization.md`](decisions/0020-sequencing-and-time-normalization.md)
+  — Sequencer com seq monotônico per stream_key
+  `(venue, instrument, event_type)`; persistência em NATS KV
+  `SEQUENCER_STATE_LATEST`; gap detection via counter
+  `consumer_seq_gap_total`. **Status: Proposed**; promovido por
+  H-4.
+- [`docs/decisions/0021-canonical-instrument-and-venue-model.md`](decisions/0021-canonical-instrument-and-venue-model.md)
+  — `internal/domain/instrument/` com Venue / BaseAsset /
+  QuoteAsset / ContractType / CanonicalInstrument; adapter
+  ToCanonical/FromCanonical. **Status: Proposed**; promovido por
+  H-6.
+- [`docs/decisions/0022-multi-venue-normalization-policy.md`](decisions/0022-multi-venue-normalization-policy.md)
+  — política operacional R1–R4 (Capabilities, /venues/capabilities,
+  silent-reject, raccoon-cli check venue-parity). **Status:
+  Proposed**; promovido por H-7.
+- [`docs/decisions/0023-storage-tier-roadmap.md`](decisions/0023-storage-tier-roadmap.md)
+  — Stage 1 (ClickHouse + KV, atual) → Stage 2 (TimescaleDB,
+  H-10) com triggers empíricos T1/T2/T3. **Status: Proposed**;
+  pode permanecer indefinidamente se nenhum trigger disparar.
+- [`docs/decisions/README.md`](decisions/README.md) — nova seção
+  "Fase Harvest — Foundation ADRs (Proposed)" indexa as 7 ADRs.
+- [`docs/programs/PROGRAM-0001-foundation.md`](programs/PROGRAM-0001-foundation.md)
+  — política operativa de status clarificada; tabela de ADRs
+  esperados expande para sete linhas com critérios de promoção;
+  Changelog 2026-05-24 H-2 anexado.
+- [`docs/TRUTH-MAP.md`](TRUTH-MAP.md) — nova seção "Planned
+  capabilities — Foundation ADRs (Proposed)" com 7 rows;
+  Summary count 16 → 23 ADRs.
+- [`docs/AUTHORITY.md`](AUTHORITY.md) — nota T3 atualizada
+  (zero → sete Proposed ADRs); file-to-tier inventory expandido;
+  Changelog 2026-05-24 H-2 anexado.
+- [`docs/GLOSSARY.md`](GLOSSARY.md) — termos novos: Canonical
+  event envelope, Canonical instrument, Sequencer, Stream key,
+  Wire format, Storage tier, Venue. Entrada existente
+  `Envelope` reclassificada como "transport envelope" com
+  pointer para o canônico.
 
 Capacidades futuras (H-3+) — cliente Odin (H-12+, em `client/`),
-TimescaleDB (provável H-10), insights/replay/multi-venue/proto
-layer/observability — são escopadas no momento em que cada onda
-abre. Esta seção registra apenas o estado atual do programa
-Foundation; o roadmap detalhado vive em PROGRAM-0001.
+TimescaleDB (provável H-10 se trigger ADR-0023 disparar),
+insights/replay/multi-venue/proto layer/observability — são
+escopadas no momento em que cada onda abre. Esta seção registra
+apenas o estado atual do programa Foundation; o roadmap detalhado
+vive em PROGRAM-0001.
 
 `market-raccoon` (em `$RACCOON_REFERENCE_PATH`) permanece read-only
 referência consultiva; nenhum arquivo é copiado, capacidades são
