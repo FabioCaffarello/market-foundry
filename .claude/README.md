@@ -14,6 +14,7 @@ For the primary instructions that Claude reads automatically, see
 | `settings.json` | Default settings for Claude sessions in this repo |
 | `commands/` | Custom slash commands (5 commands; codifying Phase 1+2 patterns — see below) |
 | `agents/` | Sub-agent definitions for specialized tasks (2 templates) |
+| `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (2 skills; codifying Phase 4 patterns — see below) |
 | `hooks/` | Workflow hooks for pre-commit, post-build, etc. (currently empty) |
 
 ## Available commands
@@ -44,6 +45,37 @@ Agent role definitions in `agents/`:
 These are templates documenting how Phase 1+2 distinguished
 read-only investigation from scoped execution. They are descriptive,
 not enforced — but useful as orientation when spawning sub-agents.
+
+## Available skills
+
+Procedural-knowledge files in `skills/<name>/SKILL.md`, auto-loaded
+by Claude Code when a task description matches the skill's
+`description:` frontmatter. No explicit invocation needed.
+
+| Skill | Purpose |
+|---|---|
+| `investigation-skill` | Read-only investigation pattern (Phase 4 "investigate before prescribe" codified). Time-cap convention, `/tmp/` audit-file artifact, categorization framework, A/B/C/D recommended-next-step. |
+| `fix-prompt-skill` | Change-applying prompt pattern. Bundle-vs-split decision, defensive scan after primary fix, structured commit message, post-push CI monitoring. |
+
+These complement (do not replace) the slash commands above.
+Slash commands are explicit invocations; Skills are passive
+knowledge auto-loaded by semantic relevance to the task.
+
+Adding a new skill:
+
+1. Create `.claude/skills/<name>-skill/SKILL.md`.
+2. Include YAML frontmatter with `name` and `description`.
+   The `description` should mention concrete trigger phrases
+   (Claude Code matches against it).
+3. Body: procedural knowledge, examples, common pitfalls.
+4. Keep concise (~150-300 lines).
+5. If it encodes a structural decision, also write an ADR
+   (see `../docs/decisions/`).
+
+Both current skills were adopted in P5.1 (2026-05-24) to
+address the prompt-template duplication identified by the
+P5.0 environment audit as the top P1 finding (21+ Phase 4
+rebuilds of the same investigation / fix structure).
 
 ## Philosophy
 

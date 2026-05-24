@@ -365,12 +365,24 @@ sessions, codifying patterns proven repetitive across Phase 1+2 work.
     output.
   - `execution-agent` — scoped executor with explicit pause-and-report
     protocol.
+- `.claude/skills/`: procedural-knowledge skills (SKILL.md format)
+  auto-loaded by Claude Code when semantically relevant to the task.
+  - `investigation-skill` — read-only investigation pattern
+    (time cap, `/tmp/` audit-file convention, categorization
+    framework, A/B/C/D recommended-next-step). Codifies the
+    Phase 4 "investigate before prescribe" discipline.
+  - `fix-prompt-skill` — change-applying prompt pattern
+    (bundle/split decision, defensive scan, structured commit
+    message, CI monitoring).
 - `.claude/settings.json`: session-level config (currently minimal).
 - `.claude/hooks/`: empty (Claude Code hooks remain exploratory).
 
 See `.claude/README.md` for the full index and philosophy. These
 surfaces are descriptive helpers — `CLAUDE.md` (repo root) remains
-the canonical operating instructions for Claude sessions.
+the canonical operating instructions for Claude sessions. Skills
+encode patterns observed across 21+ Phase 4 sub-prompts (per the
+P5.0 audit) and complement, rather than replace, the slash
+commands.
 
 ---
 
