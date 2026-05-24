@@ -203,3 +203,10 @@ when an issue resurfaces.
   knowledge base.
 - `docs/CONTRIBUTING.md` → "Pause-and-report protocol" —
   canonical 5-step procedure.
+- `docs/decisions/0013-pause-and-report-protocol.md` (P5.5) —
+  institutional commitment.
+- `docs/decisions/0014-defensive-scan-discipline.md` (P5.5) —
+  institutional commitment for the discipline described above.
+- `docs/decisions/0015-wave-closure-discipline.md` (P5.5) —
+  closure-decision criteria the architect applies; the executor
+  surfaces wave-depth signals.

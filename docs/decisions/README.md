@@ -60,6 +60,14 @@ typo fixes and broken-link corrections are fine.)
 |---|---|---|
 | [0012](0012-control-gate-fail-open-posture.md) | ControlGate fail-open posture | Accepted |
 
+### Phase 5 decisions — process patterns
+
+| # | Title | Status |
+|---|---|---|
+| [0013](0013-pause-and-report-protocol.md) | Pause-and-report protocol | Accepted |
+| [0014](0014-defensive-scan-discipline.md) | Defensive-scan discipline | Accepted |
+| [0015](0015-wave-closure-discipline.md) | Wave-closure discipline | Accepted |
+
 ## Adding new ADRs
 
 When you make a structural decision worth documenting:

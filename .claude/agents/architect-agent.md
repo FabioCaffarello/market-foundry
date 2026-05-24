@@ -286,8 +286,12 @@ Not when:
   canonical 5-step procedure.
 - `docs/CONTRIBUTING.md` → "Authorized expansion protocol" —
   procedure for legitimate mid-flight scope growth.
-- Future: ADR-0013/14/15 from P5.5 (pause-and-report,
-  defensive-scan, wave-closure) will formalize the patterns
-  described here as institutional commitments.
+- `docs/decisions/0013-pause-and-report-protocol.md` (P5.5) —
+  institutional commitment for the protocol described here.
+- `docs/decisions/0014-defensive-scan-discipline.md` (P5.5) —
+  institutional commitment for the discipline described here.
+- `docs/decisions/0015-wave-closure-discipline.md` (P5.5) —
+  institutional commitment for the wave-depth recognition
+  described here.
 
 (Created P5.2, 2026-05-24.)
