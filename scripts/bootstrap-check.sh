@@ -36,15 +36,28 @@ cd "${PROJECT_ROOT}"
 
 phase "Host Tooling"
 
-require_commands bash curl docker git go make python3 cargo
+require_commands bash curl docker git go make python3 cargo buf
 
-pass "Required commands present: bash curl docker git go make python3 cargo"
+pass "Required commands present: bash curl docker git go make python3 cargo buf"
 info "$(go version)"
 info "$(cargo --version)"
 info "$(python3 --version 2>&1)"
 info "$(docker --version)"
 info "$(docker compose version)"
 info "$(git --version)"
+info "buf $(buf --version 2>&1)"
+
+# buf version gate — proto/buf.yaml and proto/buf.gen.yaml declare
+# `version: v2`, which requires buf >= 1.32.0. Foundry pins a more
+# conservative minimum of 1.50.0 (well past v2 stabilization).
+# See docs/DEVELOPMENT.md → "Prerequisites" → "buf" for context.
+BUF_MIN_VERSION="1.50.0"
+BUF_CURRENT_VERSION="$(buf --version 2>&1)"
+BUF_LOWER="$(printf '%s\n%s\n' "$BUF_MIN_VERSION" "$BUF_CURRENT_VERSION" | sort -V | head -1)"
+if [[ "$BUF_LOWER" != "$BUF_MIN_VERSION" ]]; then
+    die "buf version $BUF_CURRENT_VERSION is below minimum $BUF_MIN_VERSION (required for buf.yaml/buf.gen.yaml schema v2). Upgrade: 'brew upgrade bufbuild/buf/buf' or download from https://github.com/bufbuild/buf/releases."
+fi
+pass "buf version $BUF_CURRENT_VERSION >= $BUF_MIN_VERSION"
 
 phase "Docker Availability"
 

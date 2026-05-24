@@ -20,6 +20,38 @@ The repository expects these tools available on the host machine:
 - **Rust toolchain** (stable) — for `raccoon-cli` build
 - **Docker** with `docker compose` plugin
 - **Make**, **bash**, **curl**, **git**, **python3**
+- **buf** ≥ 1.50.0 — for `proto/` lint, breaking detection, code
+  generation (introduced in Onda H-3.a, Fase Wire). Install via
+  `brew install bufbuild/buf/buf` (macOS) or download from
+  [github.com/bufbuild/buf/releases](https://github.com/bufbuild/buf/releases).
+  See "External tooling" below for version policy.
+
+### External tooling
+
+| Tool | Minimum version required | Validated locally | Purpose | When required |
+|---|---|---|---|---|
+| `buf` | 1.50.0 | 1.68.4 | `make proto-{lint,gen,breaking}` | Always (gated by `make bootstrap`) |
+| `protoc-gen-go` | (TBD in Onda H-3.b) | not yet validated | `make proto-gen` Go code generation | Locally for `make proto-gen`; CI validation deferred to H-3.b per ADR-0018 acceptance criterion 4 |
+
+Notes on buf:
+
+- **Minimum** 1.50.0 because `proto/buf.yaml` and `proto/buf.gen.yaml`
+  declare `version: v2`, which requires buf ≥ 1.32.0; foundry pins
+  the more conservative 1.50.0 to stay well past v2 stabilization.
+- **Validated locally** at 1.68.4 (current stable at the time
+  H-3.a landed).
+- The `make bootstrap` script (`scripts/bootstrap-check.sh`)
+  validates both presence and minimum version.
+
+Notes on `protoc-gen-go`:
+
+- Required only when running `make proto-gen` locally during H-3.a
+  (generated `*.pb.go` files are gitignored in H-3.a; see
+  `.gitignore` section G).
+- In Onda H-3.b, generated files become tracked artifacts and
+  `make proto-gen` enters the CI path; bootstrap-check.sh validation
+  for `protoc-gen-go` lands then.
+- Install: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`.
 
 ### First-time bootstrap
 
