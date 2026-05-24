@@ -216,19 +216,33 @@ Concrete hash algorithm and encoding are left to H-3.
 
 ## Promoção para Accepted
 
-This ADR is promoted from `Proposed` to `Accepted` when **Onda H-3
-(Wire — proto + envelope skeleton)** ships:
+This ADR reaches `Accepted` when **all** of the following are
+delivered as tracked code in the foundry:
 
-1. `internal/shared/contracts/envelope/` package created with the
-   nine canonical fields above, generated from proto (per ADR-0018).
-2. At least one stream (typically `OBSERVATION_EVENTS`) producing
-   and consuming the canonical event envelope in the running stack.
-3. Migration shape (dual-publish window or feature flag) documented
-   in H-3's delivery PRD and reflected in `RUNTIME.md`.
-4. `RESUMPTION.md` updated to reflect the per-stream migration state.
+1. `proto/envelope/v1/envelope.proto` defines the canonical envelope
+   with the nine fields specified above (delivered by **Onda H-3.a**).
+2. `proto/registry.json` includes an entry for `envelope.v1`
+   (delivered by **Onda H-3.a**).
+3. `internal/shared/contracts/envelope/v1/envelope.pb.go` exists,
+   is generated from the `.proto`, and has a unit test validating
+   round-trip serialize/deserialize (delivered by **Onda H-3.b**).
+4. `internal/shared/contracts/envelope/v1/converter.go` (or
+   equivalent) translates between the proto envelope and the
+   foundry's domain types, with a unit test (delivered by
+   **Onda H-3.b**).
 
-H-3 is responsible for flipping the `Status` field of this ADR to
-`Accepted` in the same commit that lands the implementing code.
+Runtime adoption — migrating the 11 streams from the legacy JSON
+envelope (`internal/shared/envelope/`) to this canonical envelope
+— is **execution of this architectural decision** and occurs in a
+future phase (likely a new phase of PROGRAM-0002 or a successor
+PROGRAM-0003+). Migration is **not** an acceptance criterion of
+this ADR; the canonical-envelope decision is accepted when the
+proto contract plus the corresponding Go types exist and are
+validated in code.
+
+H-3.b is responsible for flipping the `Status` field of this ADR
+to `Accepted` in the same commit that lands criteria 3 and 4
+(criteria 1 and 2 are prerequisites delivered earlier in H-3.a).
 
 ## References
 
@@ -264,3 +278,18 @@ H-3 is responsible for flipping the `Status` field of this ADR to
   negotiation are orthogonal. Foundry also defers the `meta`
   reserved-field block (raccoon Amendment) to H-3 implementation
   rather than ADR-level standardization.
+
+## Changelog
+
+- **2026-05-24** — ADR-0017 created (Onda H-2, status `Proposed`).
+  See PR #21.
+- **2026-05-25** — **Erratum**: section "Promoção para Accepted"
+  rewritten to separate the architectural decision from rollout
+  execution. Stream migration is no longer an acceptance criterion;
+  it is now a future execution phase. Acceptance now requires only
+  that the proto schema (H-3.a), registry entry (H-3.a), generated
+  Go types with round-trip test (H-3.b), and converter with test
+  (H-3.b) all exist as tracked code. Reason: layer separation —
+  ADRs codify architectural decisions; PRDs (and successor
+  programs) codify execution of those decisions. Lands as commit
+  0 of the H-3.a PR.

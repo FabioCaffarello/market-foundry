@@ -210,26 +210,34 @@ the stream(s) it touches.
 
 ## Promoção para Accepted
 
-This ADR is promoted from `Proposed` to `Accepted` when **Onda H-3
-(Wire — proto + envelope skeleton + tooling)** ships:
+This ADR reaches `Accepted` when **all** of the following are
+delivered as tracked code in the foundry:
 
-1. `proto/` tree created with at least `proto/envelope/v1/envelope.proto`
-   matching ADR-0017's nine-field shape.
-2. `proto/registry.json` populated for the envelope and at least one
-   event type (typically `observation.trade`).
-3. `buf` toolchain integrated: `make proto-lint`, `make proto-gen`,
-   `make proto-breaking` runnable; `make proto-gate` composes them.
-4. `internal/shared/contracts/` package shipped with envelope
-   converters and at least one event-type converter.
-5. raccoon-cli `check proto` analyzer in place; runs in `make verify`
-   via `quality-gate`; enforces PROTO-G3 (domain boundary).
-6. At least one stream (typically `OBSERVATION_EVENTS`) producing or
-   consuming proto end-to-end in the running stack.
-7. `RUNTIME.md` and `RESUMPTION.md` updated to reflect the migration
-   state.
+1. `proto/buf.yaml` + `proto/buf.gen.yaml` configure lint, breaking
+   detection, and code generation (delivered by **Onda H-3.a**).
+2. Targets `make proto-lint`, `make proto-gen`, and
+   `make proto-breaking` execute correctly (delivered by
+   **Onda H-3.a**).
+3. At least two schemas are listed in `proto/registry.json`
+   (envelope plus one pilot payload) with at least `draft` status
+   (delivered by **Onda H-3.a**).
+4. The `protoc-gen-go` plugin produces Go code under
+   `internal/shared/contracts/<family>/v<n>/*.pb.go` for every
+   registered schema, and those files are tracked in the repo
+   (delivered by **Onda H-3.b**).
+5. The raccoon-cli `check proto` analyzer statically validates that
+   `proto/registry.json` ↔ `.proto` files ↔ generated Go under
+   `internal/shared/contracts/` stay in sync, and it is integrated
+   into `make verify` (delivered by **Onda H-3.b**).
 
-H-3 is responsible for flipping the `Status` field of this ADR to
-`Accepted` in the same commit that lands the implementing code.
+Runtime adoption — migrating the 11 streams to use protobuf on the
+wire instead of JSON — is **execution of this architectural
+decision** and occurs in a future phase. Migration is **not** an
+acceptance criterion of this ADR.
+
+H-3.b is responsible for flipping the `Status` field of this ADR
+to `Accepted` in the same commit that lands criteria 4 and 5
+(criteria 1, 2, 3 are prerequisites delivered earlier in H-3.a).
 
 ## References
 
@@ -265,3 +273,25 @@ H-3 is responsible for flipping the `Status` field of this ADR to
   into this ADR.
 - raccoon `docs/rfcs/RFC-0007-W6-protobuf-contract-layer.md` —
   technical detail informing this ADR; not transcribed.
+
+## Changelog
+
+- **2026-05-24** — ADR-0018 created (Onda H-2, status `Proposed`).
+  See PR #21.
+- **2026-05-25** — **Erratum**: section "Promoção para Accepted"
+  rewritten to separate the architectural decision from rollout
+  execution. Stream migration is no longer an acceptance criterion;
+  it is now a future execution phase. Acceptance now requires only
+  the buf configs (H-3.a), the three individual Makefile targets
+  (H-3.a), the two-schema registry (H-3.a), the generated Go under
+  `internal/shared/contracts/` (H-3.b), and the `raccoon-cli check
+  proto` analyzer integrated in `make verify` (H-3.b). The
+  composite target `make proto-gate` is removed from the
+  acceptance criteria — target composition is tooling, not
+  architecture. (The body text in the "Tooling" section and the
+  PROTO-G4 row still mention `make proto-gate`; those are
+  descriptive, not normative, and a future erratum may revise them
+  if the composite target is dropped or renamed.) Reason: layer
+  separation — ADRs codify architectural decisions; PRDs (and
+  successor programs) codify execution of those decisions. Lands
+  as commit 0 of the H-3.a PR.
