@@ -1,0 +1,7 @@
+# Recording rules for market-foundry SLOs.
+#
+# Filled by H-5 commit 6. This commit (H-5 commit 5) creates the
+# file with an empty `groups` list so Prometheus boots without
+# rule_files complaints.
+
+groups: []
