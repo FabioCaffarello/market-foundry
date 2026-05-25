@@ -3,6 +3,8 @@ package execution
 import (
 	"testing"
 	"time"
+
+	"internal/shared/clock"
 )
 
 func TestNewSessionID(t *testing.T) {
@@ -116,7 +118,7 @@ func TestSessionClose(t *testing.T) {
 		{Segment: "spot", Processed: 10, Filled: 8, Rejected: 2},
 	}
 
-	if prob := s.Close(counters); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, counters); prob != nil {
 		t.Fatalf("Close() returned unexpected problem: %v", prob)
 	}
 
@@ -146,7 +148,7 @@ func TestSessionHalt(t *testing.T) {
 		{Segment: "spot", Processed: 5, Filled: 3, Rejected: 1, Errors: 1},
 	}
 
-	if prob := s.Halt("operator-kill-switch", counters); prob != nil {
+	if prob := s.Halt(clock.SystemClock{}, "operator-kill-switch", counters); prob != nil {
 		t.Fatalf("Halt() returned unexpected problem: %v", prob)
 	}
 

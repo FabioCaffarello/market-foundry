@@ -3,6 +3,8 @@ package execution
 import (
 	"testing"
 	"time"
+
+	"internal/shared/clock"
 )
 
 // ---------------------------------------------------------------------------
@@ -24,12 +26,12 @@ func TestSession_Close_AlreadyClosed_ReturnsProblem(t *testing.T) {
 	}
 
 	// First close succeeds.
-	if prob := s.Close(counters); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, counters); prob != nil {
 		t.Fatalf("first Close() should succeed, got: %v", prob)
 	}
 
 	// Second close must fail.
-	if prob := s.Close(counters); prob == nil {
+	if prob := s.Close(clock.SystemClock{}, counters); prob == nil {
 		t.Fatal("second Close() should return problem for already-terminal session")
 	}
 }
@@ -46,11 +48,11 @@ func TestSession_Halt_AlreadyHalted_ReturnsProblem(t *testing.T) {
 		{Segment: "spot", Processed: 5, Filled: 3, Rejected: 1, Errors: 1},
 	}
 
-	if prob := s.Halt("kill-switch", counters); prob != nil {
+	if prob := s.Halt(clock.SystemClock{}, "kill-switch", counters); prob != nil {
 		t.Fatalf("first Halt() should succeed, got: %v", prob)
 	}
 
-	if prob := s.Halt("second-reason", counters); prob == nil {
+	if prob := s.Halt(clock.SystemClock{}, "second-reason", counters); prob == nil {
 		t.Fatal("second Halt() should return problem for already-terminal session")
 	}
 }
@@ -63,10 +65,10 @@ func TestSession_Close_ThenHalt_ReturnsProblem(t *testing.T) {
 		Config:    SessionConfigSnapshot{VenueType: "paper_simulator"},
 	}
 
-	if prob := s.Close(nil); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, nil); prob != nil {
 		t.Fatalf("Close() should succeed: %v", prob)
 	}
-	if prob := s.Halt("late-halt", nil); prob == nil {
+	if prob := s.Halt(clock.SystemClock{}, "late-halt", nil); prob == nil {
 		t.Fatal("Halt() after Close() should return problem")
 	}
 }
@@ -79,10 +81,10 @@ func TestSession_Halt_ThenClose_ReturnsProblem(t *testing.T) {
 		Config:    SessionConfigSnapshot{VenueType: "paper_simulator"},
 	}
 
-	if prob := s.Halt("reason", nil); prob != nil {
+	if prob := s.Halt(clock.SystemClock{}, "reason", nil); prob != nil {
 		t.Fatalf("Halt() should succeed: %v", prob)
 	}
-	if prob := s.Close(nil); prob == nil {
+	if prob := s.Close(clock.SystemClock{}, nil); prob == nil {
 		t.Fatal("Close() after Halt() should return problem")
 	}
 }
@@ -195,7 +197,7 @@ func TestSession_Close_PreservesInFlightCounter(t *testing.T) {
 		{Segment: "spot", Processed: 10, Filled: 8, Rejected: 1, InFlight: 1},
 	}
 
-	if prob := s.Close(counters); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, counters); prob != nil {
 		t.Fatalf("Close() failed: %v", prob)
 	}
 
@@ -217,7 +219,7 @@ func TestSession_Close_FromOpen_Succeeds(t *testing.T) {
 		Config:    SessionConfigSnapshot{VenueType: "paper_simulator"},
 	}
 
-	if prob := s.Close(nil); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, nil); prob != nil {
 		t.Fatalf("Close from open should succeed: %v", prob)
 	}
 	if s.Status != SessionClosed {
@@ -233,7 +235,7 @@ func TestSession_Halt_FromOpen_Succeeds(t *testing.T) {
 		Config:    SessionConfigSnapshot{VenueType: "paper_simulator"},
 	}
 
-	if prob := s.Halt("test-reason", nil); prob != nil {
+	if prob := s.Halt(clock.SystemClock{}, "test-reason", nil); prob != nil {
 		t.Fatalf("Halt from open should succeed: %v", prob)
 	}
 	if s.Status != SessionHalted {

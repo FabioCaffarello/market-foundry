@@ -307,12 +307,12 @@ func (s *ExecuteSupervisor) closeSession(reason string) {
 	}
 
 	if reason != "" {
-		if prob := s.session.Halt(reason, counters); prob != nil {
+		if prob := s.session.Halt(s.clk, reason, counters); prob != nil {
 			s.logger.Warn("session already terminal, skipping halt", "error", prob.Message, "session_id", s.session.SessionID)
 			return
 		}
 	} else {
-		if prob := s.session.Close(counters); prob != nil {
+		if prob := s.session.Close(s.clk, counters); prob != nil {
 			s.logger.Warn("session already terminal, skipping close", "error", prob.Message, "session_id", s.session.SessionID)
 			return
 		}

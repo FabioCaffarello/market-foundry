@@ -5,6 +5,7 @@ import (
 	"time"
 
 	domainexec "internal/domain/execution"
+	"internal/shared/clock"
 )
 
 // S460: Canonical session metadata model validation.
@@ -86,7 +87,7 @@ func TestS460_SessionLifecycleTransitions(t *testing.T) {
 	counters := []domainexec.SessionSegmentCounters{
 		{Segment: "spot", Processed: 42, Filled: 38, Rejected: 4},
 	}
-	if prob := s.Close(counters); prob != nil {
+	if prob := s.Close(clock.SystemClock{}, counters); prob != nil {
 		t.Fatalf("Close() returned unexpected problem: %v", prob)
 	}
 
@@ -122,7 +123,7 @@ func TestS460_SessionHaltCapturesReason(t *testing.T) {
 		},
 	}
 
-	s.Halt("operator-kill-switch", []domainexec.SessionSegmentCounters{
+	s.Halt(clock.SystemClock{}, "operator-kill-switch", []domainexec.SessionSegmentCounters{
 		{Segment: "futures", Processed: 10, Filled: 7, Rejected: 2, Errors: 1},
 	})
 
@@ -182,7 +183,7 @@ func TestS460_SessionSegmentCountersPerSegment(t *testing.T) {
 		},
 	}
 
-	s.Close([]domainexec.SessionSegmentCounters{
+	s.Close(clock.SystemClock{}, []domainexec.SessionSegmentCounters{
 		{Segment: "spot", Processed: 100, Filled: 90, Rejected: 10},
 		{Segment: "futures", Processed: 50, Filled: 45, Rejected: 5},
 	})
