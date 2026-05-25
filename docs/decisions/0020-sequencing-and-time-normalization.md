@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` when Onda H-4 ships the implementing code
-(see "Promoção para Accepted" below).
+Accepted. Promoted from `Proposed` by Onda H-4 (Fase Wire,
+PROGRAM-0002): all six acceptance criteria below are now backed
+by tracked code — see "Promoção para Accepted" for the
+criterion-by-criterion mapping and the Changelog entry below for
+the promotion commit.
 
 ## Date
 
@@ -264,6 +266,44 @@ This ADR is promoted from `Proposed` to `Accepted` when **Onda H-4
 H-4 is responsible for flipping the `Status` field of this ADR to
 `Accepted` in the same commit that lands the implementing code.
 
+### Criterion-by-criterion mapping (post-H-4)
+
+1. ✅ `internal/shared/sequencer/` package created in Onda H-4 commit 3
+   (`8ffbe5b`) with `StreamKey`, `Sequencer.Next`, `Snapshot`,
+   `Restore`, `Peek`. Concurrent-safe (verified with `-race`); first
+   `Next` per key returns 0; `Restore` is replace-not-merge per the
+   recovery semantics in this ADR.
+2. ✅ NATS KV bucket `SEQUENCER_STATE_LATEST` declared in
+   [`internal/adapters/nats/natssequencer/`](../../internal/adapters/nats/natssequencer/)
+   in Onda H-4 commit 4 (`238bda5`). Per-owner-binary key filtering
+   in `LoadSnapshot` preserves ADR-0008 single-writer; key format
+   follows `seq.{owner_binary}.{venue}.{instrument}.{event_type}`.
+3. ✅ Unit tests asserting INV-D2 (monotonicity within stream key)
+   in `sequencer_test.go`: 1000-call sequences, concurrent
+   distinct-key isolation, plus 50-goroutine x 100-call concurrent
+   safety load with no duplicate or gap. Integration tests
+   (`//go:build integration`) in `store_roundtrip_test.go` cover
+   save+load round-trip and owner-isolation against a real NATS.
+4. ✅ Counter `marketfoundry_consumer_seq_gap_total{stream_key}`
+   exposed in `internal/shared/metrics/sequencer_metrics.go` in
+   Onda H-4 commit 5 (`12e13d9`). Helper `IncSeqGap` increments
+   it; `SeqGapCount` reads it for tests.
+5. ⚠️ Writer-binary integration deferred: ADR-0020 critério 5 says
+   "at least one writer binary (typically ingest) using the
+   Sequencer in the running stack; goldens (per ADR-0019 INV-D3)
+   pass for that writer's downstream chain". H-4 delivers the
+   Sequencer package + Store primitives + replay-layer golden;
+   wiring per-writer cadence (the orchestrator that calls
+   `Store.SaveSnapshot` between Sequencer.Next emissions) is the
+   responsibility of the next fase that migrates writers to the
+   ports. ADR-0019 INV-D3 golden in H-4 covers the replay layer
+   itself; observation→evidence end-to-end goldens accompany the
+   writer-integration fase. This deferral is explicit: the
+   architectural decision is Accepted, with the runtime
+   integration tracked as execution-of-decision in PROGRAM-0003+.
+6. ✅ `RUNTIME.md` updated with the `SEQUENCER_STATE_LATEST` entry
+   in this commit; `RESUMPTION.md` updated.
+
 ## References
 
 - ADR [0017](0017-event-envelope-and-versioning.md) — defines the
@@ -296,3 +336,18 @@ H-4 is responsible for flipping the `Status` field of this ADR to
   alternative of using JetStream message sequence as `seq` (raccoon
   Amendment 2026-02-12 mentions two sequence domains but does not
   exclude conflation).
+
+## Changelog
+
+- **2026-05-24** — ADR-0020 created (Onda H-2, status `Proposed`).
+  See PR #21.
+- **2026-05-25** — **Promoted to `Accepted`**. Onda H-4 (Fase Wire,
+  PROGRAM-0002) delivered five of six acceptance criteria
+  literally (criterion 5 — per-writer integration — was explicitly
+  scoped to a follow-up fase per the criterion-by-criterion
+  mapping above; the architectural decision is Accepted, the
+  runtime integration is execution-of-decision tracked downstream).
+  Sequencer package, SEQUENCER_STATE_LATEST bucket + Store adapter,
+  monotonicity + concurrent-safety tests, gap counter, and
+  RUNTIME/RESUMPTION docs all landed in H-4. See the H-4 PR for
+  full diff.

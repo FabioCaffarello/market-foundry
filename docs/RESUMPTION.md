@@ -52,8 +52,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-1** | Fechada (PR #20 mergeada em `main` em `65f4c3f`, 2026-05-24) | Práticas operacionais: [`TRUTH-MAP`](TRUTH-MAP.md), [`AUTHORITY`](AUTHORITY.md), [`runtime-invariants`](operations/runtime-invariants.md), [`slo.md`](operations/slo.md). Erratum integrado: P9 adicionado a CLAUDE.md → "Fase Harvest" + propagado para ADR-0016, PROGRAM-0001, e este documento. |
 | **H-2** | Fechada (PR #21 mergeada em `main` em `a93f3d8`, 2026-05-24) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora. |
 | **H-3.a** | Fechada (PR #22 mergeada em `main` em `387811b`, 2026-05-25) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
-| **H-3.b** | **Atual** (esta entrega) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). **Promove ADR-0017 e ADR-0018 a `Accepted`** — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
-| **H-4** | Destravada após merge de H-3.b em `main` (P9) | Replay + Sequencer + determinism analyzer. `internal/shared/replay/`, ports clock/random, Sequencer com `SEQUENCER_STATE_LATEST` KV, raccoon-cli `check determinism`, goldens INV-D3/INV-D4. Promove ADR-0019 e ADR-0020. |
+| **H-3.b** | Fechada (PR #23 mergeada em `main` em `32d1792`, 2026-05-25) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). Promove ADR-0017 e ADR-0018 a `Accepted` — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
+| **H-4** | **Atual** (esta entrega) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
+| **H-5** | Destravada após merge de H-4 em `main` (P9) | PROGRAM-0003 (Observability) starts. Onda escopo a definir quando PROGRAM-0003 for criada. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -131,6 +132,85 @@ Fase Harvest**. Estabelece o pattern operacional de "promover no mesmo
 commit que entrega o último critério" — verificado: ADRs 0017/0018
 flipam status no commit 8, no mesmo PR que os critérios 3/4 (0017) e
 4/5 (0018) são entregues nos commits 2-7.
+
+Entregas H-4 (esta sessão):
+
+- `internal/shared/clock/{clock,clock_test}.go` — `Clock` interface
+  + `SystemClock` + `FixedClock` (commit 1).
+- `internal/shared/random/{random,random_test}.go` — `Source`
+  interface + `SystemSource` (seeded from crypto/rand) +
+  `SeededSource` (commit 1).
+- `internal/shared/replay/{doc,fixture,recorder,player,replay_test}.go`
+  — record/replay infrastructure com JSONL fixture format, stdlib
+  encoder (não protojson — instabilidade documentada), payload
+  normalize empty→[]byte{} (commit 2).
+- `internal/shared/sequencer/{sequencer,sequencer_test}.go` —
+  per-StreamKey monotonic counter com Snapshot/Restore/Peek,
+  concurrent-safe (-race verified) (commit 3).
+- `internal/adapters/nats/natssequencer/{doc,store,store_unit_test,store_roundtrip_test}.go`
+  — KV adapter para `SEQUENCER_STATE_LATEST`, key format por
+  ADR-0020, owner-isolation no LoadSnapshot (commit 4).
+- `internal/shared/metrics/{sequencer_metrics,sequencer_metrics_test}.go`
+  — Counter `marketfoundry_consumer_seq_gap_total{stream_key}`
+  (commit 5).
+- `cmd/{execute,store}/run.go`, `cmd/gateway/compose.go`,
+  `internal/actors/scopes/{execute,store}/*supervisor*`,
+  `internal/actors/scopes/execute/venue_adapter_actor.go`,
+  `internal/actors/scopes/store/query_responder_actor.go`,
+  `internal/adapters/nats/natsexecution/control_kv_store.go`,
+  `internal/application/executionclient/verify_session.go` —
+  Clock plumbing aditivo (campos + WithClock setters/options),
+  cmd/* instanciam `clock.SystemClock{}` (commit 6.0).
+- `internal/domain/execution/{verification,control,activation,session}.go`
+  — 5 production call sites de `time.Now` migrados para
+  `clock.Clock` parameter (commits 6a/6b/6c/6d). Cascade incluiu
+  ControlKVStore.Get split de nil-receiver vs nil-bucket guard
+  para preservar ADR-0012 fail-open posture.
+- `tools/raccoon-cli/src/analyzers/check_determinism.rs` —
+  novo analyzer (~370 LoC, 12 unit tests). Scope: `internal/domain/*.go`
+  excluding `*_test.go`. Detecta banned imports + banned
+  symbols com 3 safeguards (skip comments, skip string literals,
+  skip identifier substrings) (commit 7).
+- `tools/raccoon-cli/src/{cli,application,gate}/mod.rs` — CLI
+  variant `Determinism`, dispatch handler, gate Step 7 (drift-detect
+  renumbered to Step 8) (commit 8).
+- `Makefile` — `make determinism-check` target + ##@ Goldens
+  section com `make golden-regen SCOPE=<scope>|all` (refuse without
+  SCOPE) (commits 8 e 9).
+- `internal/shared/replay/golden_test.go` +
+  `golden_data_test.go` + `golden_regen_test.go` (build tag
+  `goldenregen`) — golden test + N=50 byte-stability + regen
+  helper. Fixture: `testdata/golden/replay-cycle/synthetic-100.jsonl`
+  (100 events, distribuição agreed em PAUSE #5) (commit 9).
+- `docs/decisions/0019-deterministic-replay-time-invariants.md`,
+  `docs/decisions/0020-sequencing-and-time-normalization.md` —
+  Status `Proposed → Accepted`; Changelog "Promoted to Accepted";
+  criterion-by-criterion mapping section. References section em
+  ADR-0019 inclui rationale do test-file exemption + protojson
+  instability (commit 10).
+- `docs/programs/PROGRAM-0002-wire.md` — Status `Active → Closed`;
+  todos os 15 critérios de aceite marcados [x]; Changelog entry de
+  closure (commit 10).
+- `docs/TRUTH-MAP.md`, `docs/RUNTIME.md`, `docs/GLOSSARY.md` —
+  rows de ADR-0019/0020 movidas para Implemented com anchors
+  reais; bucket `SEQUENCER_STATE_LATEST` adicionado a RUNTIME;
+  7 novos termos no GLOSSARY (Clock, Random, Replay, Recorder,
+  Player, Golden test, Determinism); summary counts atualizados
+  (23 ADRs, 17 KV buckets, 93 verify checks, 2 PRDs) (commit 10).
+- `docs/RESUMPTION.md` — esta seção (commit 10).
+
+**Marco**: H-4 fecha a Fase Wire (PROGRAM-0002 Closed). Dual ADR
+promotion (0019 + 0020). `internal/domain/` production code agora
+**mecanicamente livre** de `time.Now` direto via raccoon-cli
+analyzer integrado no gate. Próxima fase: PROGRAM-0003
+(Observability) começa em H-5.
+
+**Cascade discovery em H-4**: análise prévia ao commit 1 identificou
+5 production call sites de `time.Now` em `internal/domain/execution/`
+(vs 1 arquivo de teste assumido no prompt). User-confirmed mitigation:
+Option (C) — migração de production code + test-file exemption no
+analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
+("existing direct time.Now call sites in `internal/domain/` migrated").
 
 Entregas H-3.a (sessão anterior):
 
