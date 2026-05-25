@@ -104,7 +104,7 @@ func (uc *VerifySessionUseCase) Execute(ctx context.Context, query SessionVerify
 
 	// Fetch session metadata and derive verification scope.
 	var operator string
-	scope := execution.DefaultVerificationScope()
+	scope := execution.DefaultVerificationScope(uc.clk)
 	if uc.sessionReader != nil {
 		reply, _ := uc.sessionReader.Execute(ctx, SessionGetQuery(query))
 		if reply.Session != nil {

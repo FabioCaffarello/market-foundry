@@ -1,6 +1,10 @@
 package execution
 
-import "time"
+import (
+	"time"
+
+	"internal/shared/clock"
+)
 
 // POCheckID identifies a specific post-operation check.
 type POCheckID string
@@ -54,10 +58,11 @@ type VerificationScope struct {
 	VenueType string    `json:"venue_type,omitempty"`
 }
 
-// DefaultVerificationScope returns a fallback scope when session metadata
-// is unavailable. Uses 24h window and BTCUSDT as legacy default.
-func DefaultVerificationScope() VerificationScope {
-	now := time.Now().UTC()
+// DefaultVerificationScope returns a fallback scope when session
+// metadata is unavailable. Uses 24h window and BTCUSDT as legacy
+// default. Receives time via clock.Clock per ADR-0019 INV-D1.
+func DefaultVerificationScope(clk clock.Clock) VerificationScope {
+	now := clk.Now().UTC()
 	return VerificationScope{
 		Symbols: []string{"BTCUSDT"},
 		Since:   now.Add(-24 * time.Hour),
@@ -67,25 +72,25 @@ func DefaultVerificationScope() VerificationScope {
 
 // POCheckResult captures the outcome of a single PO check execution.
 type POCheckResult struct {
-	CheckID     POCheckID      `json:"check_id"`
-	Name        string         `json:"name"`
-	Verdict     POCheckVerdict `json:"verdict"`
-	Detail      string         `json:"detail"`
-	Evidence    map[string]any `json:"evidence,omitempty"`
-	ExecutedAt  time.Time      `json:"executed_at"`
-	DurationMs  int64          `json:"duration_ms"`
-	Automated   bool           `json:"automated"` // true if fully automated, false if manual review needed
+	CheckID    POCheckID      `json:"check_id"`
+	Name       string         `json:"name"`
+	Verdict    POCheckVerdict `json:"verdict"`
+	Detail     string         `json:"detail"`
+	Evidence   map[string]any `json:"evidence,omitempty"`
+	ExecutedAt time.Time      `json:"executed_at"`
+	DurationMs int64          `json:"duration_ms"`
+	Automated  bool           `json:"automated"` // true if fully automated, false if manual review needed
 }
 
 // POVerificationReport is the structured output of a full PO verification run.
 type POVerificationReport struct {
-	SessionID   string              `json:"session_id"`
-	Operator    string              `json:"operator,omitempty"`
-	ExecutedAt  time.Time           `json:"executed_at"`
-	DurationMs  int64               `json:"duration_ms"`
-	Scope       *VerificationScope  `json:"scope,omitempty"` // S485: session-derived verification boundaries
-	Checks      []POCheckResult     `json:"checks"`
-	Summary     POSummary           `json:"summary"`
+	SessionID  string             `json:"session_id"`
+	Operator   string             `json:"operator,omitempty"`
+	ExecutedAt time.Time          `json:"executed_at"`
+	DurationMs int64              `json:"duration_ms"`
+	Scope      *VerificationScope `json:"scope,omitempty"` // S485: session-derived verification boundaries
+	Checks     []POCheckResult    `json:"checks"`
+	Summary    POSummary          `json:"summary"`
 }
 
 // POSummary aggregates verdict counts for quick assessment.
