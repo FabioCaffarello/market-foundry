@@ -167,7 +167,13 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 	a.fillPublisher = fillPub
 
 	// S339: Log canonical activation surface with resolved gate state.
-	gateState := domainexec.DefaultControlGate()
+	// H-4: source time via clock.Clock per ADR-0019 INV-D1; fall back
+	// to clock.SystemClock{} when the config did not inject one.
+	clk := a.cfg.Clock
+	if clk == nil {
+		clk = clock.SystemClock{}
+	}
+	gateState := domainexec.DefaultControlGate(clk)
 	if a.controlStore != nil {
 		ctx, gateCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		if g, prob := a.controlStore.Get(ctx); prob == nil {

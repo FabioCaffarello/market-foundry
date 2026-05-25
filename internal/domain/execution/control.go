@@ -1,6 +1,10 @@
 package execution
 
-import "time"
+import (
+	"time"
+
+	"internal/shared/clock"
+)
 
 // GateStatus represents the operational state of the execution control gate.
 type GateStatus string
@@ -31,9 +35,13 @@ func (g ControlGate) IsHalted() bool {
 }
 
 // DefaultControlGate returns an active gate with no restrictions.
-func DefaultControlGate() ControlGate {
+// Receives time via clock.Clock per ADR-0019 INV-D1. The caller
+// is responsible for passing a non-nil Clock; nil-handling for
+// the natsexecution.ControlKVStore.Get fail-open path lives in
+// the adapter (separating nil-receiver from nil-bucket cases).
+func DefaultControlGate(clk clock.Clock) ControlGate {
 	return ControlGate{
 		Status:    GateActive,
-		UpdatedAt: time.Now().UTC(),
+		UpdatedAt: clk.Now().UTC(),
 	}
 }
