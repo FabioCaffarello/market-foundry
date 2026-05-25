@@ -2,6 +2,7 @@ pub mod arch_guard;
 pub mod baseline_drift;
 pub mod briefing;
 pub mod check_determinism;
+pub mod check_metrics;
 pub mod check_proto;
 pub mod contract_usage_map;
 pub mod contracts;

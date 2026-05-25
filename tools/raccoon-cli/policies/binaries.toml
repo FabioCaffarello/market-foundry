@@ -1,0 +1,35 @@
+# Binary policy — declarative list of cmd/*/main.go binaries
+# that are EXEMPT from runtime invariants. Consumed by the
+# raccoon-cli `check metrics` analyzer (and potentially other
+# binary-scoped analyzers in the future).
+#
+# Invariant enforced by `check metrics` (ADR-0024 + PROGRAM-0003):
+# every cmd/*/main.go binary that is not in an exemption list MUST
+# expose Prometheus `/metrics` — via `healthz.NewHealthServer`,
+# `mux.Handle("GET /metrics", ...)`, or `metrics.HandlerFunc()`,
+# detected by a flat scan of the binary's own package files.
+#
+# Adding a binary to any list below requires editing this file.
+# Reviewer verifies the exemption is correct.
+#
+# Note: the `transitive_registration` allowlist exists because
+# the analyzer scans only the main package's source files, not
+# the full import closure. A future refactor (post H-5) could
+# replace this list with transitive scanning via `go list -deps`
+# or AST-level import analysis. See ADR-0024 References.
+
+[binaries]
+# CLI one-shots — no HTTP server, /metrics not required.
+# Each entry: binary name (matches the cmd/<name>/main.go dir).
+one_shot = ["migrate"]
+
+# Binaries whose /metrics registration is transitive — happens
+# in a package imported by main, not in main itself. Auditing
+# is the reviewer's responsibility when adding here; the
+# analyzer trusts the declaration.
+#
+# Current entries:
+#   - gateway: registers /metrics via routes.DefaultRoutes(deps),
+#     which composes the route from
+#     internal/interfaces/http/routes/core.go:364.
+transitive_registration = ["gateway"]

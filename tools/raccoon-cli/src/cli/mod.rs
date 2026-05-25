@@ -349,6 +349,24 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-determinism"
     )]
     Determinism,
+    /// Enforce PROGRAM-0003 / ADR-0024 metrics invariant
+    #[command(
+        name = "metrics",
+        visible_alias = "check-metrics",
+        long_about = "Statically enforce PROGRAM-0003 / ADR-0024 invariant: every \
+            long-running cmd/*/main.go binary exposes Prometheus /metrics. \
+            Declarative algorithm: reads tools/raccoon-cli/policies/binaries.toml \
+            for the one_shot allowlist; every other binary must register /metrics \
+            via healthz.NewHealthServer, mux.Handle(\"GET /metrics\", ...), or \
+            metrics.HandlerFunc.\n\n\
+            Adding a one-shot binary requires editing the policy file — the \
+            analyzer cannot pass on a long-running binary that drops the \
+            /metrics endpoint accidentally.",
+        after_help = "Examples:\n  \
+            raccoon-cli check metrics\n  \
+            raccoon-cli check-metrics"
+    )]
+    Metrics,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

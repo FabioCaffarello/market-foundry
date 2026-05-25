@@ -343,3 +343,15 @@ in the same commit that closes the onda.
   pre-policy metrics (`marketfoundry_http_*`) instead of forcing
   immediate refactor; and (d) tying enforcement to a raccoon-cli
   analyzer (future) rather than reviewer discipline alone.
+- **H-5 implementation note (analyzer scope)**: the `check
+  metrics` analyzer (H-5 commit 9) uses a flat scan of each
+  binary's main package; binaries that register `/metrics` in
+  imported packages (e.g., `gateway` via
+  `internal/interfaces/http/routes/core.go:364`) are listed in
+  `tools/raccoon-cli/policies/binaries.toml` under
+  `transitive_registration`. The allowlist is declarative — adding
+  a binary to it requires editing the policy file and the reviewer
+  auditing that the imported registration is correct. A future
+  refactor may replace this list with transitive import closure
+  scanning via `go list -deps` or AST-level import analysis; the
+  technical debt is recorded inline at the policy file header.

@@ -163,6 +163,9 @@ proto-check: $(RACCOON_BIN) ## Run raccoon-cli check proto (registry ↔ .proto 
 determinism-check: $(RACCOON_BIN) ## Run raccoon-cli check determinism (INV-D1 domain purity, per ADR-0019). Scans internal/domain/*.go (excluding *_test.go).
 	$(RACCOON_BIN) --project-root . check determinism
 
+metrics-check: $(RACCOON_BIN) ## Run raccoon-cli check metrics (every long-running cmd/*/main.go exposes /metrics, per ADR-0024). Reads tools/raccoon-cli/policies/binaries.toml allowlist.
+	$(RACCOON_BIN) --project-root . check metrics
+
 ##@ Observability
 # Added in Onda H-5 (PROGRAM-0003, Fase Observability). Opt-in
 # observability stack (prometheus + grafana) via the
