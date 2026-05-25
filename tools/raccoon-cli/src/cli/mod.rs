@@ -327,6 +327,28 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-proto"
     )]
     Proto,
+    /// Enforce ADR-0019 INV-D1 (domain purity)
+    #[command(
+        name = "determinism",
+        visible_alias = "check-determinism",
+        long_about = "Statically enforce ADR-0019 INV-D1 (domain purity) on \
+            internal/domain/ production code. Scans .go files (excluding \
+            *_test.go) for direct use of non-deterministic stdlib facilities. \
+            Production code MUST source time via clock.Clock, randomness via \
+            random.Source, and context.Context explicitly through function \
+            parameters.\n\n\
+            Checks performed:\n  \
+              1. Banned imports: math/rand, math/rand/v2, crypto/rand.\n  \
+              2. Banned symbols: time.Now, time.Since, time.Until, time.Tick, \
+            os.Getenv, os.Args, context.Background, context.TODO.\n\n\
+            Test files (*_test.go) are EXEMPT — the real enforcement for \
+            tests is the determinism gates INV-D3/INV-D4 (golden tests + N=50 \
+            byte-stability).",
+        after_help = "Examples:\n  \
+            raccoon-cli check determinism\n  \
+            raccoon-cli check-determinism"
+    )]
+    Determinism,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

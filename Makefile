@@ -155,6 +155,14 @@ proto-breaking: ## Run `buf breaking` against the main branch. WIRE_JSON rule se
 proto-check: $(RACCOON_BIN) ## Run raccoon-cli check proto (registry ↔ .proto ↔ generated Go sync, per ADR-0018).
 	$(RACCOON_BIN) --project-root . check proto
 
+##@ Determinism
+# Added in Onda H-4 (Fase Wire). See PROGRAM-0002 and ADR-0019.
+# determinism-check joined `make verify` in Onda H-4 alongside the
+# raccoon-cli `check determinism` analyzer (which runs automatically
+# within `make quality-gate`).
+determinism-check: $(RACCOON_BIN) ## Run raccoon-cli check determinism (INV-D1 domain purity, per ADR-0019). Scans internal/domain/*.go (excluding *_test.go).
+	$(RACCOON_BIN) --project-root . check determinism
+
 ##@ Go And Test
 tidy: ## Run `go mod tidy` across workspace modules.
 	$(call RUN_IN_MODULES,$(GO) mod tidy)

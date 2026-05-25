@@ -236,14 +236,21 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 7: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 7: check-determinism (static — INV-D1 domain purity per ADR-0019)
+    if config.profile.includes_static() {
+        gate_step!("check-determinism", || {
+            analyzers::check_determinism::analyze(&config.project_root)
+        });
+    }
+
+    // Step 8: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)
         });
     }
 
-    // Step 7: runtime-smoke (only in Deep profile)
+    // Step 9: runtime-smoke (only in Deep profile)
     if let Some(ref failed_name) = blocker {
         steps.push(make_skip(
             "runtime-smoke",
