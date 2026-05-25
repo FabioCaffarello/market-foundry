@@ -255,6 +255,62 @@ INV-D3 and INV-D4 by golden tests.
 
 ---
 
+## Observability
+
+**SLI (Service Level Indicator)**
+A measurable proxy for the user-visible health of an operational
+flow — typically a ratio (`success/total`) or a latency quantile
+(`p99`). The foundry declares one SLI per critical flow in
+[`operations/slo.md`](operations/slo.md): F1 ingest publish
+success ratio, F2 derive processing latency p99, F3 gateway GET
+latency p99, F4 writer persist-within-5s ratio. SLIs are
+computed from Prometheus counters/histograms emitted by the
+binaries.
+
+**SLO (Service Level Objective)**
+A target value for an SLI plus the rolling window over which it
+is evaluated. Example: "F1 publish success ratio ≥ 99.5% over
+rolling 30 days". Per
+[ADR-0025](decisions/0025-alerting-strategy.md) AS-1, every SLO
+carries one of three lifecycle states: **Proposed** (target
+declared, no measurement), **Observing** (measurement deployed,
+target unvalidated, alerts at `ticket` severity), **Committed**
+(target validated against ≥ 7 contiguous days of baseline,
+alerts paged on fast burn). All four foundry SLOs are
+`Observing` as of PROGRAM-0003 H-5.
+
+**Error budget**
+The allowed share of failure within a rolling window before the
+SLO is breached, equal to `1 - target`. Example: a 99.9% SLO has
+a 0.1% error budget; with 1 million requests per 30 days, the
+budget tolerates 1 000 errors. Burn-rate alerts (
+[ADR-0025](decisions/0025-alerting-strategy.md) AS-2) fire when
+the observed error rate would consume the budget faster than
+the rolling window can absorb.
+
+**Burn-rate alert**
+A Prometheus alert that fires when the observed error rate
+exceeds a multiple of the steady-state burn that would just
+consume the entire error budget over the SLO window. Per
+[ADR-0025](decisions/0025-alerting-strategy.md) AS-2 (Google SRE
+multi-window multi-burn-rate), the foundry uses two windows per
+alert: **fast** (5m AND 1h burn > 14.4× for 2m → `severity: page`
+for Committed SLOs / `ticket` for Observing) and **slow** (30m
+AND 6h burn > 6× for 5m → `severity: ticket` always).
+
+**Recording rule**
+A Prometheus rule that pre-computes a derived metric expression
+on each evaluation interval, storing the result as a new time
+series. The foundry's recording rules
+(`deploy/observability/prometheus/recording.rules.yml`) compute
+per-SLO `error_ratio_<window>` and `burn_rate_<window>` series
+that the alert rules consume. Recording rules cap query-time
+cost (dashboards and alerts read pre-computed series) and
+encode the SLO arithmetic (`burn_rate = error_ratio /
+error_budget`) in one place.
+
+---
+
 ## Execution
 
 **ExecutionIntent**

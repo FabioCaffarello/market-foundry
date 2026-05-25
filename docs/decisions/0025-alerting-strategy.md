@@ -2,12 +2,12 @@
 
 ## Status
 
-Proposed. Delivered in Onda H-5 of PROGRAM-0003 (Fase
-Observability); promoted to `Accepted` when H-5 ships the
-implementing artifacts (`deploy/observability/prometheus/alerts.rules.yml`,
-`docs/operations/slo.md` flipped from template to `Observing`,
-recording rules under the same path). See "Promoção para Accepted"
-below.
+Accepted. Promoted from `Proposed` by Onda H-5 (PROGRAM-0003,
+Fase Observability) — all three acceptance criteria below are
+backed by tracked code (recording rules in commit 6, alert rules
+in commit 7, `slo.md` flipped to Observing in commit 10). See
+"Promoção para Accepted" for the criterion-by-criterion mapping
+and the Changelog entry below.
 
 ## Date
 
@@ -329,6 +329,37 @@ H-5** ships:
 
 H-5 commit 11 flips the `Status` field of this ADR to `Accepted`
 in the same commit that closes the onda.
+
+### Criterion-by-criterion mapping (post-H-5)
+
+1. ✅ `deploy/observability/prometheus/recording.rules.yml`
+   shipped in H-5 commit 6 (`295f0ac`) with 44 recording rules:
+   per-SLO `error_ratio_<window>` over windows 5m/30m/1h/6h plus
+   `burn_rate_<window>` for F1–F4, plus a runtime-aggregates
+   group. Burn-rate windows per AS-2 (Google SRE multi-window
+   multi-burn-rate).
+2. ✅ `deploy/observability/prometheus/alerts.rules.yml` shipped
+   in H-5 commit 7 (`16df768`) with 13 alert rules: 8 SLO
+   burn-rate (fast + slow per F1/F2/F3/F4, all at
+   `severity: ticket` per AS-3 Observing cap) + 5 runtime-safety
+   alerts (per AS-6). Label set per AS-4 (severity, slo, service,
+   flow + annotations summary/description/runbook_url).
+3. ✅ `docs/operations/slo.md` flipped from template to
+   `Active — Observing` in H-5 commit 10 (`ae49920`). All four
+   SLOs carry the taxonomy state `Observing` per AS-1; SLO
+   status taxonomy section formally documents
+   `Proposed → Observing → Committed` lifecycle and the 7-day
+   compliance criterion for promotion.
+
+## Changelog
+
+- **2026-05-25** — ADR-0025 created (PROGRAM-0003 H-5 commit 3,
+  status `Proposed`).
+- **2026-05-25** — **Promoted to `Accepted`**. PROGRAM-0003 H-5
+  delivered all three acceptance criteria: commit 6 (recording
+  rules), commit 7 (alert rules), commit 10 (slo.md flipped to
+  Observing). This commit 11 closes H-5 and promotes. See the
+  H-5 PR for full diff.
 
 ## References
 

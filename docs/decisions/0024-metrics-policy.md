@@ -2,11 +2,13 @@
 
 ## Status
 
-Proposed. Delivered in Onda H-5 of PROGRAM-0003 (Fase
-Observability); promoted to `Accepted` when H-5 ships the
-implementing changes (compose profile, scrape config, refactored
-`consumer_seq_gap_total`, raccoon-cli `check metrics` analyzer).
-See "Promoção para Accepted" below.
+Accepted. Promoted from `Proposed` by Onda H-5 (PROGRAM-0003,
+Fase Observability) — all four acceptance criteria below are
+backed by tracked code (compose profile in commit 5, refactored
+`consumer_seq_gap_total` in commit 4, raccoon-cli `check metrics`
+in commit 9, `slo.md` flipped to Observing in commit 10). See
+"Promoção para Accepted" for the criterion-by-criterion mapping
+and the Changelog entry below.
 
 ## Date
 
@@ -310,6 +312,38 @@ H-5** ships:
 
 H-5 commit 11 flips the `Status` field of this ADR to `Accepted`
 in the same commit that closes the onda.
+
+### Criterion-by-criterion mapping (post-H-5)
+
+1. ✅ `consumer_seq_gap_total` refactored to `{venue, event_type}`
+   per MP-2 in H-5 commit 4 (`0a48887`); composite `stream_key`
+   label encoding `instrument` eliminated.
+2. ✅ Log compensation pattern documented inline in
+   `internal/shared/metrics/sequencer_metrics.go` (commit 4) at
+   `IncSeqGap` with the canonical `slog.Warn("sequencer.gap_detected", ...)`
+   reference shape.
+3. ✅ `docs/operations/slo.md` flipped to `Active — Observing`
+   in H-5 commit 10 (`ae49920`); references this ADR for label
+   conventions and `consumer_seq_gap_total`'s new label shape
+   that the runtime-aggregates recording rule consumes.
+4. ✅ raccoon-cli `check metrics` analyzer integrated in
+   `make verify` as gate Step 8 in H-5 commit 9 (`1467661`).
+   Allowlist-driven (`tools/raccoon-cli/policies/binaries.toml`)
+   with two exemption categories: `one_shot` and
+   `transitive_registration`. Label validation against MP-2's
+   permitted/prohibited list is a future-onda extension —
+   documented as such in the analyzer's source.
+
+## Changelog
+
+- **2026-05-25** — ADR-0024 created (PROGRAM-0003 H-5 commit 2,
+  status `Proposed`).
+- **2026-05-25** — **Promoted to `Accepted`**. PROGRAM-0003 H-5
+  delivered all four acceptance criteria across the H-5 PR:
+  commit 4 refactored `consumer_seq_gap_total` per MP-2; commit
+  9 introduced `check metrics` analyzer; commit 10 flipped
+  `slo.md` to Observing referencing this ADR; this commit 11
+  closes H-5 and promotes. See the H-5 PR for full diff.
 
 ## References
 

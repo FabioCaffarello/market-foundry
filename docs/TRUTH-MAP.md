@@ -139,10 +139,11 @@ with placeholder code/test anchors; each is promoted to `Accepted`
 (T1) by the onda that ships the supporting code, in the same
 commit that flips the `Status` field.
 
-Current state (post-Onda H-4, 2026-05-25):
+Current state (post-Onda H-5, 2026-05-25):
 - **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 (promoted
   by Onda H-3.b); ADR-0019, ADR-0020 (promoted by Onda H-4 — dual
-  promotion closing Fase Wire).
+  promotion closing Fase Wire); ADR-0024, ADR-0025 (promoted by
+  Onda H-5 — dual promotion in PROGRAM-0003 Observability).
 - **Proposed** (T3, `Planned`): ADR-0021 (H-6); ADR-0022 (H-7);
   ADR-0023 (H-9 partial / H-10 full, may remain `Proposed`
   indefinitely if empirical triggers T1/T2/T3 never fire).
@@ -156,6 +157,11 @@ Current state (post-Onda H-4, 2026-05-25):
 | Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
 | Multi-venue normalization policy (Capabilities + `check venue-parity`) | [ADR-0022](decisions/0022-multi-venue-normalization-policy.md) | TODO (Onda H-7 — adapter `Capabilities()`; `/venues/capabilities` HTTP route; raccoon-cli `check venue-parity`) | TODO (Onda H-7 — `cmd/gateway/boot_test.go` entry; analyzer tests) | Planned | First non-Binance adapter is typically Bybit; route registration updates the gateway boot test per ADR-0010. |
 | Storage tier roadmap (Stage 1 → Stage 2 with empirical triggers) | [ADR-0023](decisions/0023-storage-tier-roadmap.md) | Stage 1: existing ClickHouse + KV (no new code); Stage 2 TODO (Onda H-10 — `internal/adapters/storage/timescale/`) | Stage 1: existing analytical + projection tests; Stage 2 TODO (Onda H-10) | Planned (partial) | Stage 1 active today on existing ClickHouse + KV. Stage 2 (TimescaleDB) opens only when triggers T1/T2/T3 fire; may remain `Planned` indefinitely. |
+| Metrics policy (naming + label budget + cardinality + log compensation pattern) | [ADR-0024](decisions/0024-metrics-policy.md) | Policy ratifies existing pattern in `internal/shared/metrics/{metrics,sequencer_metrics}.go`. Refactor (drop `instrument` from `consumer_seq_gap_total`) shipped in `internal/shared/metrics/sequencer_metrics.go:IncSeqGap` (now `(venue, eventType)`). Analyzer: `tools/raccoon-cli/src/analyzers/check_metrics.rs:analyze`. Policy file: `tools/raccoon-cli/policies/binaries.toml`. | `internal/shared/metrics/sequencer_metrics_test.go:TestIncSeqGap_*` (3 tests covering new label shape). `make verify` invokes `check metrics` via gate Step 8 (3 checks). `cargo test analyzers::check_metrics` (10 tests). | Implemented | ADR promoted to `Accepted` in PROGRAM-0003 H-5. Naming convention grandfathered for `marketfoundry_http_*`; new metrics conform to MP-1. Label validation against MP-2 is documented as future-onda analyzer extension. |
+| Alerting strategy (SLO status taxonomy + burn-rate windows + severity tiers) | [ADR-0025](decisions/0025-alerting-strategy.md) | Recording rules: `deploy/observability/prometheus/recording.rules.yml` (44 rules). Alert rules: `deploy/observability/prometheus/alerts.rules.yml` (13 rules). SLO doc: `docs/operations/slo.md` (status taxonomy section, F1-F4 all Observing). | `promtool check rules` validates both YAML files (44+13 = 57 rules SUCCESS). `make verify` GREEN with new files committed. | Implemented | ADR promoted to `Accepted` in PROGRAM-0003 H-5. SLO status taxonomy (Proposed/Observing/Committed) formally documented; F1-F4 currently Observing with alerts at `ticket` severity per AS-3. |
+| Observability stack (Prometheus + Grafana, compose profile) | [PROGRAM-0003](programs/PROGRAM-0003-observability.md), [ADR-0024](decisions/0024-metrics-policy.md), [ADR-0025](decisions/0025-alerting-strategy.md) | `deploy/observability/prometheus/{prometheus,recording.rules,alerts.rules}.yml`; `deploy/observability/grafana/{provisioning,dashboards}/`. 5 dashboards (ingest/derive/store/gateway/determinism-health). Compose: `deploy/compose/docker-compose.yaml` profile `observability`. Makefile: `obs-up`/`obs-down`/`obs-reload`/`metrics-check`. | `make verify` runs `check metrics` analyzer as gate Step 8. `make obs-up` brings stack up; manual validation via Prometheus :9090 + Grafana :3000. | Implemented | Opt-in profile (does not come up under `make up`). Single phase (H-5) of PROGRAM-0003. Operator guide: [`operations/observability.md`](operations/observability.md). |
+| `marketfoundry_consumer_seq_gap_total` label refactor (drop instrument; log compensation) | [ADR-0024](decisions/0024-metrics-policy.md) MP-2 + MP-5 | `internal/shared/metrics/sequencer_metrics.go:consumerSeqGapTotal` (label set now `{venue, event_type}`); `IncSeqGap(venue, eventType string)` helper documents log compensation pattern inline. | `internal/shared/metrics/sequencer_metrics_test.go:TestIncSeqGap_IncrementsCounter`, `…:TestIncSeqGap_LabelsAreIndependent`, `…:TestSeqGapTotal_ExposedOnMetricsEndpoint` (assert new labels appear + `stream_key` absent). | Implemented | H-4 declared counter with composite `stream_key`; H-5 refactored per ADR-0024 MP-2 (instrument is high-cardinality, prohibited). Log compensation pattern (MP-5) documented inline at IncSeqGap docstring for future callers. |
+| Raccoon-cli `check metrics` analyzer (every long-running `cmd/*/main.go` exposes `/metrics`) | [ADR-0024](decisions/0024-metrics-policy.md), [PROGRAM-0003](programs/PROGRAM-0003-observability.md) | `tools/raccoon-cli/src/analyzers/check_metrics.rs:analyze`; `tools/raccoon-cli/policies/binaries.toml` (declarative allowlist: `one_shot = ["migrate"]`, `transitive_registration = ["gateway"]`); CLI variant + dispatch + gate Step 8 integration. | `cargo test analyzers::check_metrics` (10 tests). `make verify` GREEN includes `check metrics` PASS. `make metrics-check` standalone target. | Implemented | Declarative allowlist over inferred patterns (per H-5 user refinement). Transitive registration list documented as known tech debt (future scan via `go list -deps`). |
 
 ### Gate (verification surface)
 
@@ -220,13 +226,19 @@ a TRUTH-MAP row either.
 - NATS KV buckets: **17** (16 read-model + `SEQUENCER_STATE_LATEST`
   added in Onda H-4).
 - Go test files under `internal/` and `cmd/`: **~292**.
-- ADRs published: **23** (0001–0020 `Accepted`; 0021–0023 `Proposed`).
-  0017+0018 promoted by Onda H-3.b; 0019+0020 promoted by Onda H-4
-  (dual promotion closing Fase Wire).
-- PRDs published: **2** (PROGRAM-0001 `Active`; PROGRAM-0002
-  `Closed` by Onda H-4).
-- `make verify` checks executed: **93** (across 7 active analyzers
-  in the gate; `check determinism` added as Step 7 in Onda H-4).
+- ADRs published: **25** (0001–0020 `Accepted` + 0024–0025
+  `Accepted`; 0021–0023 `Proposed`). 0017+0018 promoted by Onda
+  H-3.b; 0019+0020 promoted by Onda H-4; 0024+0025 promoted by
+  Onda H-5 (dual promotion in PROGRAM-0003).
+- PRDs published: **3** (PROGRAM-0001 `Active`; PROGRAM-0002
+  `Closed` by Onda H-4; PROGRAM-0003 `Active` opened by Onda H-5).
+- `make verify` checks executed: **96** (across 8 active analyzers
+  in the gate; `check metrics` added as Step 8 in Onda H-5).
+- Prometheus recording rules: **44** (4 SLOs × ~10 rules each +
+  runtime-aggregates group). Alert rules: **13** (8 SLO burn-rate
+  + 5 runtime-safety).
+- Grafana dashboards: **5** (ingest-health, derive-health,
+  store-health, gateway-health, determinism-health).
 
 ---
 
@@ -284,3 +296,16 @@ a TRUTH-MAP row either.
   `SEQUENCER_STATE_LATEST`); 93 `make verify` checks (added
   +3 from `check determinism`); 2 PRDs (PROGRAM-0001 Active,
   PROGRAM-0002 Closed).
+- **2026-05-25** — Onda H-5 closure: **PROGRAM-0003 opened +
+  dual ADR promotion**. ADR-0024 (metrics policy) and ADR-0025
+  (alerting strategy) flipped `Proposed` → `Accepted` in the
+  same onda they were introduced (different pattern from
+  PROGRAM-0002 which inherited Proposed ADRs from H-2). New rows
+  added to the Foundation ADRs section covering: metrics-policy
+  + `consumer_seq_gap_total` refactor + alerting-strategy +
+  observability stack + `check metrics` analyzer. PROGRAM-0003
+  opened `Active`. Summary counts updated: 25 ADRs (added 0024 +
+  0025 both Accepted); 96 `make verify` checks (+3 from
+  `check metrics`); 3 PRDs (added PROGRAM-0003 Active); 44
+  recording rules + 13 alert rules + 5 Grafana dashboards new
+  metrics infrastructure declared.
