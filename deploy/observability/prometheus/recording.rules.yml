@@ -1,0 +1,360 @@
+# Recording rules for market-foundry SLOs.
+#
+# One group per SLO declared in docs/operations/slo.md. Each
+# group computes:
+#   - error_ratio over windows {5m, 30m, 1h, 6h}
+#   - burn_rate per window (error_ratio / error_budget)
+#
+# Burn-rate alerts in alerts.rules.yml consume the burn_rate_*
+# series; the AND of two windows per ADR-0025 AS-2 forms the
+# fast/slow alert pair.
+#
+# Note on partial metric availability: F2 (derive) and F3
+# (gateway read) reference metrics that exist today
+# (marketfoundry_consumer_processing_duration_seconds,
+# marketfoundry_http_request_duration_seconds). F1 (ingest) and
+# F4 (writer) reference metric names that the binaries do not
+# yet emit (marketfoundry_ingest_messages_total,
+# marketfoundry_writer_persist_total) — the recording rules are
+# declared with the canonical names so they activate
+# automatically when the binaries start emitting the underlying
+# counters. Until then, the rules produce empty results, which
+# Prometheus tolerates.
+#
+# Per ADR-0024 MP-2, labels are bounded (venue, event_type,
+# stream, method, path-template, status_code). No instrument
+# label appears anywhere in this file.
+
+groups:
+  # ── F1: Ingest publish success ratio ─────────────────────────────
+  # SLO target 99.5% over 30d. Error budget 0.5% (0.005).
+  - name: slo-ingest
+    interval: 30s
+    rules:
+      - record: slo:ingest:total_rate_5m
+        expr: |
+          sum(rate(marketfoundry_ingest_messages_total[5m]))
+        labels:
+          slo: ingest
+      - record: slo:ingest:success_rate_5m
+        expr: |
+          sum(rate(marketfoundry_ingest_messages_total{status="ok"}[5m]))
+        labels:
+          slo: ingest
+
+      - record: slo:ingest:error_ratio_5m
+        expr: |
+          clamp_min(
+            1 - (slo:ingest:success_rate_5m / clamp_min(slo:ingest:total_rate_5m, 1e-9)),
+            0
+          )
+        labels:
+          slo: ingest
+      - record: slo:ingest:error_ratio_30m
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_ingest_messages_total{status="ok"}[30m]))
+              /
+              clamp_min(sum(rate(marketfoundry_ingest_messages_total[30m])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: ingest
+      - record: slo:ingest:error_ratio_1h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_ingest_messages_total{status="ok"}[1h]))
+              /
+              clamp_min(sum(rate(marketfoundry_ingest_messages_total[1h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: ingest
+      - record: slo:ingest:error_ratio_6h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_ingest_messages_total{status="ok"}[6h]))
+              /
+              clamp_min(sum(rate(marketfoundry_ingest_messages_total[6h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: ingest
+
+      - record: slo:ingest:burn_rate_5m
+        expr: slo:ingest:error_ratio_5m / 0.005
+        labels:
+          slo: ingest
+      - record: slo:ingest:burn_rate_30m
+        expr: slo:ingest:error_ratio_30m / 0.005
+        labels:
+          slo: ingest
+      - record: slo:ingest:burn_rate_1h
+        expr: slo:ingest:error_ratio_1h / 0.005
+        labels:
+          slo: ingest
+      - record: slo:ingest:burn_rate_6h
+        expr: slo:ingest:error_ratio_6h / 0.005
+        labels:
+          slo: ingest
+
+  # ── F2: Derive latency p99 (observation → first downstream) ──────
+  # SLO target p99 < 500ms over 30d. Error budget 1% of windows.
+  # SLI: share of derive consumer processing samples ≤ 0.5s.
+  - name: slo-derive-latency
+    interval: 30s
+    rules:
+      - record: slo:derive_latency:total_rate_5m
+        expr: |
+          sum(rate(marketfoundry_consumer_processing_duration_seconds_count{consumer=~"derive.*"}[5m]))
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:good_rate_5m
+        expr: |
+          sum(rate(marketfoundry_consumer_processing_duration_seconds_bucket{consumer=~"derive.*", le="0.5"}[5m]))
+        labels:
+          slo: derive_latency
+
+      - record: slo:derive_latency:error_ratio_5m
+        expr: |
+          clamp_min(
+            1 - (slo:derive_latency:good_rate_5m / clamp_min(slo:derive_latency:total_rate_5m, 1e-9)),
+            0
+          )
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:error_ratio_30m
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_consumer_processing_duration_seconds_bucket{consumer=~"derive.*", le="0.5"}[30m]))
+              /
+              clamp_min(sum(rate(marketfoundry_consumer_processing_duration_seconds_count{consumer=~"derive.*"}[30m])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:error_ratio_1h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_consumer_processing_duration_seconds_bucket{consumer=~"derive.*", le="0.5"}[1h]))
+              /
+              clamp_min(sum(rate(marketfoundry_consumer_processing_duration_seconds_count{consumer=~"derive.*"}[1h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:error_ratio_6h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_consumer_processing_duration_seconds_bucket{consumer=~"derive.*", le="0.5"}[6h]))
+              /
+              clamp_min(sum(rate(marketfoundry_consumer_processing_duration_seconds_count{consumer=~"derive.*"}[6h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: derive_latency
+
+      - record: slo:derive_latency:burn_rate_5m
+        expr: slo:derive_latency:error_ratio_5m / 0.01
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:burn_rate_30m
+        expr: slo:derive_latency:error_ratio_30m / 0.01
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:burn_rate_1h
+        expr: slo:derive_latency:error_ratio_1h / 0.01
+        labels:
+          slo: derive_latency
+      - record: slo:derive_latency:burn_rate_6h
+        expr: slo:derive_latency:error_ratio_6h / 0.01
+        labels:
+          slo: derive_latency
+
+  # ── F3: Gateway HTTP read latency p99 ─────────────────────────────
+  # SLO target p99 < 200ms for GET routes over 30d. Error budget 1%.
+  # SLI: share of GET request samples ≤ 0.2s.
+  - name: slo-store-read-latency
+    interval: 30s
+    rules:
+      - record: slo:store_read_latency:total_rate_5m
+        expr: |
+          sum(rate(marketfoundry_http_request_duration_seconds_count{method="GET"}[5m]))
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:good_rate_5m
+        expr: |
+          sum(rate(marketfoundry_http_request_duration_seconds_bucket{method="GET", le="0.2"}[5m]))
+        labels:
+          slo: store_read_latency
+
+      - record: slo:store_read_latency:error_ratio_5m
+        expr: |
+          clamp_min(
+            1 - (slo:store_read_latency:good_rate_5m / clamp_min(slo:store_read_latency:total_rate_5m, 1e-9)),
+            0
+          )
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:error_ratio_30m
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_http_request_duration_seconds_bucket{method="GET", le="0.2"}[30m]))
+              /
+              clamp_min(sum(rate(marketfoundry_http_request_duration_seconds_count{method="GET"}[30m])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:error_ratio_1h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_http_request_duration_seconds_bucket{method="GET", le="0.2"}[1h]))
+              /
+              clamp_min(sum(rate(marketfoundry_http_request_duration_seconds_count{method="GET"}[1h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:error_ratio_6h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_http_request_duration_seconds_bucket{method="GET", le="0.2"}[6h]))
+              /
+              clamp_min(sum(rate(marketfoundry_http_request_duration_seconds_count{method="GET"}[6h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: store_read_latency
+
+      - record: slo:store_read_latency:burn_rate_5m
+        expr: slo:store_read_latency:error_ratio_5m / 0.01
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:burn_rate_30m
+        expr: slo:store_read_latency:error_ratio_30m / 0.01
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:burn_rate_1h
+        expr: slo:store_read_latency:error_ratio_1h / 0.01
+        labels:
+          slo: store_read_latency
+      - record: slo:store_read_latency:burn_rate_6h
+        expr: slo:store_read_latency:error_ratio_6h / 0.01
+        labels:
+          slo: store_read_latency
+
+  # ── F4: Writer persist within 5s success ratio ────────────────────
+  # SLO target 99.9% over 30d. Error budget 0.1% (0.001).
+  - name: slo-writer-persist
+    interval: 30s
+    rules:
+      - record: slo:writer_persist:total_rate_5m
+        expr: |
+          sum(rate(marketfoundry_writer_persist_total[5m]))
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:success_rate_5m
+        expr: |
+          sum(rate(marketfoundry_writer_persist_total{status="ok"}[5m]))
+        labels:
+          slo: writer_persist
+
+      - record: slo:writer_persist:error_ratio_5m
+        expr: |
+          clamp_min(
+            1 - (slo:writer_persist:success_rate_5m / clamp_min(slo:writer_persist:total_rate_5m, 1e-9)),
+            0
+          )
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:error_ratio_30m
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_writer_persist_total{status="ok"}[30m]))
+              /
+              clamp_min(sum(rate(marketfoundry_writer_persist_total[30m])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:error_ratio_1h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_writer_persist_total{status="ok"}[1h]))
+              /
+              clamp_min(sum(rate(marketfoundry_writer_persist_total[1h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:error_ratio_6h
+        expr: |
+          clamp_min(
+            1 - (
+              sum(rate(marketfoundry_writer_persist_total{status="ok"}[6h]))
+              /
+              clamp_min(sum(rate(marketfoundry_writer_persist_total[6h])), 1e-9)
+            ),
+            0
+          )
+        labels:
+          slo: writer_persist
+
+      - record: slo:writer_persist:burn_rate_5m
+        expr: slo:writer_persist:error_ratio_5m / 0.001
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:burn_rate_30m
+        expr: slo:writer_persist:error_ratio_30m / 0.001
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:burn_rate_1h
+        expr: slo:writer_persist:error_ratio_1h / 0.001
+        labels:
+          slo: writer_persist
+      - record: slo:writer_persist:burn_rate_6h
+        expr: slo:writer_persist:error_ratio_6h / 0.001
+        labels:
+          slo: writer_persist
+
+  # ── Runtime supplementary recordings ──────────────────────────────
+  # These are not SLOs, but rate aggregates the alerts.rules.yml
+  # references for runtime-safety alerts (AS-6).
+  - name: runtime-aggregates
+    interval: 30s
+    rules:
+      - record: runtime:consumer_lag_messages_max
+        expr: |
+          max by (consumer) (marketfoundry_consumer_lag_messages)
+      - record: runtime:consumer_messages_rate_5m
+        expr: |
+          sum by (consumer) (rate(marketfoundry_consumer_messages_total{outcome="delivered"}[5m]))
+      - record: runtime:seq_gap_rate_5m
+        expr: |
+          sum by (venue, event_type) (rate(marketfoundry_consumer_seq_gap_total[5m]))
+      - record: runtime:gate_read_failure_rate_5m
+        expr: |
+          sum by (reason) (rate(marketfoundry_execution_gate_read_failures_total[5m]))

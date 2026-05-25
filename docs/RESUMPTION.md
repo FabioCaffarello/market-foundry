@@ -53,8 +53,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-2** | Fechada (PR #21 mergeada em `main` em `a93f3d8`, 2026-05-24) | Sete ADRs de fundação (0017–0023) em status `Proposed`. Sem código de produto novo. Cada ADR carrega seção "Promoção para Accepted" nomeando a onda implementadora. |
 | **H-3.a** | Fechada (PR #22 mergeada em `main` em `387811b`, 2026-05-25) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
 | **H-3.b** | Fechada (PR #23 mergeada em `main` em `32d1792`, 2026-05-25) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). Promove ADR-0017 e ADR-0018 a `Accepted` — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
-| **H-4** | **Atual** (esta entrega) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
-| **H-5** | Destravada após merge de H-4 em `main` (P9) | PROGRAM-0003 (Observability) starts. Onda escopo a definir quando PROGRAM-0003 for criada. |
+| **H-4** | Fechada (PR #24 mergeada em `main` em `218a010`, 2026-05-25) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
+| **H-5** | **Atual** (esta entrega) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
+| **H-6** | Destravada após merge de H-5 em `main` (P9) | PROGRAM-0004 (Canonical instrument + venue normalization, alinhado com ADR-0021/0022) starts. Onda escopo a definir quando PROGRAM-0004 for criada. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -211,6 +212,128 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-5 (esta sessão):
+
+- `docs/programs/PROGRAM-0003-observability.md` — PRD opening
+  Fase Observability with single-onda scope (H-5). Includes
+  pre-onda audit confirming 7/7 long-running binaries already
+  expose `/metrics` (via HealthServer or via gateway routes),
+  so entrega-4 "audit + gap-fill" becomes documentation, not
+  code (commit 1).
+- `docs/decisions/0024-metrics-policy.md` — ADR-0024 codifying
+  naming convention (MP-1), label budget (MP-2, prohibits
+  `instrument`/`symbol`/`request_id`/composite labels),
+  histogram buckets (MP-3), per-subsystem cardinality budget
+  (MP-4), **log compensation pattern** (MP-5 — when a
+  high-cardinality dimension is diagnostically valuable but
+  operationally expensive as a label, emit a structured log
+  alongside the metric increment), and migration of existing
+  `consumer_seq_gap_total` (MP-6) (commit 2).
+- `docs/decisions/0025-alerting-strategy.md` — ADR-0025 codifying
+  **SLO status taxonomy** (Proposed/Observing/Committed; AS-1),
+  multi-window multi-burn-rate per Google SRE (AS-2), severity
+  tiers with Observing SLOs CAPPED at `ticket` regardless of
+  burn (AS-3), label conventions (AS-4), silence conventions
+  (AS-5), runtime-safety alerts as distinct category (AS-6)
+  (commit 3).
+- `internal/shared/metrics/sequencer_metrics.go` —
+  `marketfoundry_consumer_seq_gap_total` refactored from
+  `{stream_key}` (composite encoding instrument) to
+  `{venue, event_type}` per ADR-0024 MP-2. `IncSeqGap` signature
+  changes; inline doc shows MP-5 log compensation pattern
+  callers MUST follow (commit 4).
+- `deploy/observability/prometheus/{prometheus,recording.rules,alerts.rules}.yml` —
+  scrape config (7 binaries + self-scrape), 44 recording rules
+  (4 SLO groups + runtime-aggregates), 13 alert rules (8 SLO
+  burn-rate at ticket severity + 5 runtime-safety per ADR-0025
+  AS-6) (commits 5/6/7).
+- `deploy/observability/grafana/{provisioning,dashboards}/` —
+  datasource (`uid: marketfoundry-prometheus`) + filesystem
+  dashboard provisioning + 5 dashboards (ingest-health,
+  derive-health, store-health, gateway-health,
+  determinism-health) each with 5 panels (commit 8).
+- `deploy/compose/docker-compose.yaml` — `observability` opt-in
+  profile adds `prometheus` (image `prom/prometheus:v2.54.1`,
+  :9090, 30d retention) and `grafana` (image
+  `grafana/grafana:11.2.2`, :3000, admin/admin default).
+  Persistent volumes `market-foundry-prometheus-data` /
+  `market-foundry-grafana-data` (commit 5).
+- `Makefile` — new `##@ Observability` section (`obs-up`,
+  `obs-down`, `obs-reload`) + new `metrics-check` target under
+  `##@ Determinism` (commits 5/9).
+- `tools/raccoon-cli/policies/binaries.toml` — declarative
+  allowlist with two categories: `one_shot = ["migrate"]` for
+  CLI tools without HTTP; `transitive_registration = ["gateway"]`
+  for binaries whose `/metrics` registration lives in an imported
+  package. Tech debt documented inline: future refactor may
+  replace this list with transitive import-closure scanning
+  (commit 9).
+- `tools/raccoon-cli/src/analyzers/check_metrics.rs` — new
+  analyzer (~370 LoC, 10 unit tests). Reads policy file; scans
+  `cmd/*/main.go` directories; flags long-running binaries
+  missing `healthz.NewHealthServer` / `metrics.HandlerFunc` /
+  `mux.Handle("GET /metrics", ...)` in their own package. CLI
+  variant + dispatch + gate Step 8 integration (commit 9).
+- `docs/operations/slo.md` — `Status: Active — all four SLOs in
+  Observing`. New SLO status taxonomy section. Per-SLO `Status`
+  field flipped from "Not yet measured" to "Observing" with
+  details on whether the underlying counter is wired (F2 + F3)
+  or canonical-name-reserved (F1 + F4). Targets summary table
+  gains `Status` column. "How to promote Observing →
+  Committed" section replaces the old "How to evolve" section
+  (commit 10).
+- `docs/operations/observability.md` — new operator guide.
+  Quick-start make commands; architecture diagram; per-binary
+  `/metrics` inventory; provisioned dashboards table; alert
+  summary; common workflows; layout map; persistence; known
+  limitations (cross-linking PROGRAM-0003 non-goals) (commit
+  10).
+- `docs/decisions/0024-metrics-policy.md`,
+  `docs/decisions/0025-alerting-strategy.md` — `Status` flipped
+  `Proposed` → `Accepted`; per-ADR Changelog entries; criterion-
+  by-criterion mapping sections referencing the H-5 commits
+  that delivered each criterion (commit 11).
+- `docs/TRUTH-MAP.md` — 6 new rows under Foundation ADRs +
+  Architectural invariants sections (metrics-policy +
+  alerting-strategy + observability-stack + counter-refactor +
+  check-metrics-analyzer). Summary counts updated: 25 ADRs (added
+  0024 + 0025 both Accepted); 96 verify checks (+3 from
+  `check metrics`); 3 PRDs (added PROGRAM-0003 Active) (commit
+  11).
+- `docs/GLOSSARY.md` — new `## Observability` section with 5
+  terms: **SLI**, **SLO** (with status taxonomy reference),
+  **Error budget**, **Burn-rate alert**, **Recording rule**
+  (commit 11).
+
+**Marco**: H-5 abre PROGRAM-0003 (Observability) com primeira
+fase entregue. **Dois ADRs introduzidos e promovidos na mesma
+onda** (ADR-0024 + ADR-0025) — pattern diferente de PROGRAM-0002
+que herdou ADRs Proposed de PROGRAM-0001. SLOs F1–F4 saem do
+estado "template — not yet measured" para `Observing` —
+infraestrutura mensurando, baseline em coleta, promoção para
+`Committed` é decisão de onda futura per ADR-0025 (7 dias de
+compliance). Stack via opt-in profile (`make obs-up`); padrão
+`make up` permanece lean.
+
+**Mid-development discovery em H-5**: análise pós-commit-9
+revelou que o detector spec original (`healthz.NewHealthServer
+|| mux.Handle.*"/metrics" || metrics.HandlerFunc` no package
+do main) não passava no gateway, que registra `/metrics`
+transitivamente via `routes.DefaultRoutes(deps)`. User-confirmed
+mitigation: estender `policies/binaries.toml` com
+`transitive_registration` allowlist (declarativo); analyzer
+trata listed binaries como compliant. Tech debt documentado:
+futuro refactor via `go list -deps` ou AST closure scan
+substituiria a lista. **Sem erratum em ADR-0024**; o ADR
+References gained an analyzer-scope note pointing at the
+known-debt path.
+
+**Próxima onda destravada após merge**: H-6 — PROGRAM-0004
+(Canonical instrument + venue normalization, ADR-0021/0022)
+opens.
 
 Entregas H-3.a (sessão anterior):
 

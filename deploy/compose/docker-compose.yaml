@@ -230,6 +230,63 @@ services:
       retries: 10
       start_period: 15s
 
+  # ── Observability profile (opt-in via --profile observability) ──
+  # Added in Onda H-5 (PROGRAM-0003, Fase Observability). Both
+  # services are opt-in via `docker compose --profile observability up`
+  # (or `make obs-up`); they do NOT come up under the default
+  # `make up` to keep the baseline stack lean for devs not
+  # actively working on observability.
+  prometheus:
+    <<: *service-defaults
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    container_name: market-foundry-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/recording.rules.yml:/etc/prometheus/recording.rules.yml:ro
+      - ../observability/prometheus/alerts.rules.yml:/etc/prometheus/alerts.rules.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:9090/-/healthy >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  grafana:
+    <<: *service-defaults
+    image: grafana/grafana:11.2.2
+    profiles: ["observability"]
+    container_name: market-foundry-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/api/health | grep -q '\"database\": \"ok\"'"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
 networks:
   market-foundry-network:
     driver: bridge
@@ -241,3 +298,7 @@ volumes:
     name: market-foundry-clickhouse-data
   clickhouse_logs:
     name: market-foundry-clickhouse-logs
+  prometheus_data:
+    name: market-foundry-prometheus-data
+  grafana_data:
+    name: market-foundry-grafana-data

@@ -163,6 +163,29 @@ proto-check: $(RACCOON_BIN) ## Run raccoon-cli check proto (registry ↔ .proto 
 determinism-check: $(RACCOON_BIN) ## Run raccoon-cli check determinism (INV-D1 domain purity, per ADR-0019). Scans internal/domain/*.go (excluding *_test.go).
 	$(RACCOON_BIN) --project-root . check determinism
 
+metrics-check: $(RACCOON_BIN) ## Run raccoon-cli check metrics (every long-running cmd/*/main.go exposes /metrics, per ADR-0024). Reads tools/raccoon-cli/policies/binaries.toml allowlist.
+	$(RACCOON_BIN) --project-root . check metrics
+
+##@ Observability
+# Added in Onda H-5 (PROGRAM-0003, Fase Observability). Opt-in
+# observability stack (prometheus + grafana) via the
+# `observability` compose profile. See
+# docs/operations/observability.md and ADR-0024/ADR-0025.
+obs-up: ## Start the observability stack (prometheus + grafana). Opt-in compose profile.
+	@echo "Starting observability stack (prometheus :9090, grafana :3000)..."
+	@docker compose -f deploy/compose/docker-compose.yaml --profile observability up -d prometheus grafana
+	@echo "Stack up. Open:"
+	@echo "  Prometheus → http://127.0.0.1:9090"
+	@echo "  Grafana    → http://127.0.0.1:3000 (admin/admin)"
+
+obs-down: ## Stop the observability stack (keeps data volumes).
+	@echo "Stopping observability stack..."
+	@docker compose -f deploy/compose/docker-compose.yaml --profile observability stop prometheus grafana
+
+obs-reload: ## Reload prometheus config (hot reload via /-/reload). Requires obs-up.
+	@echo "Reloading prometheus config..."
+	@curl -fsS -X POST http://127.0.0.1:9090/-/reload && echo "OK" || (echo "FAILED — is prometheus up? try make obs-up"; exit 1)
+
 ##@ Goldens
 # Registry of known golden scopes. Each entry maps to a
 # golden-regen-<scope> target below; SCOPE=all dispatches to all.

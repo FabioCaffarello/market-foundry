@@ -1,0 +1,46 @@
+# Prometheus configuration — market-foundry observability stack.
+#
+# Scrape config for the 7 long-running binaries. Each binary
+# exposes /metrics on its config.HTTP.Addr via either the
+# HealthServer (6 binaries) or its own route table (gateway).
+# See docs/programs/PROGRAM-0003-observability.md "Auditoria
+# pré-onda" for the binary-by-binary inventory.
+#
+# Rule files: recording rules land in H-5 commit 6;
+# alerts in H-5 commit 7. Both files are created (empty
+# group lists) in this commit so Prometheus boots cleanly
+# without rule_files complaints.
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    service: market-foundry
+
+rule_files:
+  - /etc/prometheus/recording.rules.yml
+  - /etc/prometheus/alerts.rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: market-foundry
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - gateway:8080
+          - configctl:8080
+          - store:8081
+          - ingest:8082
+          - derive:8083
+          - execute:8084
+          - writer:8085
+        labels:
+          service: market-foundry
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):.+'
+        target_label: binary
+        replacement: '$1'

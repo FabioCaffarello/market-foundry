@@ -1,0 +1,204 @@
+# Alert rules for market-foundry SLOs and runtime invariants.
+#
+# Per ADR-0025:
+#   - AS-1 SLO status taxonomy: F1-F4 are currently Observing
+#     (measuring but target unvalidated). Per the taxonomy, alerts
+#     against Observing SLOs are CAPPED at severity: ticket. When
+#     an SLO promotes to Committed, the fast-burn alert flips to
+#     severity: page in a future onda.
+#   - AS-2 Burn-rate windows: Fast 5m AND 1h > 14.4 with for=2m;
+#     Slow 30m AND 6h > 6 with for=5m.
+#   - AS-4 Labels: severity, slo, service=market-foundry, flow
+#     (F1/F2/F3/F4) for SLO alerts; slo + flow absent for
+#     runtime-safety.
+#   - AS-6 Runtime-safety alerts: consumer_stall (page),
+#     goroutine_leak (ticket), heap_alloc_high (ticket),
+#     gate_read_failure_rate_high (ticket), seq_gap_rate_nonzero
+#     (ticket).
+#
+# Runbook URLs reference docs/operations/runbooks/<topic>.md;
+# runbook files themselves are stubs created in a follow-up
+# operations-doc onda (not H-5 scope).
+
+groups:
+  # ── SLO burn-rate alerts (currently Observing → severity ticket) ──
+  - name: slo-burn-rate
+    interval: 30s
+    rules:
+      # F1 — Ingest publish success ratio
+      - alert: SLOIngestBurnRateFast
+        expr: (slo:ingest:burn_rate_5m > 14.4) and (slo:ingest:burn_rate_1h > 14.4)
+        for: 2m
+        labels:
+          severity: ticket   # Observing per ADR-0025 AS-1; flip to page when slo promotes to Committed.
+          service: market-foundry
+          slo: ingest
+          flow: F1
+        annotations:
+          summary: "F1 Ingest SLO fast burn-rate high (Observing)"
+          description: "Ingest publish success ratio is burning the 30d error budget at >14.4× on both 5m and 1h windows. SLO is currently Observing; verify baseline data before promoting alert to page severity."
+          runbook_url: "docs/operations/runbooks/ingest.md"
+
+      - alert: SLOIngestBurnRateSlow
+        expr: (slo:ingest:burn_rate_30m > 6) and (slo:ingest:burn_rate_6h > 6)
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: ingest
+          flow: F1
+        annotations:
+          summary: "F1 Ingest SLO slow burn-rate high (Observing)"
+          description: "Ingest publish success ratio is burning the 30d error budget at >6× on both 30m and 6h windows."
+          runbook_url: "docs/operations/runbooks/ingest.md"
+
+      # F2 — Derive latency p99 (observation → first downstream)
+      - alert: SLODeriveLatencyBurnRateFast
+        expr: (slo:derive_latency:burn_rate_5m > 14.4) and (slo:derive_latency:burn_rate_1h > 14.4)
+        for: 2m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: derive_latency
+          flow: F2
+        annotations:
+          summary: "F2 Derive latency SLO fast burn-rate high (Observing)"
+          description: "Share of derive consumer samples above p99 latency target (500ms) is burning the 1%-windows budget at >14.4× on both 5m and 1h windows."
+          runbook_url: "docs/operations/runbooks/derive.md"
+
+      - alert: SLODeriveLatencyBurnRateSlow
+        expr: (slo:derive_latency:burn_rate_30m > 6) and (slo:derive_latency:burn_rate_6h > 6)
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: derive_latency
+          flow: F2
+        annotations:
+          summary: "F2 Derive latency SLO slow burn-rate high (Observing)"
+          description: "Derive consumer p99 latency budget burning at >6× on both 30m and 6h windows."
+          runbook_url: "docs/operations/runbooks/derive.md"
+
+      # F3 — Gateway HTTP read latency p99
+      - alert: SLOStoreReadLatencyBurnRateFast
+        expr: (slo:store_read_latency:burn_rate_5m > 14.4) and (slo:store_read_latency:burn_rate_1h > 14.4)
+        for: 2m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: store_read_latency
+          flow: F3
+        annotations:
+          summary: "F3 Gateway read SLO fast burn-rate high (Observing)"
+          description: "Share of gateway GET requests above p99 latency target (200ms) is burning the 1%-windows budget at >14.4× on both 5m and 1h windows."
+          runbook_url: "docs/operations/runbooks/store-read.md"
+
+      - alert: SLOStoreReadLatencyBurnRateSlow
+        expr: (slo:store_read_latency:burn_rate_30m > 6) and (slo:store_read_latency:burn_rate_6h > 6)
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: store_read_latency
+          flow: F3
+        annotations:
+          summary: "F3 Gateway read SLO slow burn-rate high (Observing)"
+          description: "Gateway GET p99 latency budget burning at >6× on both 30m and 6h windows."
+          runbook_url: "docs/operations/runbooks/store-read.md"
+
+      # F4 — Writer persist success ratio
+      - alert: SLOWriterPersistBurnRateFast
+        expr: (slo:writer_persist:burn_rate_5m > 14.4) and (slo:writer_persist:burn_rate_1h > 14.4)
+        for: 2m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: writer_persist
+          flow: F4
+        annotations:
+          summary: "F4 Writer persist SLO fast burn-rate high (Observing)"
+          description: "Writer persist-within-5s success ratio is burning the 30d error budget at >14.4× on both 5m and 1h windows."
+          runbook_url: "docs/operations/runbooks/writer.md"
+
+      - alert: SLOWriterPersistBurnRateSlow
+        expr: (slo:writer_persist:burn_rate_30m > 6) and (slo:writer_persist:burn_rate_6h > 6)
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          slo: writer_persist
+          flow: F4
+        annotations:
+          summary: "F4 Writer persist SLO slow burn-rate high (Observing)"
+          description: "Writer persist success budget burning at >6× on both 30m and 6h windows."
+          runbook_url: "docs/operations/runbooks/writer.md"
+
+  # ── Runtime-safety alerts (ADR-0025 AS-6) ─────────────────────────
+  # Defend invariants whose breakage causes data loss or system
+  # unavailability regardless of any SLO target. The `slo` and
+  # `flow` labels are intentionally absent per AS-4.
+  - name: runtime-safety
+    interval: 30s
+    rules:
+      - alert: ConsumerStallNoProgress
+        expr: |
+          (runtime:consumer_lag_messages_max > 0)
+          and on (consumer)
+          (runtime:consumer_messages_rate_5m < 0.01)
+        for: 5m
+        labels:
+          severity: page
+          service: market-foundry
+          category: runtime-safety
+        annotations:
+          summary: "JetStream consumer lag growing with zero ack rate"
+          description: "Consumer lag is positive but the delivery rate is near-zero over 5 minutes — the pipeline is stalled. ADR-0020 gap-detection cannot recover a stalled consumer; manual intervention required."
+          runbook_url: "docs/operations/runbooks/consumer-stall.md"
+
+      - alert: SeqGapRateNonZero
+        expr: runtime:seq_gap_rate_5m > 0
+        for: 15m
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: runtime-safety
+        annotations:
+          summary: "Sequencer gap rate non-zero per (venue, event_type)"
+          description: "marketfoundry_consumer_seq_gap_total is incrementing for 15+ minutes. Per ADR-0020 gaps are recoverable (not fatal); investigate producer-side restart-redundancy vs genuine event loss. Per ADR-0024 MP-5, correlate with `docker logs <binary> | grep sequencer.gap_detected` for the per-instrument fan-out."
+          runbook_url: "docs/operations/runbooks/sequencer-gap.md"
+
+      - alert: GateReadFailureRateHigh
+        expr: sum(runtime:gate_read_failure_rate_5m) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: runtime-safety
+        annotations:
+          summary: "ControlGate read failure rate non-zero"
+          description: "marketfoundry_execution_gate_read_failures_total is incrementing for 15+ minutes. Per ADR-0012 IsHalted fails open on these errors — the gate is currently behaving as active even though the KV read is failing. Triage by the `reason` label (nil_bucket, key_not_found, ctx_timeout, kv_error, unmarshal_error)."
+          runbook_url: "docs/operations/runbooks/gate-read-failure.md"
+
+      - alert: ProcessGoroutinesHigh
+        expr: process_goroutines > 10000
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: runtime-safety
+        annotations:
+          summary: "Goroutine count abnormally high (>10000)"
+          description: "process_goroutines exceeds 10 000 for 5+ minutes on at least one binary. Possible goroutine leak in actor spawning, consumer loops, or HTTP handler retention. Correlate against pprof if available."
+          runbook_url: "docs/operations/runbooks/goroutine-leak.md"
+
+      - alert: ProcessHeapAllocHigh
+        expr: go_memstats_heap_alloc_bytes > 500000000
+        for: 5m
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: runtime-safety
+        annotations:
+          summary: "Heap allocation high (>500 MB)"
+          description: "go_memstats_heap_alloc_bytes exceeds 500 MB for 5+ minutes on at least one binary. Possible memory leak or unbounded cache growth. Correlate against pprof heap profile."
+          runbook_url: "docs/operations/runbooks/heap-alloc.md"

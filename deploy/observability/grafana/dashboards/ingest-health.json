@@ -1,0 +1,107 @@
+{
+  "uid": "mf-ingest-health",
+  "title": "Ingest Health",
+  "tags": ["market-foundry", "ingest"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Observation events delivered rate (msg/s) — binance / binancef",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (consumer) (rate(marketfoundry_consumer_messages_total{consumer=~\"ingest.*\", outcome=\"delivered\"}[5m]))",
+          "legendFormat": "{{consumer}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Ingest publish success ratio (F1 SLI)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - slo:ingest:error_ratio_5m",
+          "legendFormat": "success ratio 5m"
+        },
+        {
+          "refId": "B",
+          "expr": "1 - slo:ingest:error_ratio_1h",
+          "legendFormat": "success ratio 1h"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "unit": "percentunit"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Consumer lag (messages, ingest consumers)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (consumer) (marketfoundry_consumer_lag_messages{consumer=~\"ingest.*\"})",
+          "legendFormat": "{{consumer}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Outcome distribution (ingest consumers) — last 5m",
+      "type": "barchart",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (increase(marketfoundry_consumer_messages_total{consumer=~\"ingest.*\"}[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "F1 burn-rate (Observing — alerts at ticket severity)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 6},
+      "targets": [
+        {"refId": "A", "expr": "slo:ingest:burn_rate_5m", "legendFormat": "5m"},
+        {"refId": "B", "expr": "slo:ingest:burn_rate_30m", "legendFormat": "30m"},
+        {"refId": "C", "expr": "slo:ingest:burn_rate_1h", "legendFormat": "1h"},
+        {"refId": "D", "expr": "slo:ingest:burn_rate_6h", "legendFormat": "6h"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 6},
+              {"color": "red", "value": 14.4}
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+# Grafana datasource provisioning — market-foundry observability.
+#
+# Declarative datasource setup; loaded by Grafana at startup
+# from /etc/grafana/provisioning/datasources/. The prometheus
+# service name resolves on the market-foundry-network bridge.
+
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: marketfoundry-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
