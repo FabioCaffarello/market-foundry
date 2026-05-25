@@ -612,7 +612,13 @@ func (a *QueryResponderActor) handleActivationSurfaceGet(ctx context.Context, _ 
 		creds = dims.Credentials
 	}
 
-	surface := execution.NewActivationSurface(adapter, gate, creds)
+	// H-4: source time via clock.Clock per ADR-0019 INV-D1; fall back
+	// to clock.SystemClock{} when the config did not inject one.
+	clk := a.cfg.Clock
+	if clk == nil {
+		clk = clock.SystemClock{}
+	}
+	surface := execution.NewActivationSurface(clk, adapter, gate, creds)
 	return executionclient.ActivationSurfaceReply{Surface: surface}, nil
 }
 

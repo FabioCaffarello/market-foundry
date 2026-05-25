@@ -194,7 +194,7 @@ func (a *VenueAdapterActor) start(c *actor.Context) {
 		}
 		dimCancel()
 	}
-	surface := domainexec.NewActivationSurface(a.cfg.AdapterState, gateState, a.cfg.CredentialState)
+	surface := domainexec.NewActivationSurface(clk, a.cfg.AdapterState, gateState, a.cfg.CredentialState)
 	a.logger.Info("activation surface resolved",
 		"adapter", string(surface.Adapter),
 		"gate_status", string(surface.Gate.Status),

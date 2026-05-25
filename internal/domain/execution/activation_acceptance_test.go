@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/shared/clock"
 )
 
 // ---------- S340: Activation Acceptance Scenarios ----------
@@ -29,7 +30,7 @@ func TestActivationAcceptance_InactiveToActive(t *testing.T) {
 		UpdatedBy: "deploy-pipeline",
 		UpdatedAt: time.Now().UTC(),
 	}
-	s1 := execution.NewActivationSurface(execution.AdapterVenue, gate1, execution.CredentialPresent)
+	s1 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate1, execution.CredentialPresent)
 
 	t.Logf("[AC-1/step-1] effective=%s is_live=%v can_reach_venue=%v", s1.Effective, s1.IsLive(), s1.CanReachVenue())
 
@@ -50,7 +51,7 @@ func TestActivationAcceptance_InactiveToActive(t *testing.T) {
 		UpdatedBy: "operator",
 		UpdatedAt: time.Now().UTC(),
 	}
-	s2 := execution.NewActivationSurface(execution.AdapterVenue, gate2, execution.CredentialPresent)
+	s2 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate2, execution.CredentialPresent)
 
 	t.Logf("[AC-1/step-2] effective=%s is_live=%v can_reach_venue=%v", s2.Effective, s2.IsLive(), s2.CanReachVenue())
 
@@ -76,7 +77,7 @@ func TestActivationAcceptance_ActiveToHalt(t *testing.T) {
 		UpdatedBy: "operator",
 		UpdatedAt: time.Now().UTC(),
 	}
-	s1 := execution.NewActivationSurface(execution.AdapterVenue, gate1, execution.CredentialPresent)
+	s1 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate1, execution.CredentialPresent)
 
 	t.Logf("[AC-2/step-1] effective=%s is_live=%v", s1.Effective, s1.IsLive())
 
@@ -95,7 +96,7 @@ func TestActivationAcceptance_ActiveToHalt(t *testing.T) {
 		UpdatedBy: "smoke-s340",
 		UpdatedAt: haltTime,
 	}
-	s2 := execution.NewActivationSurface(execution.AdapterVenue, gate2, execution.CredentialPresent)
+	s2 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate2, execution.CredentialPresent)
 
 	t.Logf("[AC-2/step-2] effective=%s is_live=%v reason=%q updated_by=%q",
 		s2.Effective, s2.IsLive(), s2.Gate.Reason, s2.Gate.UpdatedBy)
@@ -131,7 +132,7 @@ func TestActivationAcceptance_HaltToRollback(t *testing.T) {
 		UpdatedBy: "operator",
 		UpdatedAt: time.Now().UTC(),
 	}
-	s1 := execution.NewActivationSurface(execution.AdapterVenue, gate1, execution.CredentialPresent)
+	s1 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate1, execution.CredentialPresent)
 
 	t.Logf("[AC-3/step-1] effective=%s is_live=%v can_reach_venue=%v", s1.Effective, s1.IsLive(), s1.CanReachVenue())
 
@@ -144,7 +145,7 @@ func TestActivationAcceptance_HaltToRollback(t *testing.T) {
 		Status:    execution.GateActive,
 		UpdatedAt: time.Now().UTC(),
 	}
-	s2 := execution.NewActivationSurface(execution.AdapterPaper, gate2, execution.CredentialAbsent)
+	s2 := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterPaper, gate2, execution.CredentialAbsent)
 
 	t.Logf("[AC-3/step-2] effective=%s is_live=%v can_reach_venue=%v", s2.Effective, s2.IsLive(), s2.CanReachVenue())
 
@@ -216,7 +217,7 @@ func TestActivationAcceptance_FullCycle(t *testing.T) {
 			UpdatedBy: "acceptance-s340",
 			UpdatedAt: time.Now().UTC(),
 		}
-		surface := execution.NewActivationSurface(s.adapter, gate, s.creds)
+		surface := execution.NewActivationSurface(clock.SystemClock{}, s.adapter, gate, s.creds)
 
 		t.Logf("[AC-4/step-%d/%s] effective=%s is_live=%v can_reach_venue=%v",
 			i+1, s.label, surface.Effective, surface.IsLive(), surface.CanReachVenue())
@@ -233,7 +234,7 @@ func TestActivationAcceptance_DegradedIsNotLive(t *testing.T) {
 		Status:    execution.GateActive,
 		UpdatedAt: time.Now().UTC(),
 	}
-	s := execution.NewActivationSurface(execution.AdapterVenue, gate, execution.CredentialAbsent)
+	s := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate, execution.CredentialAbsent)
 
 	t.Logf("[AC-5] effective=%s is_live=%v can_reach_venue=%v", s.Effective, s.IsLive(), s.CanReachVenue())
 
@@ -257,7 +258,7 @@ func TestActivationAcceptance_GateAuditFieldsSurviveTransition(t *testing.T) {
 		UpdatedAt: auditTime,
 	}
 
-	s := execution.NewActivationSurface(execution.AdapterVenue, gate, execution.CredentialPresent)
+	s := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate, execution.CredentialPresent)
 
 	t.Logf("[AC-6] gate.Status=%s gate.Reason=%q gate.UpdatedBy=%q gate.UpdatedAt=%v",
 		s.Gate.Status, s.Gate.Reason, s.Gate.UpdatedBy, s.Gate.UpdatedAt)

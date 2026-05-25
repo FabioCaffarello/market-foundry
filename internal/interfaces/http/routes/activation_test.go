@@ -10,6 +10,7 @@ import (
 
 	"internal/application/executionclient"
 	"internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/problem"
 
 	"github.com/julienschmidt/httprouter"
@@ -111,6 +112,7 @@ func TestActivationSurfaceReturnsAllEffectiveModes(t *testing.T) {
 			t.Parallel()
 
 			surface := execution.NewActivationSurface(
+				clock.SystemClock{},
 				tc.adapter,
 				execution.ControlGate{Status: tc.gate, UpdatedAt: time.Now().UTC()},
 				tc.creds,

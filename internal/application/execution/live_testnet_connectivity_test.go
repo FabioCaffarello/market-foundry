@@ -15,6 +15,7 @@ import (
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/problem"
 )
 
@@ -385,7 +386,7 @@ func TestLiveTestnet_ActivationSurfaceCredentialVariations(t *testing.T) {
 	}
 
 	// venue + active + present = venue_live
-	surface := domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
+	surface := domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
 	if surface.Effective != domainexec.ModeVenueLive {
 		t.Fatalf("[LTC-7/live] expected venue_live, got %s", surface.Effective)
 	}
@@ -394,7 +395,7 @@ func TestLiveTestnet_ActivationSurfaceCredentialVariations(t *testing.T) {
 	}
 
 	// venue + active + absent = venue_degraded
-	surface = domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialAbsent)
+	surface = domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialAbsent)
 	if surface.Effective != domainexec.ModeVenueDegraded {
 		t.Fatalf("[LTC-7/degraded] expected venue_degraded, got %s", surface.Effective)
 	}
@@ -406,7 +407,7 @@ func TestLiveTestnet_ActivationSurfaceCredentialVariations(t *testing.T) {
 	}
 
 	// paper + active + present = paper (credentials irrelevant)
-	surface = domainexec.NewActivationSurface(domainexec.AdapterPaper, gate, domainexec.CredentialPresent)
+	surface = domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterPaper, gate, domainexec.CredentialPresent)
 	if surface.Effective != domainexec.ModePaper {
 		t.Fatalf("[LTC-7/paper] expected paper, got %s", surface.Effective)
 	}

@@ -17,6 +17,7 @@ import (
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -643,7 +644,7 @@ func TestRealVenueActivation_ActivationSurfaceDimensions(t *testing.T) {
 		UpdatedBy: "s342-test",
 		UpdatedAt: time.Now().UTC(),
 	}
-	surface := domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
+	surface := domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
 	if surface.Effective != domainexec.ModeVenueHalted {
 		t.Fatalf("[RVA-6/halted] expected venue_halted, got %s", surface.Effective)
 	}
@@ -657,7 +658,7 @@ func TestRealVenueActivation_ActivationSurfaceDimensions(t *testing.T) {
 	// venue + active + present = venue_live
 	gate.Status = domainexec.GateActive
 	gate.Reason = "s342-rva6-live"
-	surface = domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
+	surface = domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
 	if surface.Effective != domainexec.ModeVenueLive {
 		t.Fatalf("[RVA-6/live] expected venue_live, got %s", surface.Effective)
 	}
@@ -666,7 +667,7 @@ func TestRealVenueActivation_ActivationSurfaceDimensions(t *testing.T) {
 	}
 
 	// venue + active + absent = venue_degraded
-	surface = domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialAbsent)
+	surface = domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialAbsent)
 	if surface.Effective != domainexec.ModeVenueDegraded {
 		t.Fatalf("[RVA-6/degraded] expected venue_degraded, got %s", surface.Effective)
 	}

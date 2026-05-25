@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/shared/clock"
 )
 
 // ---------- ComputeEffectiveMode: Truth Table ----------
@@ -56,7 +57,7 @@ func TestComputeEffectiveMode_VenueActiveAbsentIsDegraded(t *testing.T) {
 func TestNewActivationSurface_ComputesEffective(t *testing.T) {
 	gate := execution.ControlGate{Status: execution.GateActive, UpdatedAt: time.Now().UTC()}
 
-	surface := execution.NewActivationSurface(execution.AdapterVenue, gate, execution.CredentialPresent)
+	surface := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterVenue, gate, execution.CredentialPresent)
 	if surface.Effective != execution.ModeVenueLive {
 		t.Fatalf("want venue_live, got %s", surface.Effective)
 	}
@@ -71,7 +72,7 @@ func TestNewActivationSurface_ComputesEffective(t *testing.T) {
 func TestNewActivationSurface_PaperNotLive(t *testing.T) {
 	gate := execution.ControlGate{Status: execution.GateActive, UpdatedAt: time.Now().UTC()}
 
-	surface := execution.NewActivationSurface(execution.AdapterPaper, gate, execution.CredentialAbsent)
+	surface := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterPaper, gate, execution.CredentialAbsent)
 	if surface.IsLive() {
 		t.Fatal("expected IsLive=false for paper")
 	}
@@ -83,7 +84,7 @@ func TestNewActivationSurface_PaperNotLive(t *testing.T) {
 func TestNewActivationSurface_ObservedAtIsSet(t *testing.T) {
 	before := time.Now().UTC()
 	gate := execution.ControlGate{Status: execution.GateActive, UpdatedAt: time.Now().UTC()}
-	surface := execution.NewActivationSurface(execution.AdapterPaper, gate, execution.CredentialAbsent)
+	surface := execution.NewActivationSurface(clock.SystemClock{}, execution.AdapterPaper, gate, execution.CredentialAbsent)
 	after := time.Now().UTC()
 
 	if surface.ObservedAt.Before(before) || surface.ObservedAt.After(after) {
