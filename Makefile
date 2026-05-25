@@ -163,6 +163,34 @@ proto-check: $(RACCOON_BIN) ## Run raccoon-cli check proto (registry ↔ .proto 
 determinism-check: $(RACCOON_BIN) ## Run raccoon-cli check determinism (INV-D1 domain purity, per ADR-0019). Scans internal/domain/*.go (excluding *_test.go).
 	$(RACCOON_BIN) --project-root . check determinism
 
+##@ Goldens
+# Registry of known golden scopes. Each entry maps to a
+# golden-regen-<scope> target below; SCOPE=all dispatches to all.
+GOLDEN_SCOPES := replay-cycle
+
+golden-regen: ## Regenerate golden fixtures intentionally. Usage: make golden-regen SCOPE=<scope>|all
+	@if [ -z "$(SCOPE)" ]; then \
+	  echo "error: golden-regen requires explicit SCOPE."; \
+	  echo "targets available:"; \
+	  for s in $(GOLDEN_SCOPES); do echo "  make golden-regen SCOPE=$$s"; done; \
+	  echo "  make golden-regen SCOPE=all"; \
+	  echo ""; \
+	  echo "set SCOPE=all only when intentionally regenerating ALL goldens."; \
+	  echo "after regen, inspect with:"; \
+	  echo "  git diff internal/shared/replay/testdata/golden/"; \
+	  exit 1; \
+	fi
+	@case "$(SCOPE)" in \
+	  all) $(MAKE) -s $(addprefix golden-regen-,$(GOLDEN_SCOPES)) ;; \
+	  replay-cycle) $(MAKE) -s golden-regen-replay-cycle ;; \
+	  *) echo "error: unknown SCOPE='$(SCOPE)'. Known: $(GOLDEN_SCOPES) all"; exit 1 ;; \
+	esac
+
+golden-regen-replay-cycle: ## (internal) Regenerate replay-cycle scope; invoked by golden-regen SCOPE=replay-cycle.
+	@echo "regenerating replay-cycle golden fixture..."
+	@cd internal/shared && $(GO) test -tags goldenregen -run TestRegenerateGoldenReplayCycle ./replay/...
+	@echo "done. inspect with: git diff internal/shared/replay/testdata/golden/replay-cycle/"
+
 ##@ Go And Test
 tidy: ## Run `go mod tidy` across workspace modules.
 	$(call RUN_IN_MODULES,$(GO) mod tidy)
