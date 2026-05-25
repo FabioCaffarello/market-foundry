@@ -19,6 +19,7 @@ import (
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -104,11 +105,12 @@ type pipelineRegistries struct {
 }
 
 // queryResponderConfig builds the QueryResponderConfig with registries for enabled scopes.
-func (r pipelineRegistries) queryResponderConfig(natsURL string, activeScopes map[PipelineDomain]bool) QueryResponderConfig {
+func (r pipelineRegistries) queryResponderConfig(natsURL string, activeScopes map[PipelineDomain]bool, clk clock.Clock) QueryResponderConfig {
 	cfg := QueryResponderConfig{
 		NATSURL:  natsURL,
 		Source:   "store.query-responder",
 		Registry: r.evidence,
+		Clock:    clk,
 	}
 	if activeScopes[DomainSignal] {
 		cfg.SignalRegistry = &r.signal
@@ -528,15 +530,38 @@ type StoreSupervisor struct {
 	cfg      settings.AppConfig
 	logger   *slog.Logger
 	trackers map[string]*healthz.Tracker
+	// H-4: clk is the time port threaded through to
+	// QueryResponderConfig and (in commit 6c) to
+	// NewActivationSurface call sites. Defaults to
+	// clock.SystemClock{} when no SupervisorOption supplies one.
+	clk clock.Clock
 }
 
-func NewStoreSupervisor(config settings.AppConfig, trackers map[string]*healthz.Tracker) actor.Producer {
+// SupervisorOption configures optional parameters on the StoreSupervisor.
+type SupervisorOption func(*StoreSupervisor)
+
+// WithClock sets the time port the supervisor threads through to
+// child actor configs. Optional; defaults to clock.SystemClock{}.
+func WithClock(clk clock.Clock) SupervisorOption {
+	return func(s *StoreSupervisor) {
+		if clk != nil {
+			s.clk = clk
+		}
+	}
+}
+
+func NewStoreSupervisor(config settings.AppConfig, trackers map[string]*healthz.Tracker, opts ...SupervisorOption) actor.Producer {
 	return func() actor.Receiver {
-		return &StoreSupervisor{
+		s := &StoreSupervisor{
 			cfg:      config,
 			logger:   slog.Default().With("actor", "store-supervisor"),
 			trackers: trackers,
+			clk:      clock.SystemClock{},
 		}
+		for _, opt := range opts {
+			opt(s)
+		}
+		return s
 	}
 }
 
@@ -598,7 +623,7 @@ func (s *StoreSupervisor) start(ctx *actor.Context) error {
 	}
 
 	// Spawn query responder with registries for enabled scopes.
-	qrCfg := registries.queryResponderConfig(s.cfg.NATS.URL, activeScopes)
+	qrCfg := registries.queryResponderConfig(s.cfg.NATS.URL, activeScopes, s.clk)
 	ctx.SpawnChild(NewQueryResponderActor(qrCfg), "query-responder")
 
 	activationMode := "all (no pipeline.families configured)"

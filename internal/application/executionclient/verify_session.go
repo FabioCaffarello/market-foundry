@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/problem"
 )
 
@@ -55,6 +56,13 @@ type VerifySessionUseCase struct {
 	chSummary     VerifyCHSummary
 	chLister      VerifyCHLister
 	consistency   VerifyConsistencyChecker
+	// clk is the time port used when materializing default
+	// verification scope (when session metadata is unavailable);
+	// defaults to clock.SystemClock{} via NewVerifySessionUseCase
+	// and can be overridden via WithClock for tests. Not consumed
+	// in this commit — call sites that read clk land in commit 6a
+	// (DefaultVerificationScope migration to clock.Clock).
+	clk clock.Clock
 }
 
 func NewVerifySessionUseCase(
@@ -70,7 +78,21 @@ func NewVerifySessionUseCase(
 		chSummary:     chSummary,
 		chLister:      chLister,
 		consistency:   consistency,
+		clk:           clock.SystemClock{},
 	}
+}
+
+// WithClock overrides the Clock used by this use case for time-
+// sourced fields. Returns the use case to allow chaining, e.g.:
+//
+//	uc := executionclient.NewVerifySessionUseCase(...).WithClock(testClock)
+//
+// Optional; defaults to clock.SystemClock{}.
+func (uc *VerifySessionUseCase) WithClock(clk clock.Clock) *VerifySessionUseCase {
+	if uc != nil && clk != nil {
+		uc.clk = clk
+	}
+	return uc
 }
 
 func (uc *VerifySessionUseCase) Execute(ctx context.Context, query SessionVerifyQuery) (SessionVerifyReply, *problem.Problem) {

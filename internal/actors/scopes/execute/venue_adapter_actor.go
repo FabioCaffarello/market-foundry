@@ -11,6 +11,7 @@ import (
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/events"
 	"internal/shared/healthz"
 	"internal/shared/metrics"
@@ -22,25 +23,30 @@ import (
 
 // VenueAdapterConfig holds the configuration for the venue adapter actor.
 type VenueAdapterConfig struct {
-	NATSURL          string
-	Source           string
-	Registry         natsexecution.Registry
-	Venue            ports.VenuePort
-	StalenessMaxAge  time.Duration
-	SubmitTimeout    time.Duration
-	Tracker          *healthz.Tracker
+	NATSURL         string
+	Source          string
+	Registry        natsexecution.Registry
+	Venue           ports.VenuePort
+	StalenessMaxAge time.Duration
+	SubmitTimeout   time.Duration
+	Tracker         *healthz.Tracker
 	// VenueQuery is the query port for post-200 reconciliation (S322).
 	// When set, the Post200Reconciler is composed around the submit pipeline.
 	// When nil, reconciliation is skipped (e.g. paper adapter has no query path).
-	VenueQuery       ports.VenueQueryPort
+	VenueQuery ports.VenueQueryPort
 	// S339: Activation surface dimensions for canonical state reporting.
-	AdapterState     domainexec.AdapterState
-	CredentialState  domainexec.CredentialState
+	AdapterState    domainexec.AdapterState
+	CredentialState domainexec.CredentialState
 	// S401: AllowedSources restricts which source prefixes this actor accepts.
 	// When non-empty, intents with sources not in this set are rejected before
 	// reaching the SegmentRouter — defense-in-depth against cross-segment leakage.
 	// When empty, all sources are accepted (backwards-compatible with standalone configs).
-	AllowedSources   map[string]bool
+	AllowedSources map[string]bool
+	// H-4: Clock is the time port for sourcing wall-clock instants
+	// (e.g., the activation surface ObservedAt). When nil, the
+	// actor falls back to clock.SystemClock{}. Not consumed in
+	// this commit — call sites land in commit 6b/6c.
+	Clock clock.Clock
 }
 
 // VenueAdapterActor consumes execution intents, checks kill switch + staleness,
@@ -59,7 +65,7 @@ type VenueAdapterActor struct {
 	safetyGate    *appexec.SafetyGate
 	// venue is the fully composed submit pipeline, assembled in start().
 	// Before start(), this is nil; onIntent uses this instead of cfg.Venue.
-	venue         ports.VenuePort
+	venue ports.VenuePort
 }
 
 func NewVenueAdapterActor(cfg VenueAdapterConfig) actor.Producer {

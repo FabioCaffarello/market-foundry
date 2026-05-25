@@ -23,6 +23,7 @@ import (
 	"internal/application/strategyclient"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/problem"
 
 	"github.com/anthdm/hollywood/actor"
@@ -38,6 +39,12 @@ type QueryResponderConfig struct {
 	StrategyRegistry  *natsstrategy.Registry  // nil when no strategy families are enabled
 	RiskRegistry      *natsrisk.Registry      // nil when no risk families are enabled
 	ExecutionRegistry *natsexecution.Registry // nil when no execution families are enabled
+	// H-4: Clock is the time port for sourcing wall-clock instants
+	// (e.g., the activation surface ObservedAt when composing
+	// NewActivationSurface in cross-family queries). When nil, the
+	// actor falls back to clock.SystemClock{}. Not consumed in
+	// this commit — call sites land in commit 6c.
+	Clock clock.Clock
 }
 
 // QueryResponderActor serves evidence and signal queries from the NATS KV stores.

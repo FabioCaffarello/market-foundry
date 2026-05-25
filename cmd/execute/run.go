@@ -15,6 +15,7 @@ import (
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
 	"internal/shared/bootstrap"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 )
@@ -158,9 +159,16 @@ func Run(config settings.AppConfig) {
 		}, trackers["venue-adapter"])
 	}
 
+	// H-4: wire the production Clock port into the supervisor.
+	// SystemClock satisfies ADR-0019 INV-D1 outside internal/domain/;
+	// the supervisor threads it down to VenueAdapterConfig so call
+	// sites in commits 6b/6c/6d consume Clock instead of time.Now.
+	clk := clock.SystemClock{}
+
 	pid := engine.Spawn(
 		executeactor.NewExecuteSupervisor(config, venueResult.submit, venueResult.query, trackers,
 			executeactor.WithActivationState(adapterState, venueResult.credentialState),
+			executeactor.WithClock(clk),
 		),
 		"execute",
 	)
@@ -196,10 +204,10 @@ func Run(config settings.AppConfig) {
 // the caller must invoke on shutdown to release background goroutines.
 type venueAdapterResult struct {
 	submit          ports.VenuePort
-	query           ports.VenueQueryPort         // nil for adapters without query capability (e.g. paper)
+	query           ports.VenueQueryPort // nil for adapters without query capability (e.g. paper)
 	credentialState domainexec.CredentialState
-	activeType      settings.VenueType           // S399: which adapter is active
-	closers         []func()                     // P4.2: invoke on shutdown
+	activeType      settings.VenueType // S399: which adapter is active
+	closers         []func()           // P4.2: invoke on shutdown
 }
 
 // buildVenueAdapter resolves the venue adapter from config.
