@@ -308,6 +308,22 @@ analyzer's job (delivered in Onda H-3.b per
 [ADR-0018](decisions/0018-protobuf-contract-layer.md) acceptance
 criterion 5).
 
+**Converter**
+A function (or pair of functions) that translates between proto-
+generated types under `internal/shared/contracts/` and foundry-
+native domain types. Lives in the contracts package per
+[ADR-0018](decisions/0018-protobuf-contract-layer.md) boundary;
+isolates proto-runtime noise from consumer code. The first
+foundry converter is
+`internal/shared/contracts/envelope/v1/converter.go` shipped in
+Onda H-3.b: `ToProto(CanonicalEvent) (*Envelope, error)` and
+`FromProto(*Envelope) (CanonicalEvent, error)`, where
+`CanonicalEvent` is the foundry-native domain projection of the
+canonical event envelope ([ADR-0017](decisions/0017-event-envelope-and-versioning.md)).
+Both directions perform explicit required-field validation; the
+defence-in-depth FromProto check exists because proto3 does not
+enforce required-fields at the wire level.
+
 **Schema status (`registry.json`)**
 Classification of the evolutionary state of a proto schema,
 **independent of the status of the ADR that governs it**. Values:

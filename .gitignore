@@ -150,15 +150,6 @@ __pycache__/
 .ruff_cache/
 
 # ============================================================================
-# G. Proto-generated Go (TEMPORARY — H-3.a only)
-# ============================================================================
-#
-# internal/shared/contracts/**/*.pb.go
-# TEMPORARY — H-3.a only. Removed in H-3.b when generated Go is tracked.
-# See ADR-0018 ("Promoção para Accepted" item 4) and PROGRAM-0002.
-internal/shared/contracts/**/*.pb.go
-
-# ============================================================================
 # F. Compiled service binaries at repo root
 # ============================================================================
 #

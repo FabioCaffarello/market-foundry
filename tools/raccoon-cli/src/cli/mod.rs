@@ -309,6 +309,24 @@ pub(crate) enum CheckCommands {
             raccoon-cli check drift"
     )]
     Drift,
+    /// Validate proto/registry.json ↔ .proto files ↔ generated Go sync
+    #[command(
+        name = "proto",
+        visible_alias = "check-proto",
+        long_about = "Statically validate that proto/registry.json, .proto files under proto/, and \
+            generated Go under internal/shared/contracts/ stay in sync. Enforces ADR-0018 \
+            (protobuf contract layer) acceptance criterion 5 (post-2026-05-25 erratum).\n\n\
+            Checks performed:\n  \
+              1. Every registry entry references an existing .proto file (PROTO-G4).\n  \
+              2. Every .proto under proto/ has a registry entry (PROTO-G4).\n  \
+              3. Every registry entry has the corresponding *.pb.go under internal/shared/contracts/.\n  \
+              4. Every .proto declares option go_package matching its internal/shared/contracts/ path.\n  \
+              5. Smoke boundary: no Go file under internal/domain/ imports internal/shared/contracts (PROTO-G3).",
+        after_help = "Examples:\n  \
+            raccoon-cli check proto\n  \
+            raccoon-cli check-proto"
+    )]
+    Proto,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

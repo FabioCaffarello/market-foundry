@@ -229,7 +229,14 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 6: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 6: check-proto (static — proto/registry.json ↔ .proto ↔ Go sync per ADR-0018)
+    if config.profile.includes_static() {
+        gate_step!("check-proto", || {
+            analyzers::check_proto::analyze(&config.project_root)
+        });
+    }
+
+    // Step 7: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)

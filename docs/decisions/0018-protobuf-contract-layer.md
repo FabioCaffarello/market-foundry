@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` when Onda H-3 ships the implementing code
-(see "Promoção para Accepted" below).
+Accepted. Promoted from `Proposed` by Onda H-3.b (Fase Wire,
+PROGRAM-0002): all five acceptance criteria below are now backed by
+tracked code — see "Promoção para Accepted" for the criterion-by-
+criterion mapping and the Changelog entry below for the promotion
+commit.
 
 ## Date
 
@@ -295,3 +297,19 @@ to `Accepted` in the same commit that lands criteria 4 and 5
   separation — ADRs codify architectural decisions; PRDs (and
   successor programs) codify execution of those decisions. Lands
   as commit 0 of the H-3.a PR.
+- **2026-05-25** — **Promoted to `Accepted`**. Onda H-3.b ships the
+  remaining two acceptance criteria: criterion 4
+  (`protoc-gen-go` plugin produces Go code under
+  `internal/shared/contracts/<family>/v<n>/*.pb.go` for every
+  registered schema — envelope.v1 and marketdata.trade.v1 both
+  tracked; protoc-gen-go pinned at v1.36.8 in
+  `scripts/bootstrap-check.sh` to match the runtime version in
+  `internal/shared/go.mod`) and criterion 5 (raccoon-cli
+  `check proto` analyzer ships in
+  `tools/raccoon-cli/src/analyzers/check_proto.rs` with 9 unit
+  tests + 5 static checks covering Level B registry/proto/Go sync
+  + Level C smoke on the PROTO-G3 domain boundary; integrated
+  into `make verify` via `quality-gate`; alongside `make proto-lint`
+  added directly to verify). Criteria 1, 2, 3 were delivered in
+  Onda H-3.a (PR #22). First ADR promotion of the Fase Harvest
+  (jointly with ADR-0017). See the H-3.b PR for full diff.

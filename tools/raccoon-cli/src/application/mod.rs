@@ -115,6 +115,10 @@ fn execute(context: AppContext, command: Commands) -> Result<i32> {
             &context,
             analyzers::arch_guard::analyze(&context.project_root)?,
         ),
+        Commands::Check(CheckCommands::Proto) => emit_standard_report(
+            &context,
+            analyzers::check_proto::analyze(&context.project_root)?,
+        ),
         Commands::Inspect(InspectCommands::Coverage) | Commands::CoverageMap => {
             emit_standard_report(
                 &context,

@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` when Onda H-3 ships the implementing code
-(see "Promoção para Accepted" below).
+Accepted. Promoted from `Proposed` by Onda H-3.b (Fase Wire,
+PROGRAM-0002): all four acceptance criteria below are now backed by
+tracked code — see "Promoção para Accepted" for the criterion-by-
+criterion mapping and the Changelog entry below for the promotion
+commit.
 
 ## Date
 
@@ -293,3 +295,14 @@ to `Accepted` in the same commit that lands criteria 3 and 4
   ADRs codify architectural decisions; PRDs (and successor
   programs) codify execution of those decisions. Lands as commit
   0 of the H-3.a PR.
+- **2026-05-25** — **Promoted to `Accepted`**. Onda H-3.b ships the
+  remaining two acceptance criteria: criterion 3
+  (`internal/shared/contracts/envelope/v1/envelope.pb.go`
+  generated + round-trip + ts_exchange-absent + byte-stability
+  tests in `envelope_test.go`) and criterion 4
+  (`internal/shared/contracts/envelope/v1/converter.go` with
+  `CanonicalEvent` foundry-native domain projection +
+  `converter_test.go` covering round-trip and required-field
+  validation in both directions). Criteria 1 and 2 were delivered
+  in Onda H-3.a (PR #22). First ADR promotion of the Fase Harvest.
+  See the H-3.b PR for full diff.
