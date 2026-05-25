@@ -1,0 +1,90 @@
+{
+  "uid": "mf-store-health",
+  "title": "Store Health",
+  "tags": ["market-foundry", "store"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Store consumer throughput (msg/s)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (consumer) (rate(marketfoundry_consumer_messages_total{consumer=~\"store.*\", outcome=\"delivered\"}[5m]))",
+          "legendFormat": "{{consumer}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Store consumer lag (messages)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by (consumer) (marketfoundry_consumer_lag_messages{consumer=~\"store.*\"})",
+          "legendFormat": "{{consumer}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Store binary goroutine count",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "go_goroutines{binary=\"store\"}",
+          "legendFormat": "store goroutines"
+        },
+        {
+          "refId": "B",
+          "expr": "vector(10000)",
+          "legendFormat": "alert threshold"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Store binary heap allocation (MB)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "go_memstats_heap_alloc_bytes{binary=\"store\"} / 1024 / 1024",
+          "legendFormat": "store heap MB"
+        },
+        {
+          "refId": "B",
+          "expr": "vector(500)",
+          "legendFormat": "alert threshold (500 MB)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Note: SEQUENCER_STATE_LATEST KV bucket — observed externally",
+      "type": "text",
+      "gridPos": {"x": 0, "y": 16, "w": 24, "h": 4},
+      "options": {
+        "mode": "markdown",
+        "content": "ADR-0020 declared `SEQUENCER_STATE_LATEST` as the KV persistence target for per-stream-key seq high-water marks. NATS KV bucket size is not currently exposed via `/metrics` — Prometheus has no visibility into the bucket's key count or value sizes. For now, operators inspect via `nats kv ls SEQUENCER_STATE_LATEST` against the deployment's NATS endpoint. A future onda may add a sidecar exporter or a writer-side gauge. Documented in PROGRAM-0003 acceptance criteria as part of the H-5 audit."
+      }
+    }
+  ]
+}

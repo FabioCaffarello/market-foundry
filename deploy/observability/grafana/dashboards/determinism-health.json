@@ -1,0 +1,118 @@
+{
+  "uid": "mf-determinism-health",
+  "title": "Determinism Health",
+  "tags": ["market-foundry", "determinism", "adr-0019", "adr-0020"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Sequencer gap rate per (venue, event_type) — INV-D2",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 0, "w": 24, "h": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (venue, event_type) (rate(marketfoundry_consumer_seq_gap_total[5m]))",
+          "legendFormat": "{{venue}} / {{event_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Total sequencer gaps observed — last 1h",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 8, "w": 8, "h": 6},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(marketfoundry_consumer_seq_gap_total[1h]))",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 100}
+            ]
+          },
+          "unit": "short"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "ControlGate fail-open posture — read failures rate per reason (ADR-0012)",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 8, "y": 8, "w": 16, "h": 6},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (rate(marketfoundry_execution_gate_read_failures_total[5m]))",
+          "legendFormat": "{{reason}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Execution gate active (1=active, 0=halted)",
+      "type": "stat",
+      "datasource": {"type": "prometheus", "uid": "marketfoundry-prometheus"},
+      "gridPos": {"x": 0, "y": 14, "w": 8, "h": 6},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "marketfoundry_execution_gate_active",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": 0},
+              {"color": "green", "value": 1}
+            ]
+          },
+          "mappings": [
+            {"options": {"0": {"text": "HALTED", "color": "red"}}, "type": "value"},
+            {"options": {"1": {"text": "ACTIVE", "color": "green"}}, "type": "value"}
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Note: log compensation pattern for per-instrument diagnostics",
+      "type": "text",
+      "gridPos": {"x": 8, "y": 14, "w": 16, "h": 6},
+      "options": {
+        "mode": "markdown",
+        "content": "Per **ADR-0024 MP-5**, the sequencer gap counter is labelled by `(venue, event_type)` only — `instrument` is intentionally omitted from the label set due to cardinality. When a gap is detected, the call site emits a structured log record alongside the metric increment carrying `instrument`, `last_seq`, `current_seq`, and `gap_size`.\n\nTo correlate a high gap rate on this dashboard to specific instruments:\n```\ndocker logs <binary> | grep sequencer.gap_detected | grep <venue>\n```\nLog aggregation (Loki / OpenSearch) is **non-scope for PROGRAM-0003**; this docker-logs workflow stands in until aggregation lands."
+      }
+    }
+  ]
+}
