@@ -183,6 +183,76 @@ own independent `seq` space; `seq(n+1) > seq(n)` holds within a key,
 never across keys. Cross-key ordering (e.g., cross-venue snapshots
 in H-9) is consumer-side merge logic, not a Sequencer concern.
 
+**Clock**
+The time port defined in `internal/shared/clock/` per
+[ADR-0019](decisions/0019-deterministic-replay-time-invariants.md)
+INV-D1. Production code in `internal/domain/` MUST receive
+`clock.Clock` via constructor and never call `time.Now` directly.
+`SystemClock{}` is the production implementation; `FixedClock`
+serves tests and replay drivers. Introduced in Onda H-4 (Fase
+Wire).
+
+**Random**
+The randomness port defined in `internal/shared/random/` per
+[ADR-0019](decisions/0019-deterministic-replay-time-invariants.md)
+INV-D1. Production code in `internal/domain/` MUST receive
+`random.Source` via constructor and never call `math/rand` or
+`crypto/rand` directly. `NewSystemSource()` seeds from
+`crypto/rand` at construction; `NewSeededSource(seed)` is the
+deterministic variant for tests and replay. Introduced in Onda
+H-4 (Fase Wire).
+
+**Replay**
+The record-and-replay infrastructure defined in
+`internal/shared/replay/` per
+[ADR-0019](decisions/0019-deterministic-replay-time-invariants.md)
+acceptance criterion 1. Substrate for INV-D3 (byte-identical
+replay) and INV-D4 (N=50 byte-stability across runs). Introduced
+in Onda H-4 (Fase Wire).
+
+**Recorder**
+The capture side of the replay layer:
+`internal/shared/replay/recorder.go:Recorder`. Accumulates
+`CanonicalEvent` values via `Record(ce)` and serializes the
+sequence to a writer via `WriteTo(w)` as JSON-lines (one record
+per line) using a private `fixtureRecord` struct with snake_case
+field names and epoch-nanosecond timestamps. Empty payloads
+normalize to `[]byte{}` on serialization to canonicalize the
+"payload" encoding.
+
+**Player**
+The replay side of the replay layer:
+`internal/shared/replay/player.go:Player`. `NewPlayer(r)`
+parses a JSON-lines fixture; `Next()` returns the next
+`CanonicalEvent` and advances the cursor; `Reset()` rewinds.
+Empty lines are tolerated to ease hand-edits during fixture
+regeneration.
+
+**Golden test**
+A test that compares a re-recorded byte stream against a
+committed fixture byte-for-byte. Per
+[ADR-0019](decisions/0019-deterministic-replay-time-invariants.md)
+INV-D3, replay produces byte-identical output; per INV-D4 the
+golden runs N=50 times in-process and asserts uniform
+byte-stability. Golden fixtures live under
+`internal/shared/replay/testdata/golden/<scope>/`. Regenerated
+intentionally via `make golden-regen SCOPE=<scope>`; the
+developer reviews `git diff` before committing. Introduced in
+Onda H-4 (Fase Wire).
+
+**Determinism**
+The property that a binary's output is a pure function of its
+input plus its injected ports (`clock.Clock`, `random.Source`,
+`context.Context`). Per
+[ADR-0019](decisions/0019-deterministic-replay-time-invariants.md),
+the foundry adopts four invariants — INV-D1 (domain purity),
+INV-D2 (canonical ordering via `seq`), INV-D3 (byte-identical
+replay), INV-D4 (N=50 byte-stability) — that together back the
+"backtest = production" thesis. INV-D1 is enforced statically by
+the raccoon-cli `check determinism` analyzer (Step 7 of `make
+verify`); INV-D2 by `internal/shared/sequencer/` unit tests;
+INV-D3 and INV-D4 by golden tests.
+
 ---
 
 ## Execution

@@ -139,20 +139,20 @@ with placeholder code/test anchors; each is promoted to `Accepted`
 (T1) by the onda that ships the supporting code, in the same
 commit that flips the `Status` field.
 
-Current state (post-Onda H-3.b, 2026-05-25):
-- **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 — promoted
-  jointly by Onda H-3.b (first promotion of the Fase Harvest).
-- **Proposed** (T3, `Planned`): ADR-0019, ADR-0020 (promoted by
-  H-4); ADR-0021 (H-6); ADR-0022 (H-7); ADR-0023 (H-9 partial /
-  H-10 full, may remain `Proposed` indefinitely if empirical
-  triggers T1/T2/T3 never fire).
+Current state (post-Onda H-4, 2026-05-25):
+- **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 (promoted
+  by Onda H-3.b); ADR-0019, ADR-0020 (promoted by Onda H-4 — dual
+  promotion closing Fase Wire).
+- **Proposed** (T3, `Planned`): ADR-0021 (H-6); ADR-0022 (H-7);
+  ADR-0023 (H-9 partial / H-10 full, may remain `Proposed`
+  indefinitely if empirical triggers T1/T2/T3 never fire).
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
 | Canonical event envelope (9 fields incl. seq, ts_*, idempotency_key) | [ADR-0017](decisions/0017-event-envelope-and-versioning.md) | Proto schema: `proto/envelope/v1/envelope.proto:Envelope` (H-3.a). Generated Go: `internal/shared/contracts/envelope/v1/envelope.pb.go:Envelope` (H-3.b). Converter + domain projection: `internal/shared/contracts/envelope/v1/converter.go:CanonicalEvent`, `…:ToProto`, `…:FromProto` (H-3.b). | `make proto-lint` (H-3.a). `internal/shared/contracts/envelope/v1/envelope_test.go:TestEnvelopeRoundTrip`, `…:TestEnvelopeRoundTrip_TsExchangeAbsent`, `…:TestEnvelopeByteStability` (H-3.b). `internal/shared/contracts/envelope/v1/converter_test.go:TestRoundTrip_AllFieldsPresent`, `…:TestRoundTrip_TsExchangeAbsent`, `…:TestToProto_RequiredFieldValidation`, `…:TestFromProto_RequiredFieldValidation` (H-3.b). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Coexists with legacy transport envelope (`internal/shared/envelope/`); stream migration is execution-of-decision (future phase) per the 2026-05-25 erratum. |
 | Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Schemas + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (H-3.a). Generated Go boundary: `internal/shared/contracts/` (H-3.b — `envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked, gitignored entry G removed). Analyzer: `tools/raccoon-cli/src/analyzers/check_proto.rs:analyze` (H-3.b). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (H-3.a). `make proto-check` + `raccoon-cli check proto` analyzer with 9 unit tests (H-3.b). `make verify` invokes both `proto-lint` and `check proto` (via `quality-gate`). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. `protoc-gen-go` pinned at v1.36.8 in `scripts/bootstrap-check.sh` matching the runtime in `internal/shared/go.mod`. |
-| Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | TODO (Onda H-4 — `internal/shared/replay/`, ports for clock/random) | TODO (Onda H-4 — golden tests + N=50 byte-stability) | Planned | Backs the "backtest = production" thesis; enforced statically by raccoon-cli `check determinism` (per P5). |
-| Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | TODO (Onda H-4 — `internal/shared/sequencer/`, KV bucket `SEQUENCER_STATE_LATEST`) | TODO (Onda H-4 — monotonicity unit tests + gap-detection counter) | Planned | Stream key = `(venue, instrument, event_type)`; owner per ADR-0008 single-writer. |
+| Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | Ports: `internal/shared/clock/clock.go:Clock`, `internal/shared/random/random.go:Source`. Replay: `internal/shared/replay/recorder.go:Recorder`, `…:Player`. Analyzer: `tools/raccoon-cli/src/analyzers/check_determinism.rs:analyze`. Domain migration: `internal/domain/execution/{control,session,activation,verification}.go` (5 production call sites, all migrated to `clock.Clock`). | `internal/shared/clock/clock_test.go`, `internal/shared/random/random_test.go`, `internal/shared/replay/replay_test.go`, `internal/shared/replay/golden_test.go:TestGolden_Synthetic100_ByteIdentical`, `…:TestGolden_ByteStability_N50`. `make verify` runs `check determinism` as Step 7 of the gate. | Implemented | ADR promoted to `Accepted` in Onda H-4 (dual promotion with ADR-0020). `internal/domain/` production code mechanically free of `time.Now`. Test files exempted from analyzer per documented rationale in ADR References. |
+| Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | Package: `internal/shared/sequencer/sequencer.go:Sequencer`, `…:StreamKey`. KV adapter: `internal/adapters/nats/natssequencer/store.go:Store`, `…:SequencerStateBucket`. Counter: `internal/shared/metrics/sequencer_metrics.go:IncSeqGap`. | `internal/shared/sequencer/sequencer_test.go:TestSequencer_MonotonicWithinKey`, `…:TestSequencer_ConcurrentSafe`, `…:TestSequencer_RestoreResumesFromSnapshot`. Integration: `internal/adapters/nats/natssequencer/store_roundtrip_test.go` (`//go:build integration`). | Implemented | ADR promoted to `Accepted` in Onda H-4. Per-writer Sequencer integration in the running stack (ADR-0020 critério 5) explicitly deferred to a successor fase as execution-of-decision; the architectural decision and shipping primitives are Accepted. |
 | Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
 | Multi-venue normalization policy (Capabilities + `check venue-parity`) | [ADR-0022](decisions/0022-multi-venue-normalization-policy.md) | TODO (Onda H-7 — adapter `Capabilities()`; `/venues/capabilities` HTTP route; raccoon-cli `check venue-parity`) | TODO (Onda H-7 — `cmd/gateway/boot_test.go` entry; analyzer tests) | Planned | First non-Binance adapter is typically Bybit; route registration updates the gateway boot test per ADR-0010. |
 | Storage tier roadmap (Stage 1 → Stage 2 with empirical triggers) | [ADR-0023](decisions/0023-storage-tier-roadmap.md) | Stage 1: existing ClickHouse + KV (no new code); Stage 2 TODO (Onda H-10 — `internal/adapters/storage/timescale/`) | Stage 1: existing analytical + projection tests; Stage 2 TODO (Onda H-10) | Planned (partial) | Stage 1 active today on existing ClickHouse + KV. Stage 2 (TimescaleDB) opens only when triggers T1/T2/T3 fire; may remain `Planned` indefinitely. |
@@ -217,12 +217,16 @@ a TRUTH-MAP row either.
 - HTTP routes registered: **60** (in `cmd/gateway/boot_test.go`).
 - NATS streams declared: **11**.
 - NATS adapter registry files: **8** (one per writer family).
-- Go test files under `internal/` and `cmd/`: **~289**.
-- ADRs published: **23** (0001–0018 `Accepted`; 0019–0023 `Proposed`,
-  Foundation ADRs delivered in Onda H-2; 0017+0018 promoted by
-  Onda H-3.b).
-- PRDs published: **1** (PROGRAM-0001, `Active`).
-- `make verify` checks executed: **84** (across 6 active analyzers).
+- NATS KV buckets: **17** (16 read-model + `SEQUENCER_STATE_LATEST`
+  added in Onda H-4).
+- Go test files under `internal/` and `cmd/`: **~292**.
+- ADRs published: **23** (0001–0020 `Accepted`; 0021–0023 `Proposed`).
+  0017+0018 promoted by Onda H-3.b; 0019+0020 promoted by Onda H-4
+  (dual promotion closing Fase Wire).
+- PRDs published: **2** (PROGRAM-0001 `Active`; PROGRAM-0002
+  `Closed` by Onda H-4).
+- `make verify` checks executed: **93** (across 7 active analyzers
+  in the gate; `check determinism` added as Step 7 in Onda H-4).
 
 ---
 
@@ -265,3 +269,18 @@ a TRUTH-MAP row either.
   (mixed)" to reflect that the section now holds entries in two
   states (Accepted/Implemented vs Proposed/Planned). Summary count
   updated: 0001–0018 Accepted; 0019–0023 Proposed.
+- **2026-05-25** — Onda H-4 closure: **dual ADR promotion closing
+  Fase Wire**. ADR-0019 and ADR-0020 flipped
+  `Proposed` → `Accepted`; rows for both moved from `Planned` to
+  `Implemented` with full code/test anchors covering replay
+  (recorder + player + JSONL fixture format), sequencer
+  (in-memory monotonic counter + KV adapter), ports (clock.Clock
+  + random.Source), domain migration (5 production call sites in
+  `internal/domain/execution/`), `check determinism` analyzer
+  (raccoon-cli Step 7 of the gate), and golden test + N=50
+  byte-stability validation. PROGRAM-0002 transitioned to
+  `Closed`. Summary counts updated: 23 ADRs (0001–0020 Accepted,
+  0021–0023 Proposed); 17 KV buckets (added
+  `SEQUENCER_STATE_LATEST`); 93 `make verify` checks (added
+  +3 from `check determinism`); 2 PRDs (PROGRAM-0001 Active,
+  PROGRAM-0002 Closed).

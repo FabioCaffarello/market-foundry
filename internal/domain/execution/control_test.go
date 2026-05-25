@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/shared/clock"
 )
 
 // ---------- GateStatus Validation ----------
@@ -68,7 +69,7 @@ func TestControlGate_IsHalted_ZeroValue(t *testing.T) {
 // ---------- DefaultControlGate ----------
 
 func TestDefaultControlGate_IsActive(t *testing.T) {
-	gate := execution.DefaultControlGate()
+	gate := execution.DefaultControlGate(clock.SystemClock{})
 	if gate.Status != execution.GateActive {
 		t.Fatalf("expected GateActive, got %q", gate.Status)
 	}
@@ -79,7 +80,7 @@ func TestDefaultControlGate_IsActive(t *testing.T) {
 
 func TestDefaultControlGate_HasTimestamp(t *testing.T) {
 	before := time.Now().UTC()
-	gate := execution.DefaultControlGate()
+	gate := execution.DefaultControlGate(clock.SystemClock{})
 	after := time.Now().UTC()
 
 	if gate.UpdatedAt.Before(before) || gate.UpdatedAt.After(after) {
@@ -88,14 +89,14 @@ func TestDefaultControlGate_HasTimestamp(t *testing.T) {
 }
 
 func TestDefaultControlGate_NoReason(t *testing.T) {
-	gate := execution.DefaultControlGate()
+	gate := execution.DefaultControlGate(clock.SystemClock{})
 	if gate.Reason != "" {
 		t.Fatalf("expected empty reason, got %q", gate.Reason)
 	}
 }
 
 func TestDefaultControlGate_NoUpdatedBy(t *testing.T) {
-	gate := execution.DefaultControlGate()
+	gate := execution.DefaultControlGate(clock.SystemClock{})
 	if gate.UpdatedBy != "" {
 		t.Fatalf("expected empty updated_by, got %q", gate.UpdatedBy)
 	}
@@ -105,7 +106,7 @@ func TestDefaultControlGate_NoUpdatedBy(t *testing.T) {
 
 func TestControlGate_HaltAndResume(t *testing.T) {
 	// Simulate halt → resume cycle.
-	gate := execution.DefaultControlGate()
+	gate := execution.DefaultControlGate(clock.SystemClock{})
 	if gate.IsHalted() {
 		t.Fatal("initial gate should be active")
 	}

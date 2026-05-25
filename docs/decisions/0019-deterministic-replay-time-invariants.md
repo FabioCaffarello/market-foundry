@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` when Onda H-4 ships the implementing code
-(see "Promoção para Accepted" below).
+Accepted. Promoted from `Proposed` by Onda H-4 (Fase Wire,
+PROGRAM-0002): all seven acceptance criteria below are now backed
+by tracked code — see "Promoção para Accepted" for the
+criterion-by-criterion mapping and the Changelog entry below for
+the promotion commit.
 
 ## Date
 
@@ -218,6 +220,41 @@ This ADR is promoted from `Proposed` to `Accepted` when **Onda H-4
 H-4 is responsible for flipping the `Status` field of this ADR to
 `Accepted` in the same commit that lands the implementing code.
 
+### Criterion-by-criterion mapping (post-H-4)
+
+1. ✅ `internal/shared/replay/` package created with recorder + player
+   in Onda H-4 commit 2 (`d0565e0`). 10 unit tests cover round-trip
+   preservation, fixture format invariants, and deterministic replay.
+2. ✅ `internal/shared/clock/` and `internal/shared/random/` ports
+   introduced in Onda H-4 commit 1 (`d85f333`). The five direct
+   `time.Now` call sites discovered during the cascade analysis
+   (`DefaultVerificationScope`, `DefaultControlGate`,
+   `NewActivationSurface`, `Session.Close`, `Session.Halt`) were
+   migrated to consume Clock in commits 6a (`6b2e87d`), 6b
+   (`a7631de`), 6c (`cfa9f5f`), 6d (`792bcdf`). `internal/domain/`
+   production code now contains zero direct `time.Now` calls.
+3. ✅ raccoon-cli `check determinism` analyzer landed in commit 7
+   (`cf8cb15`) and wired into `make verify` as Step 7 of the gate
+   in commit 8 (`3fb63c7`). The analyzer scans `internal/domain/*.go`
+   excluding `*_test.go` (foundry-specific divergence from the
+   raccoon reference; see references below).
+4. ✅ `internal/shared/sequencer/` shipped in commit 3 (`8ffbe5b`)
+   with monotonicity tests covering INV-D2 over 1000-call sequences
+   and concurrent-safe load with `-race`.
+5. ✅ Golden test `TestGolden_Synthetic100_ByteIdentical` in commit 9
+   (`cfeadbc`) validates byte-identical replay over a 100-event
+   synthetic fixture. The "end-to-end" scope for H-4 is the
+   replay layer cycle (record → persist → load → re-record →
+   byte-identical); derive-evaluator goldens (true observation→
+   evidence end-to-end) land in a future wave that migrates
+   derive to Clock/Source ports.
+6. ✅ `TestGolden_ByteStability_N50` runs the same fixture 50 times
+   in-process and asserts uniform byte-stability on every iteration.
+   In-process chosen over cross-process per PAUSE-AND-REPORT #5;
+   the rare cross-process failure modes (init-order side effects)
+   are tractable via a sibling test if surfaced.
+7. ✅ `RESUMPTION.md` updated in this commit.
+
 ## References
 
 - ADR [0017](0017-event-envelope-and-versioning.md) — the envelope
@@ -252,3 +289,39 @@ H-4 is responsible for flipping the `Status` field of this ADR to
   promote to invariant-level.
 - raccoon `docs/rfcs/RFC-0009-W8-deterministic-replay-golden-tests.md`
   — technical detail informing this ADR; not transcribed.
+- **H-4 implementation note**: the `check determinism` analyzer
+  scopes INV-D1 to **production code only** (`internal/domain/*.go`
+  excluding `*_test.go`). Foundry-specific divergence from the
+  raccoon reference's `check-domain-isolation.sh` (which applies
+  to all `.go` files). Rationale: the real enforcement for tests
+  is determinism gates INV-D3/INV-D4 (golden tests + N=50
+  byte-stability) — a test using `time.Now` incorrectly flaps
+  goldens, so a static check on test files adds friction without
+  proportionate security benefit.
+- **H-4 implementation note**: the replay-layer fixture format uses
+  stdlib `encoding/json` on a private `fixtureRecord` struct, NOT
+  `protojson` on `envelope.v1.Envelope`. Rationale: `protojson.Marshal`
+  output is not stable between versions of
+  `google.golang.org/protobuf` (per upstream docs). A transitive
+  dependency bump would silently invalidate every golden and break
+  INV-D4. The stdlib encoder is byte-stable given a fixed struct
+  definition. See `internal/shared/replay/doc.go` for details.
+
+## Changelog
+
+- **2026-05-24** — ADR-0019 created (Onda H-2, status `Proposed`).
+  See PR #21.
+- **2026-05-25** — **Promoted to `Accepted`**. Onda H-4 (Fase Wire,
+  PROGRAM-0002) delivered all seven acceptance criteria across
+  ten commits: clock/random ports (1), replay recorder+player (2),
+  sequencer (3), KV bucket + Store (4), gap counter (5), Clock
+  plumbing (6.0), domain migration of `DefaultVerificationScope`
+  (6a), `DefaultControlGate` (6b), `NewActivationSurface` (6c),
+  `Session.Close`/`Halt` (6d), `check determinism` analyzer (7),
+  gate integration (8), golden test + N=50 byte-stability (9),
+  and this promotion (10). `internal/domain/` production code is
+  now mechanically enforced to be free of direct `time.Now`,
+  `math/rand`, `crypto/rand`, `os.Getenv`, `context.Background`,
+  and related non-determinism sources. The cascade analysis that
+  discovered the five production call sites is documented in
+  PROGRAM-0002 Changelog. See the H-4 PR for full diff.

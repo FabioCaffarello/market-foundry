@@ -12,6 +12,7 @@ import (
 	natsexecution "internal/adapters/nats/natsexecution"
 	appexec "internal/application/execution"
 	domainexec "internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -464,7 +465,7 @@ func TestControlledActivation_AuditFieldsObservable(t *testing.T) {
 	}
 
 	// Construct activation surface with the retrieved gate — verify it composes correctly.
-	surface := domainexec.NewActivationSurface(domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
+	surface := domainexec.NewActivationSurface(clock.SystemClock{}, domainexec.AdapterVenue, gate, domainexec.CredentialPresent)
 	if surface.Effective != domainexec.ModeVenueHalted {
 		t.Fatalf("[CAV-5] expected effective=venue_halted, got %s", surface.Effective)
 	}

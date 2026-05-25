@@ -1,6 +1,10 @@
 package execution
 
-import "time"
+import (
+	"time"
+
+	"internal/shared/clock"
+)
 
 // ActivationDimension represents one of the three independent dimensions that
 // compose the effective venue activation state.
@@ -86,14 +90,16 @@ func ComputeEffectiveMode(adapter AdapterState, gate GateStatus, creds Credentia
 	return ModeVenueLive
 }
 
-// NewActivationSurface computes the canonical activation surface from the three dimensions.
-func NewActivationSurface(adapter AdapterState, gate ControlGate, creds CredentialState) ActivationSurface {
+// NewActivationSurface computes the canonical activation surface
+// from the three dimensions. Receives time via clock.Clock per
+// ADR-0019 INV-D1.
+func NewActivationSurface(clk clock.Clock, adapter AdapterState, gate ControlGate, creds CredentialState) ActivationSurface {
 	return ActivationSurface{
 		Adapter:     adapter,
 		Gate:        gate,
 		Credentials: creds,
 		Effective:   ComputeEffectiveMode(adapter, gate.Status, creds),
-		ObservedAt:  time.Now().UTC(),
+		ObservedAt:  clk.Now().UTC(),
 	}
 }
 

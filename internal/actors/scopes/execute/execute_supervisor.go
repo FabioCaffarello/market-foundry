@@ -9,9 +9,10 @@ import (
 	actorcommon "internal/actors/common"
 	natsexecution "internal/adapters/nats/natsexecution"
 	natsstrategy "internal/adapters/nats/natsstrategy"
+	"internal/application/ports"
 	domainexec "internal/domain/execution"
 	"internal/domain/strategy"
-	"internal/application/ports"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -21,22 +22,26 @@ import (
 // ExecuteSupervisor is the root actor for the execute binary.
 // It consumes execution intents, passes them through the venue adapter, and publishes fills.
 type ExecuteSupervisor struct {
-	cfg             settings.AppConfig
-	venue           ports.VenuePort
-	venueQuery      ports.VenueQueryPort // nil when venue has no query capability (e.g. paper)
-	trackers        map[string]*healthz.Tracker
-	logger          *slog.Logger
-	consumer         *natsexecution.Consumer  // closed on actor stop
-	strategyConsumer *natsstrategy.Consumer   // S360: closed on actor stop
+	cfg              settings.AppConfig
+	venue            ports.VenuePort
+	venueQuery       ports.VenueQueryPort // nil when venue has no query capability (e.g. paper)
+	trackers         map[string]*healthz.Tracker
+	logger           *slog.Logger
+	consumer         *natsexecution.Consumer // closed on actor stop
+	strategyConsumer *natsstrategy.Consumer  // S360: closed on actor stop
 	// S339: Activation surface dimensions passed from binary startup.
-	adapterState     domainexec.AdapterState
-	credentialState  domainexec.CredentialState
+	adapterState    domainexec.AdapterState
+	credentialState domainexec.CredentialState
 	// S460: Session metadata lifecycle.
-	sessionStore     *natsexecution.SessionKVStore
-	session          *domainexec.Session
-	operator         string // injected via WithOperator option
+	sessionStore *natsexecution.SessionKVStore
+	session      *domainexec.Session
+	operator     string // injected via WithOperator option
 	// S490: Publisher for session lifecycle events (verification trigger).
 	lifecyclePublisher *natsexecution.Publisher
+	// H-4: clk is the time port threaded through to VenueAdapterConfig
+	// and (in commit 6d) to Session.Close/Halt. Defaults to
+	// clock.SystemClock{} when no WithClock option is supplied.
+	clk clock.Clock
 }
 
 func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, venueQuery ports.VenueQueryPort, trackers map[string]*healthz.Tracker, opts ...SupervisorOption) actor.Producer {
@@ -47,6 +52,7 @@ func NewExecuteSupervisor(config settings.AppConfig, venue ports.VenuePort, venu
 			venueQuery: venueQuery,
 			trackers:   trackers,
 			logger:     slog.Default().With("actor", "execute-supervisor"),
+			clk:        clock.SystemClock{},
 		}
 		for _, opt := range opts {
 			opt(s)
@@ -70,6 +76,18 @@ func WithActivationState(adapter domainexec.AdapterState, creds domainexec.Crede
 func WithOperator(operator string) SupervisorOption {
 	return func(s *ExecuteSupervisor) {
 		s.operator = operator
+	}
+}
+
+// WithClock sets the time port the supervisor threads through to
+// child actor configs. Optional; defaults to clock.SystemClock{}.
+// Tests inject deterministic Clock implementations here when
+// validating Session lifecycle timing (commit 6d).
+func WithClock(clk clock.Clock) SupervisorOption {
+	return func(s *ExecuteSupervisor) {
+		if clk != nil {
+			s.clk = clk
+		}
 	}
 }
 
@@ -137,6 +155,7 @@ func (s *ExecuteSupervisor) start(ctx *actor.Context) error {
 		AdapterState:    s.adapterState,
 		CredentialState: s.credentialState,
 		AllowedSources:  allowedSources,
+		Clock:           s.clk,
 	}), "venue-adapter")
 
 	// Spawn the consumer actor for execution intents.
@@ -235,9 +254,9 @@ func (s *ExecuteSupervisor) openSession() {
 		Status:    domainexec.SessionOpen,
 		StartedAt: now,
 		Config: domainexec.SessionConfigSnapshot{
-			VenueType:  string(s.cfg.Venue.Type),
-			DryRun:     s.cfg.Venue.DryRun != nil && *s.cfg.Venue.DryRun,
-			Segments:   s.cfg.Venue.EnabledSegmentSources(),
+			VenueType: string(s.cfg.Venue.Type),
+			DryRun:    s.cfg.Venue.DryRun != nil && *s.cfg.Venue.DryRun,
+			Segments:  s.cfg.Venue.EnabledSegmentSources(),
 		},
 		Activation: domainexec.SessionActivationSnapshot{
 			Adapter:     s.adapterState,
@@ -288,12 +307,12 @@ func (s *ExecuteSupervisor) closeSession(reason string) {
 	}
 
 	if reason != "" {
-		if prob := s.session.Halt(reason, counters); prob != nil {
+		if prob := s.session.Halt(s.clk, reason, counters); prob != nil {
 			s.logger.Warn("session already terminal, skipping halt", "error", prob.Message, "session_id", s.session.SessionID)
 			return
 		}
 	} else {
-		if prob := s.session.Close(counters); prob != nil {
+		if prob := s.session.Close(s.clk, counters); prob != nil {
 			s.logger.Warn("session already terminal, skipping close", "error", prob.Message, "session_id", s.session.SessionID)
 			return
 		}

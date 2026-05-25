@@ -8,6 +8,7 @@ import (
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
+	"internal/shared/clock"
 	"internal/shared/metrics"
 	"internal/shared/problem"
 
@@ -32,10 +33,29 @@ type ControlKVStore struct {
 	url    string
 	nc     *nats.Conn
 	bucket jetstream.KeyValue
+	// clk is the time port used when materializing default gate
+	// values; defaults to clock.SystemClock{} via NewControlKVStore
+	// and can be overridden via WithClock for tests / replay. Not
+	// consumed in this commit — call sites that read clk land in
+	// commit 6b (DefaultControlGate migration to clock.Clock).
+	clk clock.Clock
 }
 
 func NewControlKVStore(url string) *ControlKVStore {
-	return &ControlKVStore{url: url}
+	return &ControlKVStore{url: url, clk: clock.SystemClock{}}
+}
+
+// WithClock overrides the Clock used by this store for time-
+// sourced fields. Returns the store to allow chaining, e.g.:
+//
+//	store := natsexecution.NewControlKVStore(url).WithClock(testClock)
+//
+// Optional; defaults to clock.SystemClock{}.
+func (s *ControlKVStore) WithClock(clk clock.Clock) *ControlKVStore {
+	if s != nil && clk != nil {
+		s.clk = clk
+	}
+	return s
 }
 
 func (s *ControlKVStore) Start() error {
@@ -70,22 +90,32 @@ func (s *ControlKVStore) Start() error {
 
 // Get retrieves the current execution control gate.
 // Returns DefaultControlGate (active) if no gate entry exists (fail-open).
+//
+// Nil-receiver and nil-bucket cases are handled separately so the
+// nil-receiver path can fall back to clock.SystemClock{} without
+// dereferencing s.clk. This preserves ADR-0012 fail-open posture
+// while satisfying ADR-0019 INV-D1 in the non-nil paths.
 func (s *ControlKVStore) Get(ctx context.Context) (execution.ControlGate, *problem.Problem) {
-	if s == nil || s.bucket == nil {
-		return execution.DefaultControlGate(), problem.New(problem.Unavailable, "execution control KV store is unavailable")
+	if s == nil {
+		return execution.DefaultControlGate(clock.SystemClock{}),
+			problem.New(problem.Unavailable, "execution control KV store is unavailable")
+	}
+	if s.bucket == nil {
+		return execution.DefaultControlGate(s.clk),
+			problem.New(problem.Unavailable, "execution control KV store is unavailable")
 	}
 
 	entry, err := s.bucket.Get(ctx, ControlKey)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
-			return execution.DefaultControlGate(), nil
+			return execution.DefaultControlGate(s.clk), nil
 		}
-		return execution.DefaultControlGate(), problem.Wrap(err, problem.Unavailable, "get execution control from KV")
+		return execution.DefaultControlGate(s.clk), problem.Wrap(err, problem.Unavailable, "get execution control from KV")
 	}
 
 	var gate execution.ControlGate
 	if err := json.Unmarshal(entry.Value(), &gate); err != nil {
-		return execution.DefaultControlGate(), problem.Wrap(err, problem.Internal, "unmarshal execution control from KV")
+		return execution.DefaultControlGate(s.clk), problem.Wrap(err, problem.Internal, "unmarshal execution control from KV")
 	}
 
 	return gate, nil

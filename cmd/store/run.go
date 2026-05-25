@@ -8,6 +8,7 @@ import (
 	actorcommon "internal/actors/common"
 	storeactor "internal/actors/scopes/store"
 	"internal/shared/bootstrap"
+	"internal/shared/clock"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 )
@@ -39,7 +40,14 @@ func Run(config settings.AppConfig) {
 		os.Exit(1)
 	}
 
-	pid := engine.Spawn(storeactor.NewStoreSupervisor(config, trackers), "store")
+	// H-4: wire the production Clock port into the supervisor.
+	// SystemClock satisfies ADR-0019 INV-D1 outside internal/domain/;
+	// the supervisor threads it down to QueryResponderConfig so the
+	// NewActivationSurface call site in commit 6c consumes Clock
+	// instead of time.Now.
+	clk := clock.SystemClock{}
+
+	pid := engine.Spawn(storeactor.NewStoreSupervisor(config, trackers, storeactor.WithClock(clk)), "store")
 
 	// Collect all trackers for health server.
 	allTrackers := make([]*healthz.Tracker, 0, len(trackers))

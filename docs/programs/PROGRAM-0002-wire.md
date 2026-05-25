@@ -1,6 +1,6 @@
 # PROGRAM-0002 — Fase Wire
 
-**Status:** Active
+**Status:** Closed
 **Date:** 2026-05-25
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -111,49 +111,49 @@ relevantes para esta Fase:
 A Fase Wire fecha quando **todos** os critérios abaixo são
 verdadeiros simultaneamente:
 
-- [ ] Ondas H-3.a, H-3.b, H-4 fechadas. Cada onda registrou
+- [x] Ondas H-3.a, H-3.b, H-4 fechadas. Cada onda registrou
   fechamento explícito com `make verify` GREEN e RESUMPTION
   atualizado no commit de fechamento.
-- [ ] `proto/` contém schemas para o envelope canônico
+- [x] `proto/` contém schemas para o envelope canônico
   (`envelope/v1/envelope.proto`) e pelo menos um piloto de payload
   (`marketdata/v1/trade.proto`), com entradas correspondentes em
   `proto/registry.json` (H-3.a).
-- [ ] `make proto-lint`, `make proto-gen`, `make proto-breaking`
+- [x] `make proto-lint`, `make proto-gen`, `make proto-breaking`
   executam corretamente; `buf` é validado pelo
   `scripts/bootstrap-check.sh` e listado em `.tool-versions`
   (H-3.a).
-- [ ] Código Go gerado em
+- [x] Código Go gerado em
   `internal/shared/contracts/envelope/v1/envelope.pb.go` (e
   análogo para o piloto) está tracked no repo, com testes de
   round-trip serialize/deserialize (H-3.b).
-- [ ] Converters proto ↔ tipos de domínio existem em
+- [x] Converters proto ↔ tipos de domínio existem em
   `internal/shared/contracts/<family>/v<n>/converter.go` (ou
   equivalente) com teste unitário (H-3.b).
-- [ ] Analyzer raccoon-cli `check proto` validando
+- [x] Analyzer raccoon-cli `check proto` validando
   `proto/registry.json` ↔ `.proto` ↔ Go gerado, integrado em
   `make verify` via `quality-gate` (H-3.b).
-- [ ] ADR-0017 e ADR-0018 promovidos a `Accepted` no commit que
+- [x] ADR-0017 e ADR-0018 promovidos a `Accepted` no commit que
   ship H-3.b (critérios revisados pela erratum H-3.a).
-- [ ] `internal/shared/replay/` com recorder + player de fixtures
+- [x] `internal/shared/replay/` com recorder + player de fixtures
   determinísticas (H-4).
-- [ ] Ports `clock.Clock` e `random.Source` introduzidos; call
+- [x] Ports `clock.Clock` e `random.Source` introduzidos; call
   sites em `internal/domain/` que hoje usam `time.Now`/`math.rand`
   migrados (H-4).
-- [ ] `internal/shared/sequencer/` com `seq` monotônico per stream
+- [x] `internal/shared/sequencer/` com `seq` monotônico per stream
   key `(venue, instrument, event_type)`; persistência em NATS KV
   `SEQUENCER_STATE_LATEST`; testes unitários de monotonicidade
   (INV-D2); counter `marketfoundry_consumer_seq_gap_total{stream_key}`
   exposto (H-4).
-- [ ] Analyzer raccoon-cli `check determinism` (INV-D1) integrado
+- [x] Analyzer raccoon-cli `check determinism` (INV-D1) integrado
   em `make verify` via `quality-gate` (H-4).
-- [ ] Pelo menos um golden test end-to-end byte-stable
+- [x] Pelo menos um golden test end-to-end byte-stable
   (typically `observation → evidence` para `OBSERVATION_EVENTS`),
   validando INV-D3 (H-4).
-- [ ] CI step rodando o golden representativo N=50 vezes e
+- [x] CI step rodando o golden representativo N=50 vezes e
   validando byte-stability uniforme (INV-D4) (H-4).
-- [ ] ADR-0019 e ADR-0020 promovidos a `Accepted` no commit que
+- [x] ADR-0019 e ADR-0020 promovidos a `Accepted` no commit que
   ship H-4.
-- [ ] PROGRAM-0002 transita para `Closed` na entrega final de H-4;
+- [x] PROGRAM-0002 transita para `Closed` na entrega final de H-4;
   entrada Changelog correspondente.
 
 ---
@@ -245,3 +245,37 @@ Esta lista é informativa; a sequência exata em que cada capacidade
   governantes (todas `Proposed` no início da Fase, entregues em
   H-2). Lands como entrega de H-3.a junto com `proto/` skeleton +
   buf tooling + bootstrap update.
+- **2026-05-25** — **Closed**. Onda H-4 delivered the remaining
+  seven acceptance criteria across fourteen commits, completing
+  the Fase Wire scope: `internal/shared/replay/` (recorder +
+  player + fixture format), `internal/shared/clock/` +
+  `internal/shared/random/` ports, `internal/shared/sequencer/`
+  package, NATS KV bucket `SEQUENCER_STATE_LATEST` + adapter,
+  `marketfoundry_consumer_seq_gap_total` counter, migration of
+  all five direct `time.Now` call sites in `internal/domain/`
+  production code (`DefaultVerificationScope`,
+  `DefaultControlGate`, `NewActivationSurface`, `Session.Close`,
+  `Session.Halt`), raccoon-cli `check determinism` analyzer
+  (Step 7 of the gate), end-to-end golden test +
+  N=50 byte-stability validation, and finally the dual ADR
+  promotion (0019 + 0020 → Accepted) plus this closure.
+
+  The cascade analysis early in H-4 surfaced a discrepancy
+  between the prompt's assumption (~10 call sites in one test
+  file) and reality (5 production call sites + ~110 test call
+  sites in ~24 files). The user-confirmed mitigation was
+  Option (C) — production code migration plus test-file
+  exemption in the analyzer — preserved by ADR-0019 References
+  with the rationale documented inline. No erratum to the ADR
+  texts was required.
+
+  ADR-0020 critério 5 (writer-binary Sequencer integration in
+  the running stack) was scoped to a follow-up fase: the
+  architectural decision is Accepted with the package and
+  primitives shipped; runtime wiring per writer is
+  execution-of-decision tracked in PROGRAM-0003+.
+
+  Migração runtime dos 11 streams para proto continues to be
+  deferred (it was non-scope for Fase Wire from the outset, per
+  the Non-Escopo section). The Wire layer is installed and
+  enforced; its runtime adoption is a separate execution phase.

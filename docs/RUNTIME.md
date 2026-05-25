@@ -193,7 +193,7 @@ Naming convention: `{TYPE}_LATEST` for the current value per partition,
 Partition key pattern: `{source}.{symbol}.{timeframe}` (e.g.,
 `binance_spot.btcusdt.60` for 1-minute candles on Binance Spot BTC/USDT).
 
-**16 buckets** are referenced in code, grouped by family:
+**17 buckets** are referenced in code, grouped by family:
 
 - **Evidence (4):** `CANDLE_LATEST`, `CANDLE_HISTORY`, `TRADE_BURST_LATEST`, `VOLUME_LATEST`
 - **Signal (2):** `SIGNAL_EMA_CROSSOVER_LATEST`, `SIGNAL_RSI_LATEST`
@@ -201,6 +201,16 @@ Partition key pattern: `{source}.{symbol}.{timeframe}` (e.g.,
 - **Strategy (2):** `STRATEGY_MEAN_REVERSION_ENTRY_LATEST`, `STRATEGY_TREND_FOLLOWING_ENTRY_LATEST`
 - **Risk (2):** `RISK_POSITION_EXPOSURE_LATEST`, `RISK_DRAWDOWN_LIMIT_LATEST`
 - **Execution (3):** `EXECUTION_PAPER_ORDER_LATEST`, `EXECUTION_VENUE_MARKET_ORDER_LATEST`, `EXECUTION_VENUE_REJECTION_LATEST`
+- **Sequencer (1, Onda H-4):** `SEQUENCER_STATE_LATEST` — per-stream-key
+  monotonic `seq` high-water marks (ADR-0020). Keys follow
+  `seq.{owner_binary}.{venue}.{instrument}.{event_type}`; values are
+  decimal-string-encoded int64. Owned by whichever writer binary
+  produces the keys it tracks (per ADR-0008 single-writer); the
+  shared adapter lives at
+  [`internal/adapters/nats/natssequencer/`](../internal/adapters/nats/natssequencer/).
+  In H-4 the bucket and Store primitives are declared; per-writer
+  Sequencer integration (the orchestrator that calls
+  `Store.SaveSnapshot` on a cadence) lands in a later wave.
 
 KV creation is done via `js.CreateOrUpdateKeyValue(...)` in per-domain
 `kv_store.go` files under `internal/adapters/nats/nats<domain>/`.

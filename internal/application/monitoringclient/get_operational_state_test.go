@@ -9,6 +9,7 @@ import (
 	"internal/application/monitoringclient"
 	"internal/domain/execution"
 	"internal/domain/monitoring"
+	"internal/shared/clock"
 	"internal/shared/problem"
 )
 
@@ -98,7 +99,7 @@ func TestGetOperationalState_FullWiring(t *testing.T) {
 func TestGetOperationalState_NoSessions(t *testing.T) {
 	uc := monitoringclient.NewGetOperationalStateUseCase(
 		&stubSessionLister{sessions: nil},
-		&stubGateReader{gate: execution.DefaultControlGate()},
+		&stubGateReader{gate: execution.DefaultControlGate(clock.SystemClock{})},
 		monitoring.SurfaceAvailability{},
 	)
 
@@ -129,7 +130,7 @@ func TestGetOperationalState_NilDependencies(t *testing.T) {
 func TestGetOperationalState_SessionListerError(t *testing.T) {
 	uc := monitoringclient.NewGetOperationalStateUseCase(
 		&stubSessionLister{prob: problem.New(problem.Unavailable, "down")},
-		&stubGateReader{gate: execution.DefaultControlGate()},
+		&stubGateReader{gate: execution.DefaultControlGate(clock.SystemClock{})},
 		monitoring.SurfaceAvailability{},
 	)
 

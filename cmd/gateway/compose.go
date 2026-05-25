@@ -14,17 +14,18 @@ import (
 	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/application/analyticalclient"
 	configctlclient "internal/application/configctlclient"
-	"internal/application/monitoringclient"
-	"internal/application/triageclient"
-	"internal/domain/monitoring"
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
 	"internal/application/executionclient"
+	"internal/application/monitoringclient"
 	"internal/application/ports"
 	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
+	"internal/application/triageclient"
+	"internal/domain/monitoring"
 	"internal/interfaces/http/routes"
+	"internal/shared/clock"
 	"internal/shared/problem"
 	"internal/shared/settings"
 )
@@ -280,13 +281,15 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 		}
 
 		// S465: Wire verification use case — closes G3 from S463.
+		// H-4: thread the production Clock port into the use case;
+		// consumed in commit 6a (DefaultVerificationScope migration).
 		verifyUC := executionclient.NewVerifySessionUseCase(
 			getSessionUC,
 			gateReader,
 			chSummary,
 			chLister,
 			nil, // consistency checker requires cross-surface reads not yet available
-		)
+		).WithClock(clock.SystemClock{})
 		sessionDeps.VerifySession = verifyUC
 
 		// S465: Audit bundle with verification and fill reader — closes G4 from S463.
@@ -343,11 +346,11 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 			GetCompositeChain:       analyticalclient.NewGetCompositeChainUseCase(compositeReader, logger),
 			GetPipelineFunnel:       analyticalclient.NewGetPipelineFunnelUseCase(compositeReader, logger),
 			GetDispositionBreakdown: analyticalclient.NewGetDispositionBreakdownUseCase(compositeReader, logger),
-			GetDecisionReview:        analyticalclient.NewGetDecisionReviewUseCase(compositeReader, logger),
-			GetEffectiveness:         analyticalclient.NewGetEffectivenessUseCase(compositeReader, logger),
-			GetEffectivenessSummary:  analyticalclient.NewGetEffectivenessSummaryUseCase(compositeReader, logger),
-			GetPairing:               analyticalclient.NewGetPairingUseCase(compositeReader, logger),
-			GetRoundTripReview:       analyticalclient.NewGetRoundTripReviewUseCase(compositeReader, logger),
+			GetDecisionReview:       analyticalclient.NewGetDecisionReviewUseCase(compositeReader, logger),
+			GetEffectiveness:        analyticalclient.NewGetEffectivenessUseCase(compositeReader, logger),
+			GetEffectivenessSummary: analyticalclient.NewGetEffectivenessSummaryUseCase(compositeReader, logger),
+			GetPairing:              analyticalclient.NewGetPairingUseCase(compositeReader, logger),
+			GetRoundTripReview:      analyticalclient.NewGetRoundTripReviewUseCase(compositeReader, logger),
 		}
 
 		// S495: Cross-session pairing — requires both ClickHouse (chains) and session gateway (KV).

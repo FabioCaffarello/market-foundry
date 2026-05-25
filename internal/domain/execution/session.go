@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"internal/shared/clock"
 	"internal/shared/problem"
 )
 
@@ -127,12 +128,13 @@ func (s Session) Validate() *problem.Problem {
 //
 // S500: Returns a problem if the session is already terminal (idempotency guard).
 // This prevents silent double-close which could overwrite counters and timestamps.
-func (s *Session) Close(counters []SessionSegmentCounters) *problem.Problem {
+// H-4: receives time via clock.Clock per ADR-0019 INV-D1.
+func (s *Session) Close(clk clock.Clock, counters []SessionSegmentCounters) *problem.Problem {
 	if s.Status.IsTerminal() {
 		return problem.New(problem.Conflict,
 			fmt.Sprintf("cannot close session %s: already in terminal state %q", s.SessionID, s.Status))
 	}
-	now := time.Now().UTC()
+	now := clk.Now().UTC()
 	s.Status = SessionClosed
 	s.ClosedAt = &now
 	s.SegmentCounters = counters
@@ -142,12 +144,13 @@ func (s *Session) Close(counters []SessionSegmentCounters) *problem.Problem {
 // Halt transitions a session to halted status with a reason.
 //
 // S500: Returns a problem if the session is already terminal (idempotency guard).
-func (s *Session) Halt(reason string, counters []SessionSegmentCounters) *problem.Problem {
+// H-4: receives time via clock.Clock per ADR-0019 INV-D1.
+func (s *Session) Halt(clk clock.Clock, reason string, counters []SessionSegmentCounters) *problem.Problem {
 	if s.Status.IsTerminal() {
 		return problem.New(problem.Conflict,
 			fmt.Sprintf("cannot halt session %s: already in terminal state %q", s.SessionID, s.Status))
 	}
-	now := time.Now().UTC()
+	now := clk.Now().UTC()
 	s.Status = SessionHalted
 	s.HaltReason = reason
 	s.ClosedAt = &now

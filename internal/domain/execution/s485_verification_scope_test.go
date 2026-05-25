@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/shared/clock"
 )
 
 func TestDefaultVerificationScope_Uses24hWindow(t *testing.T) {
 	before := time.Now().UTC()
-	scope := execution.DefaultVerificationScope()
+	scope := execution.DefaultVerificationScope(clock.SystemClock{})
 	after := time.Now().UTC()
 
 	if len(scope.Symbols) != 1 || scope.Symbols[0] != "BTCUSDT" {
