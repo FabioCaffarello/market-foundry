@@ -127,6 +127,10 @@ fn execute(context: AppContext, command: Commands) -> Result<i32> {
             &context,
             analyzers::check_metrics::analyze(&context.project_root)?,
         ),
+        Commands::Check(CheckCommands::Instruments) => emit_standard_report(
+            &context,
+            analyzers::check_instruments::analyze(&context.project_root)?,
+        ),
         Commands::Inspect(InspectCommands::Coverage) | Commands::CoverageMap => {
             emit_standard_report(
                 &context,

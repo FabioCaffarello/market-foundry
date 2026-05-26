@@ -122,12 +122,12 @@ type SourceScopeConfig struct {
 // Candle finalization events fan out to signal samplers.
 // Signal generation events fan out to decision evaluators.
 type SourceScopeActor struct {
-	cfg                  SourceScopeConfig
-	logger               *slog.Logger
-	publisherPID         *actor.PID
-	signalPublisherPID   *actor.PID
-	decisionPublisherPID *actor.PID
-	strategyPublisherPID *actor.PID
+	cfg                   SourceScopeConfig
+	logger                *slog.Logger
+	publisherPID          *actor.PID
+	signalPublisherPID    *actor.PID
+	decisionPublisherPID  *actor.PID
+	strategyPublisherPID  *actor.PID
 	riskPublisherPID      *actor.PID
 	executionPublisherPID *actor.PID
 	samplers              map[string][]*actor.PID // key: symbol → evidence sampler PIDs
@@ -141,12 +141,12 @@ type SourceScopeActor struct {
 func NewSourceScopeActor(cfg SourceScopeConfig) actor.Producer {
 	return func() actor.Receiver {
 		return &SourceScopeActor{
-			cfg:                cfg,
-			logger:             slog.Default().With("actor", "source-scope", "source", cfg.Source),
-			samplers:           make(map[string][]*actor.PID),
-			signalSamplers:     make(map[string][]*actor.PID),
-			decisionEvaluators: make(map[string][]*actor.PID),
-			strategyResolvers:  make(map[string][]*actor.PID),
+			cfg:                 cfg,
+			logger:              slog.Default().With("actor", "source-scope", "source", cfg.Source),
+			samplers:            make(map[string][]*actor.PID),
+			signalSamplers:      make(map[string][]*actor.PID),
+			decisionEvaluators:  make(map[string][]*actor.PID),
+			strategyResolvers:   make(map[string][]*actor.PID),
 			riskEvaluators:      make(map[string][]*actor.PID),
 			executionEvaluators: make(map[string][]*actor.PID),
 		}
@@ -403,7 +403,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 
 // routeTrade fans out each trade to all evidence samplers for the symbol.
 func (a *SourceScopeActor) routeTrade(c *actor.Context, msg tradeReceivedMessage) {
-	symbol := msg.Event.Trade.Symbol
+	symbol := msg.Event.Trade.VenueSymbol()
 	pids, exists := a.samplers[symbol]
 	if !exists {
 		return

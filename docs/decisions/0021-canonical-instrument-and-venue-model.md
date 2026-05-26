@@ -259,23 +259,64 @@ has different lot sizes on Bybit vs Binance USDM.
 
 This ADR is promoted from `Proposed` to `Accepted` when **Onda H-6
 (Multi-venue foundation — Binance refactor + canonical model)**
-ships:
+ships, in the final sub-onda **H-6.f (cleanup pass)** after all
+prior sub-ondas (H-6.a through H-6.e) have landed in `main`.
+
+H-6 is implemented in sub-ondas H-6.a through H-6.f per
+[PROGRAM-0004](../programs/PROGRAM-0004-multi-venue.md) sub-onda
+sequencing policy (strict serial). Each sub-onda delivers a slice
+of the cascade discovered during H-6.a pré-flight (342 `.Symbol`
+references across 106 production files in 31 packages). Sub-ondas
+deliver code; this ADR is **not promoted** until the final
+sub-onda H-6.f satisfies all criteria literally.
+
+Acceptance criteria:
 
 1. `internal/domain/instrument/` package created with `Venue`,
    `BaseAsset`, `QuoteAsset`, `ContractType`, `CanonicalInstrument`
-   as specified.
+   as specified. *(Deliverable in H-6.a.)*
 2. Existing `binances/` and `binancef/` adapters refactored to
    implement `ToCanonical` / `FromCanonical`; all domain-layer call
    sites migrated from `string` to `CanonicalInstrument`.
+   *(Deliverable across H-6.a–H-6.e: H-6.a migrates `ObservationTrade`;
+   H-6.b migrates Evidence/Signal/Decision/Strategy/Risk types; H-6.c
+   migrates application-layer callers + samplers + evaluators; H-6.e
+   addresses NATS subject composition. Criterion is satisfied
+   literally only after H-6.e.)*
 3. Envelope `instrument` field (ADR-0017) carrying canonical form
-   for at least the `OBSERVATION_EVENTS` stream.
-4. ClickHouse migrations (forward-only per ADR-0003) updated to
-   carry canonical columns; back-compat read path documented.
-5. `RUNTIME.md` and `RESUMPTION.md` updated; `GLOSSARY.md` entry
-   for "Canonical Instrument" pointing here.
+   for at least the `OBSERVATION_EVENTS` stream. *(Deliverable in
+   H-6.a: writers emit `CanonicalInstrument.Symbol()` as the
+   envelope's `instrument` string field; proto schema unchanged
+   per Decision #2 (a) of H-6.a.)*
+4. **(Erratum 2026-05-25 — split into #4a and #4b.)**
 
-H-6 is responsible for flipping the `Status` field of this ADR to
-`Accepted` in the same commit that lands the implementing code.
+   **4a — Writer-side canonical handling.** Writer ingests
+   `CanonicalInstrument` from domain events; serializes via
+   `Instrument.Symbol()` into legacy `symbol` ClickHouse column.
+   **Zero schema change.** *(Deliverable in H-6.a.)*
+
+   **4b — Schema migration + dedicated read path.** New ClickHouse
+   migration adds canonical columns (`base`, `quote`, `contract`);
+   writer dual-writes; analytical client reads canonical preferred
+   with legacy fallback; cutover documented in runbook.
+   *(Deliverable in H-6.d, **sequenced after H-6.c**
+   (application-layer migrated) **and before H-6.f**
+   (final cleanup + ADR promotion).)*
+
+   **Justificativa do split:** schema migration introduces data
+   ordering risk, back-compat verification overhead, and rollback
+   procedures distinct from domain-type refactor. Bundling
+   conflates concerns. Split aligns with ADR-0003 (forward-only
+   migrations, each in dedicated wave).
+5. `RUNTIME.md` and `RESUMPTION.md` updated; `GLOSSARY.md` entry
+   for "Canonical Instrument" pointing here. *(Deliverable
+   incrementally across sub-ondas; final consolidation in H-6.f.)*
+
+H-6.f is responsible for flipping the `Status` field of this ADR
+to `Accepted` in the same commit that lands the implementing
+code closing the final sub-onda. **Sub-ondas H-6.a–H-6.e DO NOT
+promote** this ADR; each closes its slice with the ADR still
+`Proposed`.
 
 ## References
 
@@ -313,3 +354,20 @@ H-6 is responsible for flipping the `Status` field of this ADR to
   than a flat canonical string `"BTCUSDT"`; and (c) carrying the
   `instrument` field at the envelope level (ADR-0017) for cross-
   venue routing rather than as a payload-internal detail.
+
+## Changelog
+
+- **2026-05-24** — ADR-0021 created (Onda H-2, status
+  `Proposed`). See PR #21.
+- **2026-05-25** — **Erratum**: criterion #4 split into #4a
+  (writer-side canonical handling, deliverable in H-6.a, zero
+  schema change) and #4b (ClickHouse schema migration + dedicated
+  read path, deliverable in H-6.d, sequenced after H-6.c and
+  before H-6.f). Reason: schema migration introduces data ordering
+  risk, back-compat verification overhead, and rollback procedures
+  distinct from domain-type refactor; bundling conflates concerns
+  per ADR-0003. Also clarified that H-6 is implemented in
+  sub-ondas H-6.a–H-6.f per PROGRAM-0004 sequencing policy and
+  that promotion to `Accepted` occurs only in H-6.f when all
+  criteria are literally satisfied. Lands as **commit 0** of the
+  H-6.a PR. Status remains `Proposed`.

@@ -54,8 +54,10 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-3.a** | Fechada (PR #22 mergeada em `main` em `387811b`, 2026-05-25) | Proto skeleton + buf tooling. Abre [PROGRAM-0002](programs/PROGRAM-0002-wire.md) (Fase Wire). Entrega `proto/` com `buf.yaml`/`buf.gen.yaml`/`registry.json`/`envelope/v1/envelope.proto`/`marketdata/v1/trade.proto`; `make proto-{lint,gen,breaking}`; bootstrap-check valida buf; `.tool-versions` adiciona buf; **erratum a ADRs 0017/0018** separando decisão arquitetural de execução de rollout. Sem código Go gerado tracked, sem analyzer raccoon-cli. ADRs 0017/0018 continuam `Proposed`. |
 | **H-3.b** | Fechada (PR #23 mergeada em `main` em `32d1792`, 2026-05-25) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). Promove ADR-0017 e ADR-0018 a `Accepted` — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
 | **H-4** | Fechada (PR #24 mergeada em `main` em `218a010`, 2026-05-25) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
-| **H-5** | **Atual** (esta entrega) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
-| **H-6** | Destravada após merge de H-5 em `main` (P9) | PROGRAM-0004 (Canonical instrument + venue normalization, alinhado com ADR-0021/0022) starts. Onda escopo a definir quando PROGRAM-0004 for criada. |
+| **H-5** | Fechada (PR #25 mergeada em `main` em `6df8e66`, 2026-05-25) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
+| **H-6** | Sub-dividida em H-6.a–H-6.f por cascade discovery (342 `.Symbol` refs em 106 production files em 31 packages). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-6". Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
+| **H-6.a** | **Atual** (esta entrega) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits: erratum ADR-0021 (criterion #4 split em #4a/#4b), PRD-0004 abertura com sub-onda sequencing policy + transitory-method pattern, `internal/domain/instrument/` package (Venue, BaseAsset, QuoteAsset, ContractType, CanonicalInstrument com JSON tags + 21 testes), atomic migration `ObservationTrade.Symbol string` → `Instrument CanonicalInstrument` + transitory `VenueSymbol()` method (option C, sunset H-6.f), `binances.Normalize` via `parseSpotSymbol` + `binancef.Normalize` via `parseFuturesSymbol` com regex `_\d{6}$` discriminando delivery vs perpetual, raccoon-cli `check instruments` analyzer + `policies/adapters.toml` allowlist (`binances`, `binancef`) integrado como Step 9 do quality-gate (4 checks), docs closure (este commit) — TRUTH-MAP / RESUMPTION / GLOSSARY / PRD-0004. ADR-0021 permanece `Proposed`; promoção em H-6.f. |
+| **H-6.b** | Destravada após merge de H-6.a em `main` (P9 + sub-onda sequencing policy) | Evidence + Signal + Decision + Strategy + Risk domain types migram `Symbol string` → `Instrument CanonicalInstrument`. ~30 originating struct literals. ADR-0021 permanece `Proposed`. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -215,7 +217,129 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-5 (esta sessão):
+Entregas H-6.a (esta sessão):
+
+- **Commit 0 (erratum)**:
+  [`docs/decisions/0021-canonical-instrument-and-venue-model.md`](decisions/0021-canonical-instrument-and-venue-model.md)
+  — criterion #4 split into #4a (writer-side adapt; H-6.a, zero
+  schema change) and #4b (ClickHouse migration; H-6.d). ADR stays
+  `Proposed`; Changelog entry documents the erratum trigger.
+  Criterion #2 (all domain-layer call sites migrated) stays
+  literal — no erratum loophole.
+- **Commit 1 (PRD-0004 opening)**:
+  [`docs/programs/PROGRAM-0004-multi-venue.md`](programs/PROGRAM-0004-multi-venue.md)
+  — Fase Multi-venue PRD. Six sub-ondas H-6.a–H-6.f + Onda H-7
+  declared. Sub-onda sequencing policy stricter than P4: next
+  sub-onda only opens after the previous merges to `main`.
+  ADR-0021 promotes only in H-6.f when criterion #2 is literally
+  satisfied. Transitory-method pattern documented for reuse by
+  H-6.b–H-6.e.
+- **Commit 2 (`internal/domain/instrument/` package)** — 4
+  production files + 21 unit tests:
+  - `asset.go` — `BaseAsset`, `QuoteAsset` types with
+    `NewBaseAsset` / `NewQuoteAsset` constructors (trim +
+    uppercase + ASCII A–Z 0–9 1–16-char validation).
+  - `venue.go` — `Venue` enum restricted to `VenueBinance`,
+    `VenueBinanceFutures` (only shipping adapters; new venues
+    add entries when adapters ship, mirroring H-5 check-metrics
+    discipline).
+  - `contract_type.go` — `ContractType` enum (`spot`,
+    `usdtfutures`, `coinfutures`, `perpetual`) per ADR-0021.
+  - `canonical.go` — `CanonicalInstrument{Base, Quote, Contract}`
+    with `New(base, quote, contract)`, `Symbol()` →
+    `"{BASE}/{QUOTE}-{CONTRACT}"`, `FromSymbol(s)` parser,
+    `Validate()`, `IsZero()`. JSON tags (`base`, `quote`,
+    `contract`) for wire-format stability of embedding domain
+    types.
+- **Commit 3 (atomic — ObservationTrade + adapters + readers)** —
+  13 files (4 production + 9 test). One commit because removing
+  `Symbol string` breaks every reader; user explicitly rejected
+  dual-write as toxic debt:
+  - `internal/domain/observation/trade.go` — `Symbol string` →
+    `Instrument CanonicalInstrument` (with JSON tag). New method
+    `VenueSymbol() string` (option C — semantically distinct
+    name, sunset H-6.f) returns lowercase `base+quote` derived
+    form. Docstring documents lossy behavior for delivery
+    contracts and H-6.e deferral.
+  - `internal/adapters/exchanges/binances/aggtrade.go` —
+    `Normalize` calls `parseSpotSymbol` which uppercases, asserts
+    USDT suffix, splits base/quote, calls
+    `instrument.New(base, "USDT", instrument.ContractSpot)`.
+    Non-USDT quotes rejected at the boundary.
+  - `internal/adapters/exchanges/binancef/aggtrade.go` —
+    `Normalize` calls `parseFuturesSymbol` with package-level
+    regex `var deliverySuffix = regexp.MustCompile(`_\d{6}$`)`.
+    Suffix present → `ContractUSDTFutures` (suffix stripped);
+    absent → `ContractPerpetual`. Non-USDT quotes rejected
+    (binancef is the USDT-margined family by definition).
+  - Reader migrations:
+    `internal/actors/scopes/derive/source_scope_actor.go:routeTrade`
+    and `internal/actors/scopes/ingest/publisher_actor.go` both
+    now call `.VenueSymbol()` instead of reading `.Symbol`.
+  - Test updates across the consumption surface
+    (`trade_test.go`, both `aggtrade_test.go`, `sampler_test.go`,
+    `trade_burst_sampler_test.go`, `volume_sampler_test.go`,
+    `test_helpers_test.go`). New tests added: binancef
+    delivery-vs-perpetual classification (2), binances/binancef
+    non-USDT rejection (2), VenueSymbol behavior in the
+    observation package (2).
+- **Commit 7 (raccoon-cli analyzer + policy)** — P5 enforcement:
+  - `tools/raccoon-cli/policies/adapters.toml` — declarative
+    allowlist `["binances", "binancef"]`. Future venues require
+    a policy edit before the analyzer accepts the adapter
+    directory.
+  - `tools/raccoon-cli/src/analyzers/check_instruments.rs` — 9
+    unit tests. Three checks: adapter-allowlisted (directory
+    appears in policy), adapter-uses-canonical-constructor
+    (production code imports `internal/domain/instrument` AND
+    calls `instrument.New(` or `instrument.FromSymbol(`).
+    Struct-literal bypass is rejected by check 3; `*_test.go`
+    files excluded from the production scan.
+  - CLI wiring: new subcommand `raccoon-cli check instruments`
+    (visible alias `check-instruments`). Quality-gate pipeline:
+    new Step 9 (between `check-metrics` and `drift-detect`).
+- **Commit 8 (closure — this commit)**:
+  - [`docs/programs/PROGRAM-0004-multi-venue.md`](programs/PROGRAM-0004-multi-venue.md)
+    — H-6.a Changelog entry; transitory-method pattern section
+    added between escopo and sub-onda sequencing policy.
+  - [`docs/TRUTH-MAP.md`](TRUTH-MAP.md) — Observation row updated
+    (Instrument field + VenueSymbol method); ADR-0021 row moved
+    from `Planned` to `Partially Implemented` with full anchors;
+    new `check-instruments` analyzer row; summary counts updated
+    (100 verify checks, 9 static analyzers, 4 PRDs, H-6.a
+    closure Changelog entry).
+  - [`docs/GLOSSARY.md`](GLOSSARY.md) — `Canonical instrument`
+    entry updated to point to shipping code; new entries:
+    `Canonical symbol`, `Venue symbol`, `Transitory adapter
+    method`.
+  - This RESUMPTION.md entry.
+
+**Marco**: H-6.a abre PROGRAM-0004 (Multi-venue) com modelo
+canônico de instrument + 2 adapters Binance migrados + analyzer
+P5. Padrão de promoção difere de PROGRAM-0003 (que promoveu ADRs
+na mesma onda em que os introduziu): **ADR-0021 permanece
+`Proposed`** durante toda a migração; promoção é evento atômico
+em H-6.f apenas se critérios #1–#5 (incluindo #4a + #4b após
+split) estão literalmente satisfeitos. P7 absoluto.
+
+**Mid-development discovery em H-6.a**: pré-flight de H-6
+revelou cascade de 342 `.Symbol` references em 106 production
+files em 31 packages — escopo incompatível com onda única
+revisável. Após pause-and-report, user aceitou re-escopo em
+sub-ondas H-6.a–H-6.f com sub-onda sequencing policy estrita.
+Dual-write rejeitado como "débito tóxico permanente"; opção (C)
+selecionada — transitory method com nome distinto (`VenueSymbol()`,
+não `Symbol()`) elimina classe de bug latente
+(`t.Symbol()` esperando canonical recebendo venue-native em 6
+meses). Pattern documentado em PRD-0004 para reuso nas próximas
+sub-ondas.
+
+**Próxima sub-onda destravada após merge**: H-6.b — migration
+de Evidence + Signal + Decision + Strategy + Risk domain types
+para `Instrument CanonicalInstrument`. Sub-onda sequencing
+policy: H-6.b abre branch APENAS após merge de H-6.a em `main`.
+
+Entregas H-5 (sessão anterior):
 
 - `docs/programs/PROGRAM-0003-observability.md` — PRD opening
   Fase Observability with single-onda scope (H-5). Includes

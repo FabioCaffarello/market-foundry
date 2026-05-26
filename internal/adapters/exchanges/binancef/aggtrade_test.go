@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"internal/adapters/exchanges/binancef"
+	"internal/domain/instrument"
 )
 
 func TestParseAggTrade(t *testing.T) {
@@ -64,8 +65,17 @@ func TestNormalize(t *testing.T) {
 	if event.Trade.Source != "binancef" {
 		t.Fatalf("expected source binancef, got %s", event.Trade.Source)
 	}
-	if event.Trade.Symbol != "btcusdt" {
-		t.Fatalf("expected symbol btcusdt, got %s", event.Trade.Symbol)
+	if event.Trade.Instrument.Base != "BTC" {
+		t.Fatalf("expected base BTC, got %s", event.Trade.Instrument.Base)
+	}
+	if event.Trade.Instrument.Quote != "USDT" {
+		t.Fatalf("expected quote USDT, got %s", event.Trade.Instrument.Quote)
+	}
+	if event.Trade.Instrument.Contract != instrument.ContractPerpetual {
+		t.Fatalf("expected contract perpetual, got %s", event.Trade.Instrument.Contract)
+	}
+	if got := event.Trade.VenueSymbol(); got != "btcusdt" {
+		t.Fatalf("expected venue symbol btcusdt, got %s", got)
 	}
 	if event.Trade.TradeID != "4839201" {
 		t.Fatalf("expected trade id 4839201, got %s", event.Trade.TradeID)
@@ -187,8 +197,8 @@ func TestNormalize_SymbolFromParameter(t *testing.T) {
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
 	}
-	if event.Trade.Symbol != "solusdt" {
-		t.Fatalf("expected symbol from parameter solusdt, got %s", event.Trade.Symbol)
+	if event.Trade.Instrument.Base != "SOL" {
+		t.Fatalf("expected base SOL from parameter solusdt, got %s", event.Trade.Instrument.Base)
 	}
 }
 
@@ -283,5 +293,74 @@ func TestNormalize_ZeroTradeTimeFails(t *testing.T) {
 	// This is by design — the domain doesn't restrict timestamp range.
 	if prob != nil {
 		t.Fatalf("TradeTime=0 maps to epoch, which is a valid timestamp: %v", prob)
+	}
+}
+
+func TestNormalize_DeliveryFuturesPattern(t *testing.T) {
+	// Binance USDT-margined delivery futures use the "_YYMMDD" suffix
+	// (e.g. BTCUSDT_240329). Normalize must classify them as
+	// ContractUSDTFutures and strip the suffix from the base/quote
+	// split.
+	agg := binancef.AggTrade{
+		EventType:  "aggTrade",
+		EventTime:  1710000000000,
+		Symbol:     "BTCUSDT_240329",
+		AggTradeID: 1,
+		Price:      "100.00",
+		Quantity:   "1.0",
+		TradeTime:  1710000000000,
+	}
+
+	event, prob := binancef.Normalize(agg, "btcusdt_240329")
+	if prob != nil {
+		t.Fatalf("unexpected error: %v", prob)
+	}
+	if event.Trade.Instrument.Base != "BTC" {
+		t.Fatalf("expected base BTC, got %s", event.Trade.Instrument.Base)
+	}
+	if event.Trade.Instrument.Quote != "USDT" {
+		t.Fatalf("expected quote USDT, got %s", event.Trade.Instrument.Quote)
+	}
+	if event.Trade.Instrument.Contract != instrument.ContractUSDTFutures {
+		t.Fatalf("expected contract usdtfutures, got %s", event.Trade.Instrument.Contract)
+	}
+}
+
+func TestNormalize_PerpetualClassification(t *testing.T) {
+	// No "_YYMMDD" suffix on binancef → perpetual.
+	agg := binancef.AggTrade{
+		EventType:  "aggTrade",
+		EventTime:  1710000000000,
+		Symbol:     "ETHUSDT",
+		AggTradeID: 1,
+		Price:      "3000.00",
+		Quantity:   "1.0",
+		TradeTime:  1710000000000,
+	}
+
+	event, prob := binancef.Normalize(agg, "ethusdt")
+	if prob != nil {
+		t.Fatalf("unexpected error: %v", prob)
+	}
+	if event.Trade.Instrument.Contract != instrument.ContractPerpetual {
+		t.Fatalf("expected contract perpetual, got %s", event.Trade.Instrument.Contract)
+	}
+}
+
+func TestNormalize_RejectsNonUSDTQuote(t *testing.T) {
+	// binancef is the USDT-margined family; a non-USDT symbol on this
+	// connector is a misconfiguration that must be rejected.
+	agg := binancef.AggTrade{
+		EventType:  "aggTrade",
+		EventTime:  1710000000000,
+		Symbol:     "BTCBUSD",
+		AggTradeID: 1,
+		Price:      "100.00",
+		Quantity:   "1.0",
+		TradeTime:  1710000000000,
+	}
+	_, prob := binancef.Normalize(agg, "btcbusd")
+	if prob == nil {
+		t.Fatal("expected error for non-USDT quote on binancef")
 	}
 }

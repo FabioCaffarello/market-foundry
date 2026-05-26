@@ -62,7 +62,40 @@ Identical structure across every venue; venue-native nuances (lot
 sizes, tick sizes) live in adapter-side metadata, not in the
 canonical identity. Domain layer (`internal/domain/`) never
 handles venue-native symbol formats; normalization happens at the
-adapter boundary via `ToCanonical` / `FromCanonical`.
+adapter boundary via `instrument.New(...)` /
+`instrument.FromSymbol(...)`. Shipping code lives in
+`internal/domain/instrument/` since Onda H-6.a (Fase Multi-venue).
+
+**Canonical symbol**
+The stable string form of a canonical instrument:
+`"{BASE}/{QUOTE}-{CONTRACT}"` — e.g. `"BTC/USDT-spot"`,
+`"ETH/USDT-perpetual"`. Produced by
+`CanonicalInstrument.Symbol()`; parseable back via
+`instrument.FromSymbol(...)`. Embedded in the envelope `instrument`
+field (ADR-0017) and used in stream keys for sequencing (ADR-0020).
+
+**Venue symbol**
+The lowercase venue-native form of a trading pair — e.g.
+`"btcusdt"` for Binance. Distinct from the **canonical symbol**:
+the venue symbol drops the contract type and quote separator, and
+is **lossy** for delivery contracts (`BTCUSDT_240329` collapses to
+`"btcusdt"`). Exposed via the transitory accessor
+`ObservationTrade.VenueSymbol()` (introduced in Onda H-6.a, sunset
+in H-6.f). New code should reason about the canonical form;
+venue-native is for adapter input + transitory readers only.
+
+**Transitory adapter method**
+A domain method introduced with an explicit sunset onda, used to
+keep callers compiling while a multi-onda migration propagates.
+Pattern introduced in Onda H-6.a (Fase Multi-venue): when
+`ObservationTrade.Symbol string` migrated to
+`Instrument CanonicalInstrument`, the accessor
+`VenueSymbol() string` was added with a docstring stating the
+sub-onda that removes it. The method's name is intentionally
+distinct from any canonical accessor to prevent latent shadowing
+bugs (see [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md)
+→ "Transitory-method pattern"). Reusable in H-6.b–H-6.e as new
+domain types migrate.
 
 **Storage tier**
 The class of persistent store a piece of data lives in. Per
