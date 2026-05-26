@@ -250,14 +250,21 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 9: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 9: check-instruments (static — every exchange adapter normalizes to CanonicalInstrument per ADR-0021)
+    if config.profile.includes_static() {
+        gate_step!("check-instruments", || {
+            analyzers::check_instruments::analyze(&config.project_root)
+        });
+    }
+
+    // Step 10: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)
         });
     }
 
-    // Step 10: runtime-smoke (only in Deep profile)
+    // Step 11: runtime-smoke (only in Deep profile)
     if let Some(ref failed_name) = blocker {
         steps.push(make_skip(
             "runtime-smoke",

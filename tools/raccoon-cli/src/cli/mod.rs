@@ -367,6 +367,29 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-metrics"
     )]
     Metrics,
+    /// Enforce ADR-0021 / H-6.a canonical-instrument invariant
+    #[command(
+        name = "instruments",
+        visible_alias = "check-instruments",
+        long_about = "Statically enforce ADR-0021 / H-6.a invariant: every \
+            exchange adapter under internal/adapters/exchanges/<pkg>/ \
+            normalizes venue-native symbols to CanonicalInstrument via \
+            the canonical constructor at the adapter / domain boundary.\n\n\
+            Declarative algorithm: reads tools/raccoon-cli/policies/adapters.toml \
+            for the allowlist of recognized adapter packages; every \
+            adapter directory must (a) be declared in the allowlist, \
+            (b) import internal/domain/instrument, and (c) call \
+            instrument.New(...) or instrument.FromSymbol(...) — the \
+            constructors that validate the asset / contract shape.\n\n\
+            Adding a new venue requires editing the policy file — the \
+            analyzer fail-stops on an unrecognized adapter directory, so \
+            an adapter cannot silently ship without canonical-instrument \
+            adoption.",
+        after_help = "Examples:\n  \
+            raccoon-cli check instruments\n  \
+            raccoon-cli check-instruments"
+    )]
+    Instruments,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

@@ -1,0 +1,35 @@
+# Adapter policy — declarative list of exchange adapter packages
+# (internal/adapters/exchanges/<pkg>/) that are recognized as
+# canonical-instrument-aware per ADR-0021 / H-6.a.
+#
+# Invariant enforced by `check instruments`:
+#
+# Every package directly under internal/adapters/exchanges/<pkg>/
+# MUST:
+#   1. Appear in [adapters] allowlist below.
+#   2. Have at least one production .go file that imports
+#      internal/domain/instrument.
+#   3. Have at least one production .go file that calls
+#      instrument.New(...) or instrument.FromSymbol(...) — the
+#      canonical constructors that validate the asset / contract
+#      shape. Bare struct-literal construction
+#      (instrument.CanonicalInstrument{...}) bypasses validation
+#      and does NOT satisfy this check.
+#
+# Adding a new venue adapter requires editing this file. Reviewer
+# verifies the listing matches a real shipping adapter; an
+# unrecognized adapter directory is a fail-stop, so a new adapter
+# silently shipping without canonical-instrument adoption is
+# impossible by construction.
+#
+# Per P5 of the Harvest protocol, every invariant added by an onda
+# is also statically enforced. ADR-0021 / H-6.a invariant added
+# here mirrors the discipline of check-determinism (ADR-0019 /
+# H-4) and check-metrics (ADR-0024 / H-5).
+
+[adapters]
+# H-6.a ships with the two Binance adapters; future venues
+# (bybit, coinbase, hyperliquid, kraken, krakenf — listed in
+# ADR-0021 design intent) land in PROGRAM-0004 H-7+ and gain their
+# entries here as their adapters ship.
+allowlist = ["binances", "binancef"]
