@@ -82,24 +82,24 @@ file = "risk.go"
 type_name = "RiskAssessment"
 migration_state = "migrated"
 
-# H-6.b' — Execution chain (pending)
+# H-6.b' — Execution chain (migrated)
 [domain_types.execution_intent]
 package = "internal/domain/execution"
 file = "execution.go"
 type_name = "ExecutionIntent"
-migration_state = "pending"
+migration_state = "migrated"
 
 [domain_types.attribution]
 package = "internal/domain/effectiveness"
 file = "effectiveness.go"
 type_name = "Attribution"
-migration_state = "pending"
+migration_state = "migrated"
 
 [domain_types.audit_lifecycle_entry]
 package = "internal/domain/execution"
 file = "audit_bundle.go"
 type_name = "AuditLifecycleEntry"
-migration_state = "pending"
+migration_state = "migrated"
 
 # H-6.b'' — Pairing chain (pending)
 [domain_types.pairing_leg]
