@@ -116,7 +116,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.logger.Warn("candle rejected by validation",
 			"error", prob.Message,
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 		)
 		return
@@ -135,7 +135,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.logger.Error("materialize candle latest",
 			"error", prob.Message,
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 		)
 		return
@@ -146,7 +146,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.stats.skippedStale.Add(1)
 		a.logger.Debug("latest skipped: existing is newer",
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 			"open_time", candle.OpenTime.Format(time.RFC3339),
 		)
@@ -155,7 +155,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.stats.skippedDedup.Add(1)
 		a.logger.Debug("latest skipped: duplicate open_time",
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 			"open_time", candle.OpenTime.Format(time.RFC3339),
 		)
@@ -171,7 +171,7 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 		a.logger.Error("materialize candle history",
 			"error", prob.Message,
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 		)
 	}
@@ -182,13 +182,13 @@ func (a *CandleProjectionActor) onCandle(msg candleReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + candle.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + candle.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("candle materialized",
 			"source", candle.Source,
-			"symbol", candle.Symbol,
+			"symbol", candle.VenueSymbol(),
 			"timeframe", candle.Timeframe,
 			"open_time", candle.OpenTime.Format(time.RFC3339),
 			"trades", candle.TradeCount,

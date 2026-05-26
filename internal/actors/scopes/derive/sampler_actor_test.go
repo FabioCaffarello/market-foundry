@@ -54,8 +54,8 @@ func TestSamplerActor_WindowFinalization_PublishesAndFansOut(t *testing.T) {
 	if c.Source != "binancef" {
 		t.Errorf("source: want binancef, got %s", c.Source)
 	}
-	if c.Symbol != "btcusdt" {
-		t.Errorf("symbol: want btcusdt, got %s", c.Symbol)
+	if c.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol: want btcusdt, got %s", c.VenueSymbol())
 	}
 	if c.Timeframe != 60 {
 		t.Errorf("timeframe: want 60, got %d", c.Timeframe)
@@ -293,8 +293,8 @@ func TestSamplerActor_SymbolIsolation_DifferentSymbolsNoBleed(t *testing.T) {
 
 	// Verify BTC candle has correct symbol.
 	c := pubBTC.messages()[0].(publishCandleMessage).Event.Candle
-	if c.Symbol != "btcusdt" {
-		t.Errorf("expected btcusdt, got %s", c.Symbol)
+	if c.VenueSymbol() != "btcusdt" {
+		t.Errorf("expected btcusdt, got %s", c.VenueSymbol())
 	}
 
 	_ = ethPID // used to prevent compiler error

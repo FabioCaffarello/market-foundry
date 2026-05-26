@@ -71,13 +71,13 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 				"error", prob.Message,
 				"code", prob.Code,
 				"source", msg.Event.Candle.Source,
-				"symbol", msg.Event.Candle.Symbol,
+				"symbol", msg.Event.Candle.VenueSymbol(),
 				"timeframe", msg.Event.Candle.Timeframe,
 				"open_time", msg.Event.Candle.OpenTime.Format(time.RFC3339),
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Candle.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Candle.VenueSymbol()).Add(1)
 		}
 
 	case publishTradeBurstMessage:

@@ -10,9 +10,19 @@ import (
 
 	"internal/application/evidenceclient"
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/interfaces/http/handlers"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 type mockGetLatestCandle struct {
 	reply evidenceclient.CandleLatestReply
@@ -38,7 +48,7 @@ func TestEvidenceWebHandler_GetLatestCandle(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	candle := &evidence.EvidenceCandle{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Open:       "100.00",
 		High:       "105.00",
@@ -138,7 +148,7 @@ func TestEvidenceWebHandler_GetCandleHistory(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	candles := []evidence.EvidenceCandle{
 		{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "102.00", High: "106.00", Low: "101.00", Close: "104.00",
 			Volume: "500.00", TradeCount: 20,
 			OpenTime: now, CloseTime: now.Add(60 * time.Second), Final: true,

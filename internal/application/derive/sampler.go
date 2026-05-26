@@ -5,16 +5,24 @@ import (
 	"time"
 
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
 
 // CandleSampler accumulates trades into a single OHLCV candle for a fixed timeframe.
 // It is pure application logic with no I/O dependencies.
+//
+// H-6.b: the sampler stores `symbol string` (for backwards-compat
+// key labeling and tests) but the EvidenceCandle it produces carries
+// `Instrument CanonicalInstrument`, inherited from the trade processed
+// by AddTrade. Full migration of the sampler's internal symbol → Instrument
+// model is H-6.c (application layer).
 type CandleSampler struct {
 	source    string
 	symbol    string
 	timeframe time.Duration
 
+	instrument instrument.CanonicalInstrument
 	open       *big.Float
 	high       *big.Float
 	low        *big.Float
@@ -63,6 +71,7 @@ func (s *CandleSampler) AddTrade(trade observation.ObservationTrade) (finalized 
 	if !s.active {
 		s.openTime = openTime
 		s.closeTime = closeTime
+		s.instrument = trade.Instrument
 		s.open = new(big.Float).Copy(price)
 		s.high = new(big.Float).Copy(price)
 		s.low = new(big.Float).Copy(price)
@@ -98,7 +107,7 @@ func (s *CandleSampler) Snapshot() (evidence.EvidenceCandle, bool) {
 func (s *CandleSampler) snapshot(final bool) evidence.EvidenceCandle {
 	return evidence.EvidenceCandle{
 		Source:     s.source,
-		Symbol:     s.symbol,
+		Instrument: s.instrument,
 		Timeframe:  int(s.timeframe.Seconds()),
 		Open:       s.open.Text('f', 8),
 		High:       s.high.Text('f', 8),
@@ -114,6 +123,7 @@ func (s *CandleSampler) snapshot(final bool) evidence.EvidenceCandle {
 
 func (s *CandleSampler) reset() {
 	s.active = false
+	s.instrument = instrument.CanonicalInstrument{}
 	s.open = nil
 	s.high = nil
 	s.low = nil

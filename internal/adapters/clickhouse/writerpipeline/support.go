@@ -214,7 +214,7 @@ func mapCandleRow(e evidence.CandleSampledEvent) []any {
 		m.CorrelationID,
 		m.CausationID,
 		c.Source,
-		c.Symbol,
+		c.VenueSymbol(),
 		uint32(c.Timeframe),
 		parseFloat(c.Open),
 		parseFloat(c.High),

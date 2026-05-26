@@ -7,8 +7,18 @@ import (
 
 	"internal/adapters/nats/natsevidence"
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 // mockCandleKVStore is a test double for CandleKVStore.Get behavior.
 // It delegates to CandleKVPriceSource via a real CandleKVStore-compatible interface.
@@ -47,17 +57,17 @@ func TestCandleKVPriceSource_PartitionKeyAlignment(t *testing.T) {
 	// The candle key is "{source}.{symbol}.{timeframe}" — same format as
 	// ExecutionIntent.PartitionKey(). This test documents the alignment contract.
 	candle := evidence.EvidenceCandle{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Open:      "50000.00",
-		High:      "50100.00",
-		Low:       "49900.00",
-		Close:     "50050.25",
-		Volume:    "123.45",
-		OpenTime:  time.Now().UTC().Add(-time.Minute),
-		CloseTime: time.Now().UTC(),
-		Final:     true,
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Open:       "50000.00",
+		High:       "50100.00",
+		Low:        "49900.00",
+		Close:      "50050.25",
+		Volume:     "123.45",
+		OpenTime:   time.Now().UTC().Add(-time.Minute),
+		CloseTime:  time.Now().UTC(),
+		Final:      true,
 	}
 
 	// Verify candle has the Close field that PriceSource reads.

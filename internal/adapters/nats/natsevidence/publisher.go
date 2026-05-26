@@ -63,7 +63,7 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Candle.Source,
-		event.Candle.Symbol,
+		event.Candle.VenueSymbol(),
 		event.Candle.Timeframe,
 	)
 
@@ -73,7 +73,7 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 	}
 
 	dedupKey := event.Candle.Source + ":" +
-		event.Candle.Symbol + ":" +
+		event.Candle.VenueSymbol() + ":" +
 		strconv.Itoa(event.Candle.Timeframe) + ":" +
 		strconv.FormatInt(event.Candle.OpenTime.Unix(), 10)
 

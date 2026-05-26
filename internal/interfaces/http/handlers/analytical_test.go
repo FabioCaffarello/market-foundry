@@ -35,7 +35,7 @@ func TestAnalyticalWebHandler_GetCandleHistory(t *testing.T) {
 	candles := []evidence.EvidenceCandle{
 		{
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerp(t),
 			Timeframe:  60,
 			Open:       "100.00",
 			High:       "105.00",
@@ -72,9 +72,9 @@ func TestAnalyticalWebHandler_GetCandleHistory(t *testing.T) {
 	}
 
 	var resp struct {
-		Candles []evidence.EvidenceCandle   `json:"candles"`
-		Source  string                      `json:"source"`
-		Meta    analyticalclient.QueryMeta  `json:"meta"`
+		Candles []evidence.EvidenceCandle  `json:"candles"`
+		Source  string                     `json:"source"`
+		Meta    analyticalclient.QueryMeta `json:"meta"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -320,8 +320,8 @@ func TestAnalyticalWebHandler_GetDecisionHistory(t *testing.T) {
 	}
 
 	var resp struct {
-		Decisions []decision.Decision    `json:"decisions"`
-		Source    string                 `json:"source"`
+		Decisions []decision.Decision        `json:"decisions"`
+		Source    string                     `json:"source"`
 		Meta      analyticalclient.QueryMeta `json:"meta"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
@@ -624,8 +624,8 @@ func TestAnalyticalWebHandler_GetRiskHistory(t *testing.T) {
 	}
 
 	var resp struct {
-		RiskAssessments []risk.RiskAssessment   `json:"risk_assessments"`
-		Source          string                  `json:"source"`
+		RiskAssessments []risk.RiskAssessment      `json:"risk_assessments"`
+		Source          string                     `json:"source"`
 		Meta            analyticalclient.QueryMeta `json:"meta"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {

@@ -8,6 +8,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -15,6 +16,15 @@ import (
 )
 
 var fixedTime = time.Date(2025, 3, 15, 12, 0, 0, 0, time.UTC)
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 func testMetadata() events.Metadata {
 	return events.Metadata{
@@ -30,7 +40,7 @@ func TestMapCandleRow_ColumnCount(t *testing.T) {
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerp(t),
 			Timeframe:  60,
 			Open:       "100.5",
 			High:       "101.0",
@@ -55,7 +65,7 @@ func TestMapCandleRow_MetadataPositions(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "1", High: "1", Low: "1", Close: "1", Volume: "1",
 			OpenTime: fixedTime, CloseTime: fixedTime.Add(time.Minute),
 		},
@@ -72,7 +82,7 @@ func TestMapCandleRow_DomainFields(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 300,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 300,
 			Open: "100.5", High: "101.0", Low: "99.0", Close: "100.0",
 			Volume: "5000.123", TradeCount: 42,
 			OpenTime: fixedTime, CloseTime: fixedTime.Add(5 * time.Minute),
@@ -99,7 +109,7 @@ func TestMapCandleRow_EmptyDecimalStrings(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "x", Symbol: "y", Timeframe: 60,
+			Source: "x", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "", High: "", Low: "", Close: "", Volume: "",
 			OpenTime: fixedTime, CloseTime: fixedTime,
 		},

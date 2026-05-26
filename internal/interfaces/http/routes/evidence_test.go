@@ -9,10 +9,20 @@ import (
 
 	"internal/application/evidenceclient"
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 
 	"github.com/julienschmidt/httprouter"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 type getLatestCandleUseCaseStub struct {
 	candle *evidence.EvidenceCandle
@@ -48,7 +58,7 @@ func TestEvidenceRoutesRegisterHandlers(t *testing.T) {
 	routes := Evidence(EvidenceFamilyDeps{
 		GetLatestCandle: getLatestCandleUseCaseStub{
 			candle: &evidence.EvidenceCandle{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+				Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 				Open: "100.00", High: "105.00", Low: "99.00", Close: "102.00",
 				Volume: "1000.00", TradeCount: 42,
 				OpenTime: now, CloseTime: now.Add(60 * time.Second), Final: false,

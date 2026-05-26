@@ -8,15 +8,24 @@ import (
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
 
+func btcUSDTPerpForCandleTest() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: failed to build BTC/USDT-perpetual: " + prob.Message)
+	}
+	return inst
+}
+
 // --- mock store ---
 
 type mockCandleStore struct {
-	putResult  natskit.PutResult
-	putProblem *problem.Problem
+	putResult   natskit.PutResult
+	putProblem  *problem.Problem
 	histProblem *problem.Problem
 
 	putCalls     int
@@ -41,7 +50,7 @@ func (m *mockCandleStore) PutHistory(_ context.Context, candle evidence.Evidence
 func validCandle(openTime time.Time) evidence.EvidenceCandle {
 	return evidence.EvidenceCandle{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpForCandleTest(),
 		Timeframe:  60,
 		Open:       "100.00",
 		High:       "105.00",
