@@ -173,9 +173,12 @@ func (uc *GetContinuityReviewUseCase) Execute(ctx context.Context, query Continu
 		return allLegs[i].Timestamp.Before(allLegs[j].Timestamp)
 	})
 
+	// CrossSessionWindow.VenueSymbol stays as a venue-native string
+	// filter per Decision #2 of H-6.b'' (no Instrument promotion —
+	// would force regression-prone source-string reconstruction).
 	legSet := pairing.CrossSessionLegSet{
 		Window: pairing.CrossSessionWindow{
-			Symbol:      query.Symbol,
+			VenueSymbol: query.Symbol,
 			Source:      query.Source,
 			Timeframe:   query.Timeframe,
 			Since:       sinceTime,

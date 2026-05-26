@@ -377,10 +377,10 @@ func TestCrossSession_EndToEnd_TwoSessionsFIFO(t *testing.T) {
 
 	legSet := CrossSessionLegSet{
 		Window: CrossSessionWindow{
-			Symbol:    "BTCUSDT",
-			Source:    "binance_spot",
-			Timeframe: 60,
-			Since:     time.Date(2026, 3, 19, 0, 0, 0, 0, time.UTC),
+			VenueSymbol: "btcusdt",
+			Source:      "binance_spot",
+			Timeframe:   60,
+			Since:       time.Date(2026, 3, 19, 0, 0, 0, 0, time.UTC),
 		},
 		Sessions: []string{"session_1", "session_2"},
 		Legs: []SessionLeg{

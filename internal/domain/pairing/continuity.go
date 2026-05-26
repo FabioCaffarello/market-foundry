@@ -90,12 +90,28 @@ func IsCrossSession(a, b SessionLeg) bool {
 // Cross-session window
 // ---------------------------------------------------------------------------
 
-// CrossSessionWindow defines the temporal and filtering scope for a
-// cross-session discovery query. It bounds which sessions and legs are
-// included in the multi-session leg set.
+// CrossSessionWindow is a query filter for cross-session reconciliation.
+// VenueSymbol carries the venue-native lowercase form (e.g., "btcusdt")
+// as supplied by the caller (HTTP query, CLI flag); it is metadata only
+// and is NOT consulted by the matching algorithm — only validated for
+// non-emptiness by Validate().
+//
+// Promoted to instrument.CanonicalInstrument would require source-string
+// reconstruction at the boundary (the same pattern that caused the
+// H-6.b' regression, commit 37f8ddd). Kept as string per architectural
+// decision documented in PRD-0004 H-6.b” closure section. The
+// declaration in policies/domain_types.toml uses the "string_filter"
+// migration_state (introduced in commit 1 of H-6.b”) to record that
+// the field is venue-native string by design rather than transient.
+//
+// Renamed from `Symbol string` in H-6.b” to clarify the field's role
+// (transport metadata, not domain projection).
 type CrossSessionWindow struct {
-	// Symbol restricts discovery to legs for this instrument.
-	Symbol string `json:"symbol"`
+	// VenueSymbol restricts discovery to legs whose venue-native symbol
+	// matches this string (e.g., "btcusdt"). Compared lexicographically
+	// against Leg.VenueSymbol() — never reconstructed into a canonical
+	// instrument.
+	VenueSymbol string `json:"venue_symbol"`
 
 	// Source restricts discovery to legs from this venue/segment (e.g. "binance_spot").
 	Source string `json:"source"`
@@ -128,7 +144,7 @@ const DefaultMaxSessions = 30
 
 // Validate reports whether the window has the minimum required fields.
 func (w CrossSessionWindow) Validate() bool {
-	return w.Symbol != "" && w.Source != "" && w.Timeframe > 0 && !w.Since.IsZero()
+	return w.VenueSymbol != "" && w.Source != "" && w.Timeframe > 0 && !w.Since.IsZero()
 }
 
 // ---------------------------------------------------------------------------

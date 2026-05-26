@@ -141,4 +141,14 @@ migration_state = "pending"
 package = "internal/domain/pairing"
 file = "continuity.go"
 type_name = "CrossSessionWindow"
-migration_state = "pending"
+migration_state = "string_filter"
+# Query filter type — venue-native string is the canonical
+# representation. No Instrument upgrade applied: pre-flight 6
+# of H-6.b'' confirmed the field is echo metadata, validated
+# only by != "" check, never read by the matching algorithm.
+# Promoting would force source-string reconstruction at the
+# application boundary — the same regression-shape that caused
+# commit 37f8ddd. Decision #2 of H-6.b'' renamed the field
+# from Symbol to VenueSymbol for semantic clarity; see the
+# struct godoc in continuity.go and the PRD-0004 H-6.b''
+# closure section.

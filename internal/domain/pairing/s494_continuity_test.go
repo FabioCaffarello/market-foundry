@@ -212,10 +212,10 @@ func TestIsCrossSession_EmptySession(t *testing.T) {
 
 func TestCrossSessionWindow_Valid(t *testing.T) {
 	w := CrossSessionWindow{
-		Symbol:    "BTCUSDT",
-		Source:    "binance_spot",
-		Timeframe: 60,
-		Since:     time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		VenueSymbol: "btcusdt",
+		Source:      "binance_spot",
+		Timeframe:   60,
+		Since:       time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
 	if !w.Validate() {
 		t.Error("valid window should pass validation")
@@ -235,9 +235,9 @@ func TestCrossSessionWindow_MissingSymbol(t *testing.T) {
 
 func TestCrossSessionWindow_MissingSource(t *testing.T) {
 	w := CrossSessionWindow{
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Since:     time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		VenueSymbol: "btcusdt",
+		Timeframe:   60,
+		Since:       time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
 	if w.Validate() {
 		t.Error("window without source should fail validation")
@@ -246,9 +246,9 @@ func TestCrossSessionWindow_MissingSource(t *testing.T) {
 
 func TestCrossSessionWindow_ZeroTimeframe(t *testing.T) {
 	w := CrossSessionWindow{
-		Symbol: "BTCUSDT",
-		Source: "binance_spot",
-		Since:  time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		VenueSymbol: "btcusdt",
+		Source:      "binance_spot",
+		Since:       time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
 	}
 	if w.Validate() {
 		t.Error("window with zero timeframe should fail validation")
@@ -257,9 +257,9 @@ func TestCrossSessionWindow_ZeroTimeframe(t *testing.T) {
 
 func TestCrossSessionWindow_MissingSince(t *testing.T) {
 	w := CrossSessionWindow{
-		Symbol:    "BTCUSDT",
-		Source:    "binance_spot",
-		Timeframe: 60,
+		VenueSymbol: "btcusdt",
+		Source:      "binance_spot",
+		Timeframe:   60,
 	}
 	if w.Validate() {
 		t.Error("window without since should fail validation")
