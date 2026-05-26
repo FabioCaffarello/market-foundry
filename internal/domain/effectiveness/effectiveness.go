@@ -16,8 +16,10 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
 
 // Outcome represents the effectiveness classification of a decision chain.
@@ -41,6 +43,9 @@ const BreakevenThreshold = 0.0001
 
 // Attribution links an effectiveness outcome to its originating decision chain metadata.
 // All fields are derived from existing domain types — no new write-path data.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b'.
 type Attribution struct {
 	// Outcome classification.
 	Outcome Outcome `json:"outcome"`
@@ -57,18 +62,25 @@ type Attribution struct {
 	FillCount      int     `json:"fill_count"`
 
 	// Decision chain context (carried from execution's RiskInput).
-	CorrelationID    string `json:"correlation_id"`
-	DecisionType     string `json:"decision_type,omitempty"`
-	DecisionSeverity string `json:"decision_severity,omitempty"`
-	StrategyType     string `json:"strategy_type,omitempty"`
-	Side             string `json:"side"`
-	Symbol           string `json:"symbol"`
-	Source           string `json:"source"`
-	Timeframe        int    `json:"timeframe"`
+	CorrelationID    string                         `json:"correlation_id"`
+	DecisionType     string                         `json:"decision_type,omitempty"`
+	DecisionSeverity string                         `json:"decision_severity,omitempty"`
+	StrategyType     string                         `json:"strategy_type,omitempty"`
+	Side             string                         `json:"side"`
+	Instrument       instrument.CanonicalInstrument `json:"instrument"`
+	Source           string                         `json:"source"`
+	Timeframe        int                            `json:"timeframe"`
 
 	// Execution status that produced this classification.
 	ExecutionStatus string `json:"execution_status"`
 	Simulated       bool   `json:"simulated"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b' → sunset H-6.f). See ADR-0021.
+func (a Attribution) VenueSymbol() string {
+	return strings.ToLower(string(a.Instrument.Base) + string(a.Instrument.Quote))
 }
 
 // Classify computes the effectiveness outcome for an execution intent.
@@ -96,7 +108,7 @@ func Classify(intent execution.ExecutionIntent) *Attribution {
 		DecisionSeverity: intent.Risk.DecisionSeverity,
 		StrategyType:     intent.Risk.StrategyType,
 		Side:             string(intent.Side),
-		Symbol:           intent.VenueSymbol(),
+		Instrument:       intent.Instrument,
 		Source:           intent.Source,
 		Timeframe:        intent.Timeframe,
 		ExecutionStatus:  string(intent.Status),
@@ -205,7 +217,7 @@ func ClassifyPair(entry, exit execution.ExecutionIntent) *Attribution {
 		DecisionSeverity: entry.Risk.DecisionSeverity,
 		StrategyType:     entry.Risk.StrategyType,
 		Side:             string(entry.Side),
-		Symbol:           entry.VenueSymbol(),
+		Instrument:       entry.Instrument,
 		Source:           entry.Source,
 		Timeframe:        entry.Timeframe,
 		ExecutionStatus:  string(exit.Status),
@@ -283,15 +295,15 @@ func (a *Attribution) Explain() string {
 
 	case OutcomeWin:
 		return fmt.Sprintf("Effectiveness: WIN. Realized P&L=%.6f (gross=%.6f, fees=%.6f). %d fill(s), %s %s.",
-			a.NetPnL, a.GrossPnL, a.TotalFees, a.FillCount, a.Side, a.Symbol)
+			a.NetPnL, a.GrossPnL, a.TotalFees, a.FillCount, a.Side, a.VenueSymbol())
 
 	case OutcomeLoss:
 		return fmt.Sprintf("Effectiveness: LOSS. Realized P&L=%.6f (gross=%.6f, fees=%.6f). %d fill(s), %s %s.",
-			a.NetPnL, a.GrossPnL, a.TotalFees, a.FillCount, a.Side, a.Symbol)
+			a.NetPnL, a.GrossPnL, a.TotalFees, a.FillCount, a.Side, a.VenueSymbol())
 
 	case OutcomeBreakeven:
 		return fmt.Sprintf("Effectiveness: BREAKEVEN. Realized P&L=%.6f (within threshold=%.4f). %d fill(s), %s %s.",
-			a.NetPnL, BreakevenThreshold, a.FillCount, a.Side, a.Symbol)
+			a.NetPnL, BreakevenThreshold, a.FillCount, a.Side, a.VenueSymbol())
 
 	default:
 		return fmt.Sprintf("Effectiveness: unknown outcome %q.", a.Outcome)

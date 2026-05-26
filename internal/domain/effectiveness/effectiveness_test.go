@@ -156,8 +156,8 @@ func TestClassify_AttributionCarriesContext(t *testing.T) {
 	if attr.StrategyType != "trend_following" {
 		t.Errorf("strategy_type=%s, want trend_following", attr.StrategyType)
 	}
-	if attr.Symbol != "btcusdt" {
-		t.Errorf("symbol=%s, want btcusdt", attr.Symbol)
+	if attr.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol=%s, want btcusdt", attr.VenueSymbol())
 	}
 }
 
@@ -265,9 +265,9 @@ func TestExplain_AllOutcomes(t *testing.T) {
 		{nil, "No effectiveness data"},
 		{&Attribution{Outcome: OutcomeUnresolved, FillCount: 0, Side: "buy", ExecutionStatus: "cancelled"}, "unresolved"},
 		{&Attribution{Outcome: OutcomeUnresolved, FillCount: 1, Side: "buy", EntryCostBasis: 5000, TotalFees: 0.5}, "no paired exit"},
-		{&Attribution{Outcome: OutcomeWin, NetPnL: 99.0, GrossPnL: 100.0, TotalFees: 1.0, FillCount: 2, Side: "buy", Symbol: "BTCUSDT"}, "WIN"},
-		{&Attribution{Outcome: OutcomeLoss, NetPnL: -101.0, GrossPnL: -100.0, TotalFees: 1.0, FillCount: 2, Side: "buy", Symbol: "BTCUSDT"}, "LOSS"},
-		{&Attribution{Outcome: OutcomeBreakeven, NetPnL: 0.00001, FillCount: 2, Side: "buy", Symbol: "BTCUSDT"}, "BREAKEVEN"},
+		{&Attribution{Outcome: OutcomeWin, NetPnL: 99.0, GrossPnL: 100.0, TotalFees: 1.0, FillCount: 2, Side: "buy", Instrument: btcUSDTPerp(t)}, "WIN"},
+		{&Attribution{Outcome: OutcomeLoss, NetPnL: -101.0, GrossPnL: -100.0, TotalFees: 1.0, FillCount: 2, Side: "buy", Instrument: btcUSDTPerp(t)}, "LOSS"},
+		{&Attribution{Outcome: OutcomeBreakeven, NetPnL: 0.00001, FillCount: 2, Side: "buy", Instrument: btcUSDTPerp(t)}, "BREAKEVEN"},
 	}
 	for _, tt := range tests {
 		got := tt.attr.Explain()
