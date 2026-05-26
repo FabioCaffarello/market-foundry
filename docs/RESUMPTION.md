@@ -58,8 +58,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6** | Sub-dividida em H-6.a/b/b'/b''/c/d/e/f por cascade discovery (pré-flight H-6.a: 342 `.Symbol` refs em 106 production files em 31 packages; pré-flight H-6.b: 15 domain types em 174 test files → split por dependency order em b/b'/b''). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md). Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
 | **H-6.a** | Fechada (PR #26 mergeada em `main` em `ac7fb8f`, 2026-05-26) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits incl. ADR-0021 erratum (criterion #4 split em #4a/#4b), PRD-0004, `internal/domain/instrument/` package, atomic `ObservationTrade.Symbol` → `Instrument` + `VenueSymbol()`, ambos Binance adapters com regex `_\d{6}$` para delivery futures, raccoon-cli `check instruments` analyzer (4 checks). ADR-0021 permanece `Proposed`. |
 | **H-6.b** | Fechada (PR #27 mergeada em `main` em `d7fae4c`, 2026-05-26) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure. 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
-| **H-6.b'** | **Atual** (esta entrega) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits: ExecutionIntent atomic (production cascade ~50 sites; PartitionKey/DeduplicationKey via VenueSymbol), Attribution (derived from intent.Instrument), AuditLifecycleEntry (reconstrução via novo per-package `instrumentFromBinding` em `executionclient`), policy flip (3 entries `pending` → `migrated`), docs closure (este commit). check-instruments analyzer continua com 6 checks PASS. **Triage drop closure note** (verificado em pré-flight, zero migration sites nesta sub-wave): DecisionTriageItem é buffered pelo ReviewTransform DTO (application-layer; domain→DTO boundary migrado em H-6.b commit 4; DTO→Triage permanece string-to-string até H-6.c migrar ReviewTransform); ExecutionTriageItem não existe no codebase; RoundTripTriageItem corretamente deferido para H-6.b'' (upstream RoundTrip migra lá). ADR-0021 permanece `Proposed`. |
-| **H-6.b''** | Destravada após merge de H-6.b' em `main` (P9 + sub-onda sequencing policy) | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites migrate. ADR-0021 permanece `Proposed`. |
+| **H-6.b'** | Fechada no branch `feat/h-6-b1-execution-chain` (commits `234193e`..`504636a` + fix `37f8ddd`; PR pendente — empilhada com H-6.b'' no mesmo branch). | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits + fix(execute) pull-forward 37f8ddd (descoberto via CI Integration Tests em PR #28: silent zero Instrument por reconstrução source-string em `instrumentFromBinding`; fix via `NewPaperOrderEvaluatorForInstrument` passthrough). check-instruments analyzer 6 checks PASS. **Triage drop closure note** (zero migration sites nesta sub-wave): DecisionTriageItem buffered pelo ReviewTransform DTO; ExecutionTriageItem não existe; RoundTripTriageItem deferido para H-6.b''. ADR-0021 permanece `Proposed`. |
+| **H-6.b''** | **Atual** (esta entrega — empilhada sobre H-6.b' no mesmo branch `feat/h-6-b1-execution-chain`) | Layer 4: Pairing chain migrada — 2 domain types Symbol → Instrument + VenueSymbol() (pairing.Leg + pairing.RoundTrip) + 1 rename (pairing.CrossSessionWindow.Symbol → VenueSymbol string, declarado `string_filter` per Decisão #2) + 1 triage population site (`get_roundtrip_triage.go:74` adopts `review.VenueSymbol()` por compile pressure pull-forward). 8 commits (plano declarava 9 — consolidação por compile pressure documentada em commit 3 e commit 8). check-instruments analyzer estendido com 3º state `string_filter` (commit 1) e 15 unit tests (was 14). ADR-0021 permanece `Proposed`. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -219,7 +219,169 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.b' (esta sessão):
+Entregas H-6.b'' (esta sessão):
+
+- **Commit 1** (`888b162`):
+  **Analyzer: `string_filter` migration_state** added to
+  `tools/raccoon-cli/policies/domain_types.toml` schema + analyzer
+  acceptance. New state documents the architectural choice that a
+  type's venue-native string field is canonical by design (no
+  Instrument upgrade applies). Tolerated like `pending` — no
+  enforcement — but conveys permanence rather than transience.
+  Helps prevent the H-6.b' regression-shape (commit 37f8ddd: silent
+  zero Instrument from source-string reconstruction at a query
+  boundary) by capturing the decision in policy. Analyzer gains
+  +1 unit test (15 total). Rationale fully documented in the
+  analyzer rustdoc header and the policy file's header comment.
+- **Commit 2** (`3a40536`):
+  **pairing.Leg migration** (1 prod file + 5 test files; net
+  +148/-66). `Leg.Symbol string` → `Leg.Instrument
+  instrument.CanonicalInstrument` + `VenueSymbol() string`
+  transitory accessor. M1 invariant adopts native Go struct equality
+  (`entry.Instrument != exit.Instrument`); CanonicalInstrument is
+  composed of three string-typed components and is comparable by
+  construction (no Equal() method needed). IntentToLeg passthrough
+  on `intent.Instrument` — zero source-string reconstruction.
+  MatchFIFO RoundTrip{} construction uses S472-style projection
+  bridge `Symbol: leg.VenueSymbol()` to keep compile-green while
+  RoundTrip.Symbol still exists (it migrates in commit 3). Three
+  IIFE-vars `btcUSDTPerp`/`btcUSDTSpot`/`ethUSDTSpot` replace the
+  prior `func btcUSDTPerp(t)` helper following the
+  get_composite_chain_test.go precedent; makeIntent/makeLeg
+  fixtures consistently use Instrument: btcUSDTSpot to match their
+  Source: "binance_spot" semantically.
+- **Commit 3** (`2675d99`):
+  **pairing.RoundTrip migration + triage pull-forward** (1 prod
+  file in pairing/ + 1 prod file in triageclient/ + 6 test files;
+  net +93/-65). `RoundTrip.Symbol string` →
+  `RoundTrip.Instrument instrument.CanonicalInstrument` +
+  `VenueSymbol()` accessor. Denormalization invariant per Decisão
+  #3 documented inline:
+  `RoundTrip.Instrument == Entry.Instrument == Exit.Instrument`
+  (enforced by MatchFIFO construction + M1). MatchFIFO sites
+  switch from S472 bridge to clean passthrough
+  `Instrument: leg.Instrument`. **Pull-forward**: triage population
+  site at `triageclient/get_roundtrip_triage.go:74` (Symbol:
+  review.Symbol → Symbol: review.VenueSymbol()) traveled into
+  commit 3 by compile pressure — RoundTripReviewItem embeds
+  pairing.RoundTrip anonymously, so removing RoundTrip.Symbol
+  immediately breaks the promoted field access. Pattern matches
+  H-6.b' commit 1 precedent (ExecutionIntent pulled
+  venue_adapter_actor.go forward by compile pressure). The
+  semantically corresponding commit (commit 5 in the plan) was
+  retained as test-only.
+- **Commit 4** (`0236315`):
+  **CrossSessionWindow rename per Decisão #2 (b)** (1 prod file
+  in pairing/ + 2 prod files in analyticalclient/ + 2 test files +
+  policy entry; net +59/-26). `Symbol string` → `VenueSymbol string`
+  (rename only — no Instrument upgrade). JSON tag `"symbol"` →
+  `"venue_symbol"`. Validate() reads `w.VenueSymbol != ""`. The
+  two construction sites in analyticalclient pass `query.Symbol`
+  through verbatim with no canonical reconstruction. Struct godoc
+  documents the architectural choice inline: VenueSymbol is
+  metadata only, NOT consulted by matching algorithm, only
+  validated for non-emptiness — promoting would force regression-
+  prone source-string reconstruction (commit 37f8ddd precedent).
+  Policy entry `cross_session_window` flips `pending` →
+  `string_filter` with inline rationale block.
+- **Commit 5** (`17c0628`):
+  **test(triage): get_roundtrip_triage projection coverage**
+  (1 new test file +133; Decisão #5β canary). Closes the test-
+  coverage gap flagged in pre-flight 7. Two tests:
+  TestGetRoundTripTriage_ProjectsVenueSymbolFromInstrument asserts
+  the happy-path projection (BTC/USDT-spot Instrument → "btcusdt"
+  Symbol via the embedded RoundTrip.VenueSymbol()). The second
+  test, TestGetRoundTripTriage_ZeroInstrumentProducesEmptyString,
+  is the regression-detection canary: a zero-valued
+  pairing.RoundTrip.Instrument MUST surface as empty Symbol in
+  the wire shape, observable rather than silently defaulted.
+  stubRoundTripReviewer + btcUSDTSpotForTriage(t) helper provide
+  full fixture control over the embedded RoundTrip.
+- **Commit 6** (`97d8f21`):
+  **test(smoke): pairing/review instrument projection canary**
+  (1 file +62; Decisão #5γ). Inline section in
+  `scripts/smoke-analytical-e2e.sh` Phase 5 (after Executions
+  filter validations). Tri-state semantics — HTTP 200 + reviews
+  populated + instrument.base populated → PASS; reviews empty
+  → WARN (canary inapplicable since smoke setup does not
+  explicitly seed matched buy+sell within FLUSH_WAIT); reviews
+  populated + instrument.base empty → FAIL (regression-shape).
+  WARN keeps the canary honest under data scarcity while
+  preserving FAIL semantics when paired data exists. Tri-state
+  validated offline via python snippet simulation (no live stack
+  needed for syntax verification).
+- **Commit 7** (`96475df`):
+  **chore(policy): flip pairing_leg + pairing_round_trip to
+  migrated** in `tools/raccoon-cli/policies/domain_types.toml`.
+  Both types already carry `Instrument CanonicalInstrument` field
+  + `VenueSymbol() string` method (added in commits 2 and 3); this
+  commit activates the analyzer enforcement going forward.
+  cross_session_window stays `string_filter` (set in commit 4).
+- **Commit 8** (este commit): TRUTH-MAP / RESUMPTION /
+  PROGRAM-0004 closure + H-6.f scope revision note.
+
+**Marco**: H-6.b'' fecha a migração da Pairing chain — Leg e
+RoundTrip carregam `Instrument CanonicalInstrument` +
+`VenueSymbol()` transitory accessor; CrossSessionWindow renomeia
+o field para refletir sua semântica de query filter (Decisão
+#2 (b)). Total agora: **12 dos 15 domain types iniciais** com
+Symbol field migrados (3 de H-6.a/H-6.b + 7 de H-6.b + 3 de
+H-6.b' + 2 nesta sub-onda) **+ 1 type formalmente declarado
+`string_filter`** (CrossSessionWindow). ADR-0021 critério #2
+**ainda não literalmente satisfeito** — restam os ~6
+`instrumentFromBinding` helpers em application/* e o
+`reconstructInstrumentFromLegacy` em adapters/clickhouse cujos
+errors são descartados em 11 chamadas. **ADR-0021 permanece
+`Proposed`**; promoção é evento atômico em H-6.f.
+
+**H-6.f scope revision (post-pré-flight 6 de H-6.b'')**:
+pré-flight 6 descobriu que o débito real de H-6.f é maior que
+"remove transitory methods". Scope revisado:
+1. Audit e remoção dos 6 helpers `instrumentFromBinding` em
+   `application/{signal,decision,strategy,risk,execution,
+   executionclient}/` — todos hardcoded para `binances`/`binancef`
+   + `USDT` quote, retornam zero silenciosamente para qualquer
+   outro input.
+2. Audit `reconstructInstrumentFromLegacy` em
+   `internal/adapters/clickhouse/candle_reader.go:150` —
+   retorna error mas o error é descartado em 11 chamadas em
+   `composite_reader.go` e `execution_reader.go`. Either
+   propagate errors or replace with Instrument pass-through
+   where upstream carries it.
+3. Migrate callers para receber Instrument diretamente de
+   upstream (pattern estabelecido por
+   `NewPaperOrderEvaluatorForInstrument` em H-6.b' commit
+   37f8ddd).
+4. Remover métodos `VenueSymbol()` apenas após todos os callers
+   migrarem.
+5. Promover ADR-0021 a `Accepted` quando critério #2 estiver
+   literalmente satisfeito: zero source-string-based instrument
+   reconstruction em production code.
+
+Esta revisão é capturada também em PROGRAM-0004 Changelog.
+
+**8 commits (plano declarava 9 — consolidação documentada)**:
+o plano original tinha commits 3 (RoundTrip migration) e 5
+(triage production line update) separados. Compile pressure
+forçou consolidação: removing RoundTrip.Symbol immediately
+breaks `review.Symbol` access in `get_roundtrip_triage.go` via
+anonymous embedding. Commit 3 absorveu o 1-line touch em
+triage; commit 5 do plano permaneceu como test-only (canary
+coverage per Decisão #5β). Per H-6.b' precedent (PR #28):
+pull-forward by compile pressure é documentado no commit
+afetado, não escondido em renumbering.
+
+**Próxima sub-onda destravada após merge**: H-6.c — migration
+de Application-layer query types em `analyticalclient`/
+`triageclient` (DecisionTriageItem population site downstream;
+ReviewTransform DTO; etc.) e início do sunset transitorio
+`instrumentFromBinding` per H-6.f scope revision acima.
+Sub-onda sequencing policy estrita: H-6.c abre branch APENAS
+após merge da combinada H-6.b' + H-6.b'' em `main`.
+
+---
+
+Entregas H-6.b' (combinada nesta entrega — mesmo branch):
 
 - **Commit 1** (`234193e`):
   **ExecutionIntent atomic migration** (~50 production sites + ~85
