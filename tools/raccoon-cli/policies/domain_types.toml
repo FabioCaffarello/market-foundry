@@ -5,21 +5,44 @@
 #
 # Each declared type has a migration_state:
 #
-#   "migrated"  — type's production .go file MUST:
-#                 1. Have a field `Instrument instrument.CanonicalInstrument`.
-#                 2. Have a method named `VenueSymbol() string` (the
-#                    transitory accessor per ADR-0021 / H-6.b).
-#                 If either is missing, the analyzer fails.
+#   "migrated"      — type's production .go file MUST:
+#                     1. Have a field `Instrument instrument.CanonicalInstrument`.
+#                     2. Have a method named `VenueSymbol() string` (the
+#                        transitory accessor per ADR-0021 / H-6.b).
+#                     If either is missing, the analyzer fails.
 #
-#   "pending"   — type still uses `Symbol string`. The analyzer
-#                 tolerates this; declaration is informational.
-#                 No enforcement.
+#   "pending"       — type still uses `Symbol string`. The analyzer
+#                     tolerates this; declaration is informational.
+#                     No enforcement. Transient — the entry should
+#                     advance to "migrated" in a later sub-onda.
+#
+#   "string_filter" — type is a query / filter DTO whose venue-native
+#                     string field is canonical by design and
+#                     intentionally NOT promoted to
+#                     instrument.CanonicalInstrument. The analyzer
+#                     tolerates this; declaration is the auditable
+#                     record of the architectural decision. No
+#                     enforcement. Permanent — the entry does NOT
+#                     advance to "migrated".
+#                     Rationale: promoting these fields would force
+#                     source-string reconstruction at the application
+#                     boundary, the same regression shape that caused
+#                     commit 37f8ddd (H-6.b'). See pre-flight 6 of
+#                     H-6.b'' / PRD-0004 closure section for the
+#                     CrossSessionWindow precedent.
 #
 # Adding a new domain type to the migration:
 #   1. Migrate the type (Symbol string → Instrument
 #      CanonicalInstrument + VenueSymbol() method).
 #   2. Update the entry here from "pending" to "migrated".
 #   3. The analyzer then enforces both invariants going forward.
+#
+# Declaring a type as a permanent string filter:
+#   1. Confirm via pre-flight that the field is metadata / query echo
+#      (not consumed by domain logic) AND that promotion would force
+#      source-string reconstruction at the boundary.
+#   2. Add the entry with migration_state = "string_filter".
+#   3. Document the rationale inline in the type's godoc.
 #
 # Removing a transitory accessor (sunset H-6.f):
 #   The analyzer entry can be updated to "completed" (TODO: support
