@@ -32,15 +32,25 @@ type DrawdownLimitEvaluator struct {
 	stopDistancePct float64
 }
 
-func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLimitEvaluator {
+// NewDrawdownLimitEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly. See NewRSISamplerForInstrument
+// (signal package) for the H-6.c.1 rationale.
+func NewDrawdownLimitEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *DrawdownLimitEvaluator {
 	return &DrawdownLimitEvaluator{
 		source:          source,
-		symbol:          symbol,
-		instrument:      instrumentFromBinding(source, symbol),
+		instrument:      inst,
 		timeframe:       timeframe,
 		maxDrawdownPct:  defaultMaxDrawdownPct,
 		stopDistancePct: defaultStopDistancePct,
 	}
+}
+
+// NewDrawdownLimitEvaluator is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewDrawdownLimitEvaluatorForInstrument.
+func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLimitEvaluator {
+	e := NewDrawdownLimitEvaluatorForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	e.symbol = symbol
+	return e
 }
 
 // Evaluate processes a strategy resolution and produces a drawdown risk assessment.

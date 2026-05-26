@@ -31,15 +31,25 @@ type PositionExposureEvaluator struct {
 	maxPortfolioExposurePct float64
 }
 
-func NewPositionExposureEvaluator(source, symbol string, timeframe int) *PositionExposureEvaluator {
+// NewPositionExposureEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly. See NewRSISamplerForInstrument
+// (signal package) for the H-6.c.1 rationale.
+func NewPositionExposureEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *PositionExposureEvaluator {
 	return &PositionExposureEvaluator{
 		source:                  source,
-		symbol:                  symbol,
-		instrument:              instrumentFromBinding(source, symbol),
+		instrument:              inst,
 		timeframe:               timeframe,
 		maxPositionPct:          defaultMaxPositionPct,
 		maxPortfolioExposurePct: defaultMaxPortfolioExposurePct,
 	}
+}
+
+// NewPositionExposureEvaluator is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewPositionExposureEvaluatorForInstrument.
+func NewPositionExposureEvaluator(source, symbol string, timeframe int) *PositionExposureEvaluator {
+	e := NewPositionExposureEvaluatorForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	e.symbol = symbol
+	return e
 }
 
 // Evaluate processes a strategy resolution and produces a risk assessment.
