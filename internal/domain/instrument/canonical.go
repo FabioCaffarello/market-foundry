@@ -16,9 +16,9 @@ import (
 // across venues for cross-venue capabilities, and Venue lives at
 // the envelope level (ADR-0017) for routing.
 type CanonicalInstrument struct {
-	Base     BaseAsset
-	Quote    QuoteAsset
-	Contract ContractType
+	Base     BaseAsset    `json:"base"`
+	Quote    QuoteAsset   `json:"quote"`
+	Contract ContractType `json:"contract"`
 }
 
 // New constructs a CanonicalInstrument from raw asset and

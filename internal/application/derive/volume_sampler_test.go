@@ -4,8 +4,17 @@ import (
 	"testing"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
+
+func volumeBTCUSDTPerp() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: failed to build canonical BTC/USDT-perpetual: " + prob.Message)
+	}
+	return inst
+}
 
 func TestVolumeSampler_FirstWindow(t *testing.T) {
 	t.Parallel()
@@ -14,7 +23,7 @@ func TestVolumeSampler_FirstWindow(t *testing.T) {
 	ts := time.Unix(1700000000, 0)
 
 	trade := observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "50000.00", Quantity: "1.5",
 		TradeID: "1", BuyerMaker: true, Timestamp: ts,
 	}
@@ -37,18 +46,18 @@ func TestVolumeSampler_WindowRollover(t *testing.T) {
 	ts2 := time.Unix(1700000070, 0) // window 1 — triggers finalization
 
 	sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "50000.00", Quantity: "2.0",
 		TradeID: "1", BuyerMaker: true, Timestamp: ts1,
 	})
 	sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "50000.00", Quantity: "1.0",
 		TradeID: "2", BuyerMaker: false, Timestamp: ts1,
 	})
 
 	vol, didFinalize := sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "51000.00", Quantity: "0.5",
 		TradeID: "3", BuyerMaker: true, Timestamp: ts2,
 	})
@@ -87,19 +96,19 @@ func TestVolumeSampler_VWAPWithMixedPrices(t *testing.T) {
 
 	// Trade 1: price=40000, qty=1 → notional=40000
 	sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "40000.00", Quantity: "1.0",
 		TradeID: "1", BuyerMaker: true, Timestamp: ts1,
 	})
 	// Trade 2: price=60000, qty=1 → notional=60000
 	sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "60000.00", Quantity: "1.0",
 		TradeID: "2", BuyerMaker: false, Timestamp: ts1,
 	})
 
 	vol, _ := sampler.AddTrade(observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt",
+		Source: "binancef", Instrument: volumeBTCUSDTPerp(),
 		Price: "50000.00", Quantity: "1.0",
 		TradeID: "3", BuyerMaker: true, Timestamp: ts2,
 	})

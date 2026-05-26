@@ -5,13 +5,22 @@ import (
 	"time"
 
 	"internal/application/derive"
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
+
+func btcUSDTPerp() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: failed to build canonical BTC/USDT-perpetual: " + prob.Message)
+	}
+	return inst
+}
 
 func makeTrade(price, qty string, ts time.Time) observation.ObservationTrade {
 	return observation.ObservationTrade{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(),
 		Price:      price,
 		Quantity:   qty,
 		TradeID:    "1",

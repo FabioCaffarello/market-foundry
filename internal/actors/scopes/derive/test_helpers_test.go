@@ -5,11 +5,20 @@ import (
 	"testing"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/observation"
 	"internal/shared/events"
 
 	"github.com/anthdm/hollywood/actor"
 )
+
+func btcUSDTPerp() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: failed to build canonical BTC/USDT-perpetual: " + prob.Message)
+	}
+	return inst
+}
 
 // msgCollector is a lightweight actor that records all non-lifecycle messages.
 // Used in tests as a stand-in for publisher and scope PIDs.
@@ -84,12 +93,12 @@ func makeTrade(base time.Time, offset time.Duration, price, qty string) observat
 	return observation.TradeReceivedEvent{
 		Metadata: events.NewMetadata(),
 		Trade: observation.ObservationTrade{
-			Source:    "binancef",
-			Symbol:    "btcusdt",
-			Price:     price,
-			Quantity:  qty,
-			TradeID:   ts.Format("150405.000"),
-			Timestamp: ts,
+			Source:     "binancef",
+			Instrument: btcUSDTPerp(),
+			Price:      price,
+			Quantity:   qty,
+			TradeID:    ts.Format("150405.000"),
+			Timestamp:  ts,
 		},
 	}
 }

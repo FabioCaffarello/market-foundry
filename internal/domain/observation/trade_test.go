@@ -5,18 +5,28 @@ import (
 	"testing"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
+
+func btcUSDTSpot(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-spot: %v", prob)
+	}
+	return inst
+}
 
 func TestObservationTrade_Validate(t *testing.T) {
 	valid := observation.ObservationTrade{
 		Source:     "binancef",
-		Symbol:    "btcusdt",
-		Price:     "84521.30",
-		Quantity:  "0.150",
-		TradeID:   "4839201",
+		Instrument: btcUSDTSpot(t),
+		Price:      "84521.30",
+		Quantity:   "0.150",
+		TradeID:    "4839201",
 		BuyerMaker: false,
-		Timestamp: time.Now().UTC(),
+		Timestamp:  time.Now().UTC(),
 	}
 
 	if prob := valid.Validate(); prob != nil {
@@ -29,7 +39,11 @@ func TestObservationTrade_Validate(t *testing.T) {
 		field string
 	}{
 		{"empty source", func() observation.ObservationTrade { v := valid; v.Source = ""; return v }(), "source"},
-		{"empty symbol", func() observation.ObservationTrade { v := valid; v.Symbol = ""; return v }(), "symbol"},
+		{"zero instrument", func() observation.ObservationTrade {
+			v := valid
+			v.Instrument = instrument.CanonicalInstrument{}
+			return v
+		}(), "instrument"},
 		{"empty price", func() observation.ObservationTrade { v := valid; v.Price = ""; return v }(), "price"},
 		{"empty quantity", func() observation.ObservationTrade { v := valid; v.Quantity = ""; return v }(), "quantity"},
 		{"empty trade_id", func() observation.ObservationTrade { v := valid; v.TradeID = ""; return v }(), "trade_id"},
@@ -43,6 +57,26 @@ func TestObservationTrade_Validate(t *testing.T) {
 				t.Fatalf("expected validation error for field %s", tc.field)
 			}
 		})
+	}
+}
+
+func TestObservationTrade_VenueSymbol(t *testing.T) {
+	trade := observation.ObservationTrade{Instrument: btcUSDTSpot(t)}
+	if got := trade.VenueSymbol(); got != "btcusdt" {
+		t.Fatalf("expected venue symbol btcusdt, got %s", got)
+	}
+}
+
+func TestObservationTrade_VenueSymbol_OnPerpetualLossy(t *testing.T) {
+	// VenueSymbol derives from Base + Quote only; the contract type
+	// is dropped. This is the documented H-6.a lossy behavior.
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	trade := observation.ObservationTrade{Instrument: inst}
+	if got := trade.VenueSymbol(); got != "btcusdt" {
+		t.Fatalf("expected venue symbol btcusdt for perpetual, got %s", got)
 	}
 }
 
@@ -82,7 +116,7 @@ func TestObservationTrade_Validate_MultipleErrors(t *testing.T) {
 	if prob == nil {
 		t.Fatal("expected validation error for empty trade")
 	}
-	// Should contain multiple issues (at least source, symbol, price, quantity, trade_id, timestamp).
+	// Should contain multiple issues (at least source, instrument, price, quantity, trade_id, timestamp).
 	if prob.Code != "VAL_INVALID_ARGUMENT" {
 		t.Fatalf("expected InvalidArgument code, got %s", prob.Code)
 	}
@@ -91,7 +125,7 @@ func TestObservationTrade_Validate_MultipleErrors(t *testing.T) {
 func TestObservationTrade_Validate_BuyerMakerBooleans(t *testing.T) {
 	// BuyerMaker is a bool — both values should produce valid trades.
 	base := observation.ObservationTrade{
-		Source: "binancef", Symbol: "btcusdt", Price: "100.0",
+		Source: "binancef", Instrument: btcUSDTSpot(t), Price: "100.0",
 		Quantity: "1.0", TradeID: "1", Timestamp: time.Now().UTC(),
 	}
 

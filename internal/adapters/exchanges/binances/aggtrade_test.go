@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"internal/adapters/exchanges/binances"
+	"internal/domain/instrument"
 )
 
 func TestParseAggTrade(t *testing.T) {
@@ -64,8 +65,17 @@ func TestNormalize(t *testing.T) {
 	if event.Trade.Source != "binances" {
 		t.Fatalf("expected source binances, got %s", event.Trade.Source)
 	}
-	if event.Trade.Symbol != "btcusdt" {
-		t.Fatalf("expected symbol btcusdt, got %s", event.Trade.Symbol)
+	if event.Trade.Instrument.Base != "BTC" {
+		t.Fatalf("expected base BTC, got %s", event.Trade.Instrument.Base)
+	}
+	if event.Trade.Instrument.Quote != "USDT" {
+		t.Fatalf("expected quote USDT, got %s", event.Trade.Instrument.Quote)
+	}
+	if event.Trade.Instrument.Contract != instrument.ContractSpot {
+		t.Fatalf("expected contract spot, got %s", event.Trade.Instrument.Contract)
+	}
+	if got := event.Trade.VenueSymbol(); got != "btcusdt" {
+		t.Fatalf("expected venue symbol btcusdt, got %s", got)
 	}
 	if event.Trade.TradeID != "4839201" {
 		t.Fatalf("expected trade id 4839201, got %s", event.Trade.TradeID)
@@ -150,8 +160,27 @@ func TestNormalize_SymbolFromParameter(t *testing.T) {
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
 	}
-	if event.Trade.Symbol != "solusdt" {
-		t.Fatalf("expected symbol from parameter solusdt, got %s", event.Trade.Symbol)
+	if event.Trade.Instrument.Base != "SOL" {
+		t.Fatalf("expected base SOL from parameter solusdt, got %s", event.Trade.Instrument.Base)
+	}
+	if event.Trade.Instrument.Quote != "USDT" {
+		t.Fatalf("expected quote USDT, got %s", event.Trade.Instrument.Quote)
+	}
+}
+
+func TestNormalize_RejectsNonUSDTQuote(t *testing.T) {
+	agg := binances.AggTrade{
+		EventType:  "aggTrade",
+		EventTime:  1710000000000,
+		Symbol:     "BTCBUSD",
+		AggTradeID: 1,
+		Price:      "100.00",
+		Quantity:   "1.0",
+		TradeTime:  1710000000000,
+	}
+	_, prob := binances.Normalize(agg, "btcbusd")
+	if prob == nil {
+		t.Fatal("expected error for non-USDT quote on binances")
 	}
 }
 

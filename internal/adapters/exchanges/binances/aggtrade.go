@@ -2,8 +2,10 @@ package binances
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/observation"
 	"internal/shared/events"
 	"internal/shared/problem"
@@ -38,11 +40,20 @@ func ParseAggTrade(data []byte) (AggTrade, *problem.Problem) {
 	return raw, nil
 }
 
-// Normalize converts a Binance Spot AggTrade into a canonical ObservationTrade.
+// Normalize converts a Binance Spot AggTrade into a canonical
+// ObservationTrade. The symbol parameter is the venue-native form
+// supplied by the connector (e.g., "btcusdt"); it is parsed into a
+// CanonicalInstrument here, at the adapter / domain boundary, per
+// ADR-0021.
 func Normalize(raw AggTrade, symbol string) (observation.TradeReceivedEvent, *problem.Problem) {
+	inst, prob := parseSpotSymbol(symbol)
+	if prob != nil {
+		return observation.TradeReceivedEvent{}, prob
+	}
+
 	trade := observation.ObservationTrade{
 		Source:     sourceName,
-		Symbol:     symbol,
+		Instrument: inst,
 		Price:      raw.Price,
 		Quantity:   raw.Quantity,
 		TradeID:    formatTradeID(raw.AggTradeID),
@@ -58,6 +69,36 @@ func Normalize(raw AggTrade, symbol string) (observation.TradeReceivedEvent, *pr
 		Metadata: events.NewMetadata().WithOccurredAt(trade.Timestamp),
 		Trade:    trade,
 	}, nil
+}
+
+// parseSpotSymbol translates a venue-native Binance Spot symbol
+// (e.g., "btcusdt") into a CanonicalInstrument. Binance Spot pairs
+// are USDT-quoted in the current routing path; anything else is
+// rejected at this boundary so a misconfigured connector cannot
+// silently inject a non-canonical quote asset.
+func parseSpotSymbol(symbol string) (instrument.CanonicalInstrument, *problem.Problem) {
+	s := strings.ToUpper(strings.TrimSpace(symbol))
+	if s == "" {
+		return instrument.CanonicalInstrument{}, problem.Validation(
+			problem.InvalidArgument,
+			"binances symbol is invalid",
+			problem.ValidationIssue{Field: "symbol", Message: "must not be empty"},
+		)
+	}
+	const quote = "USDT"
+	if !strings.HasSuffix(s, quote) || len(s) <= len(quote) {
+		return instrument.CanonicalInstrument{}, problem.Validation(
+			problem.InvalidArgument,
+			"binances symbol is invalid",
+			problem.ValidationIssue{
+				Field:   "symbol",
+				Message: "must end with USDT (binances H-6.a supports USDT-quoted spot only)",
+				Value:   symbol,
+			},
+		)
+	}
+	base := s[:len(s)-len(quote)]
+	return instrument.New(base, quote, instrument.ContractSpot)
 }
 
 func formatTradeID(id int64) string {

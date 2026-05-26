@@ -11,7 +11,7 @@ import (
 func tradeBurstTrade(ts time.Time, qty string, buyerMaker bool) observation.ObservationTrade {
 	return observation.ObservationTrade{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(),
 		Price:      "100.00",
 		Quantity:   qty,
 		TradeID:    "t1",
@@ -113,8 +113,8 @@ func TestTradeBurstSampler_BuySellVolumeSplit(t *testing.T) {
 	base := time.Unix(1710000000, 0)
 
 	// 2 buy trades (buyer maker), 1 sell trade.
-	s.AddTrade(tradeBurstTrade(base, "1.0", true))        // buy: 100 * 1 = 100
-	s.AddTrade(tradeBurstTrade(base.Add(5*time.Second), "2.0", true))  // buy: 100 * 2 = 200
+	s.AddTrade(tradeBurstTrade(base, "1.0", true))                      // buy: 100 * 1 = 100
+	s.AddTrade(tradeBurstTrade(base.Add(5*time.Second), "2.0", true))   // buy: 100 * 2 = 200
 	s.AddTrade(tradeBurstTrade(base.Add(10*time.Second), "3.0", false)) // sell: 100 * 3 = 300
 
 	// Finalize.
