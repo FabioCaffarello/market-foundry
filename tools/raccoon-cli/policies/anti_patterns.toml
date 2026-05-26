@@ -1,0 +1,68 @@
+# Anti-patterns policy — declarative list of forbidden source-string
+# reconstruction patterns in production code (.go files excluding _test.go).
+#
+# Background — H-6.b' regression (commit 37f8ddd):
+#
+# `strategy_consumer_actor.go` passed Strategy.Source = "execute.venue-adapter"
+# (synthetic label) into a constructor that called instrumentFromBinding(source,
+# symbol) internally. The helper only recognized "binances"/"binancef" sources;
+# for any other input it returned a zero CanonicalInstrument silently. Six
+# integration tests failed in CI; `make verify` (unit-only) passed clean. The
+# fix added NewPaperOrderEvaluatorForInstrument(source, inst, timeframe) that
+# takes a CanonicalInstrument directly, bypassing the source-string lookup.
+#
+# Pre-flight 5 of H-6.c discovered the same regression-shape lurks in many
+# more code paths: production Source values include "binance", "binance_spot",
+# "derive", "clickhouse", "unknown_exchange" — none of which are recognized
+# by any of the 6 instrumentFromBinding helpers. Every caller path is a
+# potential silent-zero regression.
+#
+# This policy file declares the anti-pattern functions explicitly. The
+# `check instruments` analyzer scans production code for calls to these
+# functions and emits a Finding per call site. Severity is intentionally
+# `warning` during H-6.c migration so that the gate doesn't fail while
+# callers are being migrated to Instrument pass-through. After H-6.f closes
+# (when the helpers are eliminated and ADR-0021 is promoted to Accepted),
+# the severity flips to `error` and the gate fails on any remaining call.
+#
+# Per P5 of the Harvest protocol, every onda that adds an invariant also
+# adds the analyzer that enforces it. H-6.c.1 adds this policy so each
+# helper migration produces a visible findings reduction instead of relying
+# on review eyes.
+
+# Schema per anti-pattern:
+#
+#   name        — unique identifier surfaced in findings.
+#   function    — bare Go function name (no receiver). The analyzer
+#                 greps for "<function>(" in production .go files.
+#   severity    — "warning" (does not fail the gate) or "error"
+#                 (fails the gate). H-6.c uses "warning"; H-6.f
+#                 flips known patterns to "error".
+#   why         — rationale for the prohibition. Surfaced in findings
+#                 via Finding::with_why so reviewers see the consequence.
+#   help        — recommended migration path. Surfaced via
+#                 Finding::with_help so the fix is actionable.
+#   exceptions  — list of file paths (relative to project root, without
+#                 the "_test.go" suffix being meaningful — _test.go files
+#                 are always excluded from the scan) where the function
+#                 may be called legitimately. Each exception requires
+#                 explicit human review (this file change is auditable).
+#                 The helper's own definition file is implicitly excluded;
+#                 the function declaration line (starting with `func`) is
+#                 also skipped, so only call sites count.
+
+[[anti_patterns]]
+name = "source-string-instrument-reconstructor"
+function = "instrumentFromBinding"
+severity = "warning"
+why = "Reconstructs CanonicalInstrument from a (source, venueNative) string pair via a hardcoded source-to-Contract mapping (binances→Spot, binancef→Perpetual, default→zero). Production Source values include strings outside this mapping ('binance', 'binance_spot', 'derive', 'clickhouse', 'unknown_exchange', 'execute.venue-adapter'); each call site is a potential silent-zero regression analogous to commit 37f8ddd in H-6.b'."
+help = "Migrate the caller to receive instrument.CanonicalInstrument directly from upstream (pattern: NewPaperOrderEvaluatorForInstrument in internal/application/execution/paper_order_evaluator.go). Where upstream cannot carry Instrument (true boundary with venue-native input), retain the helper with an error-returning signature (no silent zero) and declare the call site in the exceptions list below."
+exceptions = []
+
+[[anti_patterns]]
+name = "source-string-instrument-reconstructor-clickhouse"
+function = "reconstructInstrumentFromLegacy"
+severity = "warning"
+why = "ClickHouse-side reconstruction of CanonicalInstrument from legacy (source, venue_native_symbol) row columns. The 13 call sites split into two patterns: 8 warn-and-emit-zero (documented degradation per H-6.b–H-6.d back-compat read window) and 5 silent discard (composite_reader.go: 188/243/302/360/423). The silent discards are the genuine concern — they propagate zero Instruments without operator visibility."
+help = "For the 8 warn-and-emit-zero sites: tolerable until H-6.d (ClickHouse schema migration with canonical columns) eliminates the need. For the 5 silent composite_reader sites: either propagate the error like the other 8, or fold the propagation into a higher-level scan loop that returns ProblemDetail. H-6.c.2 covers the composite_reader treatment per the H-6.c fragmentation."
+exceptions = []

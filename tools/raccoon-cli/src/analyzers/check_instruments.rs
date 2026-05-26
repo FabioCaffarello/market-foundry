@@ -32,6 +32,25 @@
 //! source-string reconstruction at the boundary — the exact regression
 //! shape that caused commit 37f8ddd).
 //!
+//! **H-6.c layer (application side, anti-pattern detection):** every
+//! function in production code that reconstructs CanonicalInstrument
+//! from a source-string + symbol-string pair is declared in
+//! `policies/anti_patterns.toml`. The analyzer scans production .go
+//! files (recursively under `internal/`, excluding `_test.go`) for
+//! call sites of each declared function and emits a finding per call
+//! site. Severity is intentionally `warning` during H-6.c migration
+//! so the gate does not fail while callers are migrated to Instrument
+//! pass-through; H-6.f flips known patterns to `error` once the
+//! helpers are eliminated. Pre-flight 5 of H-6.c discovered that
+//! production Source values include `"binance"`, `"binance_spot"`,
+//! `"derive"`, `"clickhouse"`, `"unknown_exchange"`, and
+//! `"execute.venue-adapter"` — all unrecognized by the hardcoded
+//! `binances`/`binancef` mapping in the helpers, so every call site
+//! is a potential silent-zero regression analogous to commit
+//! 37f8ddd. Per-call-site exceptions can be declared in the policy
+//! file for legitimate boundary cases (helper that serves a true
+//! HTTP-DTO boundary, etc.).
+//!
 //! Declarative-via-allowlist (adapter layer) and declarative-via-state
 //! (domain layer) are preferred over pure inference because (a) new
 //! migrations should not silently pass — they must be declared, which
@@ -49,7 +68,7 @@
 //! backs it up.
 
 use crate::error::Result;
-use crate::models::{CheckResult, Finding, Report};
+use crate::models::{CheckResult, CheckStatus, Finding, Report, Severity};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -57,6 +76,11 @@ use std::path::{Path, PathBuf};
 
 const POLICY_PATH: &str = "tools/raccoon-cli/policies/adapters.toml";
 const DOMAIN_TYPES_POLICY_PATH: &str = "tools/raccoon-cli/policies/domain_types.toml";
+const ANTI_PATTERNS_POLICY_PATH: &str = "tools/raccoon-cli/policies/anti_patterns.toml";
+/// Root directory walked by the anti-patterns scan. Production Go
+/// code lives under `internal/`; cmd/ is intentionally included via
+/// the recursive walk below. Tests (`*_test.go`) are excluded inline.
+const ANTI_PATTERNS_SCAN_ROOT: &str = "internal";
 const ADAPTERS_DIR: &str = "internal/adapters/exchanges";
 const INSTRUMENT_IMPORT: &str = "internal/domain/instrument";
 const CONSTRUCTOR_NEW: &str = "instrument.New(";
@@ -113,6 +137,44 @@ struct DomainTypeEntry {
     /// enforcement (permanent — type is a query/filter DTO whose
     /// venue-native string is canonical by design).
     migration_state: String,
+}
+
+/// Anti-patterns policy schema. Each entry under `[[anti_patterns]]`
+/// declares one forbidden source-string reconstruction function.
+/// Loaded from `tools/raccoon-cli/policies/anti_patterns.toml`. The
+/// analyzer scans production `.go` files (recursively under `internal/`,
+/// excluding `_test.go`) for call sites of each declared function and
+/// emits findings per call site.
+#[derive(Debug, Deserialize, Default)]
+struct AntiPatternsPolicy {
+    #[serde(default)]
+    anti_patterns: Vec<AntiPattern>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AntiPattern {
+    /// Unique identifier surfaced in findings (e.g.,
+    /// "source-string-instrument-reconstructor").
+    name: String,
+    /// Bare Go function name (no receiver). Used as the substring
+    /// `"<function>("` in the line-based scan.
+    function: String,
+    /// Severity for emitted findings: "warning" (does not fail the
+    /// gate) or "error" (fails the gate). H-6.c uses "warning"; H-6.f
+    /// flips to "error" once the helpers are eliminated.
+    severity: String,
+    /// Rationale for the prohibition. Surfaced via `Finding::with_why`.
+    #[serde(default)]
+    why: String,
+    /// Recommended migration path. Surfaced via `Finding::with_help`.
+    #[serde(default)]
+    help: String,
+    /// Per-call-site exceptions — file paths (relative to project
+    /// root) where the function call is allowed legitimately. Each
+    /// exception is auditable: the policy file change shows up in PR
+    /// review.
+    #[serde(default)]
+    exceptions: Vec<String>,
 }
 
 /// Entry point invoked from the CLI (`raccoon-cli check instruments`)
@@ -273,6 +335,49 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
         }
     }
 
+    // ── Anti-patterns policy check (H-6.c.1 extension) ─────────────
+    //
+    // Per H-6.c.1 / Decision #4(c), each source-string instrument
+    // reconstruction function is declared in policies/anti_patterns.toml
+    // with a severity (warning during H-6.c migration; error after
+    // H-6.f). The analyzer scans production .go files (recursively
+    // under internal/, excluding _test.go) for call sites of each
+    // declared function and emits a finding per call site. Per-site
+    // exceptions are auditable via the policy file. Soft warnings
+    // do not fail the gate; the visible findings drive the migration
+    // effort.
+    match load_anti_patterns_policy(project_root) {
+        Ok(policy) => {
+            report.add(CheckResult::pass("anti-patterns-policy-present"));
+            let mut findings: Vec<Finding> = Vec::new();
+            match collect_production_go_files(project_root) {
+                Ok(files) => {
+                    for pattern in &policy.anti_patterns {
+                        findings.extend(scan_anti_pattern(project_root, &files, pattern));
+                    }
+                }
+                Err(e) => findings.push(Finding::error(
+                    "anti-patterns-scan-error",
+                    format!("failed to walk {}: {}", ANTI_PATTERNS_SCAN_ROOT, e),
+                )),
+            }
+            report.add(CheckResult::from_findings("anti-patterns-detected", findings));
+        }
+        Err(finding) => {
+            if finding.check == "policy-missing-tolerable" {
+                report.add(CheckResult::skip(
+                    "anti-patterns-policy-present",
+                    "policies/anti_patterns.toml not present — skipping anti-pattern scan (pre-H-6.c deployment)".to_string(),
+                ));
+            } else {
+                report.add(CheckResult::from_findings(
+                    "anti-patterns-policy-present",
+                    vec![finding],
+                ));
+            }
+        }
+    }
+
     Ok(report)
 }
 
@@ -390,6 +495,152 @@ fn check_domain_type(
     }
 
     Ok(findings)
+}
+
+// ── Anti-patterns policy loading + scanning (H-6.c.1) ───────────────
+
+fn load_anti_patterns_policy(
+    project_root: &Path,
+) -> std::result::Result<AntiPatternsPolicy, Finding> {
+    let path = project_root.join(ANTI_PATTERNS_POLICY_PATH);
+    if !path.exists() {
+        // Tolerable absence: pre-H-6.c deployments without the file.
+        return Err(Finding::error(
+            "policy-missing-tolerable",
+            format!("{} not present", path.display()),
+        ));
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| {
+        Finding::error(
+            "check-instruments",
+            format!("failed to read {}: {e}", path.display()),
+        )
+    })?;
+    toml::from_str(&raw).map_err(|e| {
+        Finding::error(
+            "check-instruments",
+            format!("{} is not valid TOML or schema: {e}", path.display()),
+        )
+        .with_help(
+            "verify the file matches the documented schema (see comments in anti_patterns.toml)",
+        )
+    })
+}
+
+/// Recursively collects all `.go` files under `internal/` (relative
+/// to the project root), excluding `*_test.go`. Returns the absolute
+/// paths so they can be opened directly; the project-relative paths
+/// (computed during scan emission) are used in findings + exception
+/// matching.
+fn collect_production_go_files(project_root: &Path) -> std::result::Result<Vec<PathBuf>, String> {
+    let root = project_root.join(ANTI_PATTERNS_SCAN_ROOT);
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut out: Vec<PathBuf> = Vec::new();
+    walk_collect_go(&root, &mut out).map_err(|e| format!("walk: {e}"))?;
+    out.sort();
+    Ok(out)
+}
+
+fn walk_collect_go(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            walk_collect_go(&path, out)?;
+            continue;
+        }
+        let name = match path.file_name().and_then(|n| n.to_str()) {
+            Some(n) => n,
+            None => continue,
+        };
+        if !name.ends_with(".go") || name.ends_with("_test.go") {
+            continue;
+        }
+        out.push(path);
+    }
+    Ok(())
+}
+
+/// Scans the collected production `.go` files for call sites of the
+/// declared anti-pattern function. Skips function declaration lines
+/// (`func ... funcName(...)`), single-line `//` comments, and any
+/// file matching an entry in the `exceptions` list (path is matched
+/// relative to project_root). Emits one `Finding` per call site at
+/// the declared severity.
+fn scan_anti_pattern(
+    project_root: &Path,
+    files: &[PathBuf],
+    pattern: &AntiPattern,
+) -> Vec<Finding> {
+    let mut findings: Vec<Finding> = Vec::new();
+    let needle = format!("{}(", pattern.function);
+    let func_decl_prefix = format!("func {}(", pattern.function);
+    let func_decl_with_receiver = format!(") {}(", pattern.function);
+
+    for path in files {
+        let rel_path = path
+            .strip_prefix(project_root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .to_string();
+        if pattern.exceptions.iter().any(|ex| ex == &rel_path) {
+            continue;
+        }
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        for (lineno, line) in content.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            // Skip the function's own definition line (with or
+            // without a receiver). The bare `func instrumentFromBinding(`
+            // catches the no-receiver form (which is how the helpers
+            // are declared in their respective packages).
+            if trimmed.starts_with(&func_decl_prefix) {
+                continue;
+            }
+            if trimmed.contains(&func_decl_with_receiver) {
+                continue;
+            }
+            if !line.contains(&needle) {
+                continue;
+            }
+            // Reduce false positives: require a non-identifier char
+            // immediately before the function name so that a longer
+            // identifier ending in `instrumentFromBinding` does not
+            // trip the scan. (Conservative: bare match works for
+            // exported & unexported names in current scope.)
+            let needle_idx = match line.find(&needle) {
+                Some(i) => i,
+                None => continue,
+            };
+            if needle_idx > 0 {
+                let prev = line.as_bytes()[needle_idx - 1] as char;
+                if prev.is_alphanumeric() || prev == '_' {
+                    continue;
+                }
+            }
+            let location = format!("{}:{}", rel_path, lineno + 1);
+            let mut finding = match pattern.severity.as_str() {
+                "error" => Finding::error(pattern.name.as_str(), pattern.function.clone()),
+                _ => Finding::warning(pattern.name.as_str(), pattern.function.clone()),
+            };
+            finding = finding.with_location(location);
+            if !pattern.why.is_empty() {
+                finding = finding.with_why(pattern.why.clone());
+            }
+            if !pattern.help.is_empty() {
+                finding = finding.with_help(pattern.help.clone());
+            }
+            findings.push(finding);
+        }
+    }
+    findings
 }
 
 // ── Policy loading ──────────────────────────────────────────────────
@@ -854,5 +1105,211 @@ migration_state = "string_filter"
         // Compliant adapters should not produce findings.
         assert!(!s.contains("binances:"));
         assert!(!s.contains("binancef:"));
+    }
+
+    // ── Anti-patterns policy tests (H-6.c.1 extension) ─────────────
+
+    fn write_anti_patterns_policy(root: &Path, body: &str) {
+        write(&root.join(ANTI_PATTERNS_POLICY_PATH), body);
+    }
+
+    fn write_internal_go(root: &Path, rel_path: &str, contents: &str) {
+        write(&root.join("internal").join(rel_path), contents);
+    }
+
+    /// Locate findings from the anti-patterns scan check in a report,
+    /// counting warning/error severities separately.
+    fn anti_pattern_findings(report: &Report) -> (usize, usize) {
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "anti-patterns-detected")
+            .expect("anti-patterns-detected check missing");
+        let warnings = check
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::Warning)
+            .count();
+        let errors = check
+            .findings
+            .iter()
+            .filter(|f| f.severity == Severity::Error)
+            .count();
+        (warnings, errors)
+    }
+
+    #[test]
+    fn analyze_anti_patterns_emits_warning_per_call_site_and_does_not_fail_gate() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        write_anti_patterns_policy(
+            root,
+            r#"
+[[anti_patterns]]
+name = "source-string-instrument-reconstructor"
+function = "instrumentFromBinding"
+severity = "warning"
+why = "Reconstructs CanonicalInstrument from source-string mapping."
+help = "Migrate caller to receive Instrument from upstream."
+exceptions = []
+"#,
+        );
+        // 3 production call sites + 1 declaration (must be ignored) +
+        // 1 test-file caller (must be ignored).
+        write_internal_go(
+            root,
+            "application/signal/instrument_binding.go",
+            "package signal\n\nfunc instrumentFromBinding(source, sym string) struct{} { return struct{}{} }\n",
+        );
+        write_internal_go(
+            root,
+            "application/signal/rsi_sampler.go",
+            "package signal\n\nfunc NewRSI(source, sym string) {\n    _ = instrumentFromBinding(source, sym)\n}\n",
+        );
+        write_internal_go(
+            root,
+            "application/signal/atr_sampler.go",
+            "package signal\n\nfunc NewATR(source, sym string) {\n    _ = instrumentFromBinding(source, sym)\n}\n",
+        );
+        write_internal_go(
+            root,
+            "application/signal/macd_sampler.go",
+            "package signal\n\nfunc NewMACD(source, sym string) {\n    _ = instrumentFromBinding(source, sym)\n}\n",
+        );
+        // _test.go file with the same call — must be excluded.
+        write(
+            &root.join("internal/application/signal/rsi_sampler_test.go"),
+            "package signal\n\nfunc TestFoo() {\n    _ = instrumentFromBinding(\"binances\", \"btcusdt\")\n}\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(
+            report.passed(),
+            "soft-warning anti-patterns must not fail the gate. Got:\n{report}"
+        );
+        let (warnings, errors) = anti_pattern_findings(&report);
+        assert_eq!(
+            warnings, 3,
+            "expected 3 warnings (one per call site, excluding declaration + _test.go). Got:\n{report}"
+        );
+        assert_eq!(errors, 0, "soft-warning mode must not emit errors");
+    }
+
+    #[test]
+    fn analyze_anti_patterns_skips_function_declaration_line() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        write_anti_patterns_policy(
+            root,
+            r#"
+[[anti_patterns]]
+name = "test-pattern"
+function = "instrumentFromBinding"
+severity = "warning"
+exceptions = []
+"#,
+        );
+        // File contains ONLY the declaration. Should emit zero findings.
+        write_internal_go(
+            root,
+            "application/signal/instrument_binding.go",
+            "package signal\n\nfunc instrumentFromBinding(source, sym string) struct{} { return struct{}{} }\n",
+        );
+
+        let report = analyze(root).unwrap();
+        let (warnings, errors) = anti_pattern_findings(&report);
+        assert_eq!(warnings, 0, "declaration-only file must not produce findings");
+        assert_eq!(errors, 0);
+    }
+
+    #[test]
+    fn analyze_anti_patterns_exception_suppresses_warning() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        write_anti_patterns_policy(
+            root,
+            r#"
+[[anti_patterns]]
+name = "test-pattern"
+function = "instrumentFromBinding"
+severity = "warning"
+exceptions = ["internal/application/execution/binance_spot_testnet_adapter.go"]
+"#,
+        );
+        write_internal_go(
+            root,
+            "application/execution/binance_spot_testnet_adapter.go",
+            "package execution\n\nfunc N() {\n    _ = instrumentFromBinding(\"binances\", \"btcusdt\")\n}\n",
+        );
+        write_internal_go(
+            root,
+            "application/signal/rsi_sampler.go",
+            "package signal\n\nfunc N() {\n    _ = instrumentFromBinding(s, v)\n}\n",
+        );
+
+        let report = analyze(root).unwrap();
+        let (warnings, errors) = anti_pattern_findings(&report);
+        // Exception suppresses the testnet adapter caller; the signal
+        // caller still emits a finding.
+        assert_eq!(warnings, 1, "exception must suppress only the declared file");
+        assert_eq!(errors, 0);
+    }
+
+    #[test]
+    fn analyze_anti_patterns_error_severity_fails_gate() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        write_anti_patterns_policy(
+            root,
+            r#"
+[[anti_patterns]]
+name = "strict-pattern"
+function = "instrumentFromBinding"
+severity = "error"
+exceptions = []
+"#,
+        );
+        write_internal_go(
+            root,
+            "application/signal/rsi_sampler.go",
+            "package signal\n\nfunc N() {\n    _ = instrumentFromBinding(s, v)\n}\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(
+            !report.passed(),
+            "error-severity findings must fail the gate (H-6.f strict mode). Got:\n{report}"
+        );
+        let (warnings, errors) = anti_pattern_findings(&report);
+        assert_eq!(warnings, 0);
+        assert_eq!(errors, 1);
+    }
+
+    #[test]
+    fn analyze_anti_patterns_tolerates_missing_policy_file() {
+        // Pre-H-6.c deployments have no anti_patterns.toml. Skip with
+        // an info message rather than failing.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        // No anti_patterns.toml written.
+
+        let report = analyze(root).unwrap();
+        assert!(report.passed(), "missing policy must skip, not fail");
+        let check = report
+            .checks
+            .iter()
+            .find(|c| c.name == "anti-patterns-policy-present")
+            .expect("anti-patterns-policy-present check missing");
+        assert_eq!(check.status, CheckStatus::Skip);
     }
 }
