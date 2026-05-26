@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
 
@@ -16,6 +17,7 @@ type VolumeSampler struct {
 	symbol    string
 	timeframe time.Duration
 
+	instrument instrument.CanonicalInstrument
 	buyVolume  *big.Float // notional: Σ(price × qty) where BuyerMaker
 	sellVolume *big.Float // notional: Σ(price × qty) where !BuyerMaker
 	totalQty   *big.Float // raw quantity: Σ(qty) — VWAP denominator
@@ -57,6 +59,7 @@ func (s *VolumeSampler) AddTrade(trade observation.ObservationTrade) (finalized 
 	if !s.active {
 		s.openTime = openTime
 		s.closeTime = closeTime
+		s.instrument = trade.Instrument
 		s.buyVolume = new(big.Float)
 		s.sellVolume = new(big.Float)
 		s.totalQty = new(big.Float)
@@ -89,7 +92,7 @@ func (s *VolumeSampler) snapshot(final bool) evidence.EvidenceVolume {
 
 	return evidence.EvidenceVolume{
 		Source:      s.source,
-		Symbol:      s.symbol,
+		Instrument:  s.instrument,
 		Timeframe:   int(s.timeframe.Seconds()),
 		BuyVolume:   s.buyVolume.Text('f', 8),
 		SellVolume:  s.sellVolume.Text('f', 8),
@@ -104,6 +107,7 @@ func (s *VolumeSampler) snapshot(final bool) evidence.EvidenceVolume {
 
 func (s *VolumeSampler) reset() {
 	s.active = false
+	s.instrument = instrument.CanonicalInstrument{}
 	s.tradeCount = 0
 	s.buyVolume = nil
 	s.sellVolume = nil

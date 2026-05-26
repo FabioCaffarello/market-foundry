@@ -318,7 +318,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	burst := &evidence.EvidenceTradeBurst{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		TradeCount: 150,
 		BuyVolume:  "500000.00",
@@ -443,7 +443,7 @@ func TestEvidenceWebHandler_GetLatestVolume(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	vol := &evidence.EvidenceVolume{
 		Source:      "binancef",
-		Symbol:      "btcusdt",
+		Instrument:  btcUSDTPerp(t),
 		Timeframe:   60,
 		BuyVolume:   "500000.00",
 		SellVolume:  "300000.00",

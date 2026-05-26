@@ -26,7 +26,7 @@ func (m *mockTradeBurstStore) Put(_ context.Context, _ evidence.EvidenceTradeBur
 func validTradeBurst(openTime time.Time) evidence.EvidenceTradeBurst {
 	return evidence.EvidenceTradeBurst{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpForCandleTest(),
 		Timeframe:  60,
 		TradeCount: 150,
 		BuyVolume:  "500.00",

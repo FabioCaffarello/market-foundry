@@ -6,8 +6,18 @@ import (
 	"time"
 
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerpInternal(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type volumeGatewayStub2 struct {
 	vol  *evidence.EvidenceVolume
@@ -49,11 +59,11 @@ func TestGetLatestVolumeUseCase_ReturnsVolume(t *testing.T) {
 
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	vol := &evidence.EvidenceVolume{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binancef", Instrument: btcUSDTPerpInternal(t), Timeframe: 60,
 		BuyVolume: "100000.00", SellVolume: "50000.00",
 		TotalVolume: "150000.00", VWAP: "50000.00",
 		TradeCount: 42,
-		OpenTime: now, CloseTime: now.Add(60 * time.Second),
+		OpenTime:   now, CloseTime: now.Add(60 * time.Second),
 		Final: true,
 	}
 

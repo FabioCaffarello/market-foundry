@@ -113,7 +113,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		a.logger.Warn("trade burst rejected by validation",
 			"error", prob.Message,
 			"source", burst.Source,
-			"symbol", burst.Symbol,
+			"symbol", burst.VenueSymbol(),
 			"timeframe", burst.Timeframe,
 		)
 		return
@@ -132,7 +132,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		a.logger.Error("materialize trade burst latest",
 			"error", prob.Message,
 			"source", burst.Source,
-			"symbol", burst.Symbol,
+			"symbol", burst.VenueSymbol(),
 			"timeframe", burst.Timeframe,
 		)
 		return
@@ -143,7 +143,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		a.stats.skippedStale.Add(1)
 		a.logger.Debug("latest skipped: existing is newer",
 			"source", burst.Source,
-			"symbol", burst.Symbol,
+			"symbol", burst.VenueSymbol(),
 			"timeframe", burst.Timeframe,
 			"open_time", burst.OpenTime.Format(time.RFC3339),
 		)
@@ -152,7 +152,7 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 		a.stats.skippedDedup.Add(1)
 		a.logger.Debug("latest skipped: duplicate open_time",
 			"source", burst.Source,
-			"symbol", burst.Symbol,
+			"symbol", burst.VenueSymbol(),
 			"timeframe", burst.Timeframe,
 			"open_time", burst.OpenTime.Format(time.RFC3339),
 		)
@@ -165,13 +165,13 @@ func (a *TradeBurstProjectionActor) onTradeBurst(msg tradeBurstReceivedMessage) 
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + burst.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + burst.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("trade burst materialized",
 			"source", burst.Source,
-			"symbol", burst.Symbol,
+			"symbol", burst.VenueSymbol(),
 			"timeframe", burst.Timeframe,
 			"open_time", burst.OpenTime.Format(time.RFC3339),
 			"trades", burst.TradeCount,

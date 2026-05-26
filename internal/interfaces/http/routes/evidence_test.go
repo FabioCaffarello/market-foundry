@@ -109,7 +109,7 @@ func TestEvidenceRoutesRegisterTradeBurstHandler(t *testing.T) {
 	routes := Evidence(EvidenceFamilyDeps{
 		GetLatestTradeBurst: getLatestTradeBurstUseCaseStub{
 			burst: &evidence.EvidenceTradeBurst{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+				Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 				TradeCount: 100, BuyVolume: "500.00", SellVolume: "300.00",
 				OpenTime: now, CloseTime: now.Add(60 * time.Second),
 				Burst: true, Final: true,

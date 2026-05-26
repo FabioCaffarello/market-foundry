@@ -26,7 +26,7 @@ func (m *mockVolumeStore) Put(_ context.Context, _ evidence.EvidenceVolume) (nat
 func validVolume(openTime time.Time) evidence.EvidenceVolume {
 	return evidence.EvidenceVolume{
 		Source:      "binancef",
-		Symbol:      "btcusdt",
+		Instrument:  btcUSDTPerpForCandleTest(),
 		Timeframe:   60,
 		BuyVolume:   "500000.00",
 		SellVolume:  "300000.00",

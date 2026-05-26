@@ -103,7 +103,7 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 		a.logger.Warn("volume rejected by validation",
 			"error", prob.Message,
 			"source", vol.Source,
-			"symbol", vol.Symbol,
+			"symbol", vol.VenueSymbol(),
 			"timeframe", vol.Timeframe,
 		)
 		return
@@ -121,7 +121,7 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 		a.logger.Error("materialize volume latest",
 			"error", prob.Message,
 			"source", vol.Source,
-			"symbol", vol.Symbol,
+			"symbol", vol.VenueSymbol(),
 			"timeframe", vol.Timeframe,
 		)
 		return
@@ -142,13 +142,13 @@ func (a *VolumeProjectionActor) onVolume(msg volumeReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + vol.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + vol.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("volume materialized",
 			"source", vol.Source,
-			"symbol", vol.Symbol,
+			"symbol", vol.VenueSymbol(),
 			"timeframe", vol.Timeframe,
 			"open_time", vol.OpenTime.Format(time.RFC3339),
 			"trades", vol.TradeCount,

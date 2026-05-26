@@ -64,7 +64,7 @@ func (s *TradeBurstKVStore) Put(ctx context.Context, burst evidence.EvidenceTrad
 		return natskit.PutWritten, problem.New(problem.Unavailable, "trade burst KV store is unavailable")
 	}
 
-	key := tradeBurstKey(burst.Source, burst.Symbol, burst.Timeframe)
+	key := tradeBurstKey(burst.Source, burst.VenueSymbol(), burst.Timeframe)
 
 	existing, err := s.kv.Get(ctx, key)
 	if err == nil {

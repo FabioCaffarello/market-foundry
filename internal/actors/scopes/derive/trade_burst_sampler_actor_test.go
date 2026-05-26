@@ -36,8 +36,8 @@ func TestTradeBurstSamplerActor_WindowFinalization_Publishes(t *testing.T) {
 	}
 
 	b := msg.Event.TradeBurst
-	if b.Source != "binancef" || b.Symbol != "btcusdt" {
-		t.Errorf("wrong source/symbol: %s/%s", b.Source, b.Symbol)
+	if b.Source != "binancef" || b.VenueSymbol() != "btcusdt" {
+		t.Errorf("wrong source/symbol: %s/%s", b.Source, b.VenueSymbol())
 	}
 	if b.Timeframe != 60 {
 		t.Errorf("timeframe: want 60, got %d", b.Timeframe)

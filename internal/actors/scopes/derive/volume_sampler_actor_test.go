@@ -36,8 +36,8 @@ func TestVolumeSamplerActor_WindowFinalization_Publishes(t *testing.T) {
 	}
 
 	v := msg.Event.Volume
-	if v.Source != "binancef" || v.Symbol != "btcusdt" {
-		t.Errorf("wrong source/symbol: %s/%s", v.Source, v.Symbol)
+	if v.Source != "binancef" || v.VenueSymbol() != "btcusdt" {
+		t.Errorf("wrong source/symbol: %s/%s", v.Source, v.VenueSymbol())
 	}
 	if v.Timeframe != 60 {
 		t.Errorf("timeframe: want 60, got %d", v.Timeframe)

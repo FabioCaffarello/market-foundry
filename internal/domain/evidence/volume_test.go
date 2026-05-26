@@ -3,18 +3,25 @@ package evidence
 import (
 	"testing"
 	"time"
+
+	"internal/domain/instrument"
 )
 
 func TestEvidenceVolume_Validate(t *testing.T) {
 	t.Parallel()
 
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	valid := EvidenceVolume{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binancef", Instrument: inst, Timeframe: 60,
 		BuyVolume: "500000.00", SellVolume: "300000.00",
 		TotalVolume: "800000.00", VWAP: "50000.12345678",
 		TradeCount: 100,
-		OpenTime: now, CloseTime: now.Add(60 * time.Second),
+		OpenTime:   now, CloseTime: now.Add(60 * time.Second),
 		Final: true,
 	}
 
@@ -27,7 +34,7 @@ func TestEvidenceVolume_Validate(t *testing.T) {
 		mutate func(*EvidenceVolume)
 	}{
 		{"empty source", func(v *EvidenceVolume) { v.Source = "" }},
-		{"empty symbol", func(v *EvidenceVolume) { v.Symbol = "" }},
+		{"zero instrument", func(v *EvidenceVolume) { v.Instrument = instrument.CanonicalInstrument{} }},
 		{"zero timeframe", func(v *EvidenceVolume) { v.Timeframe = 0 }},
 		{"negative timeframe", func(v *EvidenceVolume) { v.Timeframe = -1 }},
 		{"empty buy_volume", func(v *EvidenceVolume) { v.BuyVolume = "" }},
