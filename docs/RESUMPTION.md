@@ -1022,6 +1022,39 @@ dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
 
+### G6 — `TestS460_SessionLifecycleTransitions` time-resolution flake
+
+`internal/application/execution/s460_session_metadata_test.go:104`
+asserts `Session.Duration() != 0` after `Session.Close()`.
+`Duration() = ClosedAt.Sub(StartedAt)` returns zero when both
+timestamps fall in the same nanosecond — the test sets
+`StartedAt: time.Now()` and immediately calls
+`Close(clock.SystemClock{}, ...)` which does `now := clk.Now()`.
+Under batch test load (`make test-integration`), the two
+`time.Now()` calls occasionally land on the same nanosecond and
+the assertion trips. Isolated re-run (`go test -count=3 -run
+TestS460_SessionLifecycleTransitions`) consistently PASS.
+
+Observed during H-6.b'' pre-push validation (2026-05-26). Not a
+regression of H-6.b''; the test file dates from commit `218a010`
+(H-4, 2026-05-25) and has zero overlap with files modified by
+H-6.b''.
+
+**Fix candidates** (any of):
+
+1. Inject a `FixedClock` with an explicit time delta into the
+   test setup, instead of relying on `clock.SystemClock{}`.
+2. Have `Session.Close()` enforce `ClosedAt >= StartedAt + 1ns`
+   (or use a monotonic counter for ordering).
+3. Change the assertion to `Duration() >= 0` if zero is
+   semantically valid (probably not — duration of a closed
+   session should be strictly positive).
+
+**Deferred to:** H-6.f cleanup wave or a dedicated test-
+hardening sub-wave. Workaround: re-run the failing test
+isolated via `go test -count=3 -run TestS460_…` to confirm
+flake before treating as a regression.
+
 ---
 
 ## Known surface debt

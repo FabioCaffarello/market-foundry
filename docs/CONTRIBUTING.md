@@ -273,6 +273,39 @@ Types in use:
 Scope is optional but useful for large changes (e.g.,
 `docs(p1a.8a):`, `fix(gateway):`).
 
+### Pre-push validation
+
+Before `git push` on any branch touching production code or
+integration paths, run the canonical Makefile targets — **not**
+manually reconstructed `go test` commands:
+
+- `make verify` — fast gate (`go test ./...` + repo-consistency
+  + quality-gate + proto-lint + lint-go). Always run.
+- `make test-integration` — integration-tagged tests against a
+  local NATS at `localhost:4222` (canonical flags:
+  `-tags=integration -short -timeout 18m -count=1`). Required
+  before pushing changes that touch actors, adapters, or the
+  end-to-end execution path. Start a NATS container first:
+  `docker run -d --rm --name nats-local -p 4222:4222 nats:latest -js`.
+- `make smoke-*` — operational proofs against a live compose
+  stack (`make up && make seed`). Pick the target matching the
+  scope of the change (`smoke-analytical`, `smoke-round-trip`,
+  `smoke-live-stack`, etc.).
+
+Reconstructing the commands manually (e.g.,
+`go test -tags=integration -timeout 10m ./scopes/...`) risks
+silent divergence from canonical flags. The `-short` flag in
+particular is required to skip endurance tests that exceed
+default timeouts. **Always invoke via `make`** so the project's
+flag evolution is picked up automatically.
+
+Lesson learned during H-6.b'' pre-push validation: a raw
+`go test -tags=integration -timeout 10m ./scopes/...` (no
+`-short`) ran for 10 minutes and timed out in
+`TestEndurance_CounterMonotonicityUnderRepeatedBursts`, while
+the canonical `make test-integration` completed in 1m36s
+because the endurance test self-skips under `-short`.
+
 ### PR description
 
 A PR description should:
