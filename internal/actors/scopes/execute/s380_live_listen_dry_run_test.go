@@ -87,7 +87,7 @@ func s380BuildStrategyEvent(t *testing.T, direction strategy.Direction, confiden
 		Strategy: strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     "BTCUSDT",
+			Instrument: btcUSDTPerpIntegration(t),
 			Timeframe:  60,
 			Direction:  direction,
 			Confidence: confidence,
