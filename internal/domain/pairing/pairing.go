@@ -15,9 +15,11 @@ package pairing
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
 
 // LegDirection distinguishes the role of a leg within a round-trip.
@@ -62,6 +64,9 @@ const (
 
 // Leg represents one side of a round-trip trade.
 // A leg wraps the fill data from an ExecutionIntent with directional context.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b”.
 type Leg struct {
 	// Direction indicates whether this is an entry or exit leg.
 	Direction LegDirection `json:"direction"`
@@ -69,8 +74,9 @@ type Leg struct {
 	// Side is the order side (buy/sell) from the execution intent.
 	Side execution.Side `json:"side"`
 
-	// Symbol is the traded instrument.
-	Symbol string `json:"symbol"`
+	// Instrument is the canonical instrument identity (ADR-0021).
+	// Propagated from ExecutionIntent.Instrument via IntentToLeg.
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
 
 	// Source identifies the venue/segment (e.g. binance_spot, binance_futures).
 	Source string `json:"source"`
@@ -107,15 +113,29 @@ type Leg struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// VenueSymbol returns the lowercase venue-native symbol form
+// (e.g., "btcusdt") derived from the canonical Instrument.
+//
+// TRANSITORY ADAPTER (H-6.b” → sunset H-6.f). See ADR-0021.
+// Downstream readers that still reason in venue-native string
+// terms (S472-style projections, JSON wire shapes that expose
+// "symbol", etc.) consume this method during the transition.
+func (l Leg) VenueSymbol() string {
+	return strings.ToLower(string(l.Instrument.Base) + string(l.Instrument.Quote))
+}
+
 // RoundTrip represents a paired or unpaired trade lifecycle.
 //
 // A fully paired round-trip has both an entry and exit leg for the same
-// symbol/source/segment. An unmatched round-trip has only one leg.
+// instrument/source/segment. An unmatched round-trip has only one leg.
 //
 // Semantics:
 //   - paired: both entry and exit present, P&L is realized and classifiable.
 //   - unmatched_entry: entry exists without a corresponding exit; outcome is open/unresolved.
 //   - unmatched_exit: exit exists without a corresponding entry; data gap or orphan.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b”.
 type RoundTrip struct {
 	// Entry is the opening leg (buy for long, sell for short). Nil if unmatched_exit.
 	Entry *Leg `json:"entry,omitempty"`
@@ -134,11 +154,26 @@ type RoundTrip struct {
 	// For unmatched legs this is "0".
 	MatchedQuantity string `json:"matched_quantity"`
 
-	// Symbol is the traded instrument (denormalized for query convenience).
-	Symbol string `json:"symbol"`
+	// Instrument is denormalized from Leg.Instrument for query convenience:
+	// callers can filter/route by RoundTrip identity without dereferencing
+	// Entry/Exit. Invariant: RoundTrip.Instrument == Entry.Instrument ==
+	// Exit.Instrument (enforced by MatchFIFO construction + M1 invariant).
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
 
 	// Source is the venue/segment (denormalized for query convenience).
 	Source string `json:"source"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form
+// (e.g., "btcusdt") derived from the canonical Instrument.
+//
+// TRANSITORY ADAPTER (H-6.b” → sunset H-6.f). See ADR-0021.
+// Downstream readers that still reason in venue-native string
+// terms (S472-style projections to triage.RoundTripTriageItem.Symbol,
+// JSON wire shapes that expose "symbol", etc.) consume this method
+// during the transition.
+func (rt RoundTrip) VenueSymbol() string {
+	return strings.ToLower(string(rt.Instrument.Base) + string(rt.Instrument.Quote))
 }
 
 // IsPaired reports whether the round-trip has both entry and exit legs.
@@ -176,7 +211,10 @@ type legCandidate struct {
 // MatchFIFO applies FIFO (first-in-first-out) matching to a set of legs.
 //
 // Matching rules (invariants):
-//   - M1: Same symbol — entry.Symbol == exit.Symbol
+//   - M1: Same instrument — entry.Instrument == exit.Instrument
+//     (native Go struct equality on the canonical identity per ADR-0021;
+//     strictly stronger than legacy venue-symbol equality, because Contract
+//     type also discriminates).
 //   - M2: Same source/segment — entry.Source == exit.Source
 //   - M3: Opposite side — buy entry pairs with sell exit (long), sell entry pairs with buy exit (short)
 //   - M4: Temporal ordering — entry.Timestamp <= exit.Timestamp (entry must precede or equal exit)
@@ -251,8 +289,12 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				Exit:            &exitLeg,
 				State:           StatePaired,
 				MatchedQuantity: formatFloat(matchQty),
-				Symbol:          entries[i].leg.Symbol,
-				Source:          entries[i].leg.Source,
+				// Denormalization invariant (per Decision #3 of H-6.b''):
+				// RoundTrip.Instrument == Entry.Instrument == Exit.Instrument.
+				// M1 (entry.Instrument == exit.Instrument) guarantees the
+				// equality; this assignment is the explicit denorm.
+				Instrument: entries[i].leg.Instrument,
+				Source:     entries[i].leg.Source,
 			})
 
 			entries[i].remainingQty -= matchQty
@@ -277,8 +319,10 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				State:           StateUnmatchedEntry,
 				UnmatchedReason: ReasonNoExitFound,
 				MatchedQuantity: "0",
-				Symbol:          e.leg.Symbol,
-				Source:          e.leg.Source,
+				// Denormalization from the single available leg
+				// (no exit to cross-check; M1 inert).
+				Instrument: e.leg.Instrument,
+				Source:     e.leg.Source,
 			})
 		}
 	}
@@ -292,8 +336,9 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				State:           StateUnmatchedExit,
 				UnmatchedReason: ReasonNoEntryFound,
 				MatchedQuantity: "0",
-				Symbol:          e.leg.Symbol,
-				Source:          e.leg.Source,
+				// Denormalization from the single available leg.
+				Instrument: e.leg.Instrument,
+				Source:     e.leg.Source,
 			})
 		}
 	}
@@ -350,9 +395,13 @@ func IntentToLeg(intent execution.ExecutionIntent, strategyDirection string) Leg
 	}
 
 	return Leg{
-		Direction:     dir,
-		Side:          intent.Side,
-		Symbol:        intent.VenueSymbol(),
+		Direction: dir,
+		Side:      intent.Side,
+		// Passthrough: ExecutionIntent already carries the canonical
+		// Instrument (migrated in H-6.b'). No reconstruction here —
+		// the regression-shape from commit 37f8ddd is avoided by
+		// design.
+		Instrument:    intent.Instrument,
 		Source:        intent.Source,
 		Timeframe:     intent.Timeframe,
 		CorrelationID: intent.CorrelationID,
@@ -405,8 +454,11 @@ func Summarize(rts []RoundTrip) PairingResult {
 // --- internal helpers ---
 
 func isEligiblePair(entry, exit Leg) bool {
-	// M1: same symbol.
-	if entry.Symbol != exit.Symbol {
+	// M1: same canonical instrument identity (ADR-0021).
+	// Native Go struct equality — CanonicalInstrument is composed of
+	// three string-typed components (Base, Quote, Contract) and is
+	// comparable by construction.
+	if entry.Instrument != exit.Instrument {
 		return false
 	}
 	// M2: same source/segment.

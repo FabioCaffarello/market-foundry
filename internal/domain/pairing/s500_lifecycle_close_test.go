@@ -19,6 +19,20 @@ func btcUSDTPerpExternal(t *testing.T) instrument.CanonicalInstrument {
 	return inst
 }
 
+// btcUSDTSpotExternal returns the canonical BTC/USDT-spot instrument
+// for fixtures in this external test package. Mirrors btcUSDTSpot in
+// the internal pairing_test scope; duplication is necessary because
+// external test packages cannot reference unexported test fixtures
+// from the internal package.
+func btcUSDTSpotExternal(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
 // ---------------------------------------------------------------------------
 // S500: Lifecycle close hardening — pairing edge case tests
 // ---------------------------------------------------------------------------
@@ -101,7 +115,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 			{
 				Leg: pairing.Leg{
 					Direction: pairing.LegEntry, Side: execution.SideBuy,
-					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
+					Instrument: btcUSDTSpotExternal(t), Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "entry-big",
 					Price:         "50000", Quantity: "0.3", Fee: "0.15", CostBasis: "15000",
 					Timestamp: t0,
@@ -111,7 +125,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 			{
 				Leg: pairing.Leg{
 					Direction: pairing.LegExit, Side: execution.SideSell,
-					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
+					Instrument: btcUSDTSpotExternal(t), Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "exit-1",
 					Price:         "51000", Quantity: "0.1", Fee: "0.051", CostBasis: "5100",
 					Timestamp: t0.Add(time.Hour),
@@ -121,7 +135,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 			{
 				Leg: pairing.Leg{
 					Direction: pairing.LegExit, Side: execution.SideSell,
-					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
+					Instrument: btcUSDTSpotExternal(t), Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "exit-2",
 					Price:         "52000", Quantity: "0.1", Fee: "0.052", CostBasis: "5200",
 					Timestamp: t0.Add(2 * time.Hour),
@@ -176,13 +190,13 @@ func TestMatchFIFO_SameTimestamp_EntryAndExit_Pair(t *testing.T) {
 	legs := []pairing.Leg{
 		{
 			Direction: pairing.LegEntry, Side: execution.SideBuy,
-			Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
+			Instrument: btcUSDTSpotExternal(t), Source: "binance_spot", Timeframe: 60,
 			Price: "50000", Quantity: "0.1", Fee: "0.05", CostBasis: "5000",
 			Timestamp: ts,
 		},
 		{
 			Direction: pairing.LegExit, Side: execution.SideSell,
-			Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
+			Instrument: btcUSDTSpotExternal(t), Source: "binance_spot", Timeframe: 60,
 			Price: "50100", Quantity: "0.1", Fee: "0.05", CostBasis: "5010",
 			Timestamp: ts, // same timestamp
 		},
@@ -206,7 +220,7 @@ func TestReconcileCrossSession_HaltedSessionOrigin(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -259,7 +273,7 @@ func TestReconcileCrossSession_NonTerminalAtClose(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -308,7 +322,7 @@ func TestReconcileCrossSession_NilLifecycleContext_BackwardCompatible(t *testing
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -348,7 +362,7 @@ func TestReconcileCrossSession_HaltedAndNonTerminal(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -411,7 +425,7 @@ func TestClassifyContinuity_OrphanExitFromHaltedSession_IsGenuineUnresolved(t *t
 		Exit:            &pairing.Leg{Side: "sell", Price: "100", Quantity: "1", CostBasis: "100", Timestamp: time.Now()},
 		State:           pairing.StateUnmatchedExit,
 		UnmatchedReason: pairing.ReasonNoEntryFound,
-		Symbol:          "BTCUSDT",
+		Instrument:      btcUSDTSpotExternal(t),
 		Source:          "binance_spot",
 	}
 
@@ -428,7 +442,7 @@ func TestClassifyContinuity_QuantityRemainder_IsOpen(t *testing.T) {
 		Entry:           &pairing.Leg{Side: "buy", Price: "100", Quantity: "0.05", CostBasis: "5", Timestamp: time.Now()},
 		State:           pairing.StateUnmatchedEntry,
 		UnmatchedReason: pairing.ReasonQuantityMismatchResidue,
-		Symbol:          "BTCUSDT",
+		Instrument:      btcUSDTSpotExternal(t),
 		Source:          "binance_spot",
 	}
 

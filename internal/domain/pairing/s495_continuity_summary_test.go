@@ -118,9 +118,9 @@ func TestSummarizeContinuity_MixedStates(t *testing.T) {
 			Continuity:     ContinuityGenuineUnresolved,
 		},
 		{
-			RoundTrip:      RoundTrip{State: StateUnmatchedExit, UnmatchedReason: ReasonNoEntryFound},
-			ExitSessionID:  "s2",
-			Continuity:     ContinuityGenuineUnresolved,
+			RoundTrip:     RoundTrip{State: StateUnmatchedExit, UnmatchedReason: ReasonNoEntryFound},
+			ExitSessionID: "s2",
+			Continuity:    ContinuityGenuineUnresolved,
 		},
 	}
 
@@ -269,7 +269,7 @@ func TestAnnotateRoundTrips_CrossSessionProvenance(t *testing.T) {
 			Exit:            &Leg{CorrelationID: "c2", Timestamp: t2},
 			State:           StatePaired,
 			MatchedQuantity: "0.1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -303,7 +303,7 @@ func TestAnnotateRoundTrips_ArtificialUnresolved(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonSessionBoundary,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -327,7 +327,7 @@ func TestAnnotateRoundTrips_GenuineUnresolved_Rejected(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonRejectedLeg,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -348,7 +348,7 @@ func TestAnnotateRoundTrips_Open_NoExitFound(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonNoExitFound,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -377,10 +377,10 @@ func TestCrossSession_EndToEnd_TwoSessionsFIFO(t *testing.T) {
 
 	legSet := CrossSessionLegSet{
 		Window: CrossSessionWindow{
-			Symbol:    "BTCUSDT",
-			Source:    "binance_spot",
-			Timeframe: 60,
-			Since:     time.Date(2026, 3, 19, 0, 0, 0, 0, time.UTC),
+			VenueSymbol: "btcusdt",
+			Source:      "binance_spot",
+			Timeframe:   60,
+			Since:       time.Date(2026, 3, 19, 0, 0, 0, 0, time.UTC),
 		},
 		Sessions: []string{"session_1", "session_2"},
 		Legs: []SessionLeg{
@@ -388,7 +388,7 @@ func TestCrossSession_EndToEnd_TwoSessionsFIFO(t *testing.T) {
 				Leg: Leg{
 					Direction:     LegEntry,
 					Side:          "buy",
-					Symbol:        "BTCUSDT",
+					Instrument:    btcUSDTSpot,
 					Source:        "binance_spot",
 					CorrelationID: "c1",
 					Price:         "50000.00000000",
@@ -405,7 +405,7 @@ func TestCrossSession_EndToEnd_TwoSessionsFIFO(t *testing.T) {
 				Leg: Leg{
 					Direction:     LegExit,
 					Side:          "sell",
-					Symbol:        "BTCUSDT",
+					Instrument:    btcUSDTSpot,
 					Source:        "binance_spot",
 					CorrelationID: "c2",
 					Price:         "51000.00000000",
@@ -476,11 +476,11 @@ func TestCrossSession_EndToEnd_ThreeSessions_MixedOutcomes(t *testing.T) {
 	t5 := time.Date(2026, 3, 22, 10, 0, 0, 0, time.UTC)
 
 	legs := []SessionLeg{
-		{Leg: Leg{Direction: LegEntry, Side: "buy", Symbol: "BTCUSDT", Source: "binance_spot", CorrelationID: "c1", Price: "50000", Quantity: "0.1", Fee: "0.05", CostBasis: "5000", Timestamp: t1}, SessionID: "s1"},
-		{Leg: Leg{Direction: LegEntry, Side: "buy", Symbol: "BTCUSDT", Source: "binance_spot", CorrelationID: "c2", Price: "49000", Quantity: "0.1", Fee: "0.049", CostBasis: "4900", Timestamp: t2}, SessionID: "s1"},
-		{Leg: Leg{Direction: LegExit, Side: "sell", Symbol: "BTCUSDT", Source: "binance_spot", CorrelationID: "c3", Price: "51000", Quantity: "0.1", Fee: "0.051", CostBasis: "5100", Timestamp: t3}, SessionID: "s2"},
-		{Leg: Leg{Direction: LegEntry, Side: "buy", Symbol: "BTCUSDT", Source: "binance_spot", CorrelationID: "c4", Price: "52000", Quantity: "0.1", Fee: "0.052", CostBasis: "5200", Timestamp: t4}, SessionID: "s2"},
-		{Leg: Leg{Direction: LegExit, Side: "sell", Symbol: "BTCUSDT", Source: "binance_spot", CorrelationID: "c5", Price: "50000", Quantity: "0.1", Fee: "0.05", CostBasis: "5000", Timestamp: t5}, SessionID: "s3"},
+		{Leg: Leg{Direction: LegEntry, Side: "buy", Instrument: btcUSDTSpot, Source: "binance_spot", CorrelationID: "c1", Price: "50000", Quantity: "0.1", Fee: "0.05", CostBasis: "5000", Timestamp: t1}, SessionID: "s1"},
+		{Leg: Leg{Direction: LegEntry, Side: "buy", Instrument: btcUSDTSpot, Source: "binance_spot", CorrelationID: "c2", Price: "49000", Quantity: "0.1", Fee: "0.049", CostBasis: "4900", Timestamp: t2}, SessionID: "s1"},
+		{Leg: Leg{Direction: LegExit, Side: "sell", Instrument: btcUSDTSpot, Source: "binance_spot", CorrelationID: "c3", Price: "51000", Quantity: "0.1", Fee: "0.051", CostBasis: "5100", Timestamp: t3}, SessionID: "s2"},
+		{Leg: Leg{Direction: LegEntry, Side: "buy", Instrument: btcUSDTSpot, Source: "binance_spot", CorrelationID: "c4", Price: "52000", Quantity: "0.1", Fee: "0.052", CostBasis: "5200", Timestamp: t4}, SessionID: "s2"},
+		{Leg: Leg{Direction: LegExit, Side: "sell", Instrument: btcUSDTSpot, Source: "binance_spot", CorrelationID: "c5", Price: "50000", Quantity: "0.1", Fee: "0.05", CostBasis: "5000", Timestamp: t5}, SessionID: "s3"},
 	}
 
 	legSet := CrossSessionLegSet{

@@ -131,8 +131,12 @@ func (uc *GetCrossSessionPairingUseCase) Execute(ctx context.Context, query Cros
 	}
 
 	// Step 2: For each session, fetch chains and build session legs.
+	// CrossSessionWindow.VenueSymbol is a venue-native string filter
+	// (Decision #2 of H-6.b''); query.Symbol is the lowercase form
+	// supplied by the HTTP query parameter and is passed through
+	// without canonical-instrument reconstruction.
 	window := pairing.CrossSessionWindow{
-		Symbol:      query.Symbol,
+		VenueSymbol: query.Symbol,
 		Source:      query.Source,
 		Timeframe:   query.Timeframe,
 		Since:       sinceTime,

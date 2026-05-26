@@ -23,7 +23,14 @@
 //! the type file) and a transitory accessor `VenueSymbol() string`
 //! (per the H-6.b sunset pattern, removed in H-6.f). Types marked
 //! `pending` are tolerated — the legacy `Symbol string` field stays
-//! until its own sub-onda migrates them.
+//! until its own sub-onda migrates them. Types marked `string_filter`
+//! are documented as query/filter DTOs whose venue-native string
+//! field is canonical by design and intentionally not promoted to
+//! CanonicalInstrument; declaration is the auditable record of that
+//! architectural decision (pre-flight 6 of H-6.b'' confirmed the
+//! pattern for `CrossSessionWindow`, where promoting would force
+//! source-string reconstruction at the boundary — the exact regression
+//! shape that caused commit 37f8ddd).
 //!
 //! Declarative-via-allowlist (adapter layer) and declarative-via-state
 //! (domain layer) are preferred over pure inference because (a) new
@@ -57,6 +64,12 @@ const CONSTRUCTOR_FROM_SYMBOL: &str = "instrument.FromSymbol(";
 
 const MIGRATION_STATE_MIGRATED: &str = "migrated";
 const MIGRATION_STATE_PENDING: &str = "pending";
+/// Documented architectural choice: the declared type is a query
+/// filter / DTO whose Symbol or VenueSymbol field is venue-native by
+/// design and intentionally not promoted to CanonicalInstrument.
+/// Tolerated like `pending` (no enforcement) but conveys a permanent
+/// decision rather than a transient state. See H-6.b'' / pre-flight 6.
+const MIGRATION_STATE_STRING_FILTER: &str = "string_filter";
 /// Substring that signals a CanonicalInstrument field in the type
 /// file. Robust against gofmt column alignment because it matches
 /// the type reference only, not the field name + whitespace.
@@ -96,7 +109,9 @@ struct DomainTypeEntry {
     type_name: String,
     /// Migration state: "migrated" → enforced (must have Instrument
     /// field + VenueSymbol() method); "pending" → tolerated, no
-    /// enforcement.
+    /// enforcement (transient); "string_filter" → tolerated, no
+    /// enforcement (permanent — type is a query/filter DTO whose
+    /// venue-native string is canonical by design).
     migration_state: String,
 }
 
@@ -300,12 +315,15 @@ fn check_domain_type(
 
     // Validate migration_state is a recognized value.
     let state = entry.migration_state.as_str();
-    if state != MIGRATION_STATE_MIGRATED && state != MIGRATION_STATE_PENDING {
+    if state != MIGRATION_STATE_MIGRATED
+        && state != MIGRATION_STATE_PENDING
+        && state != MIGRATION_STATE_STRING_FILTER
+    {
         findings.push(
             Finding::error(
                 "unknown-migration-state",
                 format!(
-                    "{}: migration_state {:?} is not recognized (expected \"migrated\" or \"pending\")",
+                    "{}: migration_state {:?} is not recognized (expected \"migrated\", \"pending\", or \"string_filter\")",
                     key, entry.migration_state
                 ),
             )
@@ -315,8 +333,11 @@ fn check_domain_type(
     }
 
     // For "pending" we tolerate the legacy Symbol string; no
-    // further enforcement applies.
-    if state == MIGRATION_STATE_PENDING {
+    // further enforcement applies. For "string_filter" we tolerate
+    // a venue-native string field as a permanent architectural
+    // choice (the type is a query/filter DTO — see H-6.b''
+    // CrossSessionWindow); no further enforcement applies.
+    if state == MIGRATION_STATE_PENDING || state == MIGRATION_STATE_STRING_FILTER {
         return Ok(findings);
     }
 
@@ -745,6 +766,49 @@ migration_state = "kind_of_migrated"
         assert!(!report.passed());
         let s = format!("{report}");
         assert!(s.contains("unknown-migration-state"), "got:\n{s}");
+        assert!(
+            s.contains("string_filter"),
+            "error help should list string_filter as a recognized state; got:\n{s}"
+        );
+    }
+
+    #[test]
+    fn analyze_domain_types_string_filter_state_tolerates_string_field() {
+        // H-6.b'' / Decisão #2: query-filter / DTO types whose
+        // VenueSymbol stays as a venue-native string are declared
+        // with migration_state = "string_filter". The analyzer
+        // tolerates them without requiring Instrument field or
+        // VenueSymbol() method.
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+
+        write_domain_types_policy(
+            root,
+            r#"
+[domain_types.cross_session_window]
+package = "internal/domain/pairing"
+file = "continuity.go"
+type_name = "CrossSessionWindow"
+migration_state = "string_filter"
+"#,
+        );
+        // string_filter type: carries a venue-native string field,
+        // no Instrument, no VenueSymbol() method. Analyzer must
+        // accept this shape without finding.
+        write_domain_type_file(
+            root,
+            "internal/domain/pairing",
+            "continuity.go",
+            "package pairing\n\ntype CrossSessionWindow struct { VenueSymbol string }\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(
+            report.passed(),
+            "expected pass (string_filter tolerated). Got:\n{report}"
+        );
     }
 
     #[test]

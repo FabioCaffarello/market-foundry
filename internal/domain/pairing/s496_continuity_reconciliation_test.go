@@ -19,7 +19,7 @@ func TestReconcileCrossSession_IntraSessionPaired_Clean(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Simulated: false, Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -29,10 +29,10 @@ func TestReconcileCrossSession_IntraSessionPaired_Clean(t *testing.T) {
 	}
 
 	attr := &effectiveness.Attribution{
-		Outcome:       effectiveness.OutcomeWin,
-		GrossPnL:      10,
-		NetPnL:        9,
-		TotalFees:     1,
+		Outcome:        effectiveness.OutcomeWin,
+		GrossPnL:       10,
+		NetPnL:         9,
+		TotalFees:      1,
 		EntryCostBasis: 100,
 	}
 
@@ -59,7 +59,7 @@ func TestReconcileCrossSession_CrossSessionPaired_FlagsPresent(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -69,10 +69,10 @@ func TestReconcileCrossSession_CrossSessionPaired_FlagsPresent(t *testing.T) {
 	}
 
 	attr := &effectiveness.Attribution{
-		Outcome:       effectiveness.OutcomeWin,
-		GrossPnL:      10,
-		NetPnL:        9,
-		TotalFees:     1,
+		Outcome:        effectiveness.OutcomeWin,
+		GrossPnL:       10,
+		NetPnL:         9,
+		TotalFees:      1,
 		EntryCostBasis: 100,
 	}
 
@@ -112,7 +112,7 @@ func TestReconcileCrossSession_CrossSessionFeeGap(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_futures",
 		},
 		EntrySessionID: "session_A",
@@ -122,10 +122,10 @@ func TestReconcileCrossSession_CrossSessionFeeGap(t *testing.T) {
 	}
 
 	attr := &effectiveness.Attribution{
-		Outcome:       effectiveness.OutcomeWin,
-		GrossPnL:      10,
-		NetPnL:        9.5,
-		TotalFees:     0.5,
+		Outcome:        effectiveness.OutcomeWin,
+		GrossPnL:       10,
+		NetPnL:         9.5,
+		TotalFees:      0.5,
 		EntryCostBasis: 100,
 	}
 
@@ -281,7 +281,7 @@ func TestReconcileCrossSession_NoDuplicateFlags(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_futures",
 		},
 		EntrySessionID: "session_A",
