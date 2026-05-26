@@ -64,16 +64,74 @@ A descoberta do pré-flight de H-6.a (342 `.Symbol` references em
 H-6 como onda única honesta — a refatoração tocaria todo o
 foundry simultaneamente e produziria PR irrevisável.
 
-H-6 é portanto implementada em **6 sub-ondas serializadas**:
+H-6 é portanto implementada em **8 sub-ondas serializadas**
+(H-6.b sub-dividida em b/b'/b'' após pré-flight de H-6.b
+descobrir 15 domain types totalizando 174 test files — ver
+"Refinamento H-6.b" abaixo):
 
 | Sub-onda | Escopo | Entregas principais |
 |----------|--------|---------------------|
-| **H-6.a** | Domain root + Binance adapters | `internal/domain/instrument/` package (Venue, BaseAsset, QuoteAsset, ContractType, CanonicalInstrument). Refactor `ObservationTrade.Symbol` → `Instrument`. Adapters `binances` + `binancef` `Normalize` emitem `CanonicalInstrument`. Imediate readers de `ObservationTrade` migram para `.Instrument.Symbol()`. raccoon-cli `check instruments` analyzer. ADR-0021 erratum critério #4 (commit 0). PRD-0004 abertura (esta sessão). **ADR-0021 permanece `Proposed`.** |
-| **H-6.b** | Evidence + Signal + Decision + Strategy + Risk domain types | Cada domain struct (`EvidenceCandle`, `Signal`, `Decision`, `Strategy`, `Risk`) migra `Symbol string` → `Instrument CanonicalInstrument`. ~30 originating struct literals atualizados. NATS KV partition keys ainda usam derived-symbol (`Instrument.Symbol()`) para back-compat. **ADR-0021 permanece `Proposed`.** |
-| **H-6.c** | Application layer + actors + samplers | Query types em `analyticalclient`/`triageclient` decidem caso a caso (query params vs domain values). Sampler/evaluator internal builders migram local `symbol string` → `instrument CanonicalInstrument`. ~40 files. **ADR-0021 permanece `Proposed`.** |
+| **H-6.a** | Domain root + Binance adapters | `internal/domain/instrument/` package (Venue, BaseAsset, QuoteAsset, ContractType, CanonicalInstrument). Refactor `ObservationTrade.Symbol` → `Instrument`. Adapters `binances` + `binancef` `Normalize` emitem `CanonicalInstrument`. Imediate readers de `ObservationTrade` migram para `.Instrument.Symbol()`. raccoon-cli `check instruments` analyzer. ADR-0021 erratum critério #4 (commit 0). PRD-0004 abertura. **ADR-0021 permanece `Proposed`.** |
+| **H-6.b** | Layer 1+2: Evidence + Signal/Decision/Strategy/Risk (7 types) | Cada domain struct (`EvidenceCandle`, `EvidenceTradeBurst`, `EvidenceVolume`, `Signal`, `Decision`, `Strategy`, `RiskAssessment`) migra `Symbol string` → `Instrument CanonicalInstrument` + `VenueSymbol() string` transitório. Os 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk/Execution) compõem chave KV via `VenueSymbol()` para back-compat com bucket layout existente. raccoon-cli `check instruments` estendido via `policies/domain_types.toml` declarando migration_state per type. **ADR-0021 permanece `Proposed`.** |
+| **H-6.b'** | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry (3 types) | Execution chain migra. `ExecutionIntent.Symbol` → `.Instrument` + `VenueSymbol()`; PartitionKey composer atualizado. `effectiveness.Attribution.Symbol` → `.Instrument` (derived from `intent.Instrument`). `execution.AuditLifecycleEntry.Symbol` → `.Instrument` (projection de partition key). **ADR-0021 permanece `Proposed`.** |
+| **H-6.b''** | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites (5 types) | Pairing chain migra. `pairing.Leg.Symbol` → `.Instrument` (M1 invariante preservada: `entry.Instrument == exit.Instrument`). `pairing.RoundTrip.Symbol` → `.Instrument` (denormalized from Leg). `pairing.CrossSessionWindow.Symbol` → `.Instrument` (query filter). Triage population site em `triageclient/get_roundtrip_triage.go:74` adota `.VenueSymbol()` (RoundTripTriageItem.Symbol stays string per S472-style projection). **ADR-0021 permanece `Proposed`.** |
+| **H-6.c** | Application layer + actors + samplers | Query types em `analyticalclient`/`triageclient` decidem caso a caso (query params vs domain values). Sampler/evaluator internal builders migram local `symbol string` → `instrument CanonicalInstrument`. Inclui DTO `analyticalclient.ReviewTransform` e DecisionTriageItem population site downstream. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d** | ClickHouse migration + writer back-compat read (#4b) | Nova migration adicionando columns `base`, `quote`, `contract`. Writer dual-writes (legacy `symbol` + canonical fields). Analytical client reads canonical preferred, fallback legacy. Cutover documented em runbook. Implementa **critério #4b** do ADR-0021 erratum. **ADR-0021 permanece `Proposed`.** |
 | **H-6.e** | NATS subject composition decision (pause-and-report) | **Primeiro ato**: pause-and-report obrigatório. Decidir: (i) migrar NATS subject/key composition para canonical form (com window de dual-publish/dual-read se necessário), OU (ii) declarar deferral indefinido com **segundo erratum REAL ao critério #2 do ADR-0021** documentando "NATS subjects use Instrument.Symbol() (derived form) as canonical representation for routing; direct CanonicalInstrument fields not used in subjects per [justificativa]". Sem opção #2 sem erratum honesto. **ADR-0021 permanece `Proposed`.** |
 | **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
+
+### Refinamento H-6.b (introduzido em H-6.b, pós-pré-flight)
+
+H-6.a declarou H-6.b como "Evidence + Signal + Decision + Strategy
++ Risk" assumindo cascade tractable. Pré-flight obrigatório em
+H-6.b revelou:
+
+- **15 domain types** com Symbol field em `internal/domain/`
+  (não 5).
+- **390 production readers** de `.Symbol` (excluindo
+  `instrument/`/`observation/` já migrados).
+- **128 production construction sites** com literal `Symbol:`.
+- **174 test files** referenciam Symbol — top 10 com 17–37
+  literais cada.
+- **ExecutionIntent** sozinho tem 199 test sites; **pairing.Leg**
+  101; **pairing.RoundTrip** 66. Todos individualmente acima do
+  threshold de 25 arquivos declarado em decisão #4 da onda.
+
+Sub-divisão em **H-6.b / H-6.b' / H-6.b''** segue **dependency
+order** dos domain types (Layer 1+2 / Layer 3+3' / Layer 4):
+
+| Layer | Types | Sub-onda | Justificativa |
+|-------|-------|----------|---------------|
+| 1 | Evidence (Candle, TradeBurst, Volume) | H-6.b | Derivam de ObservationTrade (já migrada em H-6.a) |
+| 2 | Signal, Decision, Strategy, RiskAssessment | H-6.b | Derivam de Evidence; pattern uniforme `PartitionKey()` |
+| 3 | ExecutionIntent | H-6.b' | Deriva de Risk/Strategy/Decision (Layer 2) |
+| 3' | Attribution, AuditLifecycleEntry | H-6.b' | Derivam de ExecutionIntent |
+| 4 | Pairing.Leg, RoundTrip, CrossSessionWindow | H-6.b'' | Derivam de ExecutionIntent (via Leg construção) |
+| 4' | Triage population sites | H-6.b'' (RoundTrip path) / H-6.c (Decision path) | Sites migram com upstream que populam o Symbol |
+
+Vantagens da split por dependency order:
+
+- **Sem buracos semânticos**: cada sub-onda fecha tendo migrado
+  todos os types dos quais types subsequentes derivam. Nenhum
+  type não-migrado consome type migrado.
+- **Cascade balanceado**: H-6.b ~62 prod + 158 test sites;
+  H-6.b' ~12 prod + 226 test sites; H-6.b'' ~13 prod + 200
+  test sites.
+- **Semântica coerente per sub-onda**: derivative analytics em
+  H-6.b; execution chain em H-6.b'; pairing chain em H-6.b''.
+
+Estado das domain types que **NÃO migram** em H-6.b/b'/b''
+(per pré-flight Decisão #2):
+
+- `triage.DecisionTriageItem.Symbol` e
+  `triage.RoundTripTriageItem.Symbol` — projections de display,
+  populados via cópia from upstream. Field permanece `string`;
+  population sites migram para `.VenueSymbol()` na sub-onda do
+  upstream.
+- `consistency.ChainSnapshot.{Decision,Strategy,Risk,Execution}Symbol`
+  — package documentado (S472) com invariante "primitive types
+  only para evitar coupling com domain packages". Não migra;
+  consistency checks comparam strings (continuam funcionando).
 
 ### Transitory-method pattern (introduzido em H-6.a)
 
@@ -119,9 +177,9 @@ ou equivalente, todos com sunset documentado para H-6.f.
 
 ## Sub-onda sequencing policy
 
-Sub-ondas H-6.a → H-6.b → H-6.c → H-6.d → H-6.e → H-6.f → H-7
-executam **estritamente serial**. Próxima sub-onda abre branch
-APENAS após merge da anterior em `main`.
+Sub-ondas H-6.a → H-6.b → H-6.b' → H-6.b'' → H-6.c → H-6.d →
+H-6.e → H-6.f → H-7 executam **estritamente serial**. Próxima
+sub-onda abre branch APENAS após merge da anterior em `main`.
 
 Razões:
 
@@ -331,6 +389,18 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-05-26** — H-6.b refinement: pré-flight obrigatório
+  descobriu 15 domain types totalizando 174 test files,
+  forçando fragmentação além do plano de H-6.a (que assumia 5
+  types). Sub-divisão por dependency order em **H-6.b** (Layer
+  1+2: Evidence + Signal/Decision/Strategy/Risk, 7 types),
+  **H-6.b'** (Layer 3+3': ExecutionIntent + Attribution +
+  AuditLifecycleEntry), e **H-6.b''** (Layer 4: Pairing chain
+  + Triage RoundTrip population site). Total sub-ondas
+  internas H-6 sobe de 6 para 8. Decisão fundamentada em
+  numbers reais do pré-flight; análise alternativa em "Refinamento
+  H-6.b" acima. Lands como **commit 1 da PR de H-6.b**, antes
+  de qualquer commit de código (P3 absoluto).
 - **2026-05-25** — PROGRAM-0004 created. Status `Active`. Ondas
   H-6 (sub-divididas em H-6.a–H-6.f por questão de cascade) +
   H-7 declared. ADRs 0021 + 0022 são governantes (ambas
