@@ -236,12 +236,14 @@ func TestMatchFIFO_PerfectPair(t *testing.T) {
 	if rts[0].MatchedQuantity != formatFloat(0.1) {
 		t.Errorf("matched_quantity=%s, want 0.10000000", rts[0].MatchedQuantity)
 	}
-	// VenueSymbol() returns lowercase venue-native form per the
-	// migrated Leg.Instrument bridge (commit 2 of H-6.b''). The
-	// RoundTrip.Symbol field is still a string in commit 2 — it
-	// migrates to Instrument in commit 3.
-	if rts[0].Symbol != "btcusdt" {
-		t.Errorf("symbol=%s, want btcusdt", rts[0].Symbol)
+	// RoundTrip carries the canonical Instrument denormalized from
+	// the legs (Decision #3 of H-6.b''). Assert both the typed
+	// identity and the venue-native projection.
+	if rts[0].Instrument != btcUSDTSpot {
+		t.Errorf("instrument=%v, want btcUSDTSpot", rts[0].Instrument)
+	}
+	if rts[0].VenueSymbol() != "btcusdt" {
+		t.Errorf("VenueSymbol()=%s, want btcusdt", rts[0].VenueSymbol())
 	}
 }
 

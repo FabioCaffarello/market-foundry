@@ -269,7 +269,7 @@ func TestAnnotateRoundTrips_CrossSessionProvenance(t *testing.T) {
 			Exit:            &Leg{CorrelationID: "c2", Timestamp: t2},
 			State:           StatePaired,
 			MatchedQuantity: "0.1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -303,7 +303,7 @@ func TestAnnotateRoundTrips_ArtificialUnresolved(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonSessionBoundary,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -327,7 +327,7 @@ func TestAnnotateRoundTrips_GenuineUnresolved_Rejected(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonRejectedLeg,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -348,7 +348,7 @@ func TestAnnotateRoundTrips_Open_NoExitFound(t *testing.T) {
 			Entry:           &Leg{CorrelationID: "c1"},
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonNoExitFound,
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}

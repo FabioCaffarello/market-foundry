@@ -71,7 +71,13 @@ func (uc *GetRoundTripTriageUseCase) Execute(ctx context.Context, query RoundTri
 		}
 
 		item := triage.RoundTripTriageItem{
-			Symbol:      review.Symbol,
+			// S472-style projection: triage.RoundTripTriageItem.Symbol
+			// stays a venue-native string by design (the triage layer
+			// does not import domain packages). VenueSymbol() is the
+			// transitory accessor on the migrated pairing.RoundTrip
+			// (promoted via RoundTripReviewItem's anonymous embedding).
+			// See PRD-0004 H-6.b'' closure for the Decision #4 cascade.
+			Symbol:      review.VenueSymbol(),
 			State:       string(review.State),
 			Severity:    sev,
 			FlagCount:   flagCount,

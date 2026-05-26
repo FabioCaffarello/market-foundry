@@ -19,7 +19,7 @@ func TestReconcileRoundTrip_CleanPair(t *testing.T) {
 		},
 		State:           StatePaired,
 		MatchedQuantity: "0.10000000",
-		Symbol:          "BTCUSDT",
+		Instrument:      btcUSDTSpot,
 		Source:          "binance_spot",
 	}
 	attr := &effectiveness.Attribution{
@@ -53,8 +53,8 @@ func TestReconcileRoundTrip_FeeGap(t *testing.T) {
 			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTPerp, Source: "binance_futures",
 			Quantity: "0.1", Price: "51000.00", Fee: "0", CostBasis: "5100.00",
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTPerp,
 	}
 	attr := &effectiveness.Attribution{
 		Outcome:  effectiveness.OutcomeWin,
@@ -82,8 +82,8 @@ func TestReconcileRoundTrip_CostBasisZero(t *testing.T) {
 			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Price: "0", Fee: "0", CostBasis: "0",
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTSpot,
 	}
 	attr := &effectiveness.Attribution{Outcome: effectiveness.OutcomeUnresolved}
 
@@ -158,8 +158,8 @@ func TestReconcileRoundTrip_FeeAssetMismatch(t *testing.T) {
 			Direction: LegExit, Side: execution.SideSell,
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTSpot,
 	}
 	attr := &effectiveness.Attribution{Outcome: effectiveness.OutcomeWin, GrossPnL: 100, NetPnL: 99, TotalFees: 1}
 
@@ -184,8 +184,8 @@ func TestReconcileRoundTrip_FuturesFeeSourceUnavailableIsReliable(t *testing.T) 
 			Quantity: "0.1", Price: "51000.00", Fee: "0", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceUnavailable,
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTPerp,
 	}
 	attr := &effectiveness.Attribution{
 		Outcome:  effectiveness.OutcomeWin,
@@ -214,8 +214,8 @@ func TestReconcileRoundTrip_FeeRatioAnomaly(t *testing.T) {
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTSpot,
 	}
 	attr := &effectiveness.Attribution{
 		Outcome:  effectiveness.OutcomeLoss,
@@ -240,8 +240,8 @@ func TestReconcileRoundTrip_FeeRatioNormal(t *testing.T) {
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTSpot,
 	}
 	attr := &effectiveness.Attribution{
 		Outcome:  effectiveness.OutcomeWin,
@@ -266,8 +266,8 @@ func TestReconcileRoundTrip_FeeSourceFallback(t *testing.T) {
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
-		State:  StatePaired,
-		Symbol: "BTCUSDT",
+		State:      StatePaired,
+		Instrument: btcUSDTSpot,
 	}
 	attr := &effectiveness.Attribution{
 		Outcome:  effectiveness.OutcomeWin,

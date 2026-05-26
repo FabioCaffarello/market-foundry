@@ -343,7 +343,7 @@ func TestAnnotateRoundTrips_CrossSessionPair(t *testing.T) {
 			Exit:            &exitLeg,
 			State:           StatePaired,
 			MatchedQuantity: "0.10000000",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}
@@ -383,7 +383,7 @@ func TestAnnotateRoundTrips_IntraSessionPair(t *testing.T) {
 		{
 			Entry: &entryLeg, Exit: &exitLeg,
 			State: StatePaired, MatchedQuantity: "0.10000000",
-			Symbol: "BTCUSDT", Source: "binance_spot",
+			Instrument: btcUSDTSpot, Source: "binance_spot",
 		},
 	}
 
@@ -411,7 +411,7 @@ func TestAnnotateRoundTrips_UnmatchedEntrySessionBoundary(t *testing.T) {
 			State:           StateUnmatchedEntry,
 			UnmatchedReason: ReasonSessionBoundary,
 			MatchedQuantity: "0",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpot,
 			Source:          "binance_spot",
 		},
 	}

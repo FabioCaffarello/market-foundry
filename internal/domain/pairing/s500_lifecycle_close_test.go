@@ -220,7 +220,7 @@ func TestReconcileCrossSession_HaltedSessionOrigin(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -273,7 +273,7 @@ func TestReconcileCrossSession_NonTerminalAtClose(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -322,7 +322,7 @@ func TestReconcileCrossSession_NilLifecycleContext_BackwardCompatible(t *testing
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -362,7 +362,7 @@ func TestReconcileCrossSession_HaltedAndNonTerminal(t *testing.T) {
 			Exit:            &pairing.Leg{Side: "sell", Price: "110", Quantity: "1", Fee: "0.5", FeeAsset: "USDT", CostBasis: "110", Timestamp: time.Now()},
 			State:           pairing.StatePaired,
 			MatchedQuantity: "1",
-			Symbol:          "BTCUSDT",
+			Instrument:      btcUSDTSpotExternal(t),
 			Source:          "binance_spot",
 		},
 		EntrySessionID: "session_A",
@@ -425,7 +425,7 @@ func TestClassifyContinuity_OrphanExitFromHaltedSession_IsGenuineUnresolved(t *t
 		Exit:            &pairing.Leg{Side: "sell", Price: "100", Quantity: "1", CostBasis: "100", Timestamp: time.Now()},
 		State:           pairing.StateUnmatchedExit,
 		UnmatchedReason: pairing.ReasonNoEntryFound,
-		Symbol:          "BTCUSDT",
+		Instrument:      btcUSDTSpotExternal(t),
 		Source:          "binance_spot",
 	}
 
@@ -442,7 +442,7 @@ func TestClassifyContinuity_QuantityRemainder_IsOpen(t *testing.T) {
 		Entry:           &pairing.Leg{Side: "buy", Price: "100", Quantity: "0.05", CostBasis: "5", Timestamp: time.Now()},
 		State:           pairing.StateUnmatchedEntry,
 		UnmatchedReason: pairing.ReasonQuantityMismatchResidue,
-		Symbol:          "BTCUSDT",
+		Instrument:      btcUSDTSpotExternal(t),
 		Source:          "binance_spot",
 	}
 

@@ -127,12 +127,15 @@ func (l Leg) VenueSymbol() string {
 // RoundTrip represents a paired or unpaired trade lifecycle.
 //
 // A fully paired round-trip has both an entry and exit leg for the same
-// symbol/source/segment. An unmatched round-trip has only one leg.
+// instrument/source/segment. An unmatched round-trip has only one leg.
 //
 // Semantics:
 //   - paired: both entry and exit present, P&L is realized and classifiable.
 //   - unmatched_entry: entry exists without a corresponding exit; outcome is open/unresolved.
 //   - unmatched_exit: exit exists without a corresponding entry; data gap or orphan.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b”.
 type RoundTrip struct {
 	// Entry is the opening leg (buy for long, sell for short). Nil if unmatched_exit.
 	Entry *Leg `json:"entry,omitempty"`
@@ -151,11 +154,26 @@ type RoundTrip struct {
 	// For unmatched legs this is "0".
 	MatchedQuantity string `json:"matched_quantity"`
 
-	// Symbol is the traded instrument (denormalized for query convenience).
-	Symbol string `json:"symbol"`
+	// Instrument is denormalized from Leg.Instrument for query convenience:
+	// callers can filter/route by RoundTrip identity without dereferencing
+	// Entry/Exit. Invariant: RoundTrip.Instrument == Entry.Instrument ==
+	// Exit.Instrument (enforced by MatchFIFO construction + M1 invariant).
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
 
 	// Source is the venue/segment (denormalized for query convenience).
 	Source string `json:"source"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form
+// (e.g., "btcusdt") derived from the canonical Instrument.
+//
+// TRANSITORY ADAPTER (H-6.b” → sunset H-6.f). See ADR-0021.
+// Downstream readers that still reason in venue-native string
+// terms (S472-style projections to triage.RoundTripTriageItem.Symbol,
+// JSON wire shapes that expose "symbol", etc.) consume this method
+// during the transition.
+func (rt RoundTrip) VenueSymbol() string {
+	return strings.ToLower(string(rt.Instrument.Base) + string(rt.Instrument.Quote))
 }
 
 // IsPaired reports whether the round-trip has both entry and exit legs.
@@ -271,11 +289,12 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				Exit:            &exitLeg,
 				State:           StatePaired,
 				MatchedQuantity: formatFloat(matchQty),
-				// S472-style projection bridge: RoundTrip.Symbol stays
-				// string until H-6.b'' commit 3; populate via VenueSymbol()
-				// projection on the migrated Leg.Instrument.
-				Symbol: entries[i].leg.VenueSymbol(),
-				Source: entries[i].leg.Source,
+				// Denormalization invariant (per Decision #3 of H-6.b''):
+				// RoundTrip.Instrument == Entry.Instrument == Exit.Instrument.
+				// M1 (entry.Instrument == exit.Instrument) guarantees the
+				// equality; this assignment is the explicit denorm.
+				Instrument: entries[i].leg.Instrument,
+				Source:     entries[i].leg.Source,
 			})
 
 			entries[i].remainingQty -= matchQty
@@ -300,9 +319,10 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				State:           StateUnmatchedEntry,
 				UnmatchedReason: ReasonNoExitFound,
 				MatchedQuantity: "0",
-				// S472 bridge — see commit 2 of H-6.b''.
-				Symbol: e.leg.VenueSymbol(),
-				Source: e.leg.Source,
+				// Denormalization from the single available leg
+				// (no exit to cross-check; M1 inert).
+				Instrument: e.leg.Instrument,
+				Source:     e.leg.Source,
 			})
 		}
 	}
@@ -316,9 +336,9 @@ func MatchFIFO(legs []Leg, cfg MatchingConfig) []RoundTrip {
 				State:           StateUnmatchedExit,
 				UnmatchedReason: ReasonNoEntryFound,
 				MatchedQuantity: "0",
-				// S472 bridge — see commit 2 of H-6.b''.
-				Symbol: e.leg.VenueSymbol(),
-				Source: e.leg.Source,
+				// Denormalization from the single available leg.
+				Instrument: e.leg.Instrument,
+				Source:     e.leg.Source,
 			})
 		}
 	}
