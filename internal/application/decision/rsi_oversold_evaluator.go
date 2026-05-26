@@ -6,6 +6,7 @@ import (
 	"time"
 
 	domaindecision "internal/domain/decision"
+	"internal/domain/instrument"
 )
 
 const (
@@ -16,18 +17,20 @@ const (
 // Pure application logic — no I/O, no actor references, no NATS dependency.
 // Receives signal values as primitive data (not signal.Signal structs) per DBI-9.
 type RSIOversoldEvaluator struct {
-	source    string
-	symbol    string
-	timeframe int
-	threshold float64
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
+	threshold  float64
 }
 
 func NewRSIOversoldEvaluator(source, symbol string, timeframe int) *RSIOversoldEvaluator {
 	return &RSIOversoldEvaluator{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
-		threshold: defaultOversoldThreshold,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+		threshold:  defaultOversoldThreshold,
 	}
 }
 
@@ -78,7 +81,7 @@ func (e *RSIOversoldEvaluator) Evaluate(signalType, signalValue string, signalTi
 	return domaindecision.Decision{
 		Type:       "rsi_oversold",
 		Source:     e.source,
-		Symbol:     e.symbol,
+		Instrument: e.instrument,
 		Timeframe:  e.timeframe,
 		Outcome:    outcome,
 		Severity:   severity,

@@ -7,8 +7,18 @@ import (
 
 	"internal/application/decisionclient"
 	"internal/domain/decision"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type mockDecisionGateway struct {
 	dec  *decision.Decision
@@ -48,7 +58,7 @@ func TestGetLatestDecisionUseCase_ReturnsDecision(t *testing.T) {
 	dec := &decision.Decision{
 		Type:       "rsi_oversold",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
 		Severity:   decision.SeverityLow,

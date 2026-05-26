@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -23,9 +24,10 @@ import (
 // because True Range requires a previous close, and the initial ATR is seeded
 // with the SMA of the first `period` true ranges.
 type ATRSampler struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 
 	period int
 
@@ -40,10 +42,11 @@ type ATRSampler struct {
 
 func NewATRSampler(source, symbol string, timeframe int) *ATRSampler {
 	return &ATRSampler{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
-		period:    14,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+		period:     14,
 	}
 }
 
@@ -90,11 +93,11 @@ func (s *ATRSampler) AddCandle(high, low, close string, ts time.Time) (signal.Si
 
 func (s *ATRSampler) buildSignal(tr float64, ts time.Time) signal.Signal {
 	return signal.Signal{
-		Type:      "atr",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     strconv.FormatFloat(s.atr, 'f', 4, 64),
+		Type:       "atr",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      strconv.FormatFloat(s.atr, 'f', 4, 64),
 		Metadata: map[string]string{
 			"period":     strconv.Itoa(s.period),
 			"atr":        strconv.FormatFloat(s.atr, 'f', 4, 64),

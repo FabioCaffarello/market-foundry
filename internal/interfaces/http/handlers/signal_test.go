@@ -32,14 +32,14 @@ func signalRequest(method, path string) *http.Request {
 func TestSignalWebHandler_GetLatestSignal(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	sig := &signal.Signal{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Value:     "65.32",
-		Metadata:  map[string]string{"period": "14", "avg_gain": "1.20", "avg_loss": "0.64"},
-		Final:     true,
-		Timestamp: now,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Value:      "65.32",
+		Metadata:   map[string]string{"period": "14", "avg_gain": "1.20", "avg_loss": "0.64"},
+		Final:      true,
+		Timestamp:  now,
 	}
 
 	handler := handlers.NewSignalWebHandler(

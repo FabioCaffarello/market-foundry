@@ -31,21 +31,21 @@ import (
 // ---------------------------------------------------------------------------
 
 type symbolScenario struct {
-	Symbol         string
-	SignalType     string
-	SignalValue    string
-	DecisionType   string
-	DecisionSev    string
-	StrategyDir    string
-	StrategyType   string
-	RiskDisp       string
-	RiskRationale  string
-	MaxPosPct      string
-	MaxExposure    string
-	ExecSide       string
-	ExecQty        string
-	ExecStatus     string
-	HasExecution   bool
+	Symbol        string
+	SignalType    string
+	SignalValue   string
+	DecisionType  string
+	DecisionSev   string
+	StrategyDir   string
+	StrategyType  string
+	RiskDisp      string
+	RiskRationale string
+	MaxPosPct     string
+	MaxExposure   string
+	ExecSide      string
+	ExecQty       string
+	ExecStatus    string
+	HasExecution  bool
 }
 
 func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.CompositeExecutionChain {
@@ -54,14 +54,14 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 		CorrelationID: corrID,
 		Signal: &analyticalclient.SignalWithTrace{
 			Signal: signal.Signal{
-				Type: sc.SignalType, Source: "binancef", Symbol: sc.Symbol, Timeframe: 60,
+				Type: sc.SignalType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
 				Value: sc.SignalValue, Timestamp: now,
 			},
 			EventID: "sig-" + corrID, CorrelationID: corrID, OccurredAt: now,
 		},
 		Decision: &analyticalclient.DecisionWithTrace{
 			Decision: decision.Decision{
-				Type: sc.DecisionType, Source: "binancef", Symbol: sc.Symbol, Timeframe: 60,
+				Type: sc.DecisionType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
 				Outcome: "triggered", Severity: decision.Severity(sc.DecisionSev), Confidence: "0.85", Timestamp: now,
 			},
 			EventID: "dec-" + corrID, CorrelationID: corrID, CausationID: "sig-" + corrID, OccurredAt: now,
@@ -179,11 +179,11 @@ func TestS302_SC1_SimultaneousApprovedChains(t *testing.T) {
 			}
 
 			// Symbol consistency — every stage belongs to this symbol.
-			if chain.Signal.Symbol != sym {
-				t.Errorf("[%s] signal.symbol=%q", sym, chain.Signal.Symbol)
+			if chain.Signal.VenueSymbol() != sym {
+				t.Errorf("[%s] signal.symbol=%q", sym, chain.Signal.VenueSymbol())
 			}
-			if chain.Decision.Symbol != sym {
-				t.Errorf("[%s] decision.symbol=%q", sym, chain.Decision.Symbol)
+			if chain.Decision.VenueSymbol() != sym {
+				t.Errorf("[%s] decision.symbol=%q", sym, chain.Decision.VenueSymbol())
 			}
 			if chain.Strategy.Symbol != sym {
 				t.Errorf("[%s] strategy.symbol=%q", sym, chain.Strategy.Symbol)
@@ -397,8 +397,8 @@ func TestS302_SC3_ConcurrentBatchPerSymbol(t *testing.T) {
 
 			// All chains must belong to the queried symbol.
 			for i, ch := range reply.Chains {
-				if ch.Signal != nil && ch.Signal.Symbol != sym {
-					t.Errorf("[%s] chain[%d].signal.symbol=%q", sym, i, ch.Signal.Symbol)
+				if ch.Signal != nil && ch.Signal.VenueSymbol() != sym {
+					t.Errorf("[%s] chain[%d].signal.symbol=%q", sym, i, ch.Signal.VenueSymbol())
 				}
 				if ch.Execution != nil && ch.Execution.Symbol != sym {
 					t.Errorf("[%s] chain[%d].execution.symbol=%q", sym, i, ch.Execution.Symbol)
@@ -415,12 +415,12 @@ func TestS302_SC3_ConcurrentBatchPerSymbol(t *testing.T) {
 func TestS302_SC4_AttributionDiversityPerSymbol(t *testing.T) {
 	// Each symbol produces a different attribution profile.
 	scenarios := map[string]struct {
-		sc                symbolScenario
-		wantDisposition   string
-		wantRationale     string
-		wantSeverity      string
-		wantDirection     string
-		wantMaxPos        string
+		sc              symbolScenario
+		wantDisposition string
+		wantRationale   string
+		wantSeverity    string
+		wantDirection   string
+		wantMaxPos      string
 	}{
 		"btcusdt": {
 			sc: symbolScenario{

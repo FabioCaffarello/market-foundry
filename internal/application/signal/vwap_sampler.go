@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -25,9 +26,10 @@ import (
 //
 // Warm-up requires `period` candles before the first signal is emitted.
 type VWAPSampler struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 
 	period int
 
@@ -38,10 +40,11 @@ type VWAPSampler struct {
 
 func NewVWAPSampler(source, symbol string, timeframe int) *VWAPSampler {
 	return &VWAPSampler{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
-		period:    20,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+		period:     20,
 	}
 }
 
@@ -82,11 +85,11 @@ func (s *VWAPSampler) AddCandle(closePrice, volume string, ts time.Time) (signal
 	}
 
 	return signal.Signal{
-		Type:      "vwap",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     strconv.FormatFloat(deviation, 'f', 6, 64),
+		Type:       "vwap",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      strconv.FormatFloat(deviation, 'f', 6, 64),
 		Metadata: map[string]string{
 			"period":       strconv.Itoa(s.period),
 			"vwap":         strconv.FormatFloat(vwap, 'f', 4, 64),

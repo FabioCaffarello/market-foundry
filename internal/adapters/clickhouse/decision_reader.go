@@ -71,10 +71,17 @@ func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType,
 			return nil, fmt.Errorf("scan decision row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("decision instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		decisions = append(decisions, decision.Decision{
 			Type:       typ,
 			Source:     src,
-			Symbol:     sym,
+			Instrument: inst,
 			Timeframe:  int(tf),
 			Outcome:    decision.Outcome(out),
 			Severity:   decision.Severity(sev),

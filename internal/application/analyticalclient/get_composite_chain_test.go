@@ -10,18 +10,30 @@ import (
 	"internal/application/analyticalclient"
 	"internal/domain/decision"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
 	"internal/shared/problem"
 )
 
+// fullChainBTC is a package-level BTC/USDT-perpetual fixture used by chain
+// builders in this test file. Built once via instrument.New to keep the
+// fixture definition compact.
+var fullChainBTC = func() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: BTC/USDT-perpetual: " + prob.Message)
+	}
+	return inst
+}()
+
 // stubCompositeReader implements analyticalclient.CompositeReader for unit tests.
 type stubCompositeReader struct {
-	chain      *analyticalclient.CompositeExecutionChain
-	chains     []analyticalclient.CompositeExecutionChain
-	singleErr  error
-	batchErr   error
+	chain     *analyticalclient.CompositeExecutionChain
+	chains    []analyticalclient.CompositeExecutionChain
+	singleErr error
+	batchErr  error
 }
 
 func (s *stubCompositeReader) QueryChainByCorrelationID(_ context.Context, _, _ string) (*analyticalclient.CompositeExecutionChain, error) {
@@ -37,13 +49,13 @@ func fullChain(corrID string) *analyticalclient.CompositeExecutionChain {
 	return &analyticalclient.CompositeExecutionChain{
 		CorrelationID: corrID,
 		Signal: &analyticalclient.SignalWithTrace{
-			Signal:        signal.Signal{Type: "rsi", Source: "binance", Symbol: "btcusdt", Timeframe: 60, Value: "42.5", Timestamp: now},
+			Signal:        signal.Signal{Type: "rsi", Source: "binance", Instrument: fullChainBTC, Timeframe: 60, Value: "42.5", Timestamp: now},
 			EventID:       "sig-001",
 			CorrelationID: corrID,
 			OccurredAt:    now,
 		},
 		Decision: &analyticalclient.DecisionWithTrace{
-			Decision:      decision.Decision{Type: "rsi_oversold", Source: "binance", Symbol: "btcusdt", Timeframe: 60, Outcome: "triggered", Severity: "high", Confidence: "0.85", Timestamp: now},
+			Decision:      decision.Decision{Type: "rsi_oversold", Source: "binance", Instrument: fullChainBTC, Timeframe: 60, Outcome: "triggered", Severity: "high", Confidence: "0.85", Timestamp: now},
 			EventID:       "dec-001",
 			CorrelationID: corrID,
 			CausationID:   "sig-001",
@@ -61,8 +73,8 @@ func fullChain(corrID string) *analyticalclient.CompositeExecutionChain {
 				Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
 				Disposition: "approved", Confidence: "0.75", Rationale: "within limits",
 				Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1.0"},
-				Strategies: []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.80", DecisionSeverity: "high"}},
-				Timestamp: now,
+				Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.80", DecisionSeverity: "high"}},
+				Timestamp:   now,
 			},
 			EventID:       "rsk-001",
 			CorrelationID: corrID,
@@ -289,7 +301,7 @@ func TestGetCompositeChain_Single_NoRisk_NoAttribution(t *testing.T) {
 	chain := &analyticalclient.CompositeExecutionChain{
 		CorrelationID: "corr-no-risk",
 		Signal: &analyticalclient.SignalWithTrace{
-			Signal:    signal.Signal{Type: "rsi", Source: "binance", Symbol: "btcusdt", Timeframe: 60, Value: "42.5", Timestamp: now},
+			Signal:     signal.Signal{Type: "rsi", Source: "binance", Instrument: fullChainBTC, Timeframe: 60, Value: "42.5", Timestamp: now},
 			OccurredAt: now,
 		},
 		StageCount: 1,

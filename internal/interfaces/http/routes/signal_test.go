@@ -30,14 +30,14 @@ func TestSignalRoutesRegisterHandler(t *testing.T) {
 	routes := Signal(SignalFamilyDeps{
 		GetLatestSignal: getLatestSignalUseCaseStub{
 			sig: &signal.Signal{
-				Type:      "rsi",
-				Source:    "binancef",
-				Symbol:    "btcusdt",
-				Timeframe: 60,
-				Value:     "65.32",
-				Metadata:  map[string]string{"period": "14"},
-				Final:     true,
-				Timestamp: now,
+				Type:       "rsi",
+				Source:     "binancef",
+				Instrument: btcUSDTPerp(t),
+				Timeframe:  60,
+				Value:      "65.32",
+				Metadata:   map[string]string{"period": "14"},
+				Final:      true,
+				Timestamp:  now,
 			},
 		},
 	})

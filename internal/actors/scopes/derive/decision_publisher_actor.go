@@ -72,13 +72,13 @@ func (a *DecisionPublisherActor) Receive(c *actor.Context) {
 				"code", prob.Code,
 				"type", msg.Event.Decision.Type,
 				"source", msg.Event.Decision.Source,
-				"symbol", msg.Event.Decision.Symbol,
+				"symbol", msg.Event.Decision.VenueSymbol(),
 				"timeframe", msg.Event.Decision.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Decision.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Decision.VenueSymbol()).Add(1)
 			a.cfg.Tracker.Counter("decision:" + msg.Event.Decision.Type + ":" + string(msg.Event.Decision.Outcome)).Add(1)
 		}
 

@@ -157,14 +157,14 @@ func TestAnalyticalWebHandler_GetSignalHistory(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	signals := []signal.Signal{
 		{
-			Type:      "rsi",
-			Source:    "binancef",
-			Symbol:    "btcusdt",
-			Timeframe: 60,
-			Value:     "32.5",
-			Metadata:  map[string]string{"period": "14"},
-			Final:     true,
-			Timestamp: now,
+			Type:       "rsi",
+			Source:     "binancef",
+			Instrument: btcUSDTPerp(t),
+			Timeframe:  60,
+			Value:      "32.5",
+			Metadata:   map[string]string{"period": "14"},
+			Final:      true,
+			Timestamp:  now,
 		},
 	}
 
@@ -285,7 +285,7 @@ func TestAnalyticalWebHandler_GetDecisionHistory(t *testing.T) {
 		{
 			Type:       "rsi_oversold",
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerp(t),
 			Timeframe:  60,
 			Outcome:    decision.OutcomeTriggered,
 			Severity:   decision.SeverityLow,

@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -24,9 +25,10 @@ import (
 // Warm-up requires slowPeriod + signalPeriod − 1 = 34 candles before the first
 // complete signal (MACD line + signal line + histogram) is emitted.
 type MACDSampler struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 
 	fastPeriod   int
 	slowPeriod   int
@@ -49,6 +51,7 @@ func NewMACDSampler(source, symbol string, timeframe int) *MACDSampler {
 	return &MACDSampler{
 		source:       source,
 		symbol:       symbol,
+		instrument:   instrumentFromBinding(source, symbol),
 		timeframe:    timeframe,
 		fastPeriod:   12,
 		slowPeriod:   26,
@@ -122,11 +125,11 @@ func (s *MACDSampler) accumulateSignalEMA(macdLine float64, ts time.Time) (signa
 
 func (s *MACDSampler) buildSignal(macdLine, histogram float64, ts time.Time) signal.Signal {
 	return signal.Signal{
-		Type:      "macd",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     strconv.FormatFloat(histogram, 'f', 4, 64),
+		Type:       "macd",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      strconv.FormatFloat(histogram, 'f', 4, 64),
 		Metadata: map[string]string{
 			"fast_period":   strconv.Itoa(s.fastPeriod),
 			"slow_period":   strconv.Itoa(s.slowPeriod),

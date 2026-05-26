@@ -36,8 +36,8 @@ func TestATRSampler_WarmUp(t *testing.T) {
 	if sig.Source != "binancef" {
 		t.Errorf("expected source binancef, got %s", sig.Source)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Errorf("expected symbol btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Errorf("expected symbol btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Timeframe != 300 {
 		t.Errorf("expected timeframe 300, got %d", sig.Timeframe)
@@ -217,11 +217,11 @@ func TestATRSampler_MultiSymbol(t *testing.T) {
 		ethSig, ethOk := eth.AddCandle(ethHigh, ethLow, ethClose, ts.Add(time.Duration(i)*time.Minute))
 
 		if btcOk && ethOk {
-			if btcSig.Symbol != "btcusdt" {
-				t.Errorf("expected btcusdt, got %s", btcSig.Symbol)
+			if btcSig.VenueSymbol() != "btcusdt" {
+				t.Errorf("expected btcusdt, got %s", btcSig.VenueSymbol())
 			}
-			if ethSig.Symbol != "ethusdt" {
-				t.Errorf("expected ethusdt, got %s", ethSig.Symbol)
+			if ethSig.VenueSymbol() != "ethusdt" {
+				t.Errorf("expected ethusdt, got %s", ethSig.VenueSymbol())
 			}
 			if btcSig.PartitionKey() == ethSig.PartitionKey() {
 				t.Error("partition keys must differ across symbols")
@@ -259,16 +259,16 @@ func TestATRSampler_ContinuousProduction(t *testing.T) {
 func TestATRSampler_TrueRangeCalculation(t *testing.T) {
 	// Verify true range handles all three cases correctly.
 	tests := []struct {
-		name     string
-		high     float64
-		low      float64
+		name      string
+		high      float64
+		low       float64
 		prevClose float64
-		expected float64
+		expected  float64
 	}{
-		{"normal range", 105.0, 95.0, 100.0, 10.0},       // high-low dominates
-		{"gap up", 115.0, 110.0, 100.0, 15.0},             // |high-prevClose| dominates
-		{"gap down", 90.0, 85.0, 100.0, 15.0},             // |low-prevClose| dominates
-		{"no range", 100.0, 100.0, 100.0, 0.0},            // all equal
+		{"normal range", 105.0, 95.0, 100.0, 10.0}, // high-low dominates
+		{"gap up", 115.0, 110.0, 100.0, 15.0},      // |high-prevClose| dominates
+		{"gap down", 90.0, 85.0, 100.0, 15.0},      // |low-prevClose| dominates
+		{"no range", 100.0, 100.0, 100.0, 0.0},     // all equal
 	}
 
 	for _, tt := range tests {

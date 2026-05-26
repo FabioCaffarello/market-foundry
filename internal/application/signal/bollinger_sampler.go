@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -13,11 +14,12 @@ import (
 // The primary output value is %B = (price - lower) / (upper - lower).
 // Pure application logic — no I/O dependencies.
 type BollingerSampler struct {
-	source    string
-	symbol    string
-	timeframe int
-	period    int
-	k         float64
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
+	period     int
+	k          float64
 
 	// Rolling window of close prices.
 	prices []float64
@@ -25,11 +27,12 @@ type BollingerSampler struct {
 
 func NewBollingerSampler(source, symbol string, timeframe int) *BollingerSampler {
 	return &BollingerSampler{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
-		period:    20,
-		k:         2.0,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+		period:     20,
+		k:          2.0,
 	}
 }
 
@@ -66,11 +69,11 @@ func (s *BollingerSampler) AddClose(closePrice string, ts time.Time) (signal.Sig
 	}
 
 	return signal.Signal{
-		Type:      "bollinger",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     strconv.FormatFloat(pctB, 'f', 4, 64),
+		Type:       "bollinger",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      strconv.FormatFloat(pctB, 'f', 4, 64),
 		Metadata: map[string]string{
 			"period":    strconv.Itoa(s.period),
 			"k":         strconv.FormatFloat(s.k, 'f', 1, 64),

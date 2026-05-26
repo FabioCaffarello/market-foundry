@@ -107,7 +107,7 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 			"error", prob.Message,
 			"type", sig.Type,
 			"source", sig.Source,
-			"symbol", sig.Symbol,
+			"symbol", sig.VenueSymbol(),
 			"timeframe", sig.Timeframe,
 		)
 		return
@@ -126,7 +126,7 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 			"error", prob.Message,
 			"type", sig.Type,
 			"source", sig.Source,
-			"symbol", sig.Symbol,
+			"symbol", sig.VenueSymbol(),
 			"timeframe", sig.Timeframe,
 		)
 		return
@@ -147,14 +147,14 @@ func (a *SignalProjectionActor) onSignal(msg signalReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + sig.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + sig.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("signal materialized",
 			"type", sig.Type,
 			"source", sig.Source,
-			"symbol", sig.Symbol,
+			"symbol", sig.VenueSymbol(),
 			"timeframe", sig.Timeframe,
 			"value", sig.Value,
 			"timestamp", sig.Timestamp.Format(time.RFC3339),

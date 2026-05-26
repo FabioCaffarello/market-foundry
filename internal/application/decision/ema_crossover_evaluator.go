@@ -5,6 +5,7 @@ import (
 	"time"
 
 	domaindecision "internal/domain/decision"
+	"internal/domain/instrument"
 )
 
 // EMACrossoverEvaluator evaluates whether an EMA crossover signal indicates a bullish trend.
@@ -17,16 +18,18 @@ import (
 //	"bearish"  — fast EMA below slow EMA → not_triggered
 //	"neutral"  — EMAs equal within tolerance → not_triggered
 type EMACrossoverEvaluator struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 }
 
 func NewEMACrossoverEvaluator(source, symbol string, timeframe int) *EMACrossoverEvaluator {
 	return &EMACrossoverEvaluator{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
 	}
 }
 
@@ -68,7 +71,7 @@ func (e *EMACrossoverEvaluator) Evaluate(signalType, signalValue string, signalT
 	return domaindecision.Decision{
 		Type:       "ema_crossover",
 		Source:     e.source,
-		Symbol:     e.symbol,
+		Instrument: e.instrument,
 		Timeframe:  e.timeframe,
 		Outcome:    outcome,
 		Severity:   severity,

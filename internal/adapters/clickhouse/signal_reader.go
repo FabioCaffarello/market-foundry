@@ -68,16 +68,22 @@ func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, sourc
 		}
 
 		meta := ParseMetadataJSON(metadata)
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("signal instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
 
 		signals = append(signals, signal.Signal{
-			Type:      typ,
-			Source:    src,
-			Symbol:    sym,
-			Timeframe: int(tf),
-			Value:     FormatFloat(value),
-			Metadata:  meta,
-			Final:     final,
-			Timestamp: timestamp,
+			Type:       typ,
+			Source:     src,
+			Instrument: inst,
+			Timeframe:  int(tf),
+			Value:      FormatFloat(value),
+			Metadata:   meta,
+			Final:      final,
+			Timestamp:  timestamp,
 		})
 	}
 

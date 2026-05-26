@@ -133,8 +133,8 @@ func TestSqueezeClosedLoop_Triggered_FullObservability(t *testing.T) {
 	if sig.Type != "bollinger" {
 		t.Fatalf("[signal] type: want bollinger, got %s", sig.Type)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Fatalf("[signal] symbol: want btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Fatalf("[signal] symbol: want btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Value == "" {
 		t.Fatal("[signal] expected non-empty %B value")
@@ -377,8 +377,8 @@ func TestSqueezeClosedLoop_NotTriggered_Suppression(t *testing.T) {
 
 	// Inject a bollinger signal with wide bandwidth (no squeeze).
 	e.Send(decEvalPID, signalGeneratedMessage{
-		Symbol:     "btcusdt",
-		SignalType: "bollinger",
+		Symbol:      "btcusdt",
+		SignalType:  "bollinger",
 		SignalValue: "0.7500",
 		SignalMetadata: map[string]string{
 			"bandwidth": "50.0000",

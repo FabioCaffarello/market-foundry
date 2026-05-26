@@ -185,7 +185,7 @@ func projectChainToReview(chain *CompositeExecutionChain) *DecisionReviewBundle 
 	bundle.Transform = &ReviewTransform{
 		Type:       d.Type,
 		Source:     d.Source,
-		Symbol:     d.Symbol,
+		Symbol:     d.VenueSymbol(),
 		Timeframe:  d.Timeframe,
 		Outcome:    string(d.Outcome),
 		Severity:   string(d.Severity),
@@ -303,7 +303,7 @@ func buildChainSnapshot(chain *CompositeExecutionChain) consistency.ChainSnapsho
 		snap.DecisionOutcome = string(d.Outcome)
 		snap.DecisionSeverity = string(d.Severity)
 		snap.DecisionConfidence = d.Confidence
-		snap.DecisionSymbol = d.Symbol
+		snap.DecisionSymbol = d.VenueSymbol()
 		snap.DecisionSource = d.Source
 		snap.DecisionTimeframe = d.Timeframe
 	}

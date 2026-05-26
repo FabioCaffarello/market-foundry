@@ -30,8 +30,8 @@ func TestEMACrossoverSampler_WarmUp(t *testing.T) {
 	if sig.Source != "binancef" {
 		t.Errorf("expected source binancef, got %s", sig.Source)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Errorf("expected symbol btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Errorf("expected symbol btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Timeframe != 300 {
 		t.Errorf("expected timeframe 300, got %d", sig.Timeframe)

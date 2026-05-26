@@ -26,6 +26,15 @@ func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
 	return inst
 }
 
+func ethUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("ETH", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical ETH/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
+
 func testMetadata() events.Metadata {
 	return events.Metadata{
 		ID:            "abc123",
@@ -127,7 +136,7 @@ func TestMapSignalRow_ColumnCount(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Value: "35.2", Metadata: map[string]string{"period": "14"},
 			Final: true, Timestamp: fixedTime,
 		},
@@ -144,7 +153,7 @@ func TestMapSignalRow_DomainFields(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
+			Type: "rsi", Source: "binancef", Instrument: ethUSDTPerp(t), Timeframe: 300,
 			Value: "72.5", Metadata: meta,
 			Final: true, Timestamp: fixedTime,
 		},
@@ -173,7 +182,7 @@ func TestMapSignalRow_NilMetadata(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Value: "50", Metadata: nil,
 			Final: false, Timestamp: fixedTime,
 		},
@@ -190,7 +199,7 @@ func TestMapDecisionRow_ColumnCount(t *testing.T) {
 	e := decision.DecisionEvaluatedEvent{
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
 			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: []decision.SignalInput{{Type: "rsi", Value: "28.5", Timeframe: 60}},
@@ -212,7 +221,7 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	e := decision.DecisionEvaluatedEvent{
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
 			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: signals, Metadata: map[string]string{"threshold": "30"},

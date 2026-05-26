@@ -94,7 +94,7 @@ func (a *RSIOversoldEvaluatorActor) onSignalGenerated(c *actor.Context, msg sign
 	// Fan out to strategy resolvers via the scope actor.
 	if a.cfg.ScopePID != nil {
 		c.Send(a.cfg.ScopePID, decisionEvaluatedMessage{
-			Symbol:             dec.Symbol,
+			Symbol:             dec.VenueSymbol(),
 			DecisionType:       dec.Type,
 			DecisionOutcome:    string(dec.Outcome),
 			DecisionConfidence: dec.Confidence,

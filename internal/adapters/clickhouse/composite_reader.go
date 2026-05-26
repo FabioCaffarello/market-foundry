@@ -185,16 +185,17 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan signal: %w", err)
 	}
 
+	sigInst, _ := reconstructInstrumentFromLegacy(src, sym)
 	return &analyticalclient.SignalWithTrace{
 		Signal: signal.Signal{
-			Type:      typ,
-			Source:    src,
-			Symbol:    sym,
-			Timeframe: int(tf),
-			Value:     FormatFloat(value),
-			Metadata:  ParseMetadataJSON(metadata),
-			Final:     final,
-			Timestamp: timestamp,
+			Type:       typ,
+			Source:     src,
+			Instrument: sigInst,
+			Timeframe:  int(tf),
+			Value:      FormatFloat(value),
+			Metadata:   ParseMetadataJSON(metadata),
+			Final:      final,
+			Timestamp:  timestamp,
 		},
 		EventID:       eventID,
 		CorrelationID: corrID,
@@ -224,26 +225,27 @@ ORDER BY timestamp DESC LIMIT 1`
 	}
 
 	var (
-		eventID, corrID, causID        string
-		occurredAt                     time.Time
-		typ, src, sym                  string
-		tf                             uint32
-		out                            string
-		confidence                     float64
-		sev, rationale, signals, meta  string
-		final                          bool
-		timestamp                      time.Time
+		eventID, corrID, causID       string
+		occurredAt                    time.Time
+		typ, src, sym                 string
+		tf                            uint32
+		out                           string
+		confidence                    float64
+		sev, rationale, signals, meta string
+		final                         bool
+		timestamp                     time.Time
 	)
 
 	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &out, &confidence, &sev, &rationale, &signals, &meta, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan decision: %w", err)
 	}
 
+	decInst, _ := reconstructInstrumentFromLegacy(src, sym)
 	return &analyticalclient.DecisionWithTrace{
 		Decision: decision.Decision{
 			Type:       typ,
 			Source:     src,
-			Symbol:     sym,
+			Instrument: decInst,
 			Timeframe:  int(tf),
 			Outcome:    decision.Outcome(out),
 			Severity:   decision.Severity(sev),
@@ -282,15 +284,15 @@ ORDER BY timestamp DESC LIMIT 1`
 	}
 
 	var (
-		eventID, corrID, causID              string
-		occurredAt                           time.Time
-		typ, src, sym                        string
-		tf                                   uint32
-		dir                                  string
-		confidence                           float64
-		decisions, parameters, metadata      string
-		final                                bool
-		timestamp                            time.Time
+		eventID, corrID, causID         string
+		occurredAt                      time.Time
+		typ, src, sym                   string
+		tf                              uint32
+		dir                             string
+		confidence                      float64
+		decisions, parameters, metadata string
+		final                           bool
+		timestamp                       time.Time
 	)
 
 	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &dir, &confidence, &decisions, &parameters, &metadata, &final, &timestamp); err != nil {
@@ -398,18 +400,18 @@ ORDER BY timestamp DESC LIMIT 1`
 	}
 
 	var (
-		eventID, corrID, causID      string
-		occurredAt                   time.Time
-		typ, src, sym                string
-		tf                           uint32
-		sd                           string
-		quantity, filledQuantity      float64
-		st                           string
-		riskJSON, fillsJSON          string
-		parameters, metadata         string
-		execCorrID, execCausID       string
-		final                        bool
-		timestamp                    time.Time
+		eventID, corrID, causID  string
+		occurredAt               time.Time
+		typ, src, sym            string
+		tf                       uint32
+		sd                       string
+		quantity, filledQuantity float64
+		st                       string
+		riskJSON, fillsJSON      string
+		parameters, metadata     string
+		execCorrID, execCausID   string
+		final                    bool
+		timestamp                time.Time
 	)
 
 	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {

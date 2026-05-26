@@ -25,13 +25,13 @@ func (m *mockSignalStore) Put(_ context.Context, _ signal.Signal) (natskit.PutRe
 
 func validSignal(ts time.Time) signal.Signal {
 	return signal.Signal{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Value:     "35.50",
-		Final:     true,
-		Timestamp: ts,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: btcUSDTPerpForCandleTest(),
+		Timeframe:  60,
+		Value:      "35.50",
+		Final:      true,
+		Timestamp:  ts,
 	}
 }
 

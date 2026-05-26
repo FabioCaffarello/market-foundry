@@ -72,13 +72,13 @@ func (a *SignalPublisherActor) Receive(c *actor.Context) {
 				"code", prob.Code,
 				"type", msg.Event.Signal.Type,
 				"source", msg.Event.Signal.Source,
-				"symbol", msg.Event.Signal.Symbol,
+				"symbol", msg.Event.Signal.VenueSymbol(),
 				"timeframe", msg.Event.Signal.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Signal.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Signal.VenueSymbol()).Add(1)
 			a.cfg.Tracker.Counter("signal:" + msg.Event.Signal.Type).Add(1)
 		}
 
