@@ -25,15 +25,25 @@ type BollingerSampler struct {
 	prices []float64
 }
 
-func NewBollingerSampler(source, symbol string, timeframe int) *BollingerSampler {
+// NewBollingerSamplerForInstrument constructs a BollingerSampler from
+// a canonical Instrument directly. See NewRSISamplerForInstrument for
+// the rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+func NewBollingerSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *BollingerSampler {
 	return &BollingerSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     20,
 		k:          2.0,
 	}
+}
+
+// NewBollingerSampler is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewBollingerSamplerForInstrument.
+func NewBollingerSampler(source, symbol string, timeframe int) *BollingerSampler {
+	s := NewBollingerSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	s.symbol = symbol
+	return s
 }
 
 // AddClose processes a finalized candle close price.

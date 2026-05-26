@@ -40,14 +40,24 @@ type ATRSampler struct {
 	atrReady bool
 }
 
-func NewATRSampler(source, symbol string, timeframe int) *ATRSampler {
+// NewATRSamplerForInstrument constructs an ATRSampler from a canonical
+// Instrument directly. See NewRSISamplerForInstrument for the
+// rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+func NewATRSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *ATRSampler {
 	return &ATRSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     14,
 	}
+}
+
+// NewATRSampler is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewATRSamplerForInstrument.
+func NewATRSampler(source, symbol string, timeframe int) *ATRSampler {
+	s := NewATRSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	s.symbol = symbol
+	return s
 }
 
 // AddCandle processes a finalized candle with high, low, and close prices.
