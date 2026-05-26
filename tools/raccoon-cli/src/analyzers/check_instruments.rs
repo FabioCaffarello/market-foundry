@@ -1,8 +1,8 @@
-//! check-instruments — enforce ADR-0021 / H-6.a invariant
-//! "every exchange adapter normalizes venue-native symbols to
-//! CanonicalInstrument at the layer boundary".
+//! check-instruments — enforce ADR-0021 invariants:
 //!
-//! Algorithm is **declarative**, not inferred from code patterns:
+//! **H-6.a layer (adapter side):** every exchange adapter normalizes
+//! venue-native symbols to CanonicalInstrument via the canonical
+//! constructor at the adapter / domain boundary. Algorithm:
 //!
 //! 1. Read `tools/raccoon-cli/policies/adapters.toml` listing the
 //!    recognized adapter packages.
@@ -12,19 +12,25 @@
 //!    - If NOT in the allowlist: emit a finding (unknown adapter
 //!      must be declared before it can ship).
 //!    - Else: scan the package's production `.go` files (excluding
-//!      `*_test.go`) for:
-//!        - an import of `internal/domain/instrument`, AND
-//!        - a call to `instrument.New(` or `instrument.FromSymbol(`.
-//!      If either is missing, emit a finding pointing to the
-//!      offending package.
+//!      `*_test.go`) for an import of `internal/domain/instrument`
+//!      AND a call to `instrument.New(` or `instrument.FromSymbol(`.
 //!
-//! Declarative-via-allowlist is preferred over pure inference
-//! because (a) a new adapter dropped under
-//! `internal/adapters/exchanges/` without going through ADR-0021
-//! should not silently pass — it must be declared, which makes
-//! the policy change auditable; and (b) refactor of an existing
-//! adapter that drops the canonical constructor is a regression
-//! the analyzer must catch even if the file still compiles.
+//! **H-6.b layer (domain side):** every domain type undergoing the
+//! Symbol → Instrument migration is declared in
+//! `policies/domain_types.toml` with a `migration_state`. The analyzer
+//! enforces that types marked `migrated` have both the canonical
+//! Instrument field (`instrument.CanonicalInstrument` referenced in
+//! the type file) and a transitory accessor `VenueSymbol() string`
+//! (per the H-6.b sunset pattern, removed in H-6.f). Types marked
+//! `pending` are tolerated — the legacy `Symbol string` field stays
+//! until its own sub-onda migrates them.
+//!
+//! Declarative-via-allowlist (adapter layer) and declarative-via-state
+//! (domain layer) are preferred over pure inference because (a) new
+//! migrations should not silently pass — they must be declared, which
+//! makes the policy change auditable; and (b) regressions that drop
+//! the canonical constructor or the VenueSymbol() accessor get caught
+//! even if the file still compiles.
 //!
 //! Detection model mirrors check-metrics: line-based scan, not
 //! AST-aware. False positive surface is small: the matched needles
@@ -38,15 +44,24 @@
 use crate::error::Result;
 use crate::models::{CheckResult, Finding, Report};
 use serde::Deserialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const POLICY_PATH: &str = "tools/raccoon-cli/policies/adapters.toml";
+const DOMAIN_TYPES_POLICY_PATH: &str = "tools/raccoon-cli/policies/domain_types.toml";
 const ADAPTERS_DIR: &str = "internal/adapters/exchanges";
 const INSTRUMENT_IMPORT: &str = "internal/domain/instrument";
 const CONSTRUCTOR_NEW: &str = "instrument.New(";
 const CONSTRUCTOR_FROM_SYMBOL: &str = "instrument.FromSymbol(";
+
+const MIGRATION_STATE_MIGRATED: &str = "migrated";
+const MIGRATION_STATE_PENDING: &str = "pending";
+/// Substring that signals a CanonicalInstrument field in the type
+/// file. Robust against gofmt column alignment because it matches
+/// the type reference only, not the field name + whitespace.
+const INSTRUMENT_FIELD_NEEDLE: &str = "instrument.CanonicalInstrument";
+const VENUE_SYMBOL_METHOD_NEEDLE: &str = ") VenueSymbol() string";
 
 #[derive(Debug, Deserialize, Default)]
 struct AdapterPolicy {
@@ -60,6 +75,29 @@ struct AdaptersSection {
     /// fail-stop — the reviewer must explicitly add it.
     #[serde(default)]
     allowlist: Vec<String>,
+}
+
+/// Domain types policy schema. Each entry under `[domain_types.<key>]`
+/// declares one domain type's migration state per ADR-0021. Loaded
+/// from `tools/raccoon-cli/policies/domain_types.toml`.
+#[derive(Debug, Deserialize, Default)]
+struct DomainTypesPolicy {
+    #[serde(default)]
+    domain_types: BTreeMap<String, DomainTypeEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DomainTypeEntry {
+    /// Package path under internal/ (e.g., "internal/domain/observation").
+    package: String,
+    /// File name within the package (e.g., "trade.go").
+    file: String,
+    /// Go type name (e.g., "ObservationTrade").
+    type_name: String,
+    /// Migration state: "migrated" → enforced (must have Instrument
+    /// field + VenueSymbol() method); "pending" → tolerated, no
+    /// enforcement.
+    migration_state: String,
 }
 
 /// Entry point invoked from the CLI (`raccoon-cli check instruments`)
@@ -177,7 +215,160 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
         canonical_findings,
     ));
 
+    // ── Domain types policy check (H-6.b extension) ────────────────
+    //
+    // Per ADR-0021 / H-6.b, each domain type undergoing canonical
+    // instrument migration is declared in policies/domain_types.toml
+    // with its migration_state. The analyzer enforces that "migrated"
+    // types have both the canonical Instrument field and the
+    // transitory VenueSymbol() method. "pending" types are tolerated.
+    match load_domain_types_policy(project_root) {
+        Ok(types_policy) => {
+            report.add(CheckResult::pass("domain-types-policy-present"));
+            let mut type_findings: Vec<Finding> = Vec::new();
+            for (key, entry) in &types_policy.domain_types {
+                match check_domain_type(project_root, key, entry) {
+                    Ok(findings) => type_findings.extend(findings),
+                    Err(e) => type_findings.push(Finding::error(
+                        "domain-type-scan-error",
+                        format!("{}: {}", key, e),
+                    )),
+                }
+            }
+            report.add(CheckResult::from_findings(
+                "domain-type-migration-state",
+                type_findings,
+            ));
+        }
+        Err(finding) => {
+            // Missing policy file is allowed (back-compat with
+            // pre-H-6.b installs that have only adapters.toml).
+            // But malformed TOML is an error.
+            if finding.check == "policy-missing-tolerable" {
+                report.add(CheckResult::skip(
+                    "domain-types-policy-present",
+                    "policies/domain_types.toml not present — skipping domain-type migration check (pre-H-6.b deployment)".to_string(),
+                ));
+            } else {
+                report.add(CheckResult::from_findings(
+                    "domain-types-policy-present",
+                    vec![finding],
+                ));
+            }
+        }
+    }
+
     Ok(report)
+}
+
+// ── Domain types policy loading ────────────────────────────────────
+
+fn load_domain_types_policy(
+    project_root: &Path,
+) -> std::result::Result<DomainTypesPolicy, Finding> {
+    let path = project_root.join(DOMAIN_TYPES_POLICY_PATH);
+    if !path.exists() {
+        // Tolerable absence: pre-H-6.b deployments without the file.
+        return Err(Finding::error(
+            "policy-missing-tolerable",
+            format!("{} not present", path.display()),
+        ));
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| {
+        Finding::error(
+            "check-instruments",
+            format!("failed to read {}: {e}", path.display()),
+        )
+    })?;
+    toml::from_str(&raw).map_err(|e| {
+        Finding::error(
+            "check-instruments",
+            format!("{} is not valid TOML or schema: {e}", path.display()),
+        )
+        .with_help("verify the file matches the documented schema (see comments in domain_types.toml)")
+    })
+}
+
+// ── Per-type migration-state enforcement ───────────────────────────
+
+fn check_domain_type(
+    project_root: &Path,
+    key: &str,
+    entry: &DomainTypeEntry,
+) -> std::result::Result<Vec<Finding>, String> {
+    let mut findings = Vec::new();
+
+    // Validate migration_state is a recognized value.
+    let state = entry.migration_state.as_str();
+    if state != MIGRATION_STATE_MIGRATED && state != MIGRATION_STATE_PENDING {
+        findings.push(
+            Finding::error(
+                "unknown-migration-state",
+                format!(
+                    "{}: migration_state {:?} is not recognized (expected \"migrated\" or \"pending\")",
+                    key, entry.migration_state
+                ),
+            )
+            .with_help("update the entry to use a known migration_state"),
+        );
+        return Ok(findings);
+    }
+
+    // For "pending" we tolerate the legacy Symbol string; no
+    // further enforcement applies.
+    if state == MIGRATION_STATE_PENDING {
+        return Ok(findings);
+    }
+
+    // "migrated" path: the file must exist and contain both the
+    // Instrument field and a VenueSymbol() string method.
+    let file_path = project_root.join(&entry.package).join(&entry.file);
+    if !file_path.exists() {
+        findings.push(Finding::error(
+            "domain-type-file-missing",
+            format!(
+                "{}: declared file {} does not exist",
+                key,
+                file_path.display()
+            ),
+        ));
+        return Ok(findings);
+    }
+    let content = fs::read_to_string(&file_path)
+        .map_err(|e| format!("read {}: {e}", file_path.display()))?;
+
+    if !content.contains(INSTRUMENT_FIELD_NEEDLE) {
+        findings.push(
+            Finding::error(
+                "missing-instrument-field",
+                format!(
+                    "{}: type {} declared migrated but {} does not reference {}",
+                    key,
+                    entry.type_name,
+                    file_path.display(),
+                    INSTRUMENT_FIELD_NEEDLE
+                ),
+            )
+            .with_why("ADR-0021 / H-6.b: migrated domain types carry CanonicalInstrument as a first-class field")
+            .with_help("add `Instrument instrument.CanonicalInstrument` to the struct, or mark the entry as \"pending\" until the migration lands"),
+        );
+    }
+
+    if !content.contains(VENUE_SYMBOL_METHOD_NEEDLE) {
+        findings.push(
+            Finding::error(
+                "missing-venue-symbol-method",
+                format!(
+                    "{}: type {} declared migrated but {} does not contain method `VenueSymbol() string`",
+                    key, entry.type_name, file_path.display()
+                ),
+            )
+            .with_why("ADR-0021 / H-6.b: migrated domain types expose VenueSymbol() — the transitory accessor that keeps venue-native readers compiling until H-6.f sunset")
+            .with_help("add `func (x T) VenueSymbol() string { ... }` to the type, or mark the entry as \"pending\" until the migration lands"),
+        );
+    }
+
+    Ok(findings)
 }
 
 // ── Policy loading ──────────────────────────────────────────────────
@@ -429,6 +620,148 @@ mod tests {
         assert!(!report.passed(), "expected fail when policy missing");
         let s = format!("{report}");
         assert!(s.contains("policy file not found"));
+    }
+
+    // ── Domain types policy tests (H-6.b extension) ─────────────
+
+    fn write_domain_types_policy(root: &Path, body: &str) {
+        write(&root.join(DOMAIN_TYPES_POLICY_PATH), body);
+    }
+
+    fn write_domain_type_file(root: &Path, pkg: &str, file: &str, contents: &str) {
+        write(&root.join(pkg).join(file), contents);
+    }
+
+    #[test]
+    fn analyze_domain_types_passes_when_migrated_type_has_field_and_method() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+
+        write_domain_types_policy(
+            root,
+            r#"
+[domain_types.observation_trade]
+package = "internal/domain/observation"
+file = "trade.go"
+type_name = "ObservationTrade"
+migration_state = "migrated"
+"#,
+        );
+        write_domain_type_file(
+            root,
+            "internal/domain/observation",
+            "trade.go",
+            "package observation\n\ntype ObservationTrade struct { Instrument instrument.CanonicalInstrument }\n\nfunc (t ObservationTrade) VenueSymbol() string { return \"\" }\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(report.passed(), "expected pass; got:\n{report}");
+    }
+
+    #[test]
+    fn analyze_domain_types_fails_when_migrated_type_missing_venue_symbol() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+
+        write_domain_types_policy(
+            root,
+            r#"
+[domain_types.observation_trade]
+package = "internal/domain/observation"
+file = "trade.go"
+type_name = "ObservationTrade"
+migration_state = "migrated"
+"#,
+        );
+        // Has Instrument field but missing VenueSymbol method.
+        write_domain_type_file(
+            root,
+            "internal/domain/observation",
+            "trade.go",
+            "package observation\n\ntype ObservationTrade struct { Instrument instrument.CanonicalInstrument }\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(!report.passed(), "expected fail; got:\n{report}");
+        let s = format!("{report}");
+        assert!(
+            s.contains("missing-venue-symbol-method"),
+            "expected missing-venue-symbol-method finding; got:\n{s}"
+        );
+    }
+
+    #[test]
+    fn analyze_domain_types_pending_state_tolerates_legacy_symbol() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+
+        write_domain_types_policy(
+            root,
+            r#"
+[domain_types.execution_intent]
+package = "internal/domain/execution"
+file = "execution.go"
+type_name = "ExecutionIntent"
+migration_state = "pending"
+"#,
+        );
+        // Pending type: still has Symbol string, no Instrument field.
+        write_domain_type_file(
+            root,
+            "internal/domain/execution",
+            "execution.go",
+            "package execution\n\ntype ExecutionIntent struct { Symbol string }\n",
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(report.passed(), "expected pass; pending tolerated. Got:\n{report}");
+    }
+
+    #[test]
+    fn analyze_domain_types_unknown_state_fails() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+
+        write_domain_types_policy(
+            root,
+            r#"
+[domain_types.weird]
+package = "internal/domain/weird"
+file = "weird.go"
+type_name = "Weird"
+migration_state = "kind_of_migrated"
+"#,
+        );
+
+        let report = analyze(root).unwrap();
+        assert!(!report.passed());
+        let s = format!("{report}");
+        assert!(s.contains("unknown-migration-state"), "got:\n{s}");
+    }
+
+    #[test]
+    fn analyze_domain_types_tolerates_missing_policy_file() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        write_policy(root, &["binances"]);
+        write_adapter(root, "binances", COMPLIANT_SOURCE);
+        // No domain_types.toml: pre-H-6.b deployment shape.
+
+        let report = analyze(root).unwrap();
+        assert!(report.passed(), "expected pass (skip), got:\n{report}");
+        let s = format!("{report}");
+        assert!(
+            s.contains("domain-types-policy-present") && s.contains("skip"),
+            "expected skip on missing policy; got:\n{s}"
+        );
     }
 
     #[test]
