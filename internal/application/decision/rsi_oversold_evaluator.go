@@ -24,14 +24,25 @@ type RSIOversoldEvaluator struct {
 	threshold  float64
 }
 
-func NewRSIOversoldEvaluator(source, symbol string, timeframe int) *RSIOversoldEvaluator {
+// NewRSIOversoldEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly — no source-string reconstruction.
+// See NewRSISamplerForInstrument (signal package) for the regression-
+// shape rationale established in H-6.c.1.
+func NewRSIOversoldEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *RSIOversoldEvaluator {
 	return &RSIOversoldEvaluator{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		threshold:  defaultOversoldThreshold,
 	}
+}
+
+// NewRSIOversoldEvaluator is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewRSIOversoldEvaluatorForInstrument.
+func NewRSIOversoldEvaluator(source, symbol string, timeframe int) *RSIOversoldEvaluator {
+	e := NewRSIOversoldEvaluatorForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	e.symbol = symbol
+	return e
 }
 
 // Evaluate processes an RSI signal value and produces a decision.

@@ -24,13 +24,24 @@ type EMACrossoverEvaluator struct {
 	timeframe  int
 }
 
-func NewEMACrossoverEvaluator(source, symbol string, timeframe int) *EMACrossoverEvaluator {
+// NewEMACrossoverEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly — no source-string reconstruction.
+// See NewRSISamplerForInstrument (signal package) for the H-6.c.1
+// rationale.
+func NewEMACrossoverEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *EMACrossoverEvaluator {
 	return &EMACrossoverEvaluator{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
+}
+
+// NewEMACrossoverEvaluator is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewEMACrossoverEvaluatorForInstrument.
+func NewEMACrossoverEvaluator(source, symbol string, timeframe int) *EMACrossoverEvaluator {
+	e := NewEMACrossoverEvaluatorForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	e.symbol = symbol
+	return e
 }
 
 // Evaluate processes an EMA crossover signal value and produces a decision.
