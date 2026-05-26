@@ -432,8 +432,8 @@ func TestE2E_FullPipeline_DeriveToVenueFill(t *testing.T) {
 	}
 
 	// Symbol preserved through entire chain.
-	if receipt.Intent.Symbol != "btcusdt" {
-		t.Fatalf("symbol bleed: expected btcusdt, got %s", receipt.Intent.Symbol)
+	if receipt.Intent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("symbol bleed: expected btcusdt, got %s", receipt.Intent.VenueSymbol())
 	}
 
 	// Trace preserved through venue.

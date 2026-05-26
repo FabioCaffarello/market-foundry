@@ -24,8 +24,8 @@ func TestGetLifecycleHistoryUseCase_HappyPath(t *testing.T) {
 	now := time.Now().UTC()
 	reader := &stubLifecycleReader{
 		intents: []execution.ExecutionIntent{
-			{Type: "venue_market_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60, Side: "buy", Status: "filled", Final: true, Timestamp: now},
-			{Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60, Side: "buy", Status: "submitted", Final: true, Timestamp: now.Add(-time.Second)},
+			{Type: "venue_market_order", Source: "derive", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60, Side: "buy", Status: "filled", Final: true, Timestamp: now},
+			{Type: "paper_order", Source: "derive", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60, Side: "buy", Status: "submitted", Final: true, Timestamp: now.Add(-time.Second)},
 		},
 	}
 
@@ -184,7 +184,7 @@ func TestGetLifecycleHistoryUseCase_EntryTimestampFormat(t *testing.T) {
 	now := time.Date(2026, 3, 24, 15, 30, 0, 0, time.UTC)
 	reader := &stubLifecycleReader{
 		intents: []execution.ExecutionIntent{
-			{Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60, Status: "submitted", Timestamp: now},
+			{Type: "paper_order", Source: "derive", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60, Status: "submitted", Timestamp: now},
 		},
 	}
 

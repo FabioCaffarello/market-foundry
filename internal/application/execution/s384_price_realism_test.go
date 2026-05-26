@@ -9,6 +9,7 @@ import (
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
 
@@ -55,7 +56,7 @@ func TestS384_DryRun_UsesRealisticPrice(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -76,7 +77,7 @@ func TestS384_DryRun_FallsBackToZeroWhenNoPriceSource(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner) // no WithPriceSource
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -92,7 +93,7 @@ func TestS384_DryRun_FallsBackToZeroOnPriceError(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -110,8 +111,13 @@ func TestS384_DryRun_FallsBackToZeroForUnknownSymbol(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
 
-	intent := makeIntent(domainexec.SideBuy)
-	intent.Symbol = "unknowncoin" // not in price source
+	intent := makeIntent(t, domainexec.SideBuy)
+	// venue symbol "unknowncoin" — not in price source; build via "UNKNOWN" base.
+	unknownInst, setupProb := instrument.New("UNKNOWN", "COIN", instrument.ContractPerpetual)
+	if setupProb != nil {
+		t.Fatalf("setup: %v", setupProb)
+	}
+	intent.Instrument = unknownInst
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -129,7 +135,7 @@ func TestS384_DryRun_PriceDoesNotAffectNoActionIntents(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
 
-	intent := makeIntent(domainexec.SideNone)
+	intent := makeIntent(t, domainexec.SideNone)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -151,7 +157,7 @@ func TestS384_DryRun_RealisticPricePreservesOtherFields(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "corr-g1-test"
 	intent.CausationID = "cause-g1-test"
 
@@ -185,18 +191,18 @@ func TestS384_DryRun_RealisticPricePreservesOtherFields(t *testing.T) {
 
 func TestS384_Paper_UsesRealisticPrice(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"test.BTCUSDT": "67432.50",
+		"test.btcusdt": "67432.50",
 	})
 	adapter := appexec.NewPaperVenueAdapter(0).WithPriceSource(ps)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.05",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.05",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -223,13 +229,13 @@ func TestS384_Paper_FallsBackToZeroWhenNoPriceSource(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0) // no WithPriceSource
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -254,13 +260,13 @@ func TestS384_Paper_FallsBackToZeroOnPriceError(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0).WithPriceSource(ps)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -282,18 +288,18 @@ func TestS384_Paper_FallsBackToZeroOnPriceError(t *testing.T) {
 
 func TestS384_Paper_NoActionIntentIgnoresPriceSource(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"test.BTCUSDT": "67432.50",
+		"test.btcusdt": "67432.50",
 	})
 	adapter := appexec.NewPaperVenueAdapter(0).WithPriceSource(ps)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideNone,
-		Quantity:  "0",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideNone,
+		Quantity:   "0",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "rejected",
@@ -321,7 +327,7 @@ func TestS384_BackwardCompat_DryRunWithoutPriceSourceUnchanged(t *testing.T) {
 	spy := &spyVenueAdapter{}
 	sub := appexec.NewDryRunSubmitter(spy)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -338,13 +344,13 @@ func TestS384_BackwardCompat_PaperWithoutPriceSourceUnchanged(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideSell,
-		Quantity:  "1.0",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideSell,
+		Quantity:   "1.0",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",

@@ -25,15 +25,16 @@ func testCredentials(t *testing.T) *appexec.CredentialSet {
 	return creds
 }
 
-func testBuyIntent() domainexec.ExecutionIntent {
+func testBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -89,7 +90,7 @@ func TestBinanceAdapter_SubmitOrder_Filled(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -151,7 +152,7 @@ func TestBinanceAdapter_SubmitOrder_SellSide(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.Side = domainexec.SideSell
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -174,7 +175,7 @@ func TestBinanceAdapter_SubmitOrder_NoAction(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.Side = domainexec.SideNone
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -202,7 +203,7 @@ func TestBinanceAdapter_SubmitOrder_AuthError(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for auth failure")
 	}
@@ -224,7 +225,7 @@ func TestBinanceAdapter_SubmitOrder_RejectedOrder(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for rejected order")
 	}
@@ -246,7 +247,7 @@ func TestBinanceAdapter_SubmitOrder_ServerError(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for server failure")
 	}
@@ -264,7 +265,7 @@ func TestBinanceAdapter_SubmitOrder_Timeout(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 500*time.Millisecond).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for timeout")
 	}
@@ -286,7 +287,7 @@ func TestBinanceAdapter_SubmitOrder_RateLimited(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for rate limit")
 	}
@@ -317,8 +318,8 @@ func TestBinanceAdapter_SymbolMapping(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := testBuyIntent()
-	intent.Symbol = "ethusdt"
+	intent := testBuyIntent(t)
+	intent.Instrument = ethUSDTPerp(t)
 	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 
 	if capturedSymbol != "ETHUSDT" {
@@ -346,7 +347,7 @@ func TestBinanceAdapter_SignaturePresent(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 
 	if capturedSignature == "" {
 		t.Fatal("signature should be present in request")
@@ -374,7 +375,7 @@ func TestBinanceAdapter_FillNotSimulated(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -406,7 +407,7 @@ func TestBinanceAdapter_ClientOrderID_InReceipt(t *testing.T) {
 
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -443,7 +444,7 @@ func TestBinanceAdapter_ClientOrderID_InHTTPRequest(t *testing.T) {
 
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 
 	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -478,7 +479,7 @@ func TestBinanceAdapter_OversizedBody_Truncated(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
 	// Should still parse correctly because the JSON is at the front.
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("oversized body with valid JSON at start should parse: %s", prob.Message)
 	}
@@ -503,7 +504,7 @@ func TestBinanceAdapter_OversizedBody_CorruptedJSON(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for corrupted oversized JSON")
 	}
@@ -539,7 +540,7 @@ func TestBinanceAdapter_ContextDeadline_Exceeded(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for deadline exceeded")
 	}
@@ -562,7 +563,7 @@ func TestBinanceAdapter_ContextDeadline_IntentUnmutated(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 30*time.Second).WithBaseURL(server.URL)
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	originalStatus := intent.Status
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -602,7 +603,7 @@ func TestBinanceAdapter_DefaultDeadline_Enforced(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
 	// No explicit deadline — adapter must enforce its own.
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("default deadline should not block normal responses: %s", prob.Message)
 	}

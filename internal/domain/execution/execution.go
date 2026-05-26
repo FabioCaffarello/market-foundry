@@ -2,8 +2,10 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
 
@@ -133,23 +135,33 @@ type RiskInput struct {
 }
 
 // ExecutionIntent represents a discrete, typed execution intent derived from a risk assessment.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b'.
 type ExecutionIntent struct {
-	Type           string            `json:"type"`
-	Source         string            `json:"source"`
-	Symbol         string            `json:"symbol"`
-	Timeframe      int               `json:"timeframe"`
-	Side           Side              `json:"side"`
-	Quantity       string            `json:"quantity"`
-	FilledQuantity string            `json:"filled_quantity"`
-	Status         Status            `json:"status"`
-	Risk           RiskInput         `json:"risk"`
-	Fills          []FillRecord      `json:"fills"`
-	Parameters     map[string]string `json:"parameters"`
-	Metadata       map[string]string `json:"metadata"`
-	CorrelationID  string            `json:"correlation_id,omitempty"`
-	CausationID    string            `json:"causation_id,omitempty"`
-	Final          bool              `json:"final"`
-	Timestamp      time.Time         `json:"timestamp"`
+	Type           string                         `json:"type"`
+	Source         string                         `json:"source"`
+	Instrument     instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe      int                            `json:"timeframe"`
+	Side           Side                           `json:"side"`
+	Quantity       string                         `json:"quantity"`
+	FilledQuantity string                         `json:"filled_quantity"`
+	Status         Status                         `json:"status"`
+	Risk           RiskInput                      `json:"risk"`
+	Fills          []FillRecord                   `json:"fills"`
+	Parameters     map[string]string              `json:"parameters"`
+	Metadata       map[string]string              `json:"metadata"`
+	CorrelationID  string                         `json:"correlation_id,omitempty"`
+	CausationID    string                         `json:"causation_id,omitempty"`
+	Final          bool                           `json:"final"`
+	Timestamp      time.Time                      `json:"timestamp"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b' → sunset H-6.f). See ADR-0021.
+func (e ExecutionIntent) VenueSymbol() string {
+	return strings.ToLower(string(e.Instrument.Base) + string(e.Instrument.Quote))
 }
 
 // Validate checks that an ExecutionIntent has all required fields populated with valid values.
@@ -162,8 +174,10 @@ func (e ExecutionIntent) Validate() *problem.Problem {
 	if e.Source == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "source", Message: "must not be empty"})
 	}
-	if e.Symbol == "" {
-		issues = append(issues, problem.ValidationIssue{Field: "symbol", Message: "must not be empty"})
+	if e.Instrument.IsZero() {
+		issues = append(issues, problem.ValidationIssue{Field: "instrument", Message: "must not be zero"})
+	} else if prob := e.Instrument.Validate(); prob != nil {
+		return prob
 	}
 	if e.Timeframe <= 0 {
 		issues = append(issues, problem.ValidationIssue{Field: "timeframe", Message: "must be a positive integer"})
@@ -201,9 +215,11 @@ func (e ExecutionIntent) Validate() *problem.Problem {
 	return problem.Validation(problem.InvalidArgument, "execution intent is invalid", issues...)
 }
 
-// PartitionKey returns the key used for KV bucket entries: "{source}.{symbol}.{timeframe}".
+// PartitionKey returns the key used for KV bucket entries:
+// "{source}.{venuesymbol}.{timeframe}". Composes via VenueSymbol()
+// to preserve the H-6.b' KV bucket layout back-compat per ADR-0021.
 func (e ExecutionIntent) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", e.Source, e.Symbol, e.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", e.Source, e.VenueSymbol(), e.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
@@ -213,5 +229,5 @@ func (e ExecutionIntent) PartitionKey() string {
 // is safe (kline cadence ≥1s) but rapid-publish integration tests
 // (writerpipeline + natsexecution restart_recovery) require precision.
 func (e ExecutionIntent) DeduplicationKey() string {
-	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.Symbol, e.Timeframe, e.Timestamp.UnixNano())
+	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.VenueSymbol(), e.Timeframe, e.Timestamp.UnixNano())
 }

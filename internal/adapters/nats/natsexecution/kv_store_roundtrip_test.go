@@ -14,7 +14,17 @@ import (
 	"internal/adapters/nats/natsexecution"
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
+
+func btcUSDTPerpKV(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // kv_store_roundtrip_test.go — S271: End-to-end KV materialization proof.
 //
@@ -59,11 +69,12 @@ func testBucket(t *testing.T) string {
 	return fmt.Sprintf("TEST_EXEC_KV_%d", time.Now().UnixNano())
 }
 
-func testIntent(ts time.Time) execution.ExecutionIntent {
+func testIntent(t *testing.T, ts time.Time) execution.ExecutionIntent {
+	t.Helper()
 	return execution.ExecutionIntent{
 		Type:           "paper_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerpKV(t),
 		Timeframe:      60,
 		Side:           execution.SideBuy,
 		Quantity:       "0.02",
@@ -102,7 +113,7 @@ func TestKVRoundTrip_AllFieldsSurvive(t *testing.T) {
 
 	ctx := context.Background()
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
-	intent := testIntent(ts)
+	intent := testIntent(t, ts)
 
 	result, prob := store.Put(ctx, intent)
 	if prob != nil {
@@ -127,8 +138,8 @@ func TestKVRoundTrip_AllFieldsSurvive(t *testing.T) {
 	if got.Source != intent.Source {
 		t.Errorf("Source: want %q, got %q", intent.Source, got.Source)
 	}
-	if got.Symbol != intent.Symbol {
-		t.Errorf("Symbol: want %q, got %q", intent.Symbol, got.Symbol)
+	if got.VenueSymbol() != intent.VenueSymbol() {
+		t.Errorf("Symbol: want %q, got %q", intent.VenueSymbol(), got.VenueSymbol())
 	}
 	if got.Timeframe != intent.Timeframe {
 		t.Errorf("Timeframe: want %d, got %d", intent.Timeframe, got.Timeframe)
@@ -214,7 +225,7 @@ func TestKVRoundTrip_MonotonicityGuard_RejectsStale(t *testing.T) {
 	older := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
 
 	// Write the newer intent first.
-	intentNew := testIntent(newer)
+	intentNew := testIntent(t, newer)
 	result, prob := store.Put(ctx, intentNew)
 	if prob != nil {
 		t.Fatalf("put newer: %s", prob.Message)
@@ -224,7 +235,7 @@ func TestKVRoundTrip_MonotonicityGuard_RejectsStale(t *testing.T) {
 	}
 
 	// Attempt to write the older intent — must be rejected as stale.
-	intentOld := testIntent(older)
+	intentOld := testIntent(t, older)
 	result, prob = store.Put(ctx, intentOld)
 	if prob != nil {
 		t.Fatalf("put older: unexpected error: %s", prob.Message)
@@ -257,7 +268,7 @@ func TestKVRoundTrip_MonotonicityGuard_DeduplicatesSameTimestamp(t *testing.T) {
 	ctx := context.Background()
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
 
-	intent := testIntent(ts)
+	intent := testIntent(t, ts)
 	result, prob := store.Put(ctx, intent)
 	if prob != nil {
 		t.Fatalf("first put: %s", prob.Message)
@@ -290,10 +301,19 @@ func TestKVRoundTrip_MultiSymbol_Isolation(t *testing.T) {
 	ctx := context.Background()
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
 
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
-	for _, sym := range symbols {
-		intent := testIntent(ts)
-		intent.Symbol = sym
+	bases := []struct{ base, venueSym string }{
+		{"BTC", "btcusdt"},
+		{"ETH", "ethusdt"},
+		{"SOL", "solusdt"},
+	}
+	for _, b := range bases {
+		intent := testIntent(t, ts)
+		inst, prob := instrument.New(b.base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup: %v", prob)
+		}
+		intent.Instrument = inst
+		sym := b.venueSym
 		intent.CorrelationID = fmt.Sprintf("corr-%s", sym)
 
 		result, prob := store.Put(ctx, intent)
@@ -306,7 +326,8 @@ func TestKVRoundTrip_MultiSymbol_Isolation(t *testing.T) {
 	}
 
 	// Verify each symbol is independently readable.
-	for _, sym := range symbols {
+	for _, b := range bases {
+		sym := b.venueSym
 		got, prob := store.Get(ctx, "binancef", sym, 60)
 		if prob != nil {
 			t.Fatalf("get %s: %s", sym, prob.Message)
@@ -314,8 +335,8 @@ func TestKVRoundTrip_MultiSymbol_Isolation(t *testing.T) {
 		if got == nil {
 			t.Fatalf("get %s: expected non-nil intent", sym)
 		}
-		if got.Symbol != sym {
-			t.Errorf("get %s: symbol mismatch: want %q, got %q", sym, sym, got.Symbol)
+		if got.VenueSymbol() != sym {
+			t.Errorf("get %s: symbol mismatch: want %q, got %q", sym, sym, got.VenueSymbol())
 		}
 		if got.CorrelationID != fmt.Sprintf("corr-%s", sym) {
 			t.Errorf("get %s: correlation bleed: want corr-%s, got %q", sym, sym, got.CorrelationID)
@@ -360,7 +381,7 @@ func TestKVRoundTrip_Overwrite_AdvancesToNewer(t *testing.T) {
 	t2 := time.Date(2026, 3, 21, 10, 1, 0, 0, time.UTC)
 
 	// Write first intent (buy).
-	i1 := testIntent(t1)
+	i1 := testIntent(t, t1)
 	i1.Side = execution.SideBuy
 	i1.CorrelationID = "corr-t1"
 	if _, prob := store.Put(ctx, i1); prob != nil {
@@ -368,7 +389,7 @@ func TestKVRoundTrip_Overwrite_AdvancesToNewer(t *testing.T) {
 	}
 
 	// Write second intent (sell) with newer timestamp.
-	i2 := testIntent(t2)
+	i2 := testIntent(t, t2)
 	i2.Side = execution.SideSell
 	i2.CorrelationID = "corr-t2"
 	result, prob := store.Put(ctx, i2)
@@ -409,7 +430,7 @@ func TestKVRoundTrip_NoActionIntent_SurvivesRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
 
-	intent := testIntent(ts)
+	intent := testIntent(t, ts)
 	intent.Side = execution.SideNone
 	intent.Quantity = "0"
 	intent.FilledQuantity = ""
@@ -447,7 +468,7 @@ func TestKVRoundTrip_NoActionIntent_SurvivesRoundTrip(t *testing.T) {
 func TestKVRoundTrip_JSONFidelity_MatchesDomainSerialization(t *testing.T) {
 	// Proves that the KV store uses the same JSON encoding as direct domain serialization.
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
-	intent := testIntent(ts)
+	intent := testIntent(t, ts)
 
 	directJSON, err := json.Marshal(intent)
 	if err != nil {

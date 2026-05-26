@@ -53,7 +53,7 @@ func TestFP01_ContextDeadline_ExpiresAcrossRetryAttempts(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
-	_, prob := rs.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-01: expected error when context expires mid-retry")
 	}
@@ -85,7 +85,7 @@ func TestFP02_AuthFailure_ThroughRetrySubmitter_NoRetry(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 	rs := appexec.NewRetrySubmitter(adapter, appexec.DefaultRetryPolicy())
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-02: expected auth error")
 	}
@@ -134,7 +134,7 @@ func TestFP03_TransientThenAuthFailure_AbortsOnEscalation(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-03: expected error")
 	}
@@ -181,7 +181,7 @@ func TestFP04_RateLimitRecovery_ThroughRetrySubmitter(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	receipt, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("FP-04: expected success after rate limit recovery, got: %s", prob.Message)
 	}
@@ -232,7 +232,7 @@ func TestFP05_NetworkFailureRecovery_ThroughRetrySubmitter(t *testing.T) {
 	})
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("FP-05: expected recovery after network failure, got: %s", prob.Message)
 	}
@@ -274,7 +274,7 @@ func TestFP06_RetryExhaustion_MixedErrors_MetadataComplete(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-06: expected error after exhausting retries")
 	}
@@ -314,7 +314,7 @@ func TestFP07_HTTP504_GatewayTimeout_Classified_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-07: expected error for HTTP 504")
 	}
@@ -351,7 +351,7 @@ func TestFP08_Containment_NonRetryableErrors_NoRetryMetadata(t *testing.T) {
 				Factor:      2.0,
 			})
 
-			_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob == nil {
 				t.Fatalf("FP-08: expected error for HTTP %d", code)
 			}
@@ -385,7 +385,7 @@ func TestFP09_ParseFailure_ThroughRetrySubmitter_NoRetry(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 	rs := appexec.NewRetrySubmitter(adapter, appexec.DefaultRetryPolicy())
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-09: expected parse error")
 	}
@@ -417,7 +417,7 @@ func TestFP10_AdapterTimeout_ShorterThanContext(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	elapsed := time.Since(start)
 
 	if prob == nil {
@@ -456,7 +456,7 @@ func TestFP11_SlowBody_BodyReadFailure_NotRetryable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-11: expected error for slow body response")
 	}
@@ -477,8 +477,8 @@ func TestFP12_IntentImmutability_AcrossRetries(t *testing.T) {
 	}}
 
 	// Wrap to capture intents.
-	intent := testBuyIntent()
-	originalSymbol := intent.Symbol
+	intent := testBuyIntent(t)
+	originalSymbol := intent.VenueSymbol()
 	originalQty := intent.Quantity
 	originalSide := intent.Side
 	originalSource := intent.Source
@@ -494,8 +494,8 @@ func TestFP12_IntentImmutability_AcrossRetries(t *testing.T) {
 	rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 
 	// Verify intent was not mutated.
-	if intent.Symbol != originalSymbol {
-		t.Fatalf("FP-12: symbol mutated: %s → %s", originalSymbol, intent.Symbol)
+	if intent.VenueSymbol() != originalSymbol {
+		t.Fatalf("FP-12: symbol mutated: %s → %s", originalSymbol, intent.VenueSymbol())
 	}
 	if intent.Quantity != originalQty {
 		t.Fatalf("FP-12: quantity mutated: %s → %s", originalQty, intent.Quantity)
@@ -539,7 +539,7 @@ func TestFP13_ClientOrderID_StableAcrossRetryAndRecovery(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	receipt, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("FP-13: expected success on third attempt, got: %s", prob.Message)
@@ -579,7 +579,7 @@ func TestFP14_ErrorDetails_PropagateThroughRetrySubmitter(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-14: expected error after retry exhaustion")
 	}
@@ -616,7 +616,7 @@ func TestFP15_HTTP403_ThroughRetrySubmitter_NoRetry(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 	rs := appexec.NewRetrySubmitter(adapter, appexec.DefaultRetryPolicy())
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-15: expected 403 error")
 	}
@@ -666,7 +666,7 @@ func TestFP16_AdapterTimeout_RecoveryOnRetry(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	receipt, prob := rs.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := rs.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("FP-16: expected recovery on retry after timeout, got: %s", prob.Message)
 	}
@@ -693,7 +693,7 @@ func TestFP17_NoActionIntent_BypassesVenue_ThroughRetrySubmitter(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 	rs := appexec.NewRetrySubmitter(adapter, appexec.DefaultRetryPolicy())
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.Side = domainexec.SideNone
 
 	receipt, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -729,7 +729,7 @@ func TestFP18_UnknownVenueStatus_ThroughRetrySubmitter_NoRetry(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 	rs := appexec.NewRetrySubmitter(adapter, appexec.DefaultRetryPolicy())
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-18: expected error for unknown status")
 	}
@@ -772,7 +772,7 @@ func TestFP19_CredentialRedaction_ThroughRetrySubmitter(t *testing.T) {
 		Factor:      2.0,
 	})
 
-	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := rs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("FP-19: expected error")
 	}

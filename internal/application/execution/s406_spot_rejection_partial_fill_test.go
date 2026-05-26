@@ -43,15 +43,16 @@ import (
 // Rejection: Real Spot error codes → Problem classification
 // ═══════════════════════════════════════════════════════════════════
 
-func s406SpotBuyIntent() domainexec.ExecutionIntent {
+func s406SpotBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -84,7 +85,7 @@ func TestS406_Rejection_InsufficientBalance(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for insufficient balance")
 	}
@@ -118,7 +119,7 @@ func TestS406_Rejection_InvalidQuantity(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s406SpotBuyIntent()
+	intent := s406SpotBuyIntent(t)
 	intent.Quantity = "0.0000001" // below LOT_SIZE minimum
 
 	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -146,7 +147,7 @@ func TestS406_Rejection_MarginInsufficient(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for margin insufficient")
 	}
@@ -168,7 +169,7 @@ func TestS406_Rejection_AuthFailure(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for auth failure")
 	}
@@ -192,7 +193,7 @@ func TestS406_Rejection_RateLimit(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for rate limit")
 	}
@@ -215,7 +216,7 @@ func TestS406_Rejection_VenueInternalOverride(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for venue internal error")
 	}
@@ -241,7 +242,7 @@ func TestS406_Rejection_OrderRateLimitOverride(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for order rate limit")
 	}
@@ -267,7 +268,7 @@ func TestS406_Rejection_ServerError(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for server error")
 	}
@@ -303,7 +304,7 @@ func TestS406_Rejection_VenueRejectedStatus(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("HTTP 200 should not produce Problem, got: %s", prob.Message)
 	}
@@ -341,7 +342,7 @@ func TestS406_Rejection_VenueExpiredStatus(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -398,7 +399,7 @@ func TestS406_PartialFill_SingleLeg(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s406SpotBuyIntent()
+	intent := s406SpotBuyIntent(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not error: %s", prob.Message)
@@ -461,7 +462,7 @@ func TestS406_PartialFill_MultiLeg(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -527,10 +528,10 @@ func TestS406_PartialFill_QuantityMonotonicity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				resp := map[string]any{
-					"orderId":     99900,
-					"symbol":      "BTCUSDT",
-					"status":      "PARTIALLY_FILLED",
-					"executedQty": tt.executedQty,
+					"orderId":      99900,
+					"symbol":       "BTCUSDT",
+					"status":       "PARTIALLY_FILLED",
+					"executedQty":  tt.executedQty,
 					"transactTime": time.Now().UnixMilli(),
 					"fills": []map[string]any{
 						{"price": "65000.00", "qty": tt.executedQty, "commission": "0.00001", "commissionAsset": "BNB"},
@@ -543,7 +544,7 @@ func TestS406_PartialFill_QuantityMonotonicity(t *testing.T) {
 			creds := spotTestCredentials(t)
 			adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-			intent := s406SpotBuyIntent()
+			intent := s406SpotBuyIntent(t)
 			intent.Quantity = tt.quantity
 
 			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -570,10 +571,10 @@ func TestS406_PartialFill_FillTimestamp(t *testing.T) {
 	venueTime := time.Date(2026, 3, 22, 14, 30, 0, 0, time.UTC)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
-			"orderId":     99901,
-			"symbol":      "BTCUSDT",
-			"status":      "PARTIALLY_FILLED",
-			"executedQty": "0.0005",
+			"orderId":      99901,
+			"symbol":       "BTCUSDT",
+			"status":       "PARTIALLY_FILLED",
+			"executedQty":  "0.0005",
 			"transactTime": venueTime.UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.0005", "commission": "0.00001", "commissionAsset": "BNB"},
@@ -586,7 +587,7 @@ func TestS406_PartialFill_FillTimestamp(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -606,7 +607,7 @@ func TestS406_Rejection_CorrelationPreserved(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s406SpotBuyIntent()
+	intent := s406SpotBuyIntent(t)
 	intent.CorrelationID = "s406-corr-rejection"
 	intent.CausationID = "s406-cause-rejection"
 
@@ -652,7 +653,7 @@ func TestS406_Regression_FilledStillWorks(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s406SpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("filled should not error: %s", prob.Message)
 	}

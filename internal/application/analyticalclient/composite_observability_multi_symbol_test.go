@@ -274,8 +274,8 @@ func TestS303_OBS3_CausalMetadataIntegrity(t *testing.T) {
 			if chain.Risk.VenueSymbol() != sym {
 				t.Errorf("risk.symbol=%q, want %q", chain.Risk.VenueSymbol(), sym)
 			}
-			if chain.Execution.Symbol != sym {
-				t.Errorf("execution.symbol=%q, want %q", chain.Execution.Symbol, sym)
+			if chain.Execution.VenueSymbol() != sym {
+				t.Errorf("execution.symbol=%q, want %q", chain.Execution.VenueSymbol(), sym)
 			}
 		})
 	}
@@ -599,7 +599,7 @@ func buildS303DetailedChain(corrID, symbol, disposition, rationale, severity, di
 		}
 		chain.Execution = &analyticalclient.ExecutionWithTrace{
 			ExecutionIntent: execution.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "paper_order", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Side: execution.Side(side), Quantity: "0.1", Status: "submitted", Timestamp: now,
 			},
 			EventID: "exc-" + corrID, EventCorrelationID: corrID, EventCausationID: "rsk-" + corrID, OccurredAt: now,

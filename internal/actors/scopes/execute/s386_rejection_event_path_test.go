@@ -20,11 +20,12 @@ import (
 //   - Both non-retryable (true rejection) and exhausted-retryable produce events
 // ==========================================================================
 
-func s386SubmittedIntent() domainexec.ExecutionIntent {
+func s386SubmittedIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "venue_market_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerpS379(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -39,7 +40,7 @@ func s386SubmittedIntent() domainexec.ExecutionIntent {
 // TestS386_RejectionEventConstruction_FromNonRetryableProblem validates that a
 // non-retryable Problem (true venue rejection) maps correctly to VenueOrderRejectedEvent.
 func TestS386_RejectionEventConstruction_FromNonRetryableProblem(t *testing.T) {
-	intent := s386SubmittedIntent()
+	intent := s386SubmittedIntent(t)
 	incomingEventMeta := events.NewMetadata().
 		WithCorrelationID("upstream-corr-id").
 		WithCausationID("upstream-cause-id")
@@ -98,8 +99,8 @@ func TestS386_RejectionEventConstruction_FromNonRetryableProblem(t *testing.T) {
 	if event.ExecutionIntent.Source != "binancef" {
 		t.Errorf("Source lost: expected binancef, got %s", event.ExecutionIntent.Source)
 	}
-	if event.ExecutionIntent.Symbol != "btcusdt" {
-		t.Errorf("Symbol lost: expected btcusdt, got %s", event.ExecutionIntent.Symbol)
+	if event.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Errorf("Symbol lost: expected btcusdt, got %s", event.ExecutionIntent.VenueSymbol())
 	}
 	if event.ExecutionIntent.Side != domainexec.SideBuy {
 		t.Errorf("Side lost: expected buy, got %s", event.ExecutionIntent.Side)
@@ -115,7 +116,7 @@ func TestS386_RejectionEventConstruction_FromNonRetryableProblem(t *testing.T) {
 // TestS386_RejectionEventConstruction_FromExhaustedRetryable validates that an
 // exhausted retryable Problem (retries spent) also produces a rejection event.
 func TestS386_RejectionEventConstruction_FromExhaustedRetryable(t *testing.T) {
-	intent := s386SubmittedIntent()
+	intent := s386SubmittedIntent(t)
 
 	// After RetrySubmitter exhausts retries, the problem may still be retryable=true
 	// but the actor treats it as terminal (no more retries possible).
@@ -164,7 +165,7 @@ func TestS386_RejectionEvent_LifecycleTransitionFromSubmitted(t *testing.T) {
 // TestS386_RejectionEvent_PreservesOriginalIntentTimestamp verifies that the
 // rejection event carries the original intent timestamp (not the rejection time).
 func TestS386_RejectionEvent_PreservesOriginalIntentTimestamp(t *testing.T) {
-	intent := s386SubmittedIntent()
+	intent := s386SubmittedIntent(t)
 	originalTS := intent.Timestamp
 
 	rejected := intent
@@ -191,7 +192,7 @@ func TestS386_RejectionEvent_PreservesOriginalIntentTimestamp(t *testing.T) {
 // TestS386_RejectionEvent_NoFillsOnRejection verifies that rejected intents
 // carry zero fill records (no venue execution occurred).
 func TestS386_RejectionEvent_NoFillsOnRejection(t *testing.T) {
-	intent := s386SubmittedIntent()
+	intent := s386SubmittedIntent(t)
 	rejected := intent
 	rejected.Status = domainexec.StatusRejected
 	rejected.Final = true

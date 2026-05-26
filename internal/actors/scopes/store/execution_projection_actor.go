@@ -110,7 +110,7 @@ func (a *ExecutionProjectionActor) onExecution(msg executionReceivedMessage) {
 			"error", prob.Message,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 		)
 		return
@@ -131,7 +131,7 @@ func (a *ExecutionProjectionActor) onExecution(msg executionReceivedMessage) {
 			"code", prob.Code,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"status", string(intent.Status),
@@ -161,7 +161,7 @@ func (a *ExecutionProjectionActor) onExecution(msg executionReceivedMessage) {
 		a.logger.Info("execution materialized",
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"quantity", intent.Quantity,

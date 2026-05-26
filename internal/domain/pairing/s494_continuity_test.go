@@ -58,7 +58,7 @@ func TestValidCarryForwardEligibility(t *testing.T) {
 // --- ClassifyCarryForward tests (R-CF1 through R-CF5) ---
 
 func TestClassifyCarryForward_RejectedIsIneligible(t *testing.T) {
-	intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+	intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 	intent.Status = execution.StatusRejected
 	intent.Fills = nil
 	if got := ClassifyCarryForward(intent); got != CarryIneligibleRejected {
@@ -72,7 +72,7 @@ func TestClassifyCarryForward_NonTerminalIsIneligible(t *testing.T) {
 		execution.StatusSent,
 		execution.StatusAccepted,
 	} {
-		intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+		intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 		intent.Status = status
 		if got := ClassifyCarryForward(intent); got != CarryIneligibleNonTerminal {
 			t.Errorf("status=%s: got %s, want %s", status, got, CarryIneligibleNonTerminal)
@@ -81,7 +81,7 @@ func TestClassifyCarryForward_NonTerminalIsIneligible(t *testing.T) {
 }
 
 func TestClassifyCarryForward_CancelledNoFillsIsIneligible(t *testing.T) {
-	intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+	intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 	intent.Status = execution.StatusCancelled
 	intent.Fills = nil
 	if got := ClassifyCarryForward(intent); got != CarryIneligibleCancelled {
@@ -90,7 +90,7 @@ func TestClassifyCarryForward_CancelledNoFillsIsIneligible(t *testing.T) {
 }
 
 func TestClassifyCarryForward_FilledNoFillsIsIneligible(t *testing.T) {
-	intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+	intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 	intent.Fills = nil
 	if got := ClassifyCarryForward(intent); got != CarryIneligibleNoFills {
 		t.Errorf("filled-no-fills: got %s, want %s", got, CarryIneligibleNoFills)
@@ -98,14 +98,14 @@ func TestClassifyCarryForward_FilledNoFillsIsIneligible(t *testing.T) {
 }
 
 func TestClassifyCarryForward_FilledWithFillsIsEligible(t *testing.T) {
-	intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+	intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 	if got := ClassifyCarryForward(intent); got != CarryEligible {
 		t.Errorf("filled-with-fills: got %s, want %s", got, CarryEligible)
 	}
 }
 
 func TestClassifyCarryForward_PartiallyFilledIsIneligible(t *testing.T) {
-	intent := makeFilledIntent(execution.SideBuy, "50000", "0.1")
+	intent := makeFilledIntent(t, execution.SideBuy, "50000", "0.1")
 	intent.Status = execution.StatusPartiallyFilled
 	// partially_filled is non-terminal
 	if got := ClassifyCarryForward(intent); got != CarryIneligibleNonTerminal {
@@ -529,15 +529,16 @@ func TestMatchFIFO_CrossSessionPreservesTemporalOrdering(t *testing.T) {
 
 // --- Helper ---
 
-func makeFilledIntent(side execution.Side, price, qty string) execution.ExecutionIntent {
+func makeFilledIntent(t *testing.T, side execution.Side, price, qty string) execution.ExecutionIntent {
+	t.Helper()
 	return execution.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      side,
-		Quantity:  qty,
-		Status:    execution.StatusFilled,
+		Type:       "venue_market_order",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       side,
+		Quantity:   qty,
+		Status:     execution.StatusFilled,
 		Fills: []execution.FillRecord{
 			{
 				Price:     price,

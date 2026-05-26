@@ -37,11 +37,12 @@ import (
 // ═══════════════════════════════════════════════════════════════════
 
 // s424FuturesAcceptedIntent mirrors the derive output that enters the execute binary.
-func s424FuturesAcceptedIntent() domainexec.ExecutionIntent {
+func s424FuturesAcceptedIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -56,11 +57,12 @@ func s424FuturesAcceptedIntent() domainexec.ExecutionIntent {
 
 // s424FuturesFilledIntent uses the EXACT response shape from S422:
 // avgPrice="65432.10", executedQty="0.001", cumQuote="65.43210", updateTime=venue timestamp.
-func s424FuturesFilledIntent(ts time.Time) domainexec.ExecutionIntent {
+func s424FuturesFilledIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:           "venue_market_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerp(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -79,11 +81,12 @@ func s424FuturesFilledIntent(ts time.Time) domainexec.ExecutionIntent {
 
 // s424FuturesPartiallyFilledIntent uses structural partial fill shape from S423:
 // executedQty < requestedQty, status=PARTIALLY_FILLED.
-func s424FuturesPartiallyFilledIntent(ts time.Time) domainexec.ExecutionIntent {
+func s424FuturesPartiallyFilledIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:           "venue_market_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerp(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -103,11 +106,12 @@ func s424FuturesPartiallyFilledIntent(ts time.Time) domainexec.ExecutionIntent {
 // s424FuturesRejectedIntent uses the EXACT metadata shape from S423 rejection path:
 // RejectionProjectionActor embeds rejection_code, rejection_reason, venue_detail.* keys.
 // This simulates what the KV bucket contains AFTER the rejection projection writes it.
-func s424FuturesRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
+func s424FuturesRejectedIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -118,8 +122,8 @@ func s424FuturesRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
 		Final:         true,
 		Timestamp:     ts,
 		Metadata: map[string]string{
-			"rejection_code":                "VAL_INVALID_ARGUMENT",
-			"rejection_reason":              "Margin is insufficient.",
+			"rejection_code":                 "VAL_INVALID_ARGUMENT",
+			"rejection_reason":               "Margin is insufficient.",
 			"venue_detail.venue_http_status": "400",
 			"venue_detail.venue_error_code":  "-2019",
 		},
@@ -127,11 +131,12 @@ func s424FuturesRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
 }
 
 // s424SpotFilledIntent mirrors S405/S407 Spot fill shape for parity comparison.
-func s424SpotFilledIntent(ts time.Time) domainexec.ExecutionIntent {
+func s424SpotFilledIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:           "venue_market_order",
 		Source:         "binances",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTSpot(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -149,11 +154,12 @@ func s424SpotFilledIntent(ts time.Time) domainexec.ExecutionIntent {
 }
 
 // s424SpotRejectedIntent mirrors S406/S407 Spot rejection shape for parity comparison.
-func s424SpotRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
+func s424SpotRejectedIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binances",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTSpot(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -164,8 +170,8 @@ func s424SpotRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
 		Final:         true,
 		Timestamp:     ts,
 		Metadata: map[string]string{
-			"rejection_code":                "VAL_INVALID_ARGUMENT",
-			"rejection_reason":              "Account has insufficient balance for requested action.",
+			"rejection_code":                 "VAL_INVALID_ARGUMENT",
+			"rejection_reason":               "Account has insufficient balance for requested action.",
 			"venue_detail.venue_http_status": "400",
 			"venue_detail.venue_error_code":  "-2010",
 		},
@@ -180,7 +186,7 @@ func s424SpotRejectedIntent(ts time.Time) domainexec.ExecutionIntent {
 // metadata embedded by RejectionProjectionActor for a real Futures margin rejection
 // (S423 shape: HTTP 400, venue code -2019) is correctly extractable on the read-path.
 func TestS424_RejectionDetail_RealFuturesMarginInsufficient(t *testing.T) {
-	intent := s424FuturesRejectedIntent(time.Now().UTC())
+	intent := s424FuturesRejectedIntent(t, time.Now().UTC())
 
 	detail := extractRejectionDetailFromIntent(&intent)
 	if detail == nil {
@@ -222,11 +228,11 @@ func TestS424_RejectionDetail_AllFuturesRejectionScenarios(t *testing.T) {
 	for _, sc := range scenarios {
 		t.Run(sc.name, func(t *testing.T) {
 			intent := domainexec.ExecutionIntent{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+				Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 				Status: domainexec.StatusRejected, Final: true,
 				Metadata: map[string]string{
-					"rejection_code":                sc.code,
-					"rejection_reason":              sc.reason,
+					"rejection_code":                 sc.code,
+					"rejection_reason":               sc.reason,
 					"venue_detail.venue_http_status": sc.httpStatus,
 					"venue_detail.venue_error_code":  sc.venueCode,
 				},
@@ -260,8 +266,8 @@ func TestS424_RejectionDetail_AllFuturesRejectionScenarios(t *testing.T) {
 // correctly assembles intent (derive) + result (fill) for Futures using S422 data shapes.
 func TestS424_CompositeStatus_FuturesFilledWithIntent(t *testing.T) {
 	now := time.Now().UTC()
-	intent := s424FuturesAcceptedIntent()
-	fill := s424FuturesFilledIntent(now)
+	intent := s424FuturesAcceptedIntent(t)
+	fill := s424FuturesFilledIntent(t, now)
 
 	reply := executionclient.ExecutionStatusReply{
 		Intent:      &intent,
@@ -293,8 +299,8 @@ func TestS424_CompositeStatus_FuturesFilledWithIntent(t *testing.T) {
 // carries RejectionDetail for Futures rejections using S423 data shapes.
 func TestS424_CompositeStatus_FuturesRejectedWithAuditDetail(t *testing.T) {
 	now := time.Now().UTC()
-	intent := s424FuturesAcceptedIntent()
-	rejection := s424FuturesRejectedIntent(now)
+	intent := s424FuturesAcceptedIntent(t)
+	rejection := s424FuturesRejectedIntent(t, now)
 
 	detail := extractRejectionDetailFromIntent(&rejection)
 
@@ -319,8 +325,8 @@ func TestS424_CompositeStatus_FuturesRejectedWithAuditDetail(t *testing.T) {
 // TestS424_CompositeStatus_FuturesPartialFill proves composite status for partial fill.
 func TestS424_CompositeStatus_FuturesPartialFill(t *testing.T) {
 	now := time.Now().UTC()
-	intent := s424FuturesAcceptedIntent()
-	partial := s424FuturesPartiallyFilledIntent(now)
+	intent := s424FuturesAcceptedIntent(t)
+	partial := s424FuturesPartiallyFilledIntent(t, now)
 
 	reply := executionclient.ExecutionStatusReply{
 		Intent:      &intent,
@@ -342,16 +348,16 @@ func TestS424_CompositeStatus_FuturesMixedFillAndRejection_TimestampPriority(t *
 	now := time.Now().UTC()
 
 	// Scenario 1: rejection newer than fill -> propagation = rejected
-	fill1 := s424FuturesFilledIntent(now.Add(-10 * time.Second))
-	rej1 := s424FuturesRejectedIntent(now)
+	fill1 := s424FuturesFilledIntent(t, now.Add(-10*time.Second))
+	rej1 := s424FuturesRejectedIntent(t, now)
 	prop1 := executionclient.DeriveEffectivePropagation(nil, &fill1, &rej1)
 	if prop1 != "rejected" {
 		t.Errorf("scenario 1: got %s, want rejected (newer)", prop1)
 	}
 
 	// Scenario 2: fill newer than rejection -> propagation = filled
-	fill2 := s424FuturesFilledIntent(now)
-	rej2 := s424FuturesRejectedIntent(now.Add(-10 * time.Second))
+	fill2 := s424FuturesFilledIntent(t, now)
+	rej2 := s424FuturesRejectedIntent(t, now.Add(-10*time.Second))
 	prop2 := executionclient.DeriveEffectivePropagation(nil, &fill2, &rej2)
 	if prop2 != "filled" {
 		t.Errorf("scenario 2: got %s, want filled (newer)", prop2)
@@ -372,10 +378,10 @@ func TestS424_CorrelationChain_AllFuturesLifecycleStates(t *testing.T) {
 		intent domainexec.ExecutionIntent
 		corrID string
 	}{
-		{"accepted", s424FuturesAcceptedIntent(), "s424-corr-accepted"},
-		{"filled", s424FuturesFilledIntent(now), "s424-corr-filled"},
-		{"partially_filled", s424FuturesPartiallyFilledIntent(now), "s424-corr-partial"},
-		{"rejected", s424FuturesRejectedIntent(now), "s424-corr-rejected"},
+		{"accepted", s424FuturesAcceptedIntent(t), "s424-corr-accepted"},
+		{"filled", s424FuturesFilledIntent(t, now), "s424-corr-filled"},
+		{"partially_filled", s424FuturesPartiallyFilledIntent(t, now), "s424-corr-partial"},
+		{"rejected", s424FuturesRejectedIntent(t, now), "s424-corr-rejected"},
 	}
 
 	for _, tc := range states {
@@ -397,7 +403,7 @@ func TestS424_CorrelationChain_AllFuturesLifecycleStates(t *testing.T) {
 // audit metadata survives JSON marshal/unmarshal (simulating KV storage round-trip)
 // using the exact metadata shape from S423 rejection scenarios.
 func TestS424_CorrelationChain_RejectionMetadataRoundTrip(t *testing.T) {
-	original := s424FuturesRejectedIntent(time.Now().UTC())
+	original := s424FuturesRejectedIntent(t, time.Now().UTC())
 
 	data, err := json.Marshal(original)
 	if err != nil {
@@ -449,30 +455,30 @@ func TestS424_SegmentParity_PropagationIdentical(t *testing.T) {
 	}{
 		{
 			name:     "fill_only",
-			spotFill: ptr(s424SpotFilledIntent(now)),
-			futFill:  ptr(s424FuturesFilledIntent(now)),
+			spotFill: ptr(s424SpotFilledIntent(t, now)),
+			futFill:  ptr(s424FuturesFilledIntent(t, now)),
 			want:     "filled",
 		},
 		{
 			name:    "rejection_only",
-			spotRej: ptr(s424SpotRejectedIntent(now)),
-			futRej:  ptr(s424FuturesRejectedIntent(now)),
+			spotRej: ptr(s424SpotRejectedIntent(t, now)),
+			futRej:  ptr(s424FuturesRejectedIntent(t, now)),
 			want:    "rejected",
 		},
 		{
 			name:     "fill_newer_than_rejection",
-			spotFill: ptr(s424SpotFilledIntent(now)),
-			spotRej:  ptr(s424SpotRejectedIntent(now.Add(-time.Minute))),
-			futFill:  ptr(s424FuturesFilledIntent(now)),
-			futRej:   ptr(s424FuturesRejectedIntent(now.Add(-time.Minute))),
+			spotFill: ptr(s424SpotFilledIntent(t, now)),
+			spotRej:  ptr(s424SpotRejectedIntent(t, now.Add(-time.Minute))),
+			futFill:  ptr(s424FuturesFilledIntent(t, now)),
+			futRej:   ptr(s424FuturesRejectedIntent(t, now.Add(-time.Minute))),
 			want:     "filled",
 		},
 		{
 			name:     "rejection_newer_than_fill",
-			spotFill: ptr(s424SpotFilledIntent(now.Add(-time.Minute))),
-			spotRej:  ptr(s424SpotRejectedIntent(now)),
-			futFill:  ptr(s424FuturesFilledIntent(now.Add(-time.Minute))),
-			futRej:   ptr(s424FuturesRejectedIntent(now)),
+			spotFill: ptr(s424SpotFilledIntent(t, now.Add(-time.Minute))),
+			spotRej:  ptr(s424SpotRejectedIntent(t, now)),
+			futFill:  ptr(s424FuturesFilledIntent(t, now.Add(-time.Minute))),
+			futRej:   ptr(s424FuturesRejectedIntent(t, now)),
 			want:     "rejected",
 		},
 	}
@@ -501,8 +507,8 @@ func TestS424_SegmentParity_PropagationIdentical(t *testing.T) {
 func TestS424_SegmentParity_RejectionDetailStructure(t *testing.T) {
 	now := time.Now().UTC()
 
-	spotDetail := extractRejectionDetailFromIntent(ptr(s424SpotRejectedIntent(now)))
-	futDetail := extractRejectionDetailFromIntent(ptr(s424FuturesRejectedIntent(now)))
+	spotDetail := extractRejectionDetailFromIntent(ptr(s424SpotRejectedIntent(t, now)))
+	futDetail := extractRejectionDetailFromIntent(ptr(s424FuturesRejectedIntent(t, now)))
 
 	if spotDetail == nil || futDetail == nil {
 		t.Fatal("both segments must produce extractable rejection detail")
@@ -532,8 +538,8 @@ func TestS424_SegmentParity_RejectionDetailStructure(t *testing.T) {
 func TestS424_SegmentParity_FillRecordStructuralEquivalence(t *testing.T) {
 	now := time.Now().UTC()
 
-	spotFill := s424SpotFilledIntent(now).Fills[0]
-	futFill := s424FuturesFilledIntent(now).Fills[0]
+	spotFill := s424SpotFilledIntent(t, now).Fills[0]
+	futFill := s424FuturesFilledIntent(t, now).Fills[0]
 
 	// Both carry non-empty Price, Quantity, Fee
 	for _, check := range []struct {
@@ -567,8 +573,8 @@ func TestS424_SegmentParity_FillRecordStructuralEquivalence(t *testing.T) {
 func TestS424_SegmentParity_PartitionKeyIsolation(t *testing.T) {
 	now := time.Now().UTC()
 
-	spotKey := s424SpotFilledIntent(now).PartitionKey()
-	futKey := s424FuturesFilledIntent(now).PartitionKey()
+	spotKey := s424SpotFilledIntent(t, now).PartitionKey()
+	futKey := s424FuturesFilledIntent(t, now).PartitionKey()
 
 	if spotKey == futKey {
 		t.Fatalf("partition keys must differ: spot=%s futures=%s", spotKey, futKey)
@@ -590,9 +596,9 @@ func TestS424_SegmentParity_PartitionKeyIsolation(t *testing.T) {
 func TestS424_LifecycleList_ConsolidatedMixedSegments(t *testing.T) {
 	now := time.Now().UTC()
 
-	spotFill := s424SpotFilledIntent(now)
-	futFill := s424FuturesFilledIntent(now)
-	futRej := s424FuturesRejectedIntent(now.Add(-5 * time.Second))
+	spotFill := s424SpotFilledIntent(t, now)
+	futFill := s424FuturesFilledIntent(t, now)
+	futRej := s424FuturesRejectedIntent(t, now.Add(-5*time.Second))
 
 	entries := []executionclient.LifecycleEntry{
 		{
@@ -650,8 +656,8 @@ func TestS424_LifecycleList_ConsolidatedMixedSegments(t *testing.T) {
 func TestS424_FeeSemantics_FuturesCumQuoteAuditTrail(t *testing.T) {
 	now := time.Now().UTC()
 
-	spotFill := s424SpotFilledIntent(now)
-	futFill := s424FuturesFilledIntent(now)
+	spotFill := s424SpotFilledIntent(t, now)
+	futFill := s424FuturesFilledIntent(t, now)
 
 	// Spot: commission per fill (small relative to notional)
 	// Futures: cumQuote (total notional, large relative to quantity)

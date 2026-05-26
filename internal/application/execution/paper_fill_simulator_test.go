@@ -6,11 +6,12 @@ import (
 
 	appexec "internal/application/execution"
 	domainexec "internal/domain/execution"
+	"internal/domain/instrument"
 )
 
 func TestPaperFillSimulator_BuyOrder_ProducesFilled(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 
 	result, ok := sim.SimulateFill(intent)
 	if !ok {
@@ -38,7 +39,7 @@ func TestPaperFillSimulator_BuyOrder_ProducesFilled(t *testing.T) {
 
 func TestPaperFillSimulator_SellOrder_ProducesFilled(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 	intent.Side = domainexec.SideSell
 
 	result, ok := sim.SimulateFill(intent)
@@ -52,7 +53,7 @@ func TestPaperFillSimulator_SellOrder_ProducesFilled(t *testing.T) {
 
 func TestPaperFillSimulator_NoAction_StaysSubmitted(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 	intent.Side = domainexec.SideNone
 	intent.Quantity = "0"
 
@@ -73,7 +74,7 @@ func TestPaperFillSimulator_NoAction_StaysSubmitted(t *testing.T) {
 
 func TestPaperFillSimulator_NonSubmittedStatus_ReturnsFalse(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 	intent.Status = domainexec.StatusFilled
 
 	_, ok := sim.SimulateFill(intent)
@@ -84,7 +85,7 @@ func TestPaperFillSimulator_NonSubmittedStatus_ReturnsFalse(t *testing.T) {
 
 func TestPaperFillSimulator_PreservesOriginalFields(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 
 	result, ok := sim.SimulateFill(intent)
 	if !ok {
@@ -96,8 +97,8 @@ func TestPaperFillSimulator_PreservesOriginalFields(t *testing.T) {
 	if result.Source != intent.Source {
 		t.Fatalf("source changed: %q → %q", intent.Source, result.Source)
 	}
-	if result.Symbol != intent.Symbol {
-		t.Fatalf("symbol changed: %q → %q", intent.Symbol, result.Symbol)
+	if result.VenueSymbol() != intent.VenueSymbol() {
+		t.Fatalf("symbol changed: %q → %q", intent.VenueSymbol(), result.VenueSymbol())
 	}
 	if result.Side != intent.Side {
 		t.Fatalf("side changed: %q → %q", intent.Side, result.Side)
@@ -112,7 +113,7 @@ func TestPaperFillSimulator_PreservesOriginalFields(t *testing.T) {
 
 func TestPaperFillSimulator_FilledIntentPassesValidation(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	intent := submittedBuyIntent()
+	intent := submittedBuyIntent(t)
 
 	result, _ := sim.SimulateFill(intent)
 	if prob := result.Validate(); prob != nil {
@@ -122,37 +123,49 @@ func TestPaperFillSimulator_FilledIntentPassesValidation(t *testing.T) {
 
 func TestPaperFillSimulator_MultiSymbol_IndependentFills(t *testing.T) {
 	sim := &appexec.PaperFillSimulator{}
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	cases := []struct {
+		base     string
+		venueSym string
+	}{
+		{"BTC", "btcusdt"},
+		{"ETH", "ethusdt"},
+		{"SOL", "solusdt"},
+	}
 
-	for _, sym := range symbols {
-		intent := submittedBuyIntent()
-		intent.Symbol = sym
+	for _, c := range cases {
+		intent := submittedBuyIntent(t)
+		inst, prob := instrument.New(c.base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup: %v", prob)
+		}
+		intent.Instrument = inst
 
 		result, ok := sim.SimulateFill(intent)
 		if !ok {
-			t.Fatalf("simulation failed for %s", sym)
+			t.Fatalf("simulation failed for %s", c.venueSym)
 		}
-		if result.Symbol != sym {
-			t.Fatalf("symbol bleed: expected %q, got %q", sym, result.Symbol)
+		if result.VenueSymbol() != c.venueSym {
+			t.Fatalf("symbol bleed: expected %q, got %q", c.venueSym, result.VenueSymbol())
 		}
 		if result.Status != domainexec.StatusFilled {
-			t.Fatalf("%s: expected StatusFilled, got %q", sym, result.Status)
+			t.Fatalf("%s: expected StatusFilled, got %q", c.venueSym, result.Status)
 		}
 		if result.PartitionKey() == "" {
-			t.Fatalf("%s: empty partition key", sym)
+			t.Fatalf("%s: empty partition key", c.venueSym)
 		}
 	}
 }
 
-func submittedBuyIntent() domainexec.ExecutionIntent {
+func submittedBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.02",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.02",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",

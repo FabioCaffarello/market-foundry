@@ -88,7 +88,7 @@ func (d *DryRunSubmitter) SubmitOrder(_ context.Context, req ports.VenueOrderReq
 		d.log("dry-run intercepted no-action intent",
 			"venue_order_id", venueOrderID,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", intent.CorrelationID,
 		)
@@ -108,7 +108,7 @@ func (d *DryRunSubmitter) SubmitOrder(_ context.Context, req ports.VenueOrderReq
 	// the upstream call was cancelled), so a stalled PriceSource is bounded
 	// here independently.
 	priceCtx, priceCancel := context.WithTimeout(context.Background(), priceLookupTimeout)
-	fillPrice := d.resolvePrice(priceCtx, intent.Source, intent.Symbol, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	fillPrice := d.resolvePrice(priceCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
 	priceCancel()
 
 	filled := intent
@@ -128,7 +128,7 @@ func (d *DryRunSubmitter) SubmitOrder(_ context.Context, req ports.VenueOrderReq
 	d.log("dry-run intercepted venue submit",
 		"venue_order_id", venueOrderID,
 		"source", intent.Source,
-		"symbol", intent.Symbol,
+		"symbol", intent.VenueSymbol(),
 		"timeframe", intent.Timeframe,
 		"side", string(intent.Side),
 		"quantity", intent.Quantity,

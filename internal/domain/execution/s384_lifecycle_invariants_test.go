@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
 
 // ==========================================================================
@@ -24,16 +25,17 @@ import (
 
 // ---------- helpers ----------
 
-func s384Intent() execution.ExecutionIntent {
+func s384Intent(t *testing.T) execution.ExecutionIntent {
+	t.Helper()
 	return execution.ExecutionIntent{
-		Type:          "paper_order",
-		Source:        "binancef",
-		Symbol:        "btcusdt",
-		Timeframe:     60,
-		Side:          execution.SideBuy,
-		Quantity:      "0.02",
+		Type:           "paper_order",
+		Source:         "binancef",
+		Instrument:     btcUSDTPerp(t),
+		Timeframe:      60,
+		Side:           execution.SideBuy,
+		Quantity:       "0.02",
 		FilledQuantity: "",
-		Status:        execution.StatusSubmitted,
+		Status:         execution.StatusSubmitted,
 		Risk: execution.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -230,7 +232,7 @@ func TestS384_TERM_TerminalCountIsExactlyThree(t *testing.T) {
 func TestS384_TERM_FinalFlagSemantics(t *testing.T) {
 	// Terminal intents should have Final=true; non-terminal should allow Final=false.
 	// This is a semantic invariant: code that produces terminal intents must set Final.
-	ei := s384Intent()
+	ei := s384Intent(t)
 
 	// Non-terminal: Final=false is acceptable.
 	ei.Status = execution.StatusSubmitted
@@ -256,7 +258,7 @@ func TestS384_TERM_FinalFlagSemantics(t *testing.T) {
 // ====================================================================
 
 func TestS384_FR_FilledIntentMustHaveFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
 	ei.Fills = []execution.FillRecord{
@@ -268,7 +270,7 @@ func TestS384_FR_FilledIntentMustHaveFills(t *testing.T) {
 }
 
 func TestS384_FR_PartiallyFilledIntentMustHaveFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusPartiallyFilled
 	ei.FilledQuantity = "0.01"
 	ei.Fills = []execution.FillRecord{
@@ -288,7 +290,7 @@ func TestS384_FR_PreTerminalStatesMustNotHaveFills(t *testing.T) {
 	}
 	for _, st := range preFillStatuses {
 		t.Run(string(st), func(t *testing.T) {
-			ei := s384Intent()
+			ei := s384Intent(t)
 			ei.Status = st
 			// Invariant: these states should have empty Fills.
 			if len(ei.Fills) != 0 {
@@ -357,7 +359,7 @@ func TestS384_FR_FillTimestampNotBeforeIntentTimestamp(t *testing.T) {
 }
 
 func TestS384_FR_MultipleFillsOnPartialFill(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusPartiallyFilled
 	ei.Quantity = "0.10"
 	ei.FilledQuantity = "0.07"
@@ -375,7 +377,7 @@ func TestS384_FR_MultipleFillsOnPartialFill(t *testing.T) {
 // ====================================================================
 
 func TestS384_IFC_FillQuantitySumMatchesFilledQuantity(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusFilled
 	ei.Quantity = "0.10"
 	ei.FilledQuantity = "0.10"
@@ -400,7 +402,7 @@ func TestS384_IFC_FillQuantitySumMatchesFilledQuantity(t *testing.T) {
 }
 
 func TestS384_IFC_FilledQuantityDoesNotExceedQuantity(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Quantity = "0.10"
 	ei.FilledQuantity = "0.10"
 
@@ -414,7 +416,7 @@ func TestS384_IFC_FilledQuantityDoesNotExceedQuantity(t *testing.T) {
 }
 
 func TestS384_IFC_SidePreservedAcrossFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Side = execution.SideBuy
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
@@ -428,20 +430,20 @@ func TestS384_IFC_SidePreservedAcrossFills(t *testing.T) {
 }
 
 func TestS384_IFC_SymbolPreservedAcrossFills(t *testing.T) {
-	ei := s384Intent()
-	originalSymbol := ei.Symbol
+	ei := s384Intent(t)
+	originalSymbol := ei.VenueSymbol()
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
 	ei.Fills = []execution.FillRecord{
 		{Price: "50000", Quantity: "0.02", Fee: "0.01", Simulated: true, Timestamp: ei.Timestamp},
 	}
-	if ei.Symbol != originalSymbol {
-		t.Fatalf("symbol mutated during fill: expected %s, got %s", originalSymbol, ei.Symbol)
+	if ei.VenueSymbol() != originalSymbol {
+		t.Fatalf("symbol mutated during fill: expected %s, got %s", originalSymbol, ei.VenueSymbol())
 	}
 }
 
 func TestS384_IFC_SourcePreservedAcrossFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	originalSource := ei.Source
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
@@ -454,7 +456,7 @@ func TestS384_IFC_SourcePreservedAcrossFills(t *testing.T) {
 }
 
 func TestS384_IFC_TimeframePreservedAcrossFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	originalTF := ei.Timeframe
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
@@ -467,7 +469,7 @@ func TestS384_IFC_TimeframePreservedAcrossFills(t *testing.T) {
 }
 
 func TestS384_IFC_RiskInputPreservedAcrossFills(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	originalRisk := ei.Risk
 	ei.Status = execution.StatusFilled
 	ei.FilledQuantity = "0.02"
@@ -487,7 +489,7 @@ func TestS384_QM_FilledQuantityMonotonicallyIncreases(t *testing.T) {
 	// Simulate a lifecycle: submitted → accepted → partially_filled → filled.
 	// FilledQuantity must only increase at each step.
 	steps := []struct {
-		status   execution.Status
+		status    execution.Status
 		filledQty string
 	}{
 		{execution.StatusSubmitted, ""},
@@ -511,7 +513,7 @@ func TestS384_QM_FilledQuantityMonotonicallyIncreases(t *testing.T) {
 
 func TestS384_QM_PartiallyFilledQuantityBounds(t *testing.T) {
 	// partially_filled: 0 < FilledQuantity < Quantity.
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusPartiallyFilled
 	ei.Quantity = "0.10"
 	ei.FilledQuantity = "0.04"
@@ -529,7 +531,7 @@ func TestS384_QM_PartiallyFilledQuantityBounds(t *testing.T) {
 }
 
 func TestS384_QM_FilledQuantityEqualsQuantityOnFilled(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = execution.StatusFilled
 	ei.Quantity = "0.02"
 	ei.FilledQuantity = "0.02"
@@ -612,12 +614,12 @@ func TestS384_SM_TerminalToInitialBlocked(t *testing.T) {
 func TestS384_SAFE_AllRequiredFieldsCauseValidationError(t *testing.T) {
 	// Each required field, when zeroed, must produce a validation error.
 	fields := []struct {
-		name  string
+		name   string
 		mutate func(*execution.ExecutionIntent)
 	}{
 		{"type", func(e *execution.ExecutionIntent) { e.Type = "" }},
 		{"source", func(e *execution.ExecutionIntent) { e.Source = "" }},
-		{"symbol", func(e *execution.ExecutionIntent) { e.Symbol = "" }},
+		{"symbol", func(e *execution.ExecutionIntent) { e.Instrument = instrument.CanonicalInstrument{} }},
 		{"timeframe", func(e *execution.ExecutionIntent) { e.Timeframe = 0 }},
 		{"side", func(e *execution.ExecutionIntent) { e.Side = "" }},
 		{"status", func(e *execution.ExecutionIntent) { e.Status = "" }},
@@ -629,7 +631,7 @@ func TestS384_SAFE_AllRequiredFieldsCauseValidationError(t *testing.T) {
 
 	for _, f := range fields {
 		t.Run(f.name, func(t *testing.T) {
-			ei := s384Intent()
+			ei := s384Intent(t)
 			f.mutate(&ei)
 			if prob := ei.Validate(); prob == nil {
 				t.Fatalf("zeroed %s must produce validation error", f.name)
@@ -639,7 +641,7 @@ func TestS384_SAFE_AllRequiredFieldsCauseValidationError(t *testing.T) {
 }
 
 func TestS384_SAFE_InvalidSideRejected(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Side = "long" // not buy/sell/none
 	if prob := ei.Validate(); prob == nil {
 		t.Fatal("invalid side must be rejected")
@@ -647,7 +649,7 @@ func TestS384_SAFE_InvalidSideRejected(t *testing.T) {
 }
 
 func TestS384_SAFE_InvalidStatusRejected(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Status = "pending" // not a valid status
 	if prob := ei.Validate(); prob == nil {
 		t.Fatal("invalid status must be rejected")
@@ -655,7 +657,7 @@ func TestS384_SAFE_InvalidStatusRejected(t *testing.T) {
 }
 
 func TestS384_SAFE_NegativeTimeframeRejected(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.Timeframe = -1
 	if prob := ei.Validate(); prob == nil {
 		t.Fatal("negative timeframe must be rejected")
@@ -667,7 +669,7 @@ func TestS384_SAFE_NegativeTimeframeRejected(t *testing.T) {
 // ====================================================================
 
 func TestS384_CORR_CorrelationIDPreservedThroughTransitions(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.CorrelationID = "corr-original-999"
 
 	// Simulate transition to filled.
@@ -684,7 +686,7 @@ func TestS384_CORR_CorrelationIDPreservedThroughTransitions(t *testing.T) {
 }
 
 func TestS384_CORR_CausationIDPreservedThroughTransitions(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	ei.CausationID = "cause-original-888"
 
 	filled := ei
@@ -697,7 +699,7 @@ func TestS384_CORR_CausationIDPreservedThroughTransitions(t *testing.T) {
 }
 
 func TestS384_CORR_PartitionKeyStableAcrossTransitions(t *testing.T) {
-	ei := s384Intent()
+	ei := s384Intent(t)
 	keyBefore := ei.PartitionKey()
 
 	// Simulate state changes — partition key must not change.
@@ -717,17 +719,21 @@ func TestS384_CORR_DeduplicationKeyUniquePerIntent(t *testing.T) {
 	keys := make(map[string]bool)
 
 	// Different symbols at same timestamp.
-	for _, sym := range []string{"btcusdt", "ethusdt", "solusdt"} {
+	for _, base := range []string{"BTC", "ETH", "SOL"} {
+		inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup: %v", prob)
+		}
 		ei := execution.ExecutionIntent{
-			Type:      "paper_order",
-			Source:    "binancef",
-			Symbol:    sym,
-			Timeframe: 60,
-			Timestamp: ts,
+			Type:       "paper_order",
+			Source:     "binancef",
+			Instrument: inst,
+			Timeframe:  60,
+			Timestamp:  ts,
 		}
 		k := ei.DeduplicationKey()
 		if keys[k] {
-			t.Fatalf("dedup key collision for symbol %s", sym)
+			t.Fatalf("dedup key collision for base %s", base)
 		}
 		keys[k] = true
 	}
@@ -735,11 +741,11 @@ func TestS384_CORR_DeduplicationKeyUniquePerIntent(t *testing.T) {
 	// Same symbol, different timestamps (start at offset 1 to avoid overlap with btcusdt above).
 	for i := 1; i <= 5; i++ {
 		ei := execution.ExecutionIntent{
-			Type:      "paper_order",
-			Source:    "binancef",
-			Symbol:    "btcusdt",
-			Timeframe: 60,
-			Timestamp: ts.Add(time.Duration(i) * time.Minute),
+			Type:       "paper_order",
+			Source:     "binancef",
+			Instrument: btcUSDTPerp(t),
+			Timeframe:  60,
+			Timestamp:  ts.Add(time.Duration(i) * time.Minute),
 		}
 		k := ei.DeduplicationKey()
 		if keys[k] {
@@ -784,7 +790,7 @@ func TestS384_CrossMode_ValidationIdenticalAcrossModes(t *testing.T) {
 	types := []string{"dry_run_order", "paper_order", "venue_market_order"}
 	for _, typ := range types {
 		t.Run(typ, func(t *testing.T) {
-			ei := s384Intent()
+			ei := s384Intent(t)
 			ei.Type = typ
 			if prob := ei.Validate(); prob != nil {
 				t.Fatalf("mode=%s: valid intent rejected: %s", typ, prob.Message)

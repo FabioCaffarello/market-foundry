@@ -19,11 +19,12 @@ import (
 //   - Lifecycle alignment with S383 state machine
 // ==========================================================================
 
-func s386RejectedIntent() domainexec.ExecutionIntent {
+func s386RejectedIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "venue_market_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -39,7 +40,7 @@ func s386RejectedIntent() domainexec.ExecutionIntent {
 func TestS386_RejectedEvent_ImplementsEventInterface(t *testing.T) {
 	event := domainexec.VenueOrderRejectedEvent{
 		Metadata:        events.NewMetadata(),
-		ExecutionIntent: s386RejectedIntent(),
+		ExecutionIntent: s386RejectedIntent(t),
 		RejectionCode:   "VAL_INVALID_ARGUMENT",
 		RejectionReason: "venue rejected order (HTTP 400, code -2019): Margin is insufficient",
 	}
@@ -66,7 +67,7 @@ func TestS386_RejectedEvent_PreservesCorrelationChain(t *testing.T) {
 		Metadata: events.NewMetadata().
 			WithCorrelationID(corrID).
 			WithCausationID(causeID),
-		ExecutionIntent: s386RejectedIntent(),
+		ExecutionIntent: s386RejectedIntent(t),
 		RejectionCode:   "VAL_INVALID_ARGUMENT",
 		RejectionReason: "insufficient margin",
 	}
@@ -91,7 +92,7 @@ func TestS386_RejectedEvent_CarriesRejectionMetadata(t *testing.T) {
 
 	event := domainexec.VenueOrderRejectedEvent{
 		Metadata:        events.NewMetadata(),
-		ExecutionIntent: s386RejectedIntent(),
+		ExecutionIntent: s386RejectedIntent(t),
 		RejectionCode:   "VAL_INVALID_ARGUMENT",
 		RejectionReason: "Margin is insufficient",
 		VenueDetails:    details,
@@ -109,7 +110,7 @@ func TestS386_RejectedEvent_CarriesRejectionMetadata(t *testing.T) {
 }
 
 func TestS386_RejectedEvent_IntentIsTerminalAndFinal(t *testing.T) {
-	intent := s386RejectedIntent()
+	intent := s386RejectedIntent(t)
 
 	if intent.Status != domainexec.StatusRejected {
 		t.Errorf("rejected intent must have Status=rejected, got %s", intent.Status)
@@ -143,7 +144,7 @@ func TestS386_RejectedEvent_LifecycleTransitionValid(t *testing.T) {
 }
 
 func TestS386_RejectedEvent_IntentValidatesWithRejectedStatus(t *testing.T) {
-	intent := s386RejectedIntent()
+	intent := s386RejectedIntent(t)
 	if prob := intent.Validate(); prob != nil {
 		t.Errorf("rejected intent must be valid, got: %s", prob.Message)
 	}

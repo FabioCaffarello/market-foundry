@@ -486,7 +486,7 @@ func buildS304DetailedChain(corrID, symbol, disposition, rationale, stratType, s
 		}
 		chain.Execution = &analyticalclient.ExecutionWithTrace{
 			ExecutionIntent: execution.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "paper_order", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Side: execution.Side(side), Quantity: maxPos, Status: "submitted", Timestamp: now,
 				Risk: execution.RiskInput{
 					Type: "position_exposure", Disposition: disposition,

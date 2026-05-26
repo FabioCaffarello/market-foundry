@@ -18,10 +18,10 @@ import (
 
 // FillProjectionConfig holds the configuration for the fill projection actor.
 type FillProjectionConfig struct {
-	NATSURL     string
-	Bucket      string
+	NATSURL      string
+	Bucket       string
 	IntentBucket string // KV bucket for intent lookup (RC-1 fill-to-intent correlation).
-	Tracker     *healthz.Tracker
+	Tracker      *healthz.Tracker
 }
 
 // FillProjectionActor materializes venue order fill events into a NATS KV read model.
@@ -137,7 +137,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 			"error", prob.Message,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"venue_order_id", msg.Event.VenueOrderID,
 		)
@@ -147,13 +147,13 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 	// Gate RC-1: Fill-to-intent correlation (orphan detection).
 	if a.intentStore != nil {
 		rcCtx, rcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		matchingIntent, _ := a.intentStore.Get(rcCtx, intent.Source, intent.Symbol, intent.Timeframe)
+		matchingIntent, _ := a.intentStore.Get(rcCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe)
 		rcCancel()
 		if matchingIntent == nil {
 			a.stats.orphaned.Add(1)
 			a.logger.Warn("RC-1/RC-4: orphan fill — no matching intent found",
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 				"timeframe", intent.Timeframe,
 				"venue_order_id", msg.Event.VenueOrderID,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
@@ -171,7 +171,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 					"requested", matchingIntent.Quantity,
 					"filled", intent.FilledQuantity,
 					"source", intent.Source,
-					"symbol", intent.Symbol,
+					"symbol", intent.VenueSymbol(),
 					"timeframe", intent.Timeframe,
 					"venue_order_id", msg.Event.VenueOrderID,
 				)
@@ -195,7 +195,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 			"code", prob.Code,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"status", string(intent.Status),
@@ -226,7 +226,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 		a.logger.Info("fill materialized",
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"quantity", intent.Quantity,

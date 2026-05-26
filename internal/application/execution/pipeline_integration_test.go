@@ -87,8 +87,8 @@ func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 	if ei.Source != source {
 		t.Fatalf("expected source %q, got %q", source, ei.Source)
 	}
-	if ei.Symbol != symbol {
-		t.Fatalf("expected symbol %q, got %q", symbol, ei.Symbol)
+	if ei.VenueSymbol() != symbol {
+		t.Fatalf("expected symbol %q, got %q", symbol, ei.VenueSymbol())
 	}
 	if ei.Timeframe != timeframe {
 		t.Fatalf("expected timeframe %d, got %d", timeframe, ei.Timeframe)
@@ -250,8 +250,8 @@ func TestPipeline_MultiSymbol_FullIsolation(t *testing.T) {
 			}
 
 			// Verify symbol ownership.
-			if intent.Symbol != tc.symbol {
-				t.Fatalf("%s/%d: symbol bleed: got %q", tc.symbol, tf, intent.Symbol)
+			if intent.VenueSymbol() != tc.symbol {
+				t.Fatalf("%s/%d: symbol bleed: got %q", tc.symbol, tf, intent.VenueSymbol())
 			}
 
 			// Verify trace ownership.
@@ -391,8 +391,8 @@ func TestPipeline_VenueAdapter_FullChain_DeriveToFill(t *testing.T) {
 	if !ei.Fills[0].Simulated {
 		t.Fatal("paper fill must be simulated")
 	}
-	if ei.Symbol != symbol {
-		t.Fatalf("symbol bleed: expected %q, got %q", symbol, ei.Symbol)
+	if ei.VenueSymbol() != symbol {
+		t.Fatalf("symbol bleed: expected %q, got %q", symbol, ei.VenueSymbol())
 	}
 
 	// Venue order ID carried through.
@@ -515,7 +515,7 @@ func TestPipeline_StatusPropagation_IntentAndResult(t *testing.T) {
 		{
 			name: "intent only (submitted) → submitted",
 			intent: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideNone, Quantity: "0",
 				Status: domainexec.StatusSubmitted, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "rejected", Confidence: "0.3", Timeframe: 60},
@@ -526,13 +526,13 @@ func TestPipeline_StatusPropagation_IntentAndResult(t *testing.T) {
 		{
 			name: "intent (submitted) + result (filled) → filled (result wins)",
 			intent: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.02",
 				Status: domainexec.StatusFilled, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 			},
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.02",
 				FilledQuantity: "0.02", Status: domainexec.StatusFilled, Final: true, Timestamp: ts,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -544,7 +544,7 @@ func TestPipeline_StatusPropagation_IntentAndResult(t *testing.T) {
 			name:   "result only (filled) → filled",
 			intent: nil,
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.02",
 				FilledQuantity: "0.02", Status: domainexec.StatusFilled, Final: true, Timestamp: ts,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -612,8 +612,8 @@ func TestPipeline_MultiSymbol_FillIsolation(t *testing.T) {
 			}
 
 			// Verify symbol ownership preserved through venue.
-			if receipt.Intent.Symbol != tc.symbol {
-				t.Fatalf("%s/%d: symbol bleed in receipt: got %q", tc.symbol, tf, receipt.Intent.Symbol)
+			if receipt.Intent.VenueSymbol() != tc.symbol {
+				t.Fatalf("%s/%d: symbol bleed in receipt: got %q", tc.symbol, tf, receipt.Intent.VenueSymbol())
 			}
 
 			// Verify side preserved.

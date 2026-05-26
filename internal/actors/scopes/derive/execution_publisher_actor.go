@@ -116,7 +116,7 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 				"gate_status", "halted",
 				"type", msg.Event.ExecutionIntent.Type,
 				"source", msg.Event.ExecutionIntent.Source,
-				"symbol", msg.Event.ExecutionIntent.Symbol,
+				"symbol", msg.Event.ExecutionIntent.VenueSymbol(),
 				"timeframe", msg.Event.ExecutionIntent.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
@@ -151,7 +151,7 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 				"code", prob.Code,
 				"type", intent.Type,
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 				"timeframe", intent.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
@@ -165,7 +165,7 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 				"attempt", attempt,
 				"type", intent.Type,
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 				"timeframe", intent.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
@@ -184,7 +184,7 @@ func (a *ExecutionPublisherActor) publishWithRetry(msg publishExecutionMessage) 
 			"attempts", maxAttempts,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 		)

@@ -17,7 +17,7 @@ func TestSegmentRouterRoutesFuturesIntentToFuturesAdapter(t *testing.T) {
 	futuresAdapter := &stubVenueAdapter{label: "futures"}
 	router.Register(settings.MarketSegmentFutures, futuresAdapter)
 
-	intent := domainexec.ExecutionIntent{Source: "binancef", Symbol: "btcusdt"}
+	intent := domainexec.ExecutionIntent{Source: "binancef", Instrument: btcUSDTPerp(t)}
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
@@ -32,7 +32,7 @@ func TestSegmentRouterRoutesSpotIntentToSpotAdapter(t *testing.T) {
 	spotAdapter := &stubVenueAdapter{label: "spot"}
 	router.Register(settings.MarketSegmentSpot, spotAdapter)
 
-	intent := domainexec.ExecutionIntent{Source: "binances", Symbol: "ethusdt"}
+	intent := domainexec.ExecutionIntent{Source: "binances", Instrument: ethUSDTSpot(t)}
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
@@ -50,14 +50,14 @@ func TestSegmentRouterMultiSegmentIsolation(t *testing.T) {
 	router.Register(settings.MarketSegmentSpot, spotAdapter)
 
 	// Route futures intent.
-	futuresIntent := domainexec.ExecutionIntent{Source: "binancef", Symbol: "btcusdt"}
+	futuresIntent := domainexec.ExecutionIntent{Source: "binancef", Instrument: btcUSDTPerp(t)}
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: futuresIntent})
 	if prob != nil {
 		t.Fatalf("futures routing failed: %s", prob.Message)
 	}
 
 	// Route spot intent.
-	spotIntent := domainexec.ExecutionIntent{Source: "binances", Symbol: "ethusdt"}
+	spotIntent := domainexec.ExecutionIntent{Source: "binances", Instrument: ethUSDTSpot(t)}
 	_, prob = router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: spotIntent})
 	if prob != nil {
 		t.Fatalf("spot routing failed: %s", prob.Message)
@@ -75,7 +75,7 @@ func TestSegmentRouterRejectsUnknownSource(t *testing.T) {
 	router := NewSegmentRouter()
 	router.Register(settings.MarketSegmentFutures, &stubVenueAdapter{label: "futures"})
 
-	intent := domainexec.ExecutionIntent{Source: "unknown_exchange", Symbol: "btcusdt"}
+	intent := domainexec.ExecutionIntent{Source: "unknown_exchange", Instrument: btcUSDTPerp(t)}
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected error for unknown source, got nil")
@@ -87,7 +87,7 @@ func TestSegmentRouterRejectsSourceWithNoRegisteredAdapter(t *testing.T) {
 	// Register futures but not spot.
 	router.Register(settings.MarketSegmentFutures, &stubVenueAdapter{label: "futures"})
 
-	intent := domainexec.ExecutionIntent{Source: "binances", Symbol: "btcusdt"}
+	intent := domainexec.ExecutionIntent{Source: "binances", Instrument: btcUSDTPerp(t)}
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected error for unregistered spot segment, got nil")

@@ -28,15 +28,16 @@ import (
 // Futures rejected intent with audit metadata (mirrors S407 Spot)
 // ═══════════════════════════════════════════════════════════════════
 
-func s418FuturesRejectedIntentWithAuditMetadata() domainexec.ExecutionIntent {
+func s418FuturesRejectedIntentWithAuditMetadata(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusRejected,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusRejected,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -50,17 +51,18 @@ func s418FuturesRejectedIntentWithAuditMetadata() domainexec.ExecutionIntent {
 		Metadata: map[string]string{
 			"rejection_code":                 "VAL_INVALID_ARGUMENT",
 			"rejection_reason":               "Margin is insufficient.",
-			"venue_detail.venue_http_status":  "400",
-			"venue_detail.venue_error_code":   "-2019",
+			"venue_detail.venue_http_status": "400",
+			"venue_detail.venue_error_code":  "-2019",
 		},
 	}
 }
 
-func s418FuturesFilledIntent(ts time.Time) domainexec.ExecutionIntent {
+func s418FuturesFilledIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:           "venue_market_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerp(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -82,11 +84,12 @@ func s418FuturesFilledIntent(ts time.Time) domainexec.ExecutionIntent {
 	}
 }
 
-func s418FuturesPartiallyFilledIntent(ts time.Time) domainexec.ExecutionIntent {
+func s418FuturesPartiallyFilledIntent(t *testing.T, ts time.Time) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:           "venue_market_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerp(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -116,7 +119,7 @@ func s418FuturesPartiallyFilledIntent(ts time.Time) domainexec.ExecutionIntent {
 // detail embedded in Futures intent metadata can be reconstructed via
 // the ExecutionRejectionReply contract — direct parity with S407 Spot proof.
 func TestS418_RejectionDetail_FuturesExtractFromMetadata(t *testing.T) {
-	intent := s418FuturesRejectedIntentWithAuditMetadata()
+	intent := s418FuturesRejectedIntentWithAuditMetadata(t)
 
 	detail := extractRejectionDetailFromIntent(&intent)
 	if detail == nil {
@@ -143,7 +146,7 @@ func TestS418_RejectionDetail_FuturesExtractFromMetadata(t *testing.T) {
 // TestS418_RejectionDetail_FuturesNilWhenFilled proves that extracting rejection
 // detail from a Futures filled intent returns nil.
 func TestS418_RejectionDetail_FuturesNilWhenFilled(t *testing.T) {
-	intent := s418FuturesFilledIntent(time.Now().UTC())
+	intent := s418FuturesFilledIntent(t, time.Now().UTC())
 
 	detail := extractRejectionDetailFromIntent(&intent)
 	if detail != nil {
@@ -160,8 +163,8 @@ func TestS418_RejectionDetail_FuturesNilWhenFilled(t *testing.T) {
 func TestS418_Propagation_FuturesRejectionNewerThanFill(t *testing.T) {
 	now := time.Now().UTC()
 
-	fill := s418FuturesFilledIntent(now.Add(-10 * time.Second))
-	rejection := s418FuturesRejectedIntentWithAuditMetadata()
+	fill := s418FuturesFilledIntent(t, now.Add(-10*time.Second))
+	rejection := s418FuturesRejectedIntentWithAuditMetadata(t)
 	rejection.Timestamp = now
 
 	prop := executionclient.DeriveEffectivePropagation(nil, &fill, &rejection)
@@ -174,8 +177,8 @@ func TestS418_Propagation_FuturesRejectionNewerThanFill(t *testing.T) {
 func TestS418_Propagation_FuturesFillNewerThanRejection(t *testing.T) {
 	now := time.Now().UTC()
 
-	fill := s418FuturesFilledIntent(now)
-	rejection := s418FuturesRejectedIntentWithAuditMetadata()
+	fill := s418FuturesFilledIntent(t, now)
+	rejection := s418FuturesRejectedIntentWithAuditMetadata(t)
 	rejection.Timestamp = now.Add(-10 * time.Second)
 
 	prop := executionclient.DeriveEffectivePropagation(nil, &fill, &rejection)
@@ -188,7 +191,7 @@ func TestS418_Propagation_FuturesFillNewerThanRejection(t *testing.T) {
 // for the Futures segment — parity with S407 Spot proof.
 func TestS418_Propagation_FuturesPartiallyFilled(t *testing.T) {
 	now := time.Now().UTC()
-	partial := s418FuturesPartiallyFilledIntent(now)
+	partial := s418FuturesPartiallyFilledIntent(t, now)
 
 	prop := executionclient.DeriveEffectivePropagation(nil, &partial, nil)
 	if prop != "partially_filled" {
@@ -200,11 +203,11 @@ func TestS418_Propagation_FuturesPartiallyFilled(t *testing.T) {
 // with no venue outcome propagates as submitted.
 func TestS418_Propagation_FuturesIntentOnly(t *testing.T) {
 	intent := domainexec.ExecutionIntent{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Status:    domainexec.StatusSubmitted,
-		Timestamp: time.Now().UTC(),
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Status:     domainexec.StatusSubmitted,
+		Timestamp:  time.Now().UTC(),
 	}
 
 	prop := executionclient.DeriveEffectivePropagation(&intent, nil, nil)
@@ -229,14 +232,14 @@ func TestS418_Propagation_FuturesNone(t *testing.T) {
 // are distinct from Spot for identical symbol/timeframe pairs.
 func TestS418_PartitionKey_FuturesSegmentIsolation(t *testing.T) {
 	spotIntent := domainexec.ExecutionIntent{
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
 	}
 	futuresIntent := domainexec.ExecutionIntent{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
 	}
 
 	spotKey := spotIntent.PartitionKey()
@@ -253,12 +256,12 @@ func TestS418_PartitionKey_FuturesSegmentIsolation(t *testing.T) {
 // TestS418_PartitionKey_FuturesRejectionIsolated proves that a Futures rejection
 // partition key cannot collide with a Spot rejection partition key.
 func TestS418_PartitionKey_FuturesRejectionIsolated(t *testing.T) {
-	futuresRejection := s418FuturesRejectedIntentWithAuditMetadata()
+	futuresRejection := s418FuturesRejectedIntentWithAuditMetadata(t)
 	spotRejection := domainexec.ExecutionIntent{
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Status:    domainexec.StatusRejected,
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Status:     domainexec.StatusRejected,
 	}
 
 	if futuresRejection.PartitionKey() == spotRejection.PartitionKey() {
@@ -273,7 +276,7 @@ func TestS418_PartitionKey_FuturesRejectionIsolated(t *testing.T) {
 // TestS418_CorrelationChain_FuturesRejectedIntent proves that correlation
 // and causation IDs survive the rejection metadata embedding for Futures.
 func TestS418_CorrelationChain_FuturesRejectedIntent(t *testing.T) {
-	intent := s418FuturesRejectedIntentWithAuditMetadata()
+	intent := s418FuturesRejectedIntentWithAuditMetadata(t)
 
 	if intent.CorrelationID != "corr-s418-futures" {
 		t.Errorf("correlation_id: expected corr-s418-futures, got %s", intent.CorrelationID)
@@ -297,7 +300,7 @@ func TestS418_CorrelationChain_FuturesRejectedIntent(t *testing.T) {
 // TestS418_CorrelationChain_FuturesFilledIntent proves correlation chain
 // preservation for filled Futures intents.
 func TestS418_CorrelationChain_FuturesFilledIntent(t *testing.T) {
-	intent := s418FuturesFilledIntent(time.Now().UTC())
+	intent := s418FuturesFilledIntent(t, time.Now().UTC())
 
 	if intent.CorrelationID != "corr-s418-futures-fill" {
 		t.Errorf("correlation_id: expected corr-s418-futures-fill, got %s", intent.CorrelationID)
@@ -320,7 +323,7 @@ func TestS418_CorrelationChain_FuturesFilledIntent(t *testing.T) {
 // preservation for partially filled Futures intents.
 func TestS418_CorrelationChain_FuturesPartialFillIntent(t *testing.T) {
 	now := time.Now().UTC()
-	intent := s418FuturesPartiallyFilledIntent(now)
+	intent := s418FuturesPartiallyFilledIntent(t, now)
 
 	if intent.CorrelationID != "corr-s418-futures-partial" {
 		t.Errorf("correlation_id: expected corr-s418-futures-partial, got %s", intent.CorrelationID)
@@ -344,21 +347,21 @@ func TestS418_LifecycleEntry_FuturesFieldPopulation(t *testing.T) {
 	fillTs := ts.Add(time.Minute)
 
 	intent := domainexec.ExecutionIntent{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 		Status: domainexec.StatusSubmitted, Timestamp: ts,
 	}
-	fill := s418FuturesFilledIntent(fillTs)
+	fill := s418FuturesFilledIntent(t, fillTs)
 
 	entry := executionclient.LifecycleEntry{
-		Key:            "binancef.btcusdt.60",
-		Source:         "binancef",
-		Symbol:         "btcusdt",
-		Timeframe:      60,
-		IntentStatus:   string(intent.Status),
+		Key:             "binancef.btcusdt.60",
+		Source:          "binancef",
+		Symbol:          "btcusdt",
+		Timeframe:       60,
+		IntentStatus:    string(intent.Status),
 		IntentTimestamp: &intent.Timestamp,
-		FillStatus:     string(fill.Status),
+		FillStatus:      string(fill.Status),
 		FillTimestamp:   &fill.Timestamp,
-		Propagation:    executionclient.DeriveEffectivePropagation(&intent, &fill, nil),
+		Propagation:     executionclient.DeriveEffectivePropagation(&intent, &fill, nil),
 	}
 
 	if entry.Source != "binancef" {
@@ -384,7 +387,7 @@ func TestS418_LifecycleEntry_FuturesFieldPopulation(t *testing.T) {
 // TestS418_LifecycleEntry_FuturesRejection proves lifecycle entry for Futures
 // rejection-only scenario.
 func TestS418_LifecycleEntry_FuturesRejection(t *testing.T) {
-	rejection := s418FuturesRejectedIntentWithAuditMetadata()
+	rejection := s418FuturesRejectedIntentWithAuditMetadata(t)
 
 	entry := executionclient.LifecycleEntry{
 		Key:                "binancef.btcusdt.60",
@@ -420,12 +423,12 @@ func TestS418_SegmentParity_PropagationSymmetry(t *testing.T) {
 	now := time.Now().UTC()
 
 	cases := []struct {
-		name       string
-		spotFill   *domainexec.ExecutionIntent
-		spotRej    *domainexec.ExecutionIntent
-		futFill    *domainexec.ExecutionIntent
-		futRej     *domainexec.ExecutionIntent
-		wantProp   string
+		name     string
+		spotFill *domainexec.ExecutionIntent
+		spotRej  *domainexec.ExecutionIntent
+		futFill  *domainexec.ExecutionIntent
+		futRej   *domainexec.ExecutionIntent
+		wantProp string
 	}{
 		{
 			name:     "fill_only",
@@ -434,9 +437,9 @@ func TestS418_SegmentParity_PropagationSymmetry(t *testing.T) {
 			wantProp: "filled",
 		},
 		{
-			name:    "rejection_only",
-			spotRej: &domainexec.ExecutionIntent{Source: "binances", Status: domainexec.StatusRejected, Timestamp: now},
-			futRej:  &domainexec.ExecutionIntent{Source: "binancef", Status: domainexec.StatusRejected, Timestamp: now},
+			name:     "rejection_only",
+			spotRej:  &domainexec.ExecutionIntent{Source: "binances", Status: domainexec.StatusRejected, Timestamp: now},
+			futRej:   &domainexec.ExecutionIntent{Source: "binancef", Status: domainexec.StatusRejected, Timestamp: now},
 			wantProp: "rejected",
 		},
 		{
@@ -479,14 +482,14 @@ func TestS418_SegmentParity_RejectionDetailExtraction(t *testing.T) {
 	spotMeta := map[string]string{
 		"rejection_code":                 "VAL_INVALID_ARGUMENT",
 		"rejection_reason":               "Account has insufficient balance.",
-		"venue_detail.venue_http_status":  "400",
-		"venue_detail.venue_error_code":   "-2010",
+		"venue_detail.venue_http_status": "400",
+		"venue_detail.venue_error_code":  "-2010",
 	}
 	futuresMeta := map[string]string{
 		"rejection_code":                 "VAL_INVALID_ARGUMENT",
 		"rejection_reason":               "Margin is insufficient.",
-		"venue_detail.venue_http_status":  "400",
-		"venue_detail.venue_error_code":   "-2019",
+		"venue_detail.venue_http_status": "400",
+		"venue_detail.venue_error_code":  "-2019",
 	}
 
 	spotIntent := &domainexec.ExecutionIntent{Source: "binances", Status: domainexec.StatusRejected, Metadata: spotMeta}

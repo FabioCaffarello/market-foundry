@@ -22,9 +22,9 @@ import (
 // within [since, until] are returned. Results are always newest-first.
 type CandleHistoryQuery struct {
 	Source    string `json:"source"`
-	Symbol   string `json:"symbol"`
-	Timeframe int   `json:"timeframe"`
-	Limit     int   `json:"limit"`
+	Symbol    string `json:"symbol"`
+	Timeframe int    `json:"timeframe"`
+	Limit     int    `json:"limit"`
 	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
 	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
@@ -41,7 +41,7 @@ type QueryMeta struct {
 type CandleHistoryReply struct {
 	Candles []evidence.EvidenceCandle `json:"candles"`
 	Source  string                    `json:"source"` // always "clickhouse"
-	Meta    QueryMeta                `json:"meta"`
+	Meta    QueryMeta                 `json:"meta"`
 }
 
 // SignalHistoryQuery is the request contract for querying historical signals
@@ -54,7 +54,7 @@ type CandleHistoryReply struct {
 // When Since and Until are both set, only signals whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type SignalHistoryQuery struct {
-	Type      string `json:"type"`      // signal type (e.g., "rsi")
+	Type      string `json:"type"` // signal type (e.g., "rsi")
 	Source    string `json:"source"`
 	Symbol    string `json:"symbol"`
 	Timeframe int    `json:"timeframe"`
@@ -81,7 +81,7 @@ type SignalHistoryReply struct {
 // When Since and Until are both set, only decisions whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type DecisionHistoryQuery struct {
-	Type      string `json:"type"`      // decision type (e.g., "rsi_oversold")
+	Type      string `json:"type"` // decision type (e.g., "rsi_oversold")
 	Source    string `json:"source"`
 	Symbol    string `json:"symbol"`
 	Timeframe int    `json:"timeframe"`
@@ -109,14 +109,14 @@ type DecisionHistoryReply struct {
 // When Since and Until are both set, only strategies whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type StrategyHistoryQuery struct {
-	Type      string `json:"type"`                // strategy type (e.g., "mean_reversion_entry")
+	Type      string `json:"type"` // strategy type (e.g., "mean_reversion_entry")
 	Source    string `json:"source"`
 	Symbol    string `json:"symbol"`
 	Timeframe int    `json:"timeframe"`
 	Direction string `json:"direction,omitempty"` // optional direction filter
 	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"`     // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"`     // unix seconds, inclusive upper bound (0 = unset)
+	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // StrategyHistoryReply is the response contract for the analytical strategy history query.
@@ -137,14 +137,14 @@ type StrategyHistoryReply struct {
 // When Since and Until are both set, only risk assessments whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type RiskHistoryQuery struct {
-	Type        string `json:"type"`                  // risk type (e.g., "position_exposure")
+	Type        string `json:"type"` // risk type (e.g., "position_exposure")
 	Source      string `json:"source"`
 	Symbol      string `json:"symbol"`
 	Timeframe   int    `json:"timeframe"`
 	Disposition string `json:"disposition,omitempty"` // optional disposition filter
 	Limit       int    `json:"limit"`
-	Since       int64  `json:"since,omitempty"`       // unix seconds, inclusive lower bound (0 = unset)
-	Until       int64  `json:"until,omitempty"`       // unix seconds, inclusive upper bound (0 = unset)
+	Since       int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until       int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // RiskHistoryReply is the response contract for the analytical risk history query.
@@ -166,15 +166,15 @@ type RiskHistoryReply struct {
 // When Since and Until are both set, only executions whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type ExecutionHistoryQuery struct {
-	Type      string `json:"type"`                // execution type (e.g., "paper_order")
+	Type      string `json:"type"` // execution type (e.g., "paper_order")
 	Source    string `json:"source"`
 	Symbol    string `json:"symbol"`
 	Timeframe int    `json:"timeframe"`
-	Side      string `json:"side,omitempty"`      // optional side filter
-	Status    string `json:"status,omitempty"`    // optional status filter
+	Side      string `json:"side,omitempty"`   // optional side filter
+	Status    string `json:"status,omitempty"` // optional status filter
 	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"`     // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"`     // unix seconds, inclusive upper bound (0 = unset)
+	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // ExecutionHistoryReply is the response contract for the analytical execution history query.
@@ -221,22 +221,22 @@ type LifecycleHistoryQuery struct {
 // these fields were present in ExecutionIntent but omitted from the lifecycle entry,
 // making ClickHouse lifecycle queries less informative than KV reads.
 type LifecycleHistoryEntry struct {
-	Type           string                     `json:"type"`
-	Source         string                     `json:"source"`
-	Symbol         string                     `json:"symbol"`
-	Timeframe      int                        `json:"timeframe"`
-	Side           string                     `json:"side"`
-	Quantity       string                     `json:"quantity"`
-	FilledQuantity string                     `json:"filled_quantity"`
-	Status         string                     `json:"status"`
-	Risk           execution.RiskInput        `json:"risk"`
-	Fills          []execution.FillRecord     `json:"fills"`
-	Parameters     map[string]string          `json:"parameters,omitempty"`
-	Metadata       map[string]string          `json:"metadata,omitempty"`
-	CorrelationID  string                     `json:"correlation_id"`
-	CausationID    string                     `json:"causation_id"`
-	Final          bool                       `json:"final"`
-	Timestamp      string                     `json:"timestamp"`
+	Type           string                 `json:"type"`
+	Source         string                 `json:"source"`
+	Symbol         string                 `json:"symbol"`
+	Timeframe      int                    `json:"timeframe"`
+	Side           string                 `json:"side"`
+	Quantity       string                 `json:"quantity"`
+	FilledQuantity string                 `json:"filled_quantity"`
+	Status         string                 `json:"status"`
+	Risk           execution.RiskInput    `json:"risk"`
+	Fills          []execution.FillRecord `json:"fills"`
+	Parameters     map[string]string      `json:"parameters,omitempty"`
+	Metadata       map[string]string      `json:"metadata,omitempty"`
+	CorrelationID  string                 `json:"correlation_id"`
+	CausationID    string                 `json:"causation_id"`
+	Final          bool                   `json:"final"`
+	Timestamp      string                 `json:"timestamp"`
 }
 
 // intentToLifecycleEntry converts an ExecutionIntent to a LifecycleHistoryEntry.
@@ -246,7 +246,7 @@ func intentToLifecycleEntry(intent execution.ExecutionIntent) LifecycleHistoryEn
 	return LifecycleHistoryEntry{
 		Type:           intent.Type,
 		Source:         intent.Source,
-		Symbol:         intent.Symbol,
+		Symbol:         intent.VenueSymbol(),
 		Timeframe:      intent.Timeframe,
 		Side:           string(intent.Side),
 		Quantity:       intent.Quantity,
@@ -337,12 +337,12 @@ type SessionExplainQuery struct {
 
 // ConsistencyCheck captures a single cross-surface consistency finding.
 type ConsistencyCheck struct {
-	Surface  string `json:"surface"`
-	Field    string `json:"field"`
-	Status   string `json:"status"` // "consistent", "divergent", "unavailable"
-	KVValue  string `json:"kv_value,omitempty"`
-	CHValue  string `json:"ch_value,omitempty"`
-	Detail   string `json:"detail,omitempty"`
+	Surface string `json:"surface"`
+	Field   string `json:"field"`
+	Status  string `json:"status"` // "consistent", "divergent", "unavailable"
+	KVValue string `json:"kv_value,omitempty"`
+	CHValue string `json:"ch_value,omitempty"`
+	Detail  string `json:"detail,omitempty"`
 }
 
 // SessionExplainReply is the response contract for the session explainability endpoint.

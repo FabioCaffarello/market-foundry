@@ -50,7 +50,7 @@ func TestS408_ComposeE2E_SpotFill_ThroughUnifiedRuntime(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 
-	intent := s408SpotE2EIntent("s408-e2e-fill-corr", "s408-e2e-fill-cause")
+	intent := s408SpotE2EIntent(t, "s408-e2e-fill-corr", "s408-e2e-fill-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("E2E Spot fill failed: %s", prob.Message)
@@ -127,7 +127,7 @@ func TestS408_ComposeE2E_SpotRejection_AuditTrailComplete(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 
-	intent := s408SpotE2EIntent("s408-e2e-rej-corr", "s408-e2e-rej-cause")
+	intent := s408SpotE2EIntent(t, "s408-e2e-rej-corr", "s408-e2e-rej-cause")
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Spot adapter")
@@ -190,15 +190,15 @@ func TestS408_ComposeE2E_SpotRejection_AuditTrailComplete(t *testing.T) {
 // deserialize) that compose-level store performs. This is the persistence
 // guarantee for the read-path audit trail.
 func TestS408_ComposeE2E_RejectionMetadata_KVRoundTrip(t *testing.T) {
-	intent := s408SpotE2EIntent("s408-kv-rt-corr", "s408-kv-rt-cause")
+	intent := s408SpotE2EIntent(t, "s408-kv-rt-corr", "s408-kv-rt-cause")
 	intent.Status = domainexec.StatusRejected
 	intent.Final = true
 	intent.Metadata = map[string]string{
-		"rejection_code":                    "VAL_INVALID_ARGUMENT",
-		"rejection_reason":                  "Account has insufficient balance for requested action.",
-		"venue_detail.venue_http_status":    "400",
-		"venue_detail.venue_error_code":     "-2010",
-		"venue_detail.venue_error_message":  "Account has insufficient balance for requested action.",
+		"rejection_code":                   "VAL_INVALID_ARGUMENT",
+		"rejection_reason":                 "Account has insufficient balance for requested action.",
+		"venue_detail.venue_http_status":   "400",
+		"venue_detail.venue_error_code":    "-2010",
+		"venue_detail.venue_error_message": "Account has insufficient balance for requested action.",
 	}
 
 	data, err := json.Marshal(intent)
@@ -258,7 +258,7 @@ func TestS408_ComposeE2E_DryRun_WrapsUnifiedRouter(t *testing.T) {
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s408SpotE2EIntent("s408-dryrun-corr", "s408-dryrun-cause")
+	intent := s408SpotE2EIntent(t, "s408-dryrun-corr", "s408-dryrun-cause")
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -299,7 +299,7 @@ func TestS408_ComposeE2E_FillEventConstruction_SpotSegment(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s408SpotE2EIntent("s408-fill-evt-corr", "s408-fill-evt-cause")
+	intent := s408SpotE2EIntent(t, "s408-fill-evt-corr", "s408-fill-evt-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -376,7 +376,7 @@ func TestS408_ComposeE2E_ConfigCoexistence_BothSegmentsEnabled(t *testing.T) {
 	}
 
 	// Spot intent routes to Spot
-	spotIntent := s408SpotE2EIntent("s408-coex-spot", "")
+	spotIntent := s408SpotE2EIntent(t, "s408-coex-spot", "")
 	spotReceipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: spotIntent})
 	if prob != nil {
 		t.Fatalf("Spot submit failed: %s", prob.Message)
@@ -386,7 +386,7 @@ func TestS408_ComposeE2E_ConfigCoexistence_BothSegmentsEnabled(t *testing.T) {
 	}
 
 	// Source unknown intent rejected (fail-closed)
-	unknownIntent := s408SpotE2EIntent("s408-coex-unknown", "")
+	unknownIntent := s408SpotE2EIntent(t, "s408-coex-unknown", "")
 	unknownIntent.Source = "unknown_exchange"
 	_, unknownProb := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: unknownIntent})
 	if unknownProb == nil {
@@ -405,7 +405,7 @@ func TestS408_ComposeE2E_SpotPartialFill_UnifiedRuntime(t *testing.T) {
 	spotSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"orderId":             66666,
-			"clientOrderId":      r.URL.Query().Get("newClientOrderId"),
+			"clientOrderId":       r.URL.Query().Get("newClientOrderId"),
 			"symbol":              "BTCUSDT",
 			"status":              "PARTIALLY_FILLED",
 			"executedQty":         "0.0005",
@@ -426,7 +426,7 @@ func TestS408_ComposeE2E_SpotPartialFill_UnifiedRuntime(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s408SpotE2EIntent("s408-partial-corr", "s408-partial-cause")
+	intent := s408SpotE2EIntent(t, "s408-partial-corr", "s408-partial-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -500,11 +500,12 @@ func TestS408_ComposeE2E_AllowedSourcesGate_SpotPermitted(t *testing.T) {
 // ═══════════════════════════════════════════════════════════════════
 
 // s408SpotE2EIntent creates a Spot intent for E2E compose proof tests.
-func s408SpotE2EIntent(correlationID, causationID string) domainexec.ExecutionIntent {
+func s408SpotE2EIntent(t *testing.T, correlationID, causationID string) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binances",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTSpotS379(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",

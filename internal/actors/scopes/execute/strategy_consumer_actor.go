@@ -131,7 +131,11 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 	}
 
 	// Evaluate via PaperOrderEvaluator with pass-through risk (INV-4).
-	evaluator := appexec.NewPaperOrderEvaluator(strat.Source, strat.VenueSymbol(), strat.Timeframe)
+	// Use the Instrument-aware constructor so the canonical instrument carried
+	// by the Strategy flows through directly — the Source label may be synthetic
+	// (e.g., "execute.venue-adapter" in slice tests) and is not always a venue
+	// identifier recognized by instrumentFromBinding.
+	evaluator := appexec.NewPaperOrderEvaluatorForInstrument(strat.Source, strat.Instrument, strat.Timeframe)
 	intent, ok := evaluator.Evaluate(
 		"pass_through",          // riskType — INV-4: explicit pass-through marker
 		"approved",              // riskDisposition — INV-4: auto-approved

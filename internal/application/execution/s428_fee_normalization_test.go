@@ -49,7 +49,7 @@ func TestS428_SpotFee_SingleFill(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 5*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit: %s", prob.Message)
 	}
@@ -93,8 +93,8 @@ func TestS428_SpotFee_MultiFill_CommissionAggregated(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 5*time.Second).WithBaseURL(server.URL)
 
-	intent := testSpotBuyIntent()
-	intent.Symbol = "ethusdt"
+	intent := testSpotBuyIntent(t)
+	intent.Instrument = ethUSDTSpot(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit: %s", prob.Message)
@@ -135,7 +135,7 @@ func TestS428_FuturesFee_CumQuoteInCostBasis_NotFee(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 5*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit: %s", prob.Message)
 	}
@@ -176,7 +176,7 @@ func TestS428_FuturesFee_PartialFill_CostBasisReflectsCumQuote(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 5*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit: %s", prob.Message)
 	}
@@ -196,7 +196,7 @@ func TestS428_FuturesFee_PartialFill_CostBasisReflectsCumQuote(t *testing.T) {
 
 func TestS428_PaperAdapter_ZeroFees(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.Source = "binances"
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -224,7 +224,7 @@ func TestS428_DryRunSubmitter_ZeroFees(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	dryRun := appexec.NewDryRunSubmitter(inner)
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	receipt, prob := dryRun.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit: %s", prob.Message)

@@ -26,7 +26,8 @@ import (
 	"internal/shared/settings"
 )
 
-func s416FuturesVenueIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func s416FuturesVenueIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	qty := "0.001"
 	if side == domainexec.SideNone {
 		qty = "0"
@@ -34,7 +35,7 @@ func s416FuturesVenueIntent(side domainexec.Side) domainexec.ExecutionIntent {
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerpS379(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      qty,
@@ -51,16 +52,16 @@ func s416FuturesFilledServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
-			"orderId":     77777,
+			"orderId":       77777,
 			"clientOrderId": r.URL.Query().Get("newClientOrderId"),
-			"symbol":      r.URL.Query().Get("symbol"),
-			"status":      "FILLED",
-			"side":        r.URL.Query().Get("side"),
-			"type":        "MARKET",
-			"avgPrice":    "65432.10",
-			"executedQty": "0.001",
-			"cumQuote":    "65.43210",
-			"updateTime":  time.Now().UnixMilli(),
+			"symbol":        r.URL.Query().Get("symbol"),
+			"status":        "FILLED",
+			"side":          r.URL.Query().Get("side"),
+			"type":          "MARKET",
+			"avgPrice":      "65432.10",
+			"executedQty":   "0.001",
+			"cumQuote":      "65.43210",
+			"updateTime":    time.Now().UnixMilli(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -107,7 +108,7 @@ func TestS416_ActorComposition_FuturesVenueLive_Buy_Filled(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -167,7 +168,7 @@ func TestS416_ActorComposition_FuturesVenueLive_Sell_Filled(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideSell)
+	intent := s416FuturesVenueIntent(t, domainexec.SideSell)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -190,7 +191,7 @@ func TestS416_ActorComposition_FuturesVenueLive_None_NoContact(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideNone)
+	intent := s416FuturesVenueIntent(t, domainexec.SideNone)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -261,7 +262,7 @@ func TestS416_ActorComposition_DryRunDisabled_RealFuturesAdapterCalled(t *testin
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -287,7 +288,7 @@ func TestS416_ActorComposition_DryRunEnabled_InterceptsFuturesAdapter(t *testing
 
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)

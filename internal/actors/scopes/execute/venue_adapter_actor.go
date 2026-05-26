@@ -231,7 +231,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	intent := msg.Event.ExecutionIntent
 	segPfx := segmentPrefix(intent.Source)
 	if tracker != nil {
-		tracker.Counter("processed:" + intent.Symbol).Add(1)
+		tracker.Counter("processed:" + intent.VenueSymbol()).Add(1)
 		if segPfx != "" {
 			tracker.Counter(segPfx + "processed").Add(1)
 		}
@@ -247,7 +247,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		}
 		a.logger.Warn("intent rejected — source not in allowed set",
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 		)
@@ -267,7 +267,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 			}
 			a.logger.Warn("intent blocked by kill switch",
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 				"timeframe", intent.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
@@ -277,7 +277,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 			}
 			a.logger.Warn("intent stale — skipped",
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 				"timeframe", intent.Timeframe,
 				"age", time.Since(intent.Timestamp).String(),
 				"max_age", a.cfg.StalenessMaxAge.String(),
@@ -290,7 +290,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 			a.logger.Error("safety gate blocked with unknown reason",
 				"reason", verdict.Reason,
 				"source", intent.Source,
-				"symbol", intent.Symbol,
+				"symbol", intent.VenueSymbol(),
 			)
 		}
 		return
@@ -321,7 +321,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		logAttrs := []any{
 			"error", prob.Message,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 		}
@@ -384,7 +384,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 			"error", pubProb.Message,
 			"venue_order_id", receipt.VenueOrderID,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 		)
@@ -394,7 +394,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 	if tracker != nil {
 		tracker.RecordEvent()
 		tracker.Counter("filled").Add(1)
-		tracker.Counter("filled:" + intent.Symbol).Add(1)
+		tracker.Counter("filled:" + intent.VenueSymbol()).Add(1)
 		if segPfx != "" {
 			tracker.Counter(segPfx + "filled").Add(1)
 		}
@@ -404,7 +404,7 @@ func (a *VenueAdapterActor) onIntent(msg intentReceivedMessage) {
 		"venue_order_id", receipt.VenueOrderID,
 		"status", string(receipt.Status),
 		"source", intent.Source,
-		"symbol", intent.Symbol,
+		"symbol", intent.VenueSymbol(),
 		"timeframe", intent.Timeframe,
 		"side", string(intent.Side),
 		"quantity", intent.Quantity,
@@ -438,7 +438,7 @@ func (a *VenueAdapterActor) publishRejection(msg intentReceivedMessage, intent d
 		a.logger.Error("publish rejection event failed",
 			"error", pubProb.Message,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"correlation_id", msg.Event.Metadata.CorrelationID,
 		)
@@ -448,7 +448,7 @@ func (a *VenueAdapterActor) publishRejection(msg intentReceivedMessage, intent d
 	tracker := a.cfg.Tracker
 	if tracker != nil {
 		tracker.Counter("rejected").Add(1)
-		tracker.Counter("rejected:" + intent.Symbol).Add(1)
+		tracker.Counter("rejected:" + intent.VenueSymbol()).Add(1)
 		segPfx := segmentPrefix(intent.Source)
 		if segPfx != "" {
 			tracker.Counter(segPfx + "rejected").Add(1)
@@ -458,7 +458,7 @@ func (a *VenueAdapterActor) publishRejection(msg intentReceivedMessage, intent d
 	a.logger.Info("venue order rejected",
 		"rejection_code", string(prob.Code),
 		"source", intent.Source,
-		"symbol", intent.Symbol,
+		"symbol", intent.VenueSymbol(),
 		"timeframe", intent.Timeframe,
 		"side", string(intent.Side),
 		"quantity", intent.Quantity,

@@ -19,9 +19,10 @@ import (
 //   5. Timestamp tracking on each surface
 // ==========================================================================
 
-func s413Intent(status domainexec.Status, ts time.Time) *domainexec.ExecutionIntent {
+func s413Intent(t *testing.T, status domainexec.Status, ts time.Time) *domainexec.ExecutionIntent {
+	t.Helper()
 	return &domainexec.ExecutionIntent{
-		Type: "paper_order", Source: "binances", Symbol: "BTCUSDT",
+		Type: "paper_order", Source: "binances", Instrument: btcUSDTSpot(t),
 		Timeframe: 1, Side: domainexec.SideBuy, Quantity: "0.01",
 		Status: status, Final: true, Timestamp: ts,
 		Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 1},
@@ -41,48 +42,48 @@ func TestS413_LifecycleEntry_PropagationAlignment(t *testing.T) {
 	}{
 		{
 			name:     "intent_only_submitted",
-			intent:   s413Intent(domainexec.StatusSubmitted, ts),
+			intent:   s413Intent(t, domainexec.StatusSubmitted, ts),
 			wantProp: "submitted",
 		},
 		{
 			name:     "fill_only_filled",
-			fill:     s413Intent(domainexec.StatusFilled, ts),
+			fill:     s413Intent(t, domainexec.StatusFilled, ts),
 			wantProp: "filled",
 		},
 		{
 			name:      "rejection_only_rejected",
-			rejection: s413Intent(domainexec.StatusRejected, ts),
+			rejection: s413Intent(t, domainexec.StatusRejected, ts),
 			wantProp:  "rejected",
 		},
 		{
 			name:     "intent_plus_fill_returns_fill",
-			intent:   s413Intent(domainexec.StatusSubmitted, ts),
-			fill:     s413Intent(domainexec.StatusFilled, tsLater),
+			intent:   s413Intent(t, domainexec.StatusSubmitted, ts),
+			fill:     s413Intent(t, domainexec.StatusFilled, tsLater),
 			wantProp: "filled",
 		},
 		{
 			name:      "intent_plus_rejection_returns_rejected",
-			intent:    s413Intent(domainexec.StatusSubmitted, ts),
-			rejection: s413Intent(domainexec.StatusRejected, tsLater),
+			intent:    s413Intent(t, domainexec.StatusSubmitted, ts),
+			rejection: s413Intent(t, domainexec.StatusRejected, tsLater),
 			wantProp:  "rejected",
 		},
 		{
 			name:      "fill_and_rejection_newer_rejection_wins",
-			fill:      s413Intent(domainexec.StatusFilled, ts),
-			rejection: s413Intent(domainexec.StatusRejected, tsLater),
+			fill:      s413Intent(t, domainexec.StatusFilled, ts),
+			rejection: s413Intent(t, domainexec.StatusRejected, tsLater),
 			wantProp:  "rejected",
 		},
 		{
 			name:      "fill_and_rejection_newer_fill_wins",
-			fill:      s413Intent(domainexec.StatusFilled, tsLater),
-			rejection: s413Intent(domainexec.StatusRejected, ts),
+			fill:      s413Intent(t, domainexec.StatusFilled, tsLater),
+			rejection: s413Intent(t, domainexec.StatusRejected, ts),
 			wantProp:  "filled",
 		},
 		{
 			name:      "all_three_most_recent_wins",
-			intent:    s413Intent(domainexec.StatusSubmitted, ts),
-			fill:      s413Intent(domainexec.StatusFilled, ts.Add(time.Minute)),
-			rejection: s413Intent(domainexec.StatusRejected, ts.Add(2*time.Minute)),
+			intent:    s413Intent(t, domainexec.StatusSubmitted, ts),
+			fill:      s413Intent(t, domainexec.StatusFilled, ts.Add(time.Minute)),
+			rejection: s413Intent(t, domainexec.StatusRejected, ts.Add(2*time.Minute)),
 			wantProp:  "rejected",
 		},
 		{
@@ -104,8 +105,8 @@ func TestS413_LifecycleEntry_PropagationAlignment(t *testing.T) {
 func TestS413_LifecycleEntry_FieldPopulation(t *testing.T) {
 	ts := time.Date(2026, 3, 23, 12, 0, 0, 0, time.UTC)
 
-	intent := s413Intent(domainexec.StatusSubmitted, ts)
-	fill := s413Intent(domainexec.StatusFilled, ts.Add(time.Minute))
+	intent := s413Intent(t, domainexec.StatusSubmitted, ts)
+	fill := s413Intent(t, domainexec.StatusFilled, ts.Add(time.Minute))
 
 	entry := executionclient.LifecycleEntry{
 		Key:             "binances.BTCUSDT.1",
@@ -113,9 +114,9 @@ func TestS413_LifecycleEntry_FieldPopulation(t *testing.T) {
 		Symbol:          "BTCUSDT",
 		Timeframe:       1,
 		IntentStatus:    string(intent.Status),
-		IntentTimestamp:  &intent.Timestamp,
+		IntentTimestamp: &intent.Timestamp,
 		FillStatus:      string(fill.Status),
-		FillTimestamp:    &fill.Timestamp,
+		FillTimestamp:   &fill.Timestamp,
 		Propagation:     executionclient.DeriveEffectivePropagation(intent, fill, nil),
 	}
 
@@ -186,9 +187,9 @@ func TestS413_LifecycleListReply_Aggregation(t *testing.T) {
 func TestS413_LifecycleEntry_PartiallyFilledPropagation(t *testing.T) {
 	ts := time.Date(2026, 3, 23, 12, 0, 0, 0, time.UTC)
 
-	intent := s413Intent(domainexec.StatusSubmitted, ts)
+	intent := s413Intent(t, domainexec.StatusSubmitted, ts)
 	partialFill := &domainexec.ExecutionIntent{
-		Type: "venue_market_order", Source: "binances", Symbol: "BTCUSDT",
+		Type: "venue_market_order", Source: "binances", Instrument: btcUSDTSpot(t),
 		Timeframe: 1, Side: domainexec.SideBuy, Quantity: "0.01",
 		FilledQuantity: "0.005", Status: domainexec.StatusPartiallyFilled,
 		Final: true, Timestamp: ts.Add(time.Minute),

@@ -32,12 +32,12 @@ func TestS304_EX1_MultiSymbolDispositionMapping(t *testing.T) {
 	ts := time.Now()
 
 	type symbolCase struct {
-		symbol      string
-		riskDisp    string
-		direction   string
-		maxPosPct   string
-		wantSide    domainexec.Side
-		wantQty     string
+		symbol    string
+		riskDisp  string
+		direction string
+		maxPosPct string
+		wantSide  domainexec.Side
+		wantQty   string
 	}
 
 	cases := []symbolCase{
@@ -64,8 +64,8 @@ func TestS304_EX1_MultiSymbolDispositionMapping(t *testing.T) {
 			if intent.Quantity != sc.wantQty {
 				t.Errorf("quantity=%q, want %q", intent.Quantity, sc.wantQty)
 			}
-			if intent.Symbol != sc.symbol {
-				t.Errorf("symbol bleed: got %q", intent.Symbol)
+			if intent.VenueSymbol() != sc.symbol {
+				t.Errorf("symbol bleed: got %q", intent.VenueSymbol())
 			}
 			if prob := intent.Validate(); prob != nil {
 				t.Errorf("validation failed: %s", prob.Message)
@@ -131,8 +131,8 @@ func TestS304_EX2_FullPaperLifecyclePerSymbol(t *testing.T) {
 			}
 
 			// Symbol survives lifecycle.
-			if filled.Symbol != sc.symbol {
-				t.Errorf("symbol bleed after fill: got %q", filled.Symbol)
+			if filled.VenueSymbol() != sc.symbol {
+				t.Errorf("symbol bleed after fill: got %q", filled.VenueSymbol())
 			}
 			if filled.Side != sc.wantSide {
 				t.Errorf("side changed after fill: got %q", filled.Side)
@@ -185,8 +185,8 @@ func TestS304_EX3_RejectedBlocksExecution(t *testing.T) {
 			}
 
 			// Symbol isolation.
-			if filled.Symbol != sym {
-				t.Errorf("symbol bleed: got %q", filled.Symbol)
+			if filled.VenueSymbol() != sym {
+				t.Errorf("symbol bleed: got %q", filled.VenueSymbol())
 			}
 		})
 	}
@@ -244,8 +244,8 @@ func TestS304_EX4_ModifiedQuantityPerSymbol(t *testing.T) {
 			if filled.FilledQuantity != sc.maxPos {
 				t.Errorf("filled_quantity=%q, want %q", filled.FilledQuantity, sc.maxPos)
 			}
-			if filled.Symbol != sc.symbol {
-				t.Errorf("symbol bleed after fill: got %q", filled.Symbol)
+			if filled.VenueSymbol() != sc.symbol {
+				t.Errorf("symbol bleed after fill: got %q", filled.VenueSymbol())
 			}
 		})
 	}
@@ -304,8 +304,8 @@ func TestS304_EX5_CausalContextPreservation(t *testing.T) {
 			}
 
 			// Symbol isolation.
-			if intent.Symbol != sc.symbol {
-				t.Errorf("symbol bleed: got %q", intent.Symbol)
+			if intent.VenueSymbol() != sc.symbol {
+				t.Errorf("symbol bleed: got %q", intent.VenueSymbol())
 			}
 		})
 	}
@@ -361,8 +361,8 @@ func TestS304_EX6_PaperVenueAdapterIsolation(t *testing.T) {
 			venueOrderIDs[receipt.VenueOrderID] = sc.symbol
 
 			// Intent inside receipt carries the correct symbol.
-			if receipt.Intent.Symbol != sc.symbol {
-				t.Errorf("receipt.intent.symbol=%q, want %q", receipt.Intent.Symbol, sc.symbol)
+			if receipt.Intent.VenueSymbol() != sc.symbol {
+				t.Errorf("receipt.intent.symbol=%q, want %q", receipt.Intent.VenueSymbol(), sc.symbol)
 			}
 
 			// Receipt status is filled (paper venue fills instantly).

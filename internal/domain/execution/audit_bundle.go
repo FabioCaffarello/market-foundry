@@ -2,7 +2,10 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"internal/domain/instrument"
 )
 
 // SessionAuditBundle is the canonical consolidated view of an operational session
@@ -45,10 +48,13 @@ type SessionAuditBundle struct {
 
 // AuditLifecycleEntry captures the lifecycle state of a single partition key
 // within the session's time window.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b'.
 type AuditLifecycleEntry struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 
 	// Latest status per event type within the session window.
 	IntentStatus    string `json:"intent_status"`
@@ -62,6 +68,13 @@ type AuditLifecycleEntry struct {
 	IntentCount    int `json:"intent_count"`
 	FillCount      int `json:"fill_count"`
 	RejectionCount int `json:"rejection_count"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b' → sunset H-6.f). See ADR-0021.
+func (e AuditLifecycleEntry) VenueSymbol() string {
+	return strings.ToLower(string(e.Instrument.Base) + string(e.Instrument.Quote))
 }
 
 // AuditOrderActivity aggregates order counts across all partitions
@@ -78,12 +91,12 @@ type AuditOrderActivity struct {
 
 // AuditFeeSummary aggregates fee information from fills within the session window.
 type AuditFeeSummary struct {
-	TotalFillRecords  int      `json:"total_fill_records"`
-	FillsWithFee      int      `json:"fills_with_fee"`
-	FillsWithoutFee   int      `json:"fills_without_fee"`
-	SimulatedFills    int      `json:"simulated_fills"`
-	FeeAssets         []string `json:"fee_assets,omitempty"`
-	FeeCoverageRatio  string   `json:"fee_coverage_ratio"` // e.g., "5/5" or "3/5"
+	TotalFillRecords int      `json:"total_fill_records"`
+	FillsWithFee     int      `json:"fills_with_fee"`
+	FillsWithoutFee  int      `json:"fills_without_fee"`
+	SimulatedFills   int      `json:"simulated_fills"`
+	FeeAssets        []string `json:"fee_assets,omitempty"`
+	FeeCoverageRatio string   `json:"fee_coverage_ratio"` // e.g., "5/5" or "3/5"
 }
 
 // AuditConsistency summarizes the cross-surface consistency findings

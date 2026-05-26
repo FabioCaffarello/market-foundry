@@ -1,25 +1,46 @@
 package execution
 
 import (
+	"strings"
 	"time"
 
 	domainexec "internal/domain/execution"
+	"internal/domain/instrument"
 )
 
 // PaperOrderEvaluator translates a risk assessment into a paper order execution intent.
 // Pure application logic — no I/O, no actor references, no NATS dependency.
 // Receives risk values as primitive data (not risk.RiskAssessment structs) per domain isolation.
 type PaperOrderEvaluator struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 }
 
 func NewPaperOrderEvaluator(source, symbol string, timeframe int) *PaperOrderEvaluator {
 	return &PaperOrderEvaluator{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+	}
+}
+
+// NewPaperOrderEvaluatorForInstrument constructs an evaluator with an explicit
+// CanonicalInstrument, bypassing the source-based reconstruction. Used when the
+// caller already carries the canonical instrument (e.g., the strategy consumer
+// reading from `Strategy.Instrument`) and the upstream `Source` label is not a
+// venue identifier recognized by `instrumentFromBinding`.
+//
+// TRANSITORY (H-6.b' → sunset H-6.c when the evaluator API itself migrates to
+// CanonicalInstrument as the single source of truth).
+func NewPaperOrderEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *PaperOrderEvaluator {
+	return &PaperOrderEvaluator{
+		source:     source,
+		symbol:     strings.ToLower(string(inst.Base) + string(inst.Quote)),
+		instrument: inst,
+		timeframe:  timeframe,
 	}
 }
 
@@ -65,13 +86,13 @@ func (e *PaperOrderEvaluator) Evaluate(
 	}
 
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    e.source,
-		Symbol:    e.symbol,
-		Timeframe: e.timeframe,
-		Side:      side,
-		Quantity:  quantity,
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     e.source,
+		Instrument: e.instrument,
+		Timeframe:  e.timeframe,
+		Side:       side,
+		Quantity:   quantity,
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:             riskType,
 			Disposition:      riskDisposition,

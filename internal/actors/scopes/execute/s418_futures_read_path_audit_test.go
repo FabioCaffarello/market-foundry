@@ -55,7 +55,7 @@ func TestS418_RejectionAuditTrail_FuturesVenueDetails(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s418-corr-audit"
 	intent.CausationID = "s418-cause-audit"
 
@@ -121,13 +121,13 @@ func TestS418_RejectionAuditTrail_FuturesVenueDetails(t *testing.T) {
 // serialization and is reconstructable on the read-path.
 func TestS418_RejectionMetadataEmbedding_FuturesRoundTrip(t *testing.T) {
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusRejected,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerpS379(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusRejected,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -197,7 +197,7 @@ func TestS418_FillReadPath_FuturesRealFillCarriesSegmentAndAudit(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s418-fill-corr"
 	intent.CausationID = "s418-fill-cause"
 
@@ -260,7 +260,7 @@ func TestS418_UnifiedRuntime_FuturesFillDoesNotContactSpot(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected rejection: %s", prob.Message)

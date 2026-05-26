@@ -337,7 +337,7 @@ func buildChainSnapshot(chain *CompositeExecutionChain) consistency.ChainSnapsho
 		snap.HasExecution = true
 		snap.ExecutionSide = string(e.Side)
 		snap.ExecutionQuantity = e.Quantity
-		snap.ExecutionSymbol = e.Symbol
+		snap.ExecutionSymbol = e.VenueSymbol()
 		snap.ExecutionSource = e.Source
 		snap.ExecutionTimeframe = e.Timeframe
 		snap.ExecutionRiskDisp = e.Risk.Disposition

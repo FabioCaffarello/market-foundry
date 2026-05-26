@@ -31,7 +31,7 @@ func TestS317_VenueFill_PersistenceRoundTrip(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.CorrelationID = "s317-roundtrip-corr-001"
 	intent.CausationID = "s317-roundtrip-caus-001"
 
@@ -86,8 +86,8 @@ func TestS317_VenueFill_PersistenceRoundTrip(t *testing.T) {
 	if x.Source != "binancef" {
 		t.Fatalf("S317: source mismatch: got %q", x.Source)
 	}
-	if x.Symbol != "btcusdt" {
-		t.Fatalf("S317: symbol mismatch: got %q", x.Symbol)
+	if x.VenueSymbol() != "btcusdt" {
+		t.Fatalf("S317: symbol mismatch: got %q", x.VenueSymbol())
 	}
 	if x.Status != domainexec.StatusFilled {
 		t.Fatalf("S317: status should be filled, got %s", x.Status)
@@ -147,7 +147,7 @@ func TestS317_VenueFill_RowMapperCompatibility(t *testing.T) {
 		ExecutionIntent: domainexec.ExecutionIntent{
 			Type:           "paper_order",
 			Source:         "binancef",
-			Symbol:         "btcusdt",
+			Instrument:     btcUSDTPerp(t),
 			Timeframe:      60,
 			Side:           domainexec.SideBuy,
 			Quantity:       "0.001",
@@ -204,7 +204,7 @@ func TestS317_VenueFill_RowMapperCompatibility(t *testing.T) {
 	x := fillEvent.ExecutionIntent
 	row := []any{
 		m.ID, m.OccurredAt, m.CorrelationID, m.CausationID,
-		x.Type, x.Source, x.Symbol, uint32(x.Timeframe),
+		x.Type, x.Source, x.VenueSymbol(), uint32(x.Timeframe),
 		string(x.Side), 0.001, 0.001, string(x.Status),
 		string(riskJSON), string(fillsJSON), "{}", "{}",
 		x.CorrelationID, x.CausationID, x.Final, x.Timestamp,
@@ -252,7 +252,7 @@ func TestS317_VenueFill_CompositeChainReadability(t *testing.T) {
 		ExecutionIntent: domainexec.ExecutionIntent{
 			Type:          "paper_order",
 			Source:        "binancef",
-			Symbol:        "btcusdt",
+			Instrument:    btcUSDTPerp(t),
 			Timeframe:     60,
 			Side:          domainexec.SideBuy,
 			Quantity:      "0.001",
@@ -272,11 +272,11 @@ func TestS317_VenueFill_CompositeChainReadability(t *testing.T) {
 	}
 
 	// Verify symbol is non-empty (required by composite reader WHERE clause).
-	if fillEvent.ExecutionIntent.Symbol == "" {
+	if fillEvent.ExecutionIntent.VenueSymbol() == "" {
 		t.Fatal("S317: symbol must not be empty for composite reader query")
 	}
 
-	t.Logf("S317 PASS: composite chain readability verified — correlation_id=%s symbol=%s", corrID, fillEvent.ExecutionIntent.Symbol)
+	t.Logf("S317 PASS: composite chain readability verified — correlation_id=%s symbol=%s", corrID, fillEvent.ExecutionIntent.VenueSymbol())
 }
 
 // TestS317_VenueFill_DryRun validates the venue fill round-trip path without
@@ -298,7 +298,7 @@ func TestS317_VenueFill_DryRun(t *testing.T) {
 		ExecutionIntent: domainexec.ExecutionIntent{
 			Type:           "paper_order",
 			Source:         "binancef",
-			Symbol:         "btcusdt",
+			Instrument:     btcUSDTPerp(t),
 			Timeframe:      60,
 			Side:           domainexec.SideBuy,
 			Quantity:       "0.001",

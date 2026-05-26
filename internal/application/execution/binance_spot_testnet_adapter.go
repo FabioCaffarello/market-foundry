@@ -85,7 +85,7 @@ func (a *BinanceSpotTestnetAdapter) SubmitOrder(ctx context.Context, req ports.V
 	}
 
 	params := url.Values{}
-	params.Set("symbol", mapSymbol(intent.Symbol))
+	params.Set("symbol", mapSymbol(intent.VenueSymbol()))
 	params.Set("side", side)
 	params.Set("type", "MARKET")
 	params.Set("quantity", intent.Quantity)
@@ -388,7 +388,7 @@ func (a *BinanceSpotTestnetAdapter) QueryOrder(ctx context.Context, clientOrderI
 		return a.handleErrorResponse(resp.StatusCode, body)
 	}
 
-	syntheticIntent := domainexec.ExecutionIntent{Symbol: symbol}
+	syntheticIntent := domainexec.ExecutionIntent{Instrument: instrumentFromBinding("binances", symbol)}
 	return a.parseOrderResponse(body, syntheticIntent)
 }
 
@@ -396,12 +396,12 @@ func (a *BinanceSpotTestnetAdapter) QueryOrder(ctx context.Context, clientOrderI
 // connectivity proofs. This is a read-only surface — no write operations.
 // S441: Introduced for authenticated mainnet proof without order submission.
 type AccountInfo struct {
-	CanTrade       bool   `json:"canTrade"`
-	CanWithdraw    bool   `json:"canWithdraw"`
-	AccountType    string `json:"accountType"`
-	ServerTimeMs   int64  `json:"-"`
-	BalanceCount   int    `json:"-"`
-	HTTPStatus     int    `json:"-"`
+	CanTrade     bool   `json:"canTrade"`
+	CanWithdraw  bool   `json:"canWithdraw"`
+	AccountType  string `json:"accountType"`
+	ServerTimeMs int64  `json:"-"`
+	BalanceCount int    `json:"-"`
+	HTTPStatus   int    `json:"-"`
 }
 
 // AccountStatus performs an authenticated read-only call to the Binance Spot

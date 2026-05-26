@@ -3,15 +3,32 @@ package store
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"internal/adapters/nats/natskit"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/shared/events"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
+
+func instrumentForVenueSymbol(t *testing.T, venueSym string) instrument.CanonicalInstrument {
+	t.Helper()
+	upper := strings.ToUpper(strings.TrimSpace(venueSym))
+	const quote = "USDT"
+	if !strings.HasSuffix(upper, quote) || len(upper) <= len(quote) {
+		t.Fatalf("setup: cannot parse venue symbol %q", venueSym)
+	}
+	base := upper[:len(upper)-len(quote)]
+	inst, prob := instrument.New(base, quote, instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type mockExecutionStore struct {
 	putResult  natskit.PutResult
@@ -28,7 +45,7 @@ func validExecutionIntent(ts time.Time) execution.ExecutionIntent {
 	return execution.ExecutionIntent{
 		Type:           "paper_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerpForCandleTest(),
 		Timeframe:      60,
 		Side:           execution.SideBuy,
 		Quantity:       "0.02",
@@ -298,7 +315,7 @@ func TestExecutionProjection_MultiSymbol_IndependentMaterialization(t *testing.T
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			intent := validExecutionIntent(now.Add(time.Duration(eventCount) * time.Minute))
-			intent.Symbol = sym
+			intent.Instrument = instrumentForVenueSymbol(t, sym)
 			intent.Timeframe = tf
 			h.onExecution(executionReceivedMessage{Event: executionEvent(intent)})
 			eventCount++
@@ -329,7 +346,7 @@ func TestExecutionProjection_MultiSymbol_NoBleed_PartitionKeys(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			intent := validExecutionIntent(now)
-			intent.Symbol = sym
+			intent.Instrument = instrumentForVenueSymbol(t, sym)
 			intent.Timeframe = tf
 			key := intent.PartitionKey()
 			if existing, collision := keys[key]; collision {
@@ -352,7 +369,7 @@ func TestExecutionProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 
 	for _, sym := range symbols {
 		intent := validExecutionIntent(ts)
-		intent.Symbol = sym
+		intent.Instrument = instrumentForVenueSymbol(t, sym)
 		key := intent.DeduplicationKey()
 		if existing, collision := dedupKeys[key]; collision {
 			t.Fatalf("dedup key collision: %q used by both %q and %q", key, existing, sym)
@@ -410,18 +427,18 @@ func TestExecutionProjection_MultiSymbol_MixedOutcomes(t *testing.T) {
 
 	// btcusdt: valid final → materialized
 	btc := validExecutionIntent(now)
-	btc.Symbol = "btcusdt"
+	btc.Instrument = instrumentForVenueSymbol(t, "btcusdt")
 	h.onExecution(executionReceivedMessage{Event: executionEvent(btc)})
 
 	// ethusdt: non-final → skipped
 	eth := validExecutionIntent(now.Add(time.Minute))
-	eth.Symbol = "ethusdt"
+	eth.Instrument = instrumentForVenueSymbol(t, "ethusdt")
 	eth.Final = false
 	h.onExecution(executionReceivedMessage{Event: executionEvent(eth)})
 
 	// solusdt: valid final → materialized
 	sol := validExecutionIntent(now.Add(2 * time.Minute))
-	sol.Symbol = "solusdt"
+	sol.Instrument = instrumentForVenueSymbol(t, "solusdt")
 	h.onExecution(executionReceivedMessage{Event: executionEvent(sol)})
 
 	if got := h.actor.stats.received.Load(); got != 3 {
@@ -502,12 +519,12 @@ func TestExecutionProjection_TracePersistence_MultiSymbol_IndependentTraces(t *t
 	now := time.Now()
 
 	btc := validExecutionIntent(now)
-	btc.Symbol = "btcusdt"
+	btc.Instrument = instrumentForVenueSymbol(t, "btcusdt")
 	btc.CorrelationID = "corr-btc"
 	btc.CausationID = "cause-btc"
 
 	eth := validExecutionIntent(now.Add(time.Minute))
-	eth.Symbol = "ethusdt"
+	eth.Instrument = instrumentForVenueSymbol(t, "ethusdt")
 	eth.CorrelationID = "corr-eth"
 	eth.CausationID = "cause-eth"
 

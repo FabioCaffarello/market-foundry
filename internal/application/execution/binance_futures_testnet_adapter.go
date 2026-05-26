@@ -86,7 +86,7 @@ func (a *BinanceFuturesTestnetAdapter) SubmitOrder(ctx context.Context, req port
 	}
 
 	params := url.Values{}
-	params.Set("symbol", mapSymbol(intent.Symbol))
+	params.Set("symbol", mapSymbol(intent.VenueSymbol()))
 	params.Set("side", side)
 	params.Set("type", "MARKET")
 	params.Set("quantity", intent.Quantity)
@@ -390,9 +390,9 @@ func (a *BinanceFuturesTestnetAdapter) QueryOrder(ctx context.Context, clientOrd
 		return a.handleErrorResponse(resp.StatusCode, body)
 	}
 
-	// Parse the response. We build a synthetic intent with just the symbol for fill parsing.
+	// Parse the response. We build a synthetic intent with just the instrument for fill parsing.
 	// The caller is expected to supply the original intent for full context.
-	syntheticIntent := domainexec.ExecutionIntent{Symbol: symbol}
+	syntheticIntent := domainexec.ExecutionIntent{Instrument: instrumentFromBinding("binancef", symbol)}
 	return a.parseOrderResponse(body, syntheticIntent)
 }
 
@@ -400,12 +400,12 @@ func (a *BinanceFuturesTestnetAdapter) QueryOrder(ctx context.Context, clientOrd
 // authenticated connectivity proofs. Read-only surface.
 // S441: Introduced for authenticated mainnet proof without order submission.
 type FuturesAccountInfo struct {
-	CanTrade      bool   `json:"canTrade"`
-	FeeTier       int    `json:"feeTier"`
+	CanTrade           bool   `json:"canTrade"`
+	FeeTier            int    `json:"feeTier"`
 	TotalWalletBalance string `json:"-"`
-	AssetCount    int    `json:"-"`
-	PositionCount int    `json:"-"`
-	HTTPStatus    int    `json:"-"`
+	AssetCount         int    `json:"-"`
+	PositionCount      int    `json:"-"`
+	HTTPStatus         int    `json:"-"`
 }
 
 // AccountStatus performs an authenticated read-only call to the Binance Futures

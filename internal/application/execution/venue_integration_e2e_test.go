@@ -46,15 +46,16 @@ func requireTestnetCredentials(t *testing.T) *appexec.CredentialSet {
 
 // testnetBuyIntent creates a minimal market buy intent for testnet proof.
 // Uses BTCUSDT with the smallest practical quantity.
-func testnetBuyIntent() domainexec.ExecutionIntent {
+func testnetBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:             "position_exposure",
 			Disposition:      "approved",
@@ -69,15 +70,16 @@ func testnetBuyIntent() domainexec.ExecutionIntent {
 }
 
 // testnetSellIntent creates a minimal market sell intent for testnet proof.
-func testnetSellIntent() domainexec.ExecutionIntent {
+func testnetSellIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideSell,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideSell,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:             "position_exposure",
 			Disposition:      "approved",
@@ -99,7 +101,7 @@ func TestS316_VQ1_SubmitMarketBuy_RealTestnet(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("VQ1: submit market buy failed: [%s] %s", prob.Code, prob.Message)
@@ -122,7 +124,7 @@ func TestS316_VQ1_SubmitMarketSell_RealTestnet(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetSellIntent()
+	intent := testnetSellIntent(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("VQ1: submit market sell failed: [%s] %s", prob.Code, prob.Message)
@@ -143,7 +145,7 @@ func TestS316_VQ3_RealFill_NotSimulated(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("VQ3: submit failed: [%s] %s", prob.Code, prob.Message)
@@ -191,7 +193,7 @@ func TestS316_VQ4_ReceiptPersistenceCompatibility(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.CorrelationID = "s316-e2e-proof-corr-001"
 	intent.CausationID = "s316-e2e-proof-caus-001"
 
@@ -273,7 +275,7 @@ func TestS316_VQ6_SafetyGate_FreshIntent_AllowsVenueSubmit(t *testing.T) {
 	staleness := appexec.NewStalenessGuard(5 * time.Minute)
 	gate := appexec.NewSafetyGate(nil, 0, staleness)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	now := time.Now().UTC()
 
 	// Check safety gate BEFORE venue submission (actor behavior).
@@ -304,7 +306,7 @@ func TestS316_VQ6_SafetyGate_StaleIntent_BlocksVenueSubmit(t *testing.T) {
 	staleness := appexec.NewStalenessGuard(2 * time.Minute)
 	gate := appexec.NewSafetyGate(nil, 0, staleness)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.Timestamp = time.Now().Add(-5 * time.Minute) // 5 minutes ago → stale
 	now := time.Now().UTC()
 
@@ -329,7 +331,7 @@ func TestS316_VQ6_SafetyGate_KillSwitch_BlocksVenueSubmit(t *testing.T) {
 	staleness := appexec.NewStalenessGuard(5 * time.Minute)
 	gate := appexec.NewSafetyGate(checker, 0, staleness)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	now := time.Now().UTC()
 
 	verdict := gate.Check(intent.Timestamp, now)
@@ -352,7 +354,7 @@ func TestS316_VQ6_SafetyGate_KillSwitchPriority(t *testing.T) {
 	staleness := appexec.NewStalenessGuard(2 * time.Minute)
 	gate := appexec.NewSafetyGate(checker, 0, staleness)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.Timestamp = time.Now().Add(-5 * time.Minute) // also stale
 	now := time.Now().UTC()
 
@@ -380,7 +382,7 @@ func TestS316_E2E_ActorPath_GateToSubmitToReceipt(t *testing.T) {
 	staleness := appexec.NewStalenessGuard(5 * time.Minute)
 	gate := appexec.NewSafetyGate(nil, 0, staleness) // no kill switch in testnet proof
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.CorrelationID = "s316-e2e-actor-path-corr"
 	intent.CausationID = "s316-e2e-actor-path-caus"
 	now := time.Now().UTC()
@@ -442,7 +444,7 @@ func TestS316_NoAction_NoVenueCall_RealAdapter(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	intent.Side = domainexec.SideNone
 	intent.Quantity = "0"
 
@@ -471,7 +473,7 @@ func TestS316_ClientOrderID_DeterministicWithRealVenue(t *testing.T) {
 	creds := requireTestnetCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 15*time.Second)
 
-	intent := testnetBuyIntent()
+	intent := testnetBuyIntent(t)
 	// Fix timestamp for deterministic derivation.
 	intent.Timestamp = time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
 

@@ -73,7 +73,7 @@ descobrir 15 domain types totalizando 174 test files — ver
 |----------|--------|---------------------|
 | **H-6.a** | Domain root + Binance adapters | `internal/domain/instrument/` package (Venue, BaseAsset, QuoteAsset, ContractType, CanonicalInstrument). Refactor `ObservationTrade.Symbol` → `Instrument`. Adapters `binances` + `binancef` `Normalize` emitem `CanonicalInstrument`. Imediate readers de `ObservationTrade` migram para `.Instrument.Symbol()`. raccoon-cli `check instruments` analyzer. ADR-0021 erratum critério #4 (commit 0). PRD-0004 abertura. **ADR-0021 permanece `Proposed`.** |
 | **H-6.b** | Layer 1+2: Evidence + Signal/Decision/Strategy/Risk (7 types) | Cada domain struct (`EvidenceCandle`, `EvidenceTradeBurst`, `EvidenceVolume`, `Signal`, `Decision`, `Strategy`, `RiskAssessment`) migra `Symbol string` → `Instrument CanonicalInstrument` + `VenueSymbol() string` transitório. Os 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk/Execution) compõem chave KV via `VenueSymbol()` para back-compat com bucket layout existente. raccoon-cli `check instruments` estendido via `policies/domain_types.toml` declarando migration_state per type. **ADR-0021 permanece `Proposed`.** |
-| **H-6.b'** | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry (3 types) | Execution chain migra. `ExecutionIntent.Symbol` → `.Instrument` + `VenueSymbol()`; PartitionKey composer atualizado. `effectiveness.Attribution.Symbol` → `.Instrument` (derived from `intent.Instrument`). `execution.AuditLifecycleEntry.Symbol` → `.Instrument` (projection de partition key). **ADR-0021 permanece `Proposed`.** |
+| **H-6.b'** ✅ fechada | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry (3 types) | Execution chain migrada. `ExecutionIntent.Symbol` → `.Instrument` + `VenueSymbol()`; PartitionKey/DeduplicationKey composers atualizados via VenueSymbol. `effectiveness.Attribution.Symbol` → `.Instrument` (derived from `intent.Instrument`). `execution.AuditLifecycleEntry.Symbol` → `.Instrument` (projection de partition key via novo `instrumentFromBinding` per-package em `executionclient`, sunset H-6.f). Triage drop: zero population sites required migration nesta sub-wave (ver Changelog). **ADR-0021 permanece `Proposed`.** |
 | **H-6.b''** | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites (5 types) | Pairing chain migra. `pairing.Leg.Symbol` → `.Instrument` (M1 invariante preservada: `entry.Instrument == exit.Instrument`). `pairing.RoundTrip.Symbol` → `.Instrument` (denormalized from Leg). `pairing.CrossSessionWindow.Symbol` → `.Instrument` (query filter). Triage population site em `triageclient/get_roundtrip_triage.go:74` adota `.VenueSymbol()` (RoundTripTriageItem.Symbol stays string per S472-style projection). **ADR-0021 permanece `Proposed`.** |
 | **H-6.c** | Application layer + actors + samplers | Query types em `analyticalclient`/`triageclient` decidem caso a caso (query params vs domain values). Sampler/evaluator internal builders migram local `symbol string` → `instrument CanonicalInstrument`. Inclui DTO `analyticalclient.ReviewTransform` e DecisionTriageItem population site downstream. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d** | ClickHouse migration + writer back-compat read (#4b) | Nova migration adicionando columns `base`, `quote`, `contract`. Writer dual-writes (legacy `symbol` + canonical fields). Analytical client reads canonical preferred, fallback legacy. Cutover documented em runbook. Implementa **critério #4b** do ADR-0021 erratum. **ADR-0021 permanece `Proposed`.** |
@@ -180,6 +180,17 @@ ou equivalente, todos com sunset documentado para H-6.f.
 Sub-ondas H-6.a → H-6.b → H-6.b' → H-6.b'' → H-6.c → H-6.d →
 H-6.e → H-6.f → H-7 executam **estritamente serial**. Próxima
 sub-onda abre branch APENAS após merge da anterior em `main`.
+
+### Sub-wave naming convention
+
+- Documentation/prose: H-6.b, H-6.b', H-6.b'' (apostrophes
+  distinguish dependency layers within the wave H-6.b family).
+- Branch names / git tags: feat/h-6-b1-…, feat/h-6-b2-…
+  (numeric suffix for portability across shells/CI tools where
+  apostrophes are unsafe).
+
+Established at H-6.b' (branch feat/h-6-b1-execution-chain);
+applies retroactively to existing prose references.
 
 Razões:
 
@@ -389,6 +400,34 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-05-26** — H-6.b' fechada. Entregas: três domain types
+  da execution chain migrados `Symbol string` → `Instrument
+  CanonicalInstrument` + `VenueSymbol()` transitory accessor:
+  `execution.ExecutionIntent` (production cascade ~50 sites em
+  actors/adapters/application — KV publisher dedup key e
+  PartitionKey composers atualizados via VenueSymbol),
+  `effectiveness.Attribution` (derived from `intent.Instrument`),
+  `execution.AuditLifecycleEntry` (reconstrução de
+  `LifecycleEntry` DTO via novo per-package
+  `instrumentFromBinding` em `executionclient`, sunset H-6.f).
+  Analyzer `check-instruments` flipou as 3 entries em
+  `policies/domain_types.toml` de `pending` → `migrated`; 6/6
+  checks PASS, total gate 102/102. Sub-wave naming convention
+  documentada nesta PRD (acima). **Triage drop closure note**:
+  Triage population sites verificados durante pré-flight; zero
+  sites required migration nesta sub-wave —
+  `DecisionTriageItem` é buffered pelo ReviewTransform DTO
+  (application-layer; domain→DTO boundary migrado em H-6.b
+  commit 4; DTO→Triage permanece string-to-string até H-6.c
+  migrar ReviewTransform); `ExecutionTriageItem` não existe no
+  codebase; `RoundTripTriageItem` corretamente deferido para
+  H-6.b'' (upstream RoundTrip migra lá). 5 commits (ExecutionIntent
+  atomic, Attribution, AuditLifecycleEntry, policy flip, docs
+  closure este commit). ADR-0021 permanece `Proposed` —
+  critério #2 ainda não literalmente satisfeito (restam Pairing
+  chain types em H-6.b''). **Sub-onda H-6.b'' destravada apenas
+  após merge desta em `main`** (sub-onda sequencing policy
+  estrita).
 - **2026-05-26** — H-6.b refinement: pré-flight obrigatório
   descobriu 15 domain types totalizando 174 test files,
   forçando fragmentação além do plano de H-6.a (que assumia 5

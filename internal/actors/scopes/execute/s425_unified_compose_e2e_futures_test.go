@@ -55,11 +55,12 @@ func s425FuturesFilledServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-func s425FuturesE2EIntent(correlationID, causationID string) domainexec.ExecutionIntent {
+func s425FuturesE2EIntent(t *testing.T, correlationID, causationID string) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerpS379(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -116,7 +117,7 @@ func TestS425_ComposeE2E_FuturesFill_ValidatedLifecycle(t *testing.T) {
 
 	router := s425BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s425FuturesE2EIntent("s425-fill-corr", "s425-fill-cause")
+	intent := s425FuturesE2EIntent(t, "s425-fill-corr", "s425-fill-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("E2E Futures fill failed: %s", prob.Message)
@@ -204,7 +205,7 @@ func TestS425_ComposeE2E_FuturesRejection_ValidatedLifecycleAndAudit(t *testing.
 
 	router := s425BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s425FuturesE2EIntent("s425-rej-corr", "s425-rej-cause")
+	intent := s425FuturesE2EIntent(t, "s425-rej-corr", "s425-rej-cause")
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Futures adapter")
@@ -274,7 +275,7 @@ func TestS425_ComposeE2E_FuturesRejection_ValidatedLifecycleAndAudit(t *testing.
 // Futures rejection metadata survives JSON serialize/deserialize matching
 // the store projection path on the canonical surface.
 func TestS425_ComposeE2E_RejectionMetadata_CanonicalKVRoundTrip(t *testing.T) {
-	intent := s425FuturesE2EIntent("s425-kv-corr", "s425-kv-cause")
+	intent := s425FuturesE2EIntent(t, "s425-kv-corr", "s425-kv-cause")
 	intent.Status = domainexec.StatusRejected
 	intent.Final = true
 	intent.Metadata = map[string]string{
@@ -341,7 +342,7 @@ func TestS425_ComposeE2E_DryRun_CanonicalSurface(t *testing.T) {
 	router := s425BuildSegmentRouter(t, futuresSrv, spotSrv)
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s425FuturesE2EIntent("s425-dryrun-corr", "s425-dryrun-cause")
+	intent := s425FuturesE2EIntent(t, "s425-dryrun-corr", "s425-dryrun-cause")
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -382,7 +383,7 @@ func TestS425_ComposeE2E_FillEvent_CanonicalStorePipeline(t *testing.T) {
 
 	router := s425BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s425FuturesE2EIntent("s425-fillev-corr", "s425-fillev-cause")
+	intent := s425FuturesE2EIntent(t, "s425-fillev-corr", "s425-fillev-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -454,7 +455,7 @@ func TestS425_ComposeE2E_ConfigCoexistence_CanonicalSurface(t *testing.T) {
 	}
 
 	// Futures intent routes to Futures adapter
-	futuresIntent := s425FuturesE2EIntent("s425-coex-futures", "")
+	futuresIntent := s425FuturesE2EIntent(t, "s425-coex-futures", "")
 	futuresReceipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: futuresIntent})
 	if prob != nil {
 		t.Fatalf("Futures submit failed: %s", prob.Message)
@@ -464,7 +465,7 @@ func TestS425_ComposeE2E_ConfigCoexistence_CanonicalSurface(t *testing.T) {
 	}
 
 	// Unknown source rejected (fail-closed)
-	unknownIntent := s425FuturesE2EIntent("s425-coex-unknown", "")
+	unknownIntent := s425FuturesE2EIntent(t, "s425-coex-unknown", "")
 	unknownIntent.Source = "unknown_exchange"
 	_, unknownProb := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: unknownIntent})
 	if unknownProb == nil {
@@ -498,7 +499,7 @@ func TestS425_ComposeE2E_FuturesPartialFill_ValidatedLifecycle(t *testing.T) {
 
 	router := s425BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s425FuturesE2EIntent("s425-partial-corr", "s425-partial-cause")
+	intent := s425FuturesE2EIntent(t, "s425-partial-corr", "s425-partial-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -600,7 +601,7 @@ func TestS425_ComposeE2E_MultiCycle_SustainedConnectivity(t *testing.T) {
 
 	for i := 0; i < cycles; i++ {
 		corrID := fmt.Sprintf("s425-multi-%d-corr", i)
-		intent := s425FuturesE2EIntent(corrID, fmt.Sprintf("s425-multi-%d-cause", i))
+		intent := s425FuturesE2EIntent(t, corrID, fmt.Sprintf("s425-multi-%d-cause", i))
 		receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 		if prob != nil {
 			t.Fatalf("cycle %d failed: %s", i, prob.Message)
@@ -644,7 +645,7 @@ func TestS425_ComposeE2E_ReadPathSegmentParity(t *testing.T) {
 	// Simulate a Futures fill lifecycle entry (matching S424 read-path shape)
 	futuresFill := domainexec.ExecutionIntent{
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerpS379(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",
@@ -666,7 +667,7 @@ func TestS425_ComposeE2E_ReadPathSegmentParity(t *testing.T) {
 	// Simulate a Spot fill lifecycle entry (same shape)
 	spotFill := domainexec.ExecutionIntent{
 		Source:         "binances",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTSpotS379(t),
 		Timeframe:      60,
 		Side:           domainexec.SideBuy,
 		Quantity:       "0.001",

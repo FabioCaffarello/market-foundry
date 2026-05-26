@@ -10,10 +10,29 @@ import (
 	appexec "internal/application/execution"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 	"internal/shared/settings"
 )
+
+func btcUSDTPerpS379(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
+func btcUSDTSpotS379(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // TestS379_DryRunConfig_FailClosed verifies that the default VenueConfig
 // (dry_run omitted or nil) resolves to dry-run mode.
@@ -81,7 +100,7 @@ func TestS379_DryRunSubmitter_PipelineTraversal(t *testing.T) {
 	intent := domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerpS379(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",
@@ -132,16 +151,20 @@ func TestS379_DryRunSubmitter_NeverCallsRealAdapter(t *testing.T) {
 	bomb := &bombAdapter{}
 	sub := appexec.NewDryRunSubmitter(bomb)
 
+	ethInst, setupProb := instrument.New("ETH", "USDT", instrument.ContractPerpetual)
+	if setupProb != nil {
+		t.Fatalf("setup: %v", setupProb)
+	}
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "ethusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideSell,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
-		Risk:      domainexec.RiskInput{Type: "position_exposure", Disposition: "allow", Confidence: "0.90"},
-		Timestamp: time.Now().UTC(),
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: ethInst,
+		Timeframe:  60,
+		Side:       domainexec.SideSell,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
+		Risk:       domainexec.RiskInput{Type: "position_exposure", Disposition: "allow", Confidence: "0.90"},
+		Timestamp:  time.Now().UTC(),
 	}
 
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})

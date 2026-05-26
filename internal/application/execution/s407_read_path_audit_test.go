@@ -26,15 +26,16 @@ import (
 // RejectionDetail: round-trip through intent metadata
 // ═══════════════════════════════════════════════════════════════════
 
-func s407RejectedIntentWithAuditMetadata() domainexec.ExecutionIntent {
+func s407RejectedIntentWithAuditMetadata(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusRejected,
+		Type:       "paper_order",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusRejected,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -46,8 +47,8 @@ func s407RejectedIntentWithAuditMetadata() domainexec.ExecutionIntent {
 		Final:         true,
 		Timestamp:     time.Now().UTC(),
 		Metadata: map[string]string{
-			"rejection_code":              "VAL_INVALID_ARGUMENT",
-			"rejection_reason":            "Account has insufficient balance for requested action.",
+			"rejection_code":                 "VAL_INVALID_ARGUMENT",
+			"rejection_reason":               "Account has insufficient balance for requested action.",
 			"venue_detail.venue_http_status": "400",
 			"venue_detail.venue_error_code":  "-2010",
 		},
@@ -58,7 +59,7 @@ func s407RejectedIntentWithAuditMetadata() domainexec.ExecutionIntent {
 // embedded in intent metadata (as done by RejectionProjectionActor) can be
 // reconstructed via the ExecutionRejectionReply contract.
 func TestS407_RejectionDetail_ExtractFromMetadata(t *testing.T) {
-	intent := s407RejectedIntentWithAuditMetadata()
+	intent := s407RejectedIntentWithAuditMetadata(t)
 
 	detail := extractRejectionDetailFromIntent(&intent)
 	if detail == nil {
@@ -86,13 +87,13 @@ func TestS407_RejectionDetail_ExtractFromMetadata(t *testing.T) {
 // detail from an intent without rejection metadata returns nil.
 func TestS407_RejectionDetail_NilWhenNoMetadata(t *testing.T) {
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusFilled,
+		Type:       "paper_order",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusFilled,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -173,14 +174,14 @@ func TestS407_Propagation_PartiallyFilled(t *testing.T) {
 // pairs on different segments produce distinct partition keys.
 func TestS407_PartitionKey_SegmentIsolation(t *testing.T) {
 	spotIntent := domainexec.ExecutionIntent{
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
 	}
 	futuresIntent := domainexec.ExecutionIntent{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
 	}
 
 	spotKey := spotIntent.PartitionKey()
@@ -200,7 +201,7 @@ func TestS407_PartitionKey_SegmentIsolation(t *testing.T) {
 // TestS407_CorrelationChain_PreservedInRejectedIntent proves that correlation
 // and causation IDs survive the rejection metadata embedding.
 func TestS407_CorrelationChain_PreservedInRejectedIntent(t *testing.T) {
-	intent := s407RejectedIntentWithAuditMetadata()
+	intent := s407RejectedIntentWithAuditMetadata(t)
 
 	if intent.CorrelationID != "corr-s407-test" {
 		t.Errorf("correlation_id: expected corr-s407-test, got %s", intent.CorrelationID)
