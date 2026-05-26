@@ -165,7 +165,7 @@ func convertLifecycleEntries(entries []LifecycleEntry) []execution.AuditLifecycl
 	for _, e := range entries {
 		ale := execution.AuditLifecycleEntry{
 			Source:          e.Source,
-			Symbol:          e.Symbol,
+			Instrument:      instrumentFromBinding(e.Source, e.Symbol),
 			Timeframe:       e.Timeframe,
 			IntentStatus:    e.IntentStatus,
 			FillStatus:      e.FillStatus,
