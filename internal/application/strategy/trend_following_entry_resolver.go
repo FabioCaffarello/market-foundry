@@ -65,13 +65,23 @@ type TrendFollowingEntryResolver struct {
 	timeframe  int
 }
 
-func NewTrendFollowingEntryResolver(source, symbol string, timeframe int) *TrendFollowingEntryResolver {
+// NewTrendFollowingEntryResolverForInstrument constructs the resolver
+// from a canonical Instrument directly. See NewRSISamplerForInstrument
+// for the H-6.c.1 rationale.
+func NewTrendFollowingEntryResolverForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *TrendFollowingEntryResolver {
 	return &TrendFollowingEntryResolver{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
+}
+
+// NewTrendFollowingEntryResolver is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewTrendFollowingEntryResolverForInstrument.
+func NewTrendFollowingEntryResolver(source, symbol string, timeframe int) *TrendFollowingEntryResolver {
+	r := NewTrendFollowingEntryResolverForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	r.symbol = symbol
+	return r
 }
 
 // Resolve processes a decision outcome and produces a trend-following strategy.

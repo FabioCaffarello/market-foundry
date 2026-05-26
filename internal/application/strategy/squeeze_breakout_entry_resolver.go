@@ -68,13 +68,23 @@ type SqueezeBreakoutEntryResolver struct {
 	timeframe  int
 }
 
-func NewSqueezeBreakoutEntryResolver(source, symbol string, timeframe int) *SqueezeBreakoutEntryResolver {
+// NewSqueezeBreakoutEntryResolverForInstrument constructs the resolver
+// from a canonical Instrument directly. See NewRSISamplerForInstrument
+// for the H-6.c.1 rationale.
+func NewSqueezeBreakoutEntryResolverForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *SqueezeBreakoutEntryResolver {
 	return &SqueezeBreakoutEntryResolver{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
+}
+
+// NewSqueezeBreakoutEntryResolver is the legacy (source, symbol) constructor.
+// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewSqueezeBreakoutEntryResolverForInstrument.
+func NewSqueezeBreakoutEntryResolver(source, symbol string, timeframe int) *SqueezeBreakoutEntryResolver {
+	r := NewSqueezeBreakoutEntryResolverForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
+	r.symbol = symbol
+	return r
 }
 
 // Resolve processes a decision outcome and produces a squeeze breakout strategy.

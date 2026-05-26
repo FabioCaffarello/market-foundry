@@ -237,11 +237,11 @@ func TestSqueezeBreakoutEntryResolver_SeverityScalesConfidence(t *testing.T) {
 		rawConfidence      string
 		expectedConfidence string
 	}{
-		{"high severity → full confidence", "high", "0.8000", "0.8000"},       // ×1.00
-		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},         // ×0.90
-		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                   // ×0.80
-		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"},  // default
-		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},           // default
+		{"high severity → full confidence", "high", "0.8000", "0.8000"},      // ×1.00
+		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},        // ×0.90
+		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                  // ×0.80
+		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"}, // default
+		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},          // default
 	}
 
 	for _, tt := range tests {
@@ -262,14 +262,14 @@ func TestSqueezeBreakoutEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 	now := time.Now().UTC()
 
 	tests := []struct {
-		name                       string
-		severity                   string
-		expectedBreakoutTargetPct  string // base=0.04
-		expectedBreakoutStopPct    string // base=0.015
+		name                      string
+		severity                  string
+		expectedBreakoutTargetPct string // base=0.04
+		expectedBreakoutStopPct   string // base=0.015
 	}{
-		{"high severity → wider target, tighter stop", "high", "0.06", "0.01"},     // 0.04×1.50=0.06, 0.015×0.75=0.01125→0.01
-		{"moderate severity → default params", "moderate", "0.04", "0.01"},          // 0.04×1.00, 0.015×1.00=0.015→0.01
-		{"low severity → smaller target, wider stop", "low", "0.03", "0.02"},        // 0.04×0.75=0.03, 0.015×1.50=0.0225→0.02
+		{"high severity → wider target, tighter stop", "high", "0.06", "0.01"}, // 0.04×1.50=0.06, 0.015×0.75=0.01125→0.01
+		{"moderate severity → default params", "moderate", "0.04", "0.01"},     // 0.04×1.00, 0.015×1.00=0.015→0.01
+		{"low severity → smaller target, wider stop", "low", "0.03", "0.02"},   // 0.04×0.75=0.03, 0.015×1.50=0.0225→0.02
 	}
 
 	for _, tt := range tests {

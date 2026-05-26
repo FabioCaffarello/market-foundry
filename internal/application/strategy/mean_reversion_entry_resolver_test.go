@@ -237,11 +237,11 @@ func TestMeanReversionEntryResolver_SeverityScalesConfidence(t *testing.T) {
 		rawConfidence      string
 		expectedConfidence string
 	}{
-		{"high severity → full confidence", "high", "0.9000", "0.9000"},       // ×1.00
-		{"moderate severity → 0.90×", "moderate", "0.9000", "0.8100"},         // ×0.90
-		{"low severity → 0.80×", "low", "0.9000", "0.7200"},                   // ×0.80
-		{"unknown severity → neutral (1.0×)", "unknown", "0.9000", "0.9000"},  // default
-		{"empty severity → neutral (1.0×)", "", "0.9000", "0.9000"},           // default
+		{"high severity → full confidence", "high", "0.9000", "0.9000"},      // ×1.00
+		{"moderate severity → 0.90×", "moderate", "0.9000", "0.8100"},        // ×0.90
+		{"low severity → 0.80×", "low", "0.9000", "0.7200"},                  // ×0.80
+		{"unknown severity → neutral (1.0×)", "unknown", "0.9000", "0.9000"}, // default
+		{"empty severity → neutral (1.0×)", "", "0.9000", "0.9000"},          // default
 	}
 
 	for _, tt := range tests {
@@ -267,9 +267,9 @@ func TestMeanReversionEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 		expectedTargetOffset string // base=0.02
 		expectedStopOffset   string // base=0.01
 	}{
-		{"high severity → wider target, tighter stop", "high", "0.03", "0.01"},     // 0.02×1.50, 0.01×0.75
-		{"moderate severity → default params", "moderate", "0.02", "0.01"},          // 0.02×1.00, 0.01×1.00
-		{"low severity → smaller target, wider stop", "low", "0.01", "0.01"},        // 0.02×0.75=0.015→0.01, 0.01×1.50=0.015→0.01
+		{"high severity → wider target, tighter stop", "high", "0.03", "0.01"}, // 0.02×1.50, 0.01×0.75
+		{"moderate severity → default params", "moderate", "0.02", "0.01"},     // 0.02×1.00, 0.01×1.00
+		{"low severity → smaller target, wider stop", "low", "0.01", "0.01"},   // 0.02×0.75=0.015→0.01, 0.01×1.50=0.015→0.01
 	}
 
 	for _, tt := range tests {

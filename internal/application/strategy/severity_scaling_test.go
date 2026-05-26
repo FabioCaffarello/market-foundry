@@ -145,10 +145,10 @@ func TestFormatParam(t *testing.T) {
 		want  string
 	}{
 		{0.02, "0.02"},
-		{0.015, "0.01"},   // IEEE 754: 0.015 is slightly less than 0.015
-		{0.025, "0.03"},   // IEEE 754: 0.025 is slightly more than 0.025
-		{0.0375, "0.04"},  // rounds up
-		{0.075, "0.07"},   // IEEE 754: 0.075 is slightly less than 0.075
+		{0.015, "0.01"},  // IEEE 754: 0.015 is slightly less than 0.015
+		{0.025, "0.03"},  // IEEE 754: 0.025 is slightly more than 0.025
+		{0.0375, "0.04"}, // rounds up
+		{0.075, "0.07"},  // IEEE 754: 0.075 is slightly less than 0.075
 	}
 
 	for _, tt := range tests {

@@ -237,11 +237,11 @@ func TestTrendFollowingEntryResolver_SeverityScalesConfidence(t *testing.T) {
 		rawConfidence      string
 		expectedConfidence string
 	}{
-		{"high severity → full confidence", "high", "0.8000", "0.8000"},       // ×1.00
-		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},         // ×0.90
-		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                   // ×0.80
-		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"},  // default
-		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},           // default
+		{"high severity → full confidence", "high", "0.8000", "0.8000"},      // ×1.00
+		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},        // ×0.90
+		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                  // ×0.80
+		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"}, // default
+		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},          // default
 	}
 
 	for _, tt := range tests {
@@ -267,9 +267,9 @@ func TestTrendFollowingEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 		expectedTrailingStopPct string // base=0.03
 		expectedTakeProfitPct   string // base=0.05
 	}{
-		{"high severity → tighter trail, wider target", "high", "0.02", "0.08"},   // 0.03×0.75=0.0225→0.02, 0.05×1.50=0.075→0.08
-		{"moderate severity → default params", "moderate", "0.03", "0.05"},         // 0.03×1.00, 0.05×1.00
-		{"low severity → wider trail, smaller target", "low", "0.04", "0.04"},      // 0.03×1.50, 0.05×0.75 → 0.045→0.04, 0.0375→0.04
+		{"high severity → tighter trail, wider target", "high", "0.02", "0.08"}, // 0.03×0.75=0.0225→0.02, 0.05×1.50=0.075→0.08
+		{"moderate severity → default params", "moderate", "0.03", "0.05"},      // 0.03×1.00, 0.05×1.00
+		{"low severity → wider trail, smaller target", "low", "0.04", "0.04"},   // 0.03×1.50, 0.05×0.75 → 0.045→0.04, 0.0375→0.04
 	}
 
 	for _, tt := range tests {
