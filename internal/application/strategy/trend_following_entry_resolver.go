@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"internal/domain/instrument"
 	domainstrategy "internal/domain/strategy"
 )
 
@@ -58,16 +59,18 @@ var trendFollowingTakeProfitMultiplier = map[string]float64{
 //	"not_triggered" — no bullish crossover → flat (no position)
 //	"insufficient"  — insufficient signal data → flat with reason
 type TrendFollowingEntryResolver struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 }
 
 func NewTrendFollowingEntryResolver(source, symbol string, timeframe int) *TrendFollowingEntryResolver {
 	return &TrendFollowingEntryResolver{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
 	}
 }
 
@@ -144,7 +147,7 @@ func (r *TrendFollowingEntryResolver) Resolve(
 	return domainstrategy.Strategy{
 		Type:       "trend_following_entry",
 		Source:     r.source,
-		Symbol:     r.symbol,
+		Instrument: r.instrument,
 		Timeframe:  r.timeframe,
 		Direction:  direction,
 		Confidence: confidence,

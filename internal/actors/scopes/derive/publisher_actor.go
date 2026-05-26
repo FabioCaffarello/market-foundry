@@ -71,13 +71,13 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 				"error", prob.Message,
 				"code", prob.Code,
 				"source", msg.Event.Candle.Source,
-				"symbol", msg.Event.Candle.Symbol,
+				"symbol", msg.Event.Candle.VenueSymbol(),
 				"timeframe", msg.Event.Candle.Timeframe,
 				"open_time", msg.Event.Candle.OpenTime.Format(time.RFC3339),
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Candle.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Candle.VenueSymbol()).Add(1)
 		}
 
 	case publishTradeBurstMessage:
@@ -92,13 +92,13 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 				"error", prob.Message,
 				"code", prob.Code,
 				"source", msg.Event.TradeBurst.Source,
-				"symbol", msg.Event.TradeBurst.Symbol,
+				"symbol", msg.Event.TradeBurst.VenueSymbol(),
 				"timeframe", msg.Event.TradeBurst.Timeframe,
 				"open_time", msg.Event.TradeBurst.OpenTime.Format(time.RFC3339),
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.TradeBurst.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.TradeBurst.VenueSymbol()).Add(1)
 		}
 
 	case publishVolumeMessage:
@@ -113,13 +113,13 @@ func (a *EvidencePublisherActor) Receive(c *actor.Context) {
 				"error", prob.Message,
 				"code", prob.Code,
 				"source", msg.Event.Volume.Source,
-				"symbol", msg.Event.Volume.Symbol,
+				"symbol", msg.Event.Volume.VenueSymbol(),
 				"timeframe", msg.Event.Volume.Timeframe,
 				"open_time", msg.Event.Volume.OpenTime.Format(time.RFC3339),
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Volume.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Volume.VenueSymbol()).Add(1)
 		}
 
 	default:

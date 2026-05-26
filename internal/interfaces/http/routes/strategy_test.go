@@ -32,7 +32,7 @@ func TestStrategyRoutesRegisterHandler(t *testing.T) {
 			strat: &strategy.Strategy{
 				Type:       "mean_reversion_entry",
 				Source:     "binancef",
-				Symbol:     "btcusdt",
+				Instrument: btcUSDTPerpRiskRoute(t),
 				Timeframe:  60,
 				Direction:  strategy.DirectionLong,
 				Confidence: "0.85",

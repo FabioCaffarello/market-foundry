@@ -109,7 +109,7 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 			"error", prob.Message,
 			"type", assessment.Type,
 			"source", assessment.Source,
-			"symbol", assessment.Symbol,
+			"symbol", assessment.VenueSymbol(),
 			"timeframe", assessment.Timeframe,
 		)
 		return
@@ -128,7 +128,7 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 			"error", prob.Message,
 			"type", assessment.Type,
 			"source", assessment.Source,
-			"symbol", assessment.Symbol,
+			"symbol", assessment.VenueSymbol(),
 			"timeframe", assessment.Timeframe,
 		)
 		return
@@ -149,14 +149,14 @@ func (a *RiskProjectionActor) onRisk(msg riskReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + assessment.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + assessment.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("risk materialized",
 			"type", assessment.Type,
 			"source", assessment.Source,
-			"symbol", assessment.Symbol,
+			"symbol", assessment.VenueSymbol(),
 			"timeframe", assessment.Timeframe,
 			"disposition", string(assessment.Disposition),
 			"confidence", assessment.Confidence,

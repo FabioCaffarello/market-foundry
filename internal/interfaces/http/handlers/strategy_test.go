@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"internal/application/strategyclient"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/interfaces/http/handlers"
 	"internal/shared/problem"
@@ -34,7 +36,7 @@ func TestStrategyWebHandler_GetLatestStrategy(t *testing.T) {
 	strat := &strategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.85",
@@ -114,10 +116,16 @@ func TestStrategyWebHandler_GetLatestStrategy_MultiSymbol_NoBleed(t *testing.T) 
 
 	for _, tc := range symbols {
 		now := time.Now().UTC().Truncate(time.Second)
+		base := tc.symbol[:len(tc.symbol)-4]
+		quote := tc.symbol[len(tc.symbol)-4:]
+		inst, prob := instrument.New(base, quote, instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup: %v", prob)
+		}
 		strat := &strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     tc.symbol,
+			Instrument: inst,
 			Timeframe:  60,
 			Direction:  tc.direction,
 			Confidence: "0.85",
@@ -152,8 +160,20 @@ func TestStrategyWebHandler_GetLatestStrategy_MultiSymbol_NoBleed(t *testing.T) 
 		if !ok {
 			t.Fatalf("symbol=%s: expected strategy object in response", tc.symbol)
 		}
-		if stratMap["symbol"] != tc.symbol {
-			t.Fatalf("symbol=%s: response has symbol=%v — CROSS-SYMBOL BLEED", tc.symbol, stratMap["symbol"])
+		instMap, ok := stratMap["instrument"].(map[string]any)
+		if !ok {
+			t.Fatalf("symbol=%s: expected instrument object in response", tc.symbol)
+		}
+		gotBase, _ := instMap["base"].(string)
+		gotQuote, _ := instMap["quote"].(string)
+		wantBase := tc.symbol[:len(tc.symbol)-4]
+		wantQuote := tc.symbol[len(tc.symbol)-4:]
+		// Canonical base/quote are uppercase per ADR-0021.
+		if gotBase == "" || gotQuote == "" {
+			t.Fatalf("symbol=%s: response has empty instrument fields: %v", tc.symbol, instMap)
+		}
+		if gotBase != strings.ToUpper(wantBase) || gotQuote != strings.ToUpper(wantQuote) {
+			t.Fatalf("symbol=%s: response has base=%s quote=%s — CROSS-SYMBOL BLEED", tc.symbol, gotBase, gotQuote)
 		}
 		if stratMap["direction"] != string(tc.direction) {
 			t.Fatalf("symbol=%s: expected direction=%s, got %v", tc.symbol, tc.direction, stratMap["direction"])

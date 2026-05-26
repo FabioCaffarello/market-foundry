@@ -35,15 +35,15 @@ func TestS304_RX1_RiskExecutionCoherence(t *testing.T) {
 	now := time.Now()
 
 	type symbolProfile struct {
-		symbol      string
-		riskDisp    string
-		stratType   string
-		severity    string
-		direction   string
-		maxPos      string
-		maxExposure string
-		execSide    string
-		hasExec     bool
+		symbol       string
+		riskDisp     string
+		stratType    string
+		severity     string
+		direction    string
+		maxPos       string
+		maxExposure  string
+		execSide     string
+		hasExec      bool
 		wantComplete bool
 	}
 
@@ -118,11 +118,11 @@ func TestS304_RX1_RiskExecutionCoherence(t *testing.T) {
 			}
 
 			// Symbol isolation across all stages.
-			if ch.Signal.Symbol != p.symbol {
-				t.Errorf("signal.symbol=%q", ch.Signal.Symbol)
+			if ch.Signal.VenueSymbol() != p.symbol {
+				t.Errorf("signal.symbol=%q", ch.Signal.VenueSymbol())
 			}
-			if ch.Risk.Symbol != p.symbol {
-				t.Errorf("risk.symbol=%q", ch.Risk.Symbol)
+			if ch.Risk.VenueSymbol() != p.symbol {
+				t.Errorf("risk.symbol=%q", ch.Risk.VenueSymbol())
 			}
 
 			// Risk constraints.
@@ -141,13 +141,13 @@ func TestS304_RX2_RiskAttributionDiversity(t *testing.T) {
 	now := time.Now()
 
 	type attrProfile struct {
-		symbol      string
-		riskDisp    string
-		rationale   string
-		stratType   string
-		severity    string
-		direction   string
-		maxPos      string
+		symbol    string
+		riskDisp  string
+		rationale string
+		stratType string
+		severity  string
+		direction string
+		maxPos    string
 	}
 
 	profiles := []attrProfile{
@@ -445,28 +445,28 @@ func buildS304DetailedChain(corrID, symbol, disposition, rationale, stratType, s
 		CorrelationID: corrID,
 		Signal: &analyticalclient.SignalWithTrace{
 			Signal: signal.Signal{
-				Type: "rsi", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Value: "35.0", Timestamp: now,
 			},
 			EventID: "sig-" + corrID, CorrelationID: corrID, OccurredAt: now,
 		},
 		Decision: &analyticalclient.DecisionWithTrace{
 			Decision: decision.Decision{
-				Type: "rsi_oversold", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "rsi_oversold", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Outcome: "triggered", Severity: decision.Severity(severity), Confidence: "0.85", Timestamp: now,
 			},
 			EventID: "dec-" + corrID, CorrelationID: corrID, CausationID: "sig-" + corrID, OccurredAt: now,
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: stratType, Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: stratType, Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Direction: strategy.Direction(dir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Disposition: risk.Disposition(disposition), Confidence: "0.72", Rationale: rationale,
 				Constraints: risk.Constraints{MaxPositionSize: maxPos, MaxExposure: maxExp},
 				Strategies: []risk.StrategyInput{{

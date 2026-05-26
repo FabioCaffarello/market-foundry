@@ -70,7 +70,7 @@ func (p *Publisher) PublishStrategy(ctx context.Context, event strategy.Strategy
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Strategy.Source,
-		event.Strategy.Symbol,
+		event.Strategy.VenueSymbol(),
 		event.Strategy.Timeframe,
 	)
 
@@ -100,7 +100,7 @@ func (p *Publisher) PublishStrategy(ctx context.Context, event strategy.Strategy
 			"stream", ack.Stream,
 			"type", event.Strategy.Type,
 			"source", event.Strategy.Source,
-			"symbol", event.Strategy.Symbol,
+			"symbol", event.Strategy.VenueSymbol(),
 			"timeframe", event.Strategy.Timeframe,
 		)
 	}

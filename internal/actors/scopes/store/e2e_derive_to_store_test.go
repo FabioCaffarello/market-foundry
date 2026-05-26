@@ -82,8 +82,8 @@ func TestE2E_Store_DeriveTriggered_Materializes(t *testing.T) {
 	if strat.Source != "binancef" {
 		t.Errorf("source: want binancef, got %s", strat.Source)
 	}
-	if strat.Symbol != "btcusdt" {
-		t.Errorf("symbol: want btcusdt, got %s", strat.Symbol)
+	if strat.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol: want btcusdt, got %s", strat.VenueSymbol())
 	}
 	if strat.Timeframe != 60 {
 		t.Errorf("timeframe: want 60, got %d", strat.Timeframe)

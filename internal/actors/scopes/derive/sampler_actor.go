@@ -85,7 +85,7 @@ func (a *SamplerActor) onTrade(c *actor.Context, msg tradeReceivedMessage) {
 	// Fan-out to signal samplers via SourceScopeActor.
 	if a.cfg.ScopePID != nil {
 		c.Send(a.cfg.ScopePID, candleFinalizedMessage{
-			Symbol:        candle.Symbol,
+			Symbol:        candle.VenueSymbol(),
 			Timeframe:     candle.Timeframe,
 			ClosePrice:    candle.Close,
 			Timestamp:     candle.CloseTime,

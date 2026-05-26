@@ -34,8 +34,8 @@ func TestVWAPSampler_WarmUp(t *testing.T) {
 	if sig.Source != "binancef" {
 		t.Errorf("expected source binancef, got %s", sig.Source)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Errorf("expected symbol btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Errorf("expected symbol btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Timeframe != 300 {
 		t.Errorf("expected timeframe 300, got %d", sig.Timeframe)
@@ -226,11 +226,11 @@ func TestVWAPSampler_MultiSymbol(t *testing.T) {
 		ethSig, ethOk := eth.AddCandle(ethPrice, vol, ts.Add(time.Duration(i)*time.Minute))
 
 		if btcOk && ethOk {
-			if btcSig.Symbol != "btcusdt" {
-				t.Errorf("expected btcusdt, got %s", btcSig.Symbol)
+			if btcSig.VenueSymbol() != "btcusdt" {
+				t.Errorf("expected btcusdt, got %s", btcSig.VenueSymbol())
 			}
-			if ethSig.Symbol != "ethusdt" {
-				t.Errorf("expected ethusdt, got %s", ethSig.Symbol)
+			if ethSig.VenueSymbol() != "ethusdt" {
+				t.Errorf("expected ethusdt, got %s", ethSig.VenueSymbol())
 			}
 			// Partition keys must be isolated.
 			if btcSig.PartitionKey() == ethSig.PartitionKey() {

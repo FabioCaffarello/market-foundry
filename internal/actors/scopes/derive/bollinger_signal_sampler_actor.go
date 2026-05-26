@@ -78,7 +78,7 @@ func (a *BollingerSignalSamplerActor) onCandleFinalized(c *actor.Context, msg ca
 	// Notify scope for decision fan-out (same pattern as candle→signal).
 	if a.cfg.ScopePID != nil {
 		c.Send(a.cfg.ScopePID, signalGeneratedMessage{
-			Symbol:         sig.Symbol,
+			Symbol:         sig.VenueSymbol(),
 			SignalType:     sig.Type,
 			SignalValue:    sig.Value,
 			SignalMetadata: sig.Metadata,

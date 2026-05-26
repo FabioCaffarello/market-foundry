@@ -56,7 +56,7 @@ func s362BuildStrategyEvent(t *testing.T, direction strategy.Direction, confiden
 		Strategy: strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "execute.venue-adapter",
-			Symbol:     "BTCUSDT",
+			Instrument: btcUSDTPerpIntegration(t),
 			Timeframe:  60,
 			Direction:  direction,
 			Confidence: confidence,
@@ -106,8 +106,8 @@ func TestEndToEndSlice_StrategyEventProducesFillThroughRealSupervisor(t *testing
 	adapterTracker := healthz.NewTracker("s362-e2e1-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e1-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e1-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e1-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 
@@ -261,8 +261,8 @@ func TestEndToEndSlice_KillSwitchBlocksStrategyDrivenPath(t *testing.T) {
 	adapterTracker := healthz.NewTracker("s362-e2e2-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e2-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e2-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e2-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 
@@ -375,8 +375,8 @@ func TestEndToEndSlice_ShortDirectionMapToSellSide(t *testing.T) {
 	adapterTracker := healthz.NewTracker("s362-e2e3-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e3-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e3-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e3-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 
@@ -442,8 +442,8 @@ func TestEndToEndSlice_FlatDirectionProducesNoneSide(t *testing.T) {
 	adapterTracker := healthz.NewTracker("s362-e2e4-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e4-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e4-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e4-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 
@@ -515,8 +515,8 @@ func TestEndToEndSlice_WrongStrategyTypeSkipped(t *testing.T) {
 	adapterTracker := healthz.NewTracker("s362-e2e5-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e5-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e5-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e5-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 
@@ -593,8 +593,8 @@ func TestEndToEndSlice_CorrelationChainStrategyToFill(t *testing.T) {
 	adapterTracker := healthz.NewTracker("s362-e2e6-adapter")
 	strategyTracker := healthz.NewTracker("s362-e2e6-strategy")
 	trackers := map[string]*healthz.Tracker{
-		"venue-adapter":    adapterTracker,
-		"venue-consumer":   healthz.NewTracker("s362-e2e6-consumer"),
+		"venue-adapter":     adapterTracker,
+		"venue-consumer":    healthz.NewTracker("s362-e2e6-consumer"),
 		"strategy-consumer": strategyTracker,
 	}
 

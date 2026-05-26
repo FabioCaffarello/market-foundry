@@ -49,8 +49,8 @@ func TestActorChain_BollingerSignalSampler_ProducesSignal(t *testing.T) {
 	if sig.Type != "bollinger" {
 		t.Fatalf("signal type: want bollinger, got %s", sig.Type)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Fatalf("signal symbol: want btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Fatalf("signal symbol: want btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Value == "" {
 		t.Fatal("expected non-empty signal value (%B)")
@@ -188,8 +188,8 @@ func TestActorChain_BollingerSignal_WideBands_NotTriggered(t *testing.T) {
 
 	// Inject a bollinger signal with wide bandwidth (no squeeze).
 	e.Send(decisionEvalPID, signalGeneratedMessage{
-		Symbol:     "btcusdt",
-		SignalType: "bollinger",
+		Symbol:      "btcusdt",
+		SignalType:  "bollinger",
 		SignalValue: "0.7500",
 		SignalMetadata: map[string]string{
 			"bandwidth": "50.0000",

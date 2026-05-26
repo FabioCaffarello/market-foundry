@@ -55,9 +55,11 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-3.b** | Fechada (PR #23 mergeada em `main` em `32d1792`, 2026-05-25) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). Promove ADR-0017 e ADR-0018 a `Accepted` — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
 | **H-4** | Fechada (PR #24 mergeada em `main` em `218a010`, 2026-05-25) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
 | **H-5** | Fechada (PR #25 mergeada em `main` em `6df8e66`, 2026-05-25) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
-| **H-6** | Sub-dividida em H-6.a–H-6.f por cascade discovery (342 `.Symbol` refs em 106 production files em 31 packages). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-6". Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
-| **H-6.a** | **Atual** (esta entrega) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits: erratum ADR-0021 (criterion #4 split em #4a/#4b), PRD-0004 abertura com sub-onda sequencing policy + transitory-method pattern, `internal/domain/instrument/` package (Venue, BaseAsset, QuoteAsset, ContractType, CanonicalInstrument com JSON tags + 21 testes), atomic migration `ObservationTrade.Symbol string` → `Instrument CanonicalInstrument` + transitory `VenueSymbol()` method (option C, sunset H-6.f), `binances.Normalize` via `parseSpotSymbol` + `binancef.Normalize` via `parseFuturesSymbol` com regex `_\d{6}$` discriminando delivery vs perpetual, raccoon-cli `check instruments` analyzer + `policies/adapters.toml` allowlist (`binances`, `binancef`) integrado como Step 9 do quality-gate (4 checks), docs closure (este commit) — TRUTH-MAP / RESUMPTION / GLOSSARY / PRD-0004. ADR-0021 permanece `Proposed`; promoção em H-6.f. |
-| **H-6.b** | Destravada após merge de H-6.a em `main` (P9 + sub-onda sequencing policy) | Evidence + Signal + Decision + Strategy + Risk domain types migram `Symbol string` → `Instrument CanonicalInstrument`. ~30 originating struct literals. ADR-0021 permanece `Proposed`. |
+| **H-6** | Sub-dividida em H-6.a/b/b'/b''/c/d/e/f por cascade discovery (pré-flight H-6.a: 342 `.Symbol` refs em 106 production files em 31 packages; pré-flight H-6.b: 15 domain types em 174 test files → split por dependency order em b/b'/b''). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md). Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
+| **H-6.a** | Fechada (PR #26 mergeada em `main` em `ac7fb8f`, 2026-05-26) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits incl. ADR-0021 erratum (criterion #4 split em #4a/#4b), PRD-0004, `internal/domain/instrument/` package, atomic `ObservationTrade.Symbol` → `Instrument` + `VenueSymbol()`, ambos Binance adapters com regex `_\d{6}$` para delivery futures, raccoon-cli `check instruments` analyzer (4 checks). ADR-0021 permanece `Proposed`. |
+| **H-6.b** | **Atual** (esta entrega) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure (este commit). 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
+| **H-6.b'** | Destravada após merge de H-6.b em `main` (P9 + sub-onda sequencing policy) | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry migrate. ADR-0021 permanece `Proposed`. |
+| **H-6.b''** | Destravada após merge de H-6.b' em `main` | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites migrate. ADR-0021 permanece `Proposed`. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -217,7 +219,101 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.a (esta sessão):
+Entregas H-6.b (esta sessão):
+
+- **Commit 1** ([`e303202`](https://github.com/FabioCaffarello/market-foundry/commit/e303202)):
+  [`docs/programs/PROGRAM-0004-multi-venue.md`](programs/PROGRAM-0004-multi-venue.md)
+  refined. H-6.b pre-flight discovered 15 domain types totaling
+  174 test files (5× the master plan estimate). Sub-divided into
+  **H-6.b** (Layer 1+2: Evidence + Signal/Decision/Strategy/Risk),
+  **H-6.b'** (Layer 3+3': ExecutionIntent + Attribution +
+  AuditLifecycleEntry), **H-6.b''** (Layer 4: Pairing chain +
+  Triage population sites). Decision driven by dependency order
+  to avoid semantic gaps (no type-not-migrated consuming a
+  type-migrated). PRD updated with new sub-onda table and
+  rationale before any code change.
+- **Commit 2** ([`86fa59e`](https://github.com/FabioCaffarello/market-foundry/commit/86fa59e)):
+  **EvidenceCandle atomic migration** (19 files). Domain type
+  + CandleSampler (captures trade.Instrument) + KV/projection
+  actors + ClickHouse reader (with new
+  `reconstructInstrumentFromLegacy` transitory helper for the
+  H-6.b→H-6.d window) + writer mapper + 9 test files. KV bucket
+  layout preserved via `VenueSymbol()`.
+- **Commit 3** ([`167dd76`](https://github.com/FabioCaffarello/market-foundry/commit/167dd76)):
+  **EvidenceTradeBurst + EvidenceVolume consolidated** (20 files).
+  Same atomic pattern, trivially-analogous types per user
+  allowance.
+- **Commit 4** ([`e021761`](https://github.com/FabioCaffarello/market-foundry/commit/e021761)):
+  **Signal + Decision pair** (60 files). Domain types with
+  `PartitionKey()` composer now compose via `VenueSymbol()` —
+  bucket layout `{source}.{venuesymbol}.{timeframe}` stays
+  identical. 6 signal samplers (`rsi`, `bollinger`, `ema_crossover`,
+  `macd`, `vwap`, `atr`) + 3 decision evaluators
+  (`rsi_oversold`, `bollinger_squeeze`, `ema_crossover`) gain
+  internal `instrument CanonicalInstrument` field populated via
+  package-local `instrumentFromBinding(source, venueNative)`
+  TRANSITORY helper. Public sampler/evaluator constructor
+  signatures unchanged (sunset H-6.c). 30 test files migrated
+  via subagent (multi_symbol partition-key isolation tests
+  added).
+- **Commit 5** ([`de372f5`](https://github.com/FabioCaffarello/market-foundry/commit/de372f5)):
+  **Strategy + RiskAssessment pair** (55 files). Same shape: 3
+  strategy resolvers (`mean_reversion`, `squeeze_breakout`,
+  `trend_following`) + 2 risk evaluators (`drawdown_limit`,
+  `position_exposure`). `analyticalclient.get_decision_review`
+  ChainSnapshot projections use `.VenueSymbol()`; consistency
+  ChainSnapshot fields stay string per S472 invariant. 31 test
+  files migrated.
+- **Commit 6** ([`4e5aeb7`](https://github.com/FabioCaffarello/market-foundry/commit/4e5aeb7)):
+  **`check-instruments` analyzer extended** with
+  `policies/domain_types.toml` declarative migration-state per
+  type. `migrated` types must have both
+  `instrument.CanonicalInstrument` reference and
+  `VenueSymbol() string` method; `pending` types tolerated.
+  Pre-H-6.b deployments without the policy file get a skip (no
+  hard fail). Analyzer grew 4 → 6 checks; total gate from 100
+  → 102.
+- **Commit 7** (este commit, este sessão): TRUTH-MAP / RESUMPTION
+  / GLOSSARY closure.
+
+**Marco**: H-6.b fecha a migração da camada derivative
+analytics — 7 dos 15 domain types restantes agora carregam
+`Instrument CanonicalInstrument` + `VenueSymbol()` transitory
+accessor. KV bucket layout back-compat preservada via VenueSymbol
+nos 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk +
+o ExecutionIntent que continua em H-6.b'). ADR-0021 critério #2
+("all domain-layer call sites migrated") ainda **não** literalmente
+satisfeito — restam ExecutionIntent + Attribution + Pairing chain
+para H-6.b'/b''. **ADR-0021 permanece `Proposed`**; promoção é
+evento atômico em H-6.f.
+
+**Mid-development discovery em H-6.b**: pré-flight em 5 passos
+descobriu 15 domain types (não 5 conforme master plan original)
+totalizando 174 test files (top 10 com 17–37 literais de Symbol
+cada). Cascade ExecutionIntent sozinho tem 199 test sites;
+pairing.Leg 101; pairing.RoundTrip 66 — todos individualmente
+acima do threshold de 25 do prompt. Após pause-and-report, user
+aceitou opção (D) — split por **dependency order**, garantindo
+que cada sub-onda fecha sem buracos semânticos. Refinement
+documentado em PRD-0004 ANTES de qualquer commit de código (P3).
+
+**Pattern reuse**: o `VenueSymbol()` transitory accessor
+introduzido em H-6.a foi reaplicado mecanicamente nos 7 types
+desta sub-onda. Cada package-de-domain repete: `Symbol` field
+removido, `Instrument CanonicalInstrument` adicionado, método
+`VenueSymbol() string` derivando lowercase `base+quote`.
+Adicionalmente os 5 types com `PartitionKey()` composer
+(Signal/Decision/Strategy/Risk/Execution) preservam o shape do
+KV bucket layout — `{source}.{venuesymbol}.{timeframe}` — via
+`VenueSymbol()`, sem mudança de wire-format na chave de partição.
+
+**Próxima sub-onda destravada após merge**: H-6.b' — migration
+de ExecutionIntent + effectiveness.Attribution +
+execution.AuditLifecycleEntry. Sub-onda sequencing policy
+estrita: H-6.b' abre branch APENAS após merge de H-6.b em
+`main`.
+
+Entregas H-6.a (sessão anterior):
 
 - **Commit 0 (erratum)**:
   [`docs/decisions/0021-canonical-instrument-and-venue-model.md`](decisions/0021-canonical-instrument-and-venue-model.md)

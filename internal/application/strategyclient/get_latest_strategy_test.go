@@ -6,9 +6,19 @@ import (
 	"time"
 
 	"internal/application/strategyclient"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type mockStrategyGateway struct {
 	strat *strategy.Strategy
@@ -48,7 +58,7 @@ func TestGetLatestStrategyUseCase_ReturnsStrategy(t *testing.T) {
 	strat := &strategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.85",

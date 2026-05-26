@@ -11,8 +11,8 @@ import (
 )
 
 type mockCandleHistoryGateway struct {
-	candles  []evidence.EvidenceCandle
-	prob     *problem.Problem
+	candles   []evidence.EvidenceCandle
+	prob      *problem.Problem
 	lastQuery evidenceclient.CandleHistoryQuery
 }
 
@@ -145,13 +145,13 @@ func TestGetCandleHistoryUseCase_ReturnsCandles(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	candles := []evidence.EvidenceCandle{
 		{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "102.00", High: "106.00", Low: "101.00", Close: "104.00",
 			Volume: "500.00", TradeCount: 20,
 			OpenTime: now, CloseTime: now.Add(60 * time.Second), Final: true,
 		},
 		{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "100.00", High: "105.00", Low: "99.00", Close: "102.00",
 			Volume: "1000.00", TradeCount: 42,
 			OpenTime: now.Add(-60 * time.Second), CloseTime: now, Final: true,

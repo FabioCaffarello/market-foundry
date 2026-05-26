@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -11,10 +12,11 @@ import (
 // It uses Wilder's smoothed moving average with a default period of 14.
 // Pure application logic — no I/O dependencies.
 type RSISampler struct {
-	source    string
-	symbol    string
-	timeframe int
-	period    int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
+	period     int
 
 	// Warm-up: collect first period+1 prices to compute initial averages.
 	prices []float64
@@ -28,10 +30,11 @@ type RSISampler struct {
 
 func NewRSISampler(source, symbol string, timeframe int) *RSISampler {
 	return &RSISampler{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
-		period:    14,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+		period:     14,
 	}
 }
 
@@ -88,11 +91,11 @@ func (s *RSISampler) AddClose(closePrice string, ts time.Time) (signal.Signal, b
 func (s *RSISampler) buildSignal(ts time.Time) signal.Signal {
 	rsi := s.computeRSI()
 	return signal.Signal{
-		Type:      "rsi",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     strconv.FormatFloat(rsi, 'f', 4, 64),
+		Type:       "rsi",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      strconv.FormatFloat(rsi, 'f', 4, 64),
 		Metadata: map[string]string{
 			"period":   strconv.Itoa(s.period),
 			"avg_gain": strconv.FormatFloat(s.avgGain, 'f', 8, 64),

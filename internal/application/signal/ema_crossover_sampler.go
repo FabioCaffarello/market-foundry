@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
@@ -17,9 +18,10 @@ import (
 //   - "bearish"  — fast EMA is below slow EMA
 //   - "neutral"  — warm-up incomplete or EMAs equal within tolerance
 type EMACrossoverSampler struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 
 	fastPeriod int
 	slowPeriod int
@@ -36,6 +38,7 @@ func NewEMACrossoverSampler(source, symbol string, timeframe int) *EMACrossoverS
 	return &EMACrossoverSampler{
 		source:     source,
 		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
 		timeframe:  timeframe,
 		fastPeriod: 9,
 		slowPeriod: 21,
@@ -80,11 +83,11 @@ func (s *EMACrossoverSampler) buildSignal(price float64, ts time.Time) signal.Si
 	value := crossoverDirection(spread)
 
 	return signal.Signal{
-		Type:      "ema_crossover",
-		Source:    s.source,
-		Symbol:    s.symbol,
-		Timeframe: s.timeframe,
-		Value:     value,
+		Type:       "ema_crossover",
+		Source:     s.source,
+		Instrument: s.instrument,
+		Timeframe:  s.timeframe,
+		Value:      value,
 		Metadata: map[string]string{
 			"fast_period": strconv.Itoa(s.fastPeriod),
 			"slow_period": strconv.Itoa(s.slowPeriod),

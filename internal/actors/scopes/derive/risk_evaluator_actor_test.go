@@ -46,8 +46,8 @@ func TestPositionExposureEvaluatorActor_Long_Approved(t *testing.T) {
 	if r.Source != "binancef" {
 		t.Errorf("source: want binancef, got %s", r.Source)
 	}
-	if r.Symbol != "btcusdt" {
-		t.Errorf("symbol: want btcusdt, got %s", r.Symbol)
+	if r.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol: want btcusdt, got %s", r.VenueSymbol())
 	}
 	if string(r.Disposition) != "approved" {
 		t.Errorf("disposition: want approved, got %s", r.Disposition)

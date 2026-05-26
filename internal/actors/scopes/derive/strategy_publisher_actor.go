@@ -72,13 +72,13 @@ func (a *StrategyPublisherActor) Receive(c *actor.Context) {
 				"code", prob.Code,
 				"type", msg.Event.Strategy.Type,
 				"source", msg.Event.Strategy.Source,
-				"symbol", msg.Event.Strategy.Symbol,
+				"symbol", msg.Event.Strategy.VenueSymbol(),
 				"timeframe", msg.Event.Strategy.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.Strategy.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.Strategy.VenueSymbol()).Add(1)
 			a.cfg.Tracker.Counter("strategy:" + msg.Event.Strategy.Type + ":" + string(msg.Event.Strategy.Direction)).Add(1)
 		}
 

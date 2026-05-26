@@ -60,7 +60,7 @@ func (s *VolumeKVStore) Put(ctx context.Context, vol evidence.EvidenceVolume) (n
 		return natskit.PutWritten, problem.New(problem.Unavailable, "volume KV store is unavailable")
 	}
 
-	key := volumeKey(vol.Source, vol.Symbol, vol.Timeframe)
+	key := volumeKey(vol.Source, vol.VenueSymbol(), vol.Timeframe)
 
 	existing, err := s.latest.Get(ctx, key)
 	if err == nil {

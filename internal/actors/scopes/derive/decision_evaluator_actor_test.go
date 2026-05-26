@@ -48,8 +48,8 @@ func TestRSIOversoldEvaluatorActor_LowRSI_TriggeredWithFanout(t *testing.T) {
 	if dec.Source != "binancef" {
 		t.Errorf("source: want binancef, got %s", dec.Source)
 	}
-	if dec.Symbol != "btcusdt" {
-		t.Errorf("symbol: want btcusdt, got %s", dec.Symbol)
+	if dec.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol: want btcusdt, got %s", dec.VenueSymbol())
 	}
 	if string(dec.Outcome) != "triggered" {
 		t.Errorf("outcome: want triggered, got %s", dec.Outcome)

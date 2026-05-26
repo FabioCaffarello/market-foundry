@@ -15,16 +15,38 @@ package analyticalclient_test
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
 	"internal/application/analyticalclient"
 	"internal/domain/decision"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
 )
+
+// instrumentFromVenue parses a venue symbol like "btcusdt" into a
+// CanonicalInstrument (ContractPerpetual). Test-only helper used by S303
+// fixture builders during the H-6.b transitory window. Panics on unknown
+// venue symbols rather than threading t through every call site, since the
+// inputs are hard-coded literals in this test file.
+func instrumentFromVenue(venueSym string) instrument.CanonicalInstrument {
+	upper := strings.ToUpper(venueSym)
+	for _, quote := range []string{"USDT", "USD", "BUSD"} {
+		if strings.HasSuffix(upper, quote) {
+			base := strings.TrimSuffix(upper, quote)
+			inst, prob := instrument.New(base, quote, instrument.ContractPerpetual)
+			if prob != nil {
+				panic("test setup: instrument.New(" + base + "/" + quote + "): " + prob.Message)
+			}
+			return inst
+		}
+	}
+	panic("test setup: unrecognized venue symbol " + venueSym)
+}
 
 // ---------------------------------------------------------------------------
 // OBS-1: Cross-surface consistency — funnel stage counts match chain counts
@@ -240,17 +262,17 @@ func TestS303_OBS3_CausalMetadataIntegrity(t *testing.T) {
 			}
 
 			// All stage symbols must match.
-			if chain.Signal.Symbol != sym {
-				t.Errorf("signal.symbol=%q, want %q", chain.Signal.Symbol, sym)
+			if chain.Signal.VenueSymbol() != sym {
+				t.Errorf("signal.symbol=%q, want %q", chain.Signal.VenueSymbol(), sym)
 			}
-			if chain.Decision.Symbol != sym {
-				t.Errorf("decision.symbol=%q, want %q", chain.Decision.Symbol, sym)
+			if chain.Decision.VenueSymbol() != sym {
+				t.Errorf("decision.symbol=%q, want %q", chain.Decision.VenueSymbol(), sym)
 			}
-			if chain.Strategy.Symbol != sym {
-				t.Errorf("strategy.symbol=%q, want %q", chain.Strategy.Symbol, sym)
+			if chain.Strategy.VenueSymbol() != sym {
+				t.Errorf("strategy.symbol=%q, want %q", chain.Strategy.VenueSymbol(), sym)
 			}
-			if chain.Risk.Symbol != sym {
-				t.Errorf("risk.symbol=%q, want %q", chain.Risk.Symbol, sym)
+			if chain.Risk.VenueSymbol() != sym {
+				t.Errorf("risk.symbol=%q, want %q", chain.Risk.VenueSymbol(), sym)
 			}
 			if chain.Execution.Symbol != sym {
 				t.Errorf("execution.symbol=%q, want %q", chain.Execution.Symbol, sym)
@@ -345,14 +367,14 @@ func TestS303_OBS5_AttributionReadability(t *testing.T) {
 	// Each symbol has a different attribution profile. Verify every
 	// human-readable field is populated and symbol-specific.
 	type attrCheck struct {
-		symbol        string
-		disposition   string
-		rationale     string
-		severity      string
-		direction     string
-		strategyType  string
-		maxPos        string
-		maxExposure   string
+		symbol       string
+		disposition  string
+		rationale    string
+		severity     string
+		direction    string
+		strategyType string
+		maxPos       string
+		maxExposure  string
 	}
 
 	checks := []attrCheck{
@@ -480,8 +502,8 @@ func TestS303_OBS6_BatchExplainability(t *testing.T) {
 				continue
 			}
 			// All stages must belong to btcusdt.
-			if ch.Signal != nil && ch.Signal.Symbol != "btcusdt" {
-				t.Errorf("chain[%d] signal.symbol=%q, want btcusdt", i, ch.Signal.Symbol)
+			if ch.Signal != nil && ch.Signal.VenueSymbol() != "btcusdt" {
+				t.Errorf("chain[%d] signal.symbol=%q, want btcusdt", i, ch.Signal.VenueSymbol())
 			}
 		}
 
@@ -535,28 +557,28 @@ func buildS303DetailedChain(corrID, symbol, disposition, rationale, severity, di
 		CorrelationID: corrID,
 		Signal: &analyticalclient.SignalWithTrace{
 			Signal: signal.Signal{
-				Type: "rsi", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Value: "42.5", Timestamp: now,
 			},
 			EventID: "sig-" + corrID, CorrelationID: corrID, OccurredAt: now,
 		},
 		Decision: &analyticalclient.DecisionWithTrace{
 			Decision: decision.Decision{
-				Type: "rsi_oversold", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "rsi_oversold", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Outcome: "triggered", Severity: decision.Severity(severity), Confidence: "0.85", Timestamp: now,
 			},
 			EventID: "dec-" + corrID, CorrelationID: corrID, CausationID: "sig-" + corrID, OccurredAt: now,
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: stratType, Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: stratType, Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Direction: strategy.Direction(dir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Disposition: risk.Disposition(disposition), Confidence: "0.75", Rationale: rationale,
 				Constraints: risk.Constraints{MaxPositionSize: maxPos, MaxExposure: maxExp},
 				Strategies: []risk.StrategyInput{{

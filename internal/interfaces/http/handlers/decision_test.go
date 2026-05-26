@@ -34,7 +34,7 @@ func TestDecisionWebHandler_GetLatestDecision(t *testing.T) {
 	dec := &decision.Decision{
 		Type:       "rsi_oversold",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
 		Severity:   decision.SeverityLow,

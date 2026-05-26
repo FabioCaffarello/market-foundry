@@ -8,6 +8,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -15,6 +16,24 @@ import (
 )
 
 var fixedTime = time.Date(2025, 3, 15, 12, 0, 0, 0, time.UTC)
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
+
+func ethUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("ETH", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical ETH/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 func testMetadata() events.Metadata {
 	return events.Metadata{
@@ -30,7 +49,7 @@ func TestMapCandleRow_ColumnCount(t *testing.T) {
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerp(t),
 			Timeframe:  60,
 			Open:       "100.5",
 			High:       "101.0",
@@ -55,7 +74,7 @@ func TestMapCandleRow_MetadataPositions(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "1", High: "1", Low: "1", Close: "1", Volume: "1",
 			OpenTime: fixedTime, CloseTime: fixedTime.Add(time.Minute),
 		},
@@ -72,7 +91,7 @@ func TestMapCandleRow_DomainFields(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 300,
+			Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 300,
 			Open: "100.5", High: "101.0", Low: "99.0", Close: "100.0",
 			Volume: "5000.123", TradeCount: 42,
 			OpenTime: fixedTime, CloseTime: fixedTime.Add(5 * time.Minute),
@@ -99,7 +118,7 @@ func TestMapCandleRow_EmptyDecimalStrings(t *testing.T) {
 	e := evidence.CandleSampledEvent{
 		Metadata: testMetadata(),
 		Candle: evidence.EvidenceCandle{
-			Source: "x", Symbol: "y", Timeframe: 60,
+			Source: "x", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Open: "", High: "", Low: "", Close: "", Volume: "",
 			OpenTime: fixedTime, CloseTime: fixedTime,
 		},
@@ -117,7 +136,7 @@ func TestMapSignalRow_ColumnCount(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Value: "35.2", Metadata: map[string]string{"period": "14"},
 			Final: true, Timestamp: fixedTime,
 		},
@@ -134,7 +153,7 @@ func TestMapSignalRow_DomainFields(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
+			Type: "rsi", Source: "binancef", Instrument: ethUSDTPerp(t), Timeframe: 300,
 			Value: "72.5", Metadata: meta,
 			Final: true, Timestamp: fixedTime,
 		},
@@ -163,7 +182,7 @@ func TestMapSignalRow_NilMetadata(t *testing.T) {
 	e := signal.SignalGeneratedEvent{
 		Metadata: testMetadata(),
 		Signal: signal.Signal{
-			Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Value: "50", Metadata: nil,
 			Final: false, Timestamp: fixedTime,
 		},
@@ -180,7 +199,7 @@ func TestMapDecisionRow_ColumnCount(t *testing.T) {
 	e := decision.DecisionEvaluatedEvent{
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
 			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: []decision.SignalInput{{Type: "rsi", Value: "28.5", Timeframe: 60}},
@@ -202,7 +221,7 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	e := decision.DecisionEvaluatedEvent{
 		Metadata: testMetadata(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityLow,
 			Confidence: "0.85", Rationale: "RSI 28.5 below threshold",
 			Signals: signals, Metadata: map[string]string{"threshold": "30"},
@@ -231,7 +250,7 @@ func TestMapStrategyRow_ColumnCount(t *testing.T) {
 	e := strategy.StrategyResolvedEvent{
 		Metadata: testMetadata(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.75",
 			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "low", Rationale: "RSI below threshold", Timeframe: 60}},
 			Final:     true, Timestamp: fixedTime,
@@ -248,7 +267,7 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	e := strategy.StrategyResolvedEvent{
 		Metadata: testMetadata(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: ethUSDTPerp(t), Timeframe: 300,
 			Direction: strategy.DirectionShort, Confidence: "0.65",
 			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "moderate", Rationale: "RSI 15.00 below threshold", Timeframe: 60}},
 			Parameters: map[string]string{"lookback": "5"},
@@ -282,7 +301,7 @@ func TestMapRiskRow_ColumnCount(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.9",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "low", DecisionRationale: "RSI below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1000", StopDistance: "50"},
@@ -301,7 +320,7 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionModified, Confidence: "0.7",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "moderate", DecisionRationale: "RSI 15.00 below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.05"},
@@ -331,7 +350,7 @@ func TestMapRiskRow_StrategyInputDecisionContext(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.8",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.85", Timeframe: 60, DecisionSeverity: "high", DecisionRationale: "RSI 10.00 below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.01"},

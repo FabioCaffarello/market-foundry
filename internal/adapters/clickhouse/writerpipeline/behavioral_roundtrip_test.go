@@ -43,7 +43,7 @@ func TestBehavioralRoundTrip_DecisionSeverity_High(t *testing.T) {
 	event := decision.DecisionEvaluatedEvent{
 		Metadata: rtMeta(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome:    decision.OutcomeTriggered,
 			Severity:   decision.SeverityHigh,
 			Confidence: "0.8333",
@@ -87,7 +87,7 @@ func TestBehavioralRoundTrip_DecisionSeverity_Low(t *testing.T) {
 	event := decision.DecisionEvaluatedEvent{
 		Metadata: rtMeta(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome:    decision.OutcomeTriggered,
 			Severity:   decision.SeverityLow,
 			Confidence: "0.4666",
@@ -124,7 +124,7 @@ func TestBehavioralRoundTrip_DecisionSeverity_AllEnumValues(t *testing.T) {
 			event := decision.DecisionEvaluatedEvent{
 				Metadata: rtMeta(),
 				Decision: decision.Decision{
-					Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+					Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 					Outcome: decision.OutcomeTriggered, Severity: sev,
 					Confidence: "0.50", Final: true, Timestamp: rtTime,
 				},
@@ -145,7 +145,7 @@ func TestBehavioralRoundTrip_Strategy_SeverityScaledConfidence(t *testing.T) {
 	event := strategy.StrategyResolvedEvent{
 		Metadata: rtMeta(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.8333",
 			Decisions: []strategy.DecisionInput{{
@@ -206,7 +206,7 @@ func TestBehavioralRoundTrip_Strategy_LowSeverity_ReducedConfidence(t *testing.T
 	event := strategy.StrategyResolvedEvent{
 		Metadata: rtMeta(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.6666",
 			Decisions: []strategy.DecisionInput{{
@@ -249,7 +249,7 @@ func TestBehavioralRoundTrip_Risk_PositionExposure_CounterTrend(t *testing.T) {
 	event := risk.RiskAssessedEvent{
 		Metadata: rtMeta(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved,
 			Confidence:  "0.7500",
 			Strategies: []risk.StrategyInput{{
@@ -266,10 +266,10 @@ func TestBehavioralRoundTrip_Risk_PositionExposure_CounterTrend(t *testing.T) {
 				"effective_max_position_pct": "0.0192",
 			},
 			Metadata: map[string]string{
-				"strategy_type":       "mean_reversion_entry",
-				"confidence_factor":   "0.90",
+				"strategy_type":         "mean_reversion_entry",
+				"confidence_factor":     "0.90",
 				"severity_limit_factor": "1.15",
-				"decision_severity":   "high",
+				"decision_severity":     "high",
 			},
 			Final: true, Timestamp: rtTime,
 		},
@@ -344,7 +344,7 @@ func TestBehavioralRoundTrip_Risk_DrawdownLimit_ProTrend(t *testing.T) {
 	event := risk.RiskAssessedEvent{
 		Metadata: rtMeta(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "drawdown_limit", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "drawdown_limit", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved,
 			Confidence:  "0.8280",
 			Strategies: []risk.StrategyInput{{
@@ -357,11 +357,11 @@ func TestBehavioralRoundTrip_Risk_DrawdownLimit_ProTrend(t *testing.T) {
 			},
 			Rationale: "drawdown_limit: approved within tolerance",
 			Metadata: map[string]string{
-				"strategy_type":            "trend_following_entry",
-				"confidence_factor":        "0.92",
-				"stop_type_factor":         "1.15",
+				"strategy_type":             "trend_following_entry",
+				"confidence_factor":         "0.92",
+				"stop_type_factor":          "1.15",
 				"severity_tolerance_factor": "1.00",
-				"decision_severity":        "moderate",
+				"decision_severity":         "moderate",
 			},
 			Final: true, Timestamp: rtTime,
 		},
@@ -402,7 +402,7 @@ func TestBehavioralRoundTrip_SeverityContrast_HighVsLow(t *testing.T) {
 		return risk.RiskAssessedEvent{
 			Metadata: rtMeta(),
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 				Disposition: risk.DispositionApproved,
 				Confidence:  conf,
 				Strategies: []risk.StrategyInput{{
@@ -457,7 +457,7 @@ func TestBehavioralRoundTrip_CrossChain_RiskProfileDivergence(t *testing.T) {
 		return risk.RiskAssessedEvent{
 			Metadata: rtMeta(),
 			RiskAssessment: risk.RiskAssessment{
-				Type: riskType, Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+				Type: riskType, Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 				Disposition: risk.DispositionApproved,
 				Confidence:  fmt.Sprintf("%.4f", confidence),
 				Strategies: []risk.StrategyInput{{
@@ -511,7 +511,7 @@ func TestBehavioralRoundTrip_NotTriggered_CleanFlow(t *testing.T) {
 	decEvent := decision.DecisionEvaluatedEvent{
 		Metadata: rtMeta(),
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome:    decision.OutcomeNotTriggered,
 			Severity:   decision.SeverityNone,
 			Confidence: "0.0000",
@@ -534,7 +534,7 @@ func TestBehavioralRoundTrip_NotTriggered_CleanFlow(t *testing.T) {
 	stratEvent := strategy.StrategyResolvedEvent{
 		Metadata: rtMeta(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction:  strategy.DirectionFlat,
 			Confidence: "0.0000",
 			Decisions: []strategy.DecisionInput{{
@@ -571,7 +571,7 @@ func TestBehavioralRoundTrip_ConfidencePrecision(t *testing.T) {
 			event := decision.DecisionEvaluatedEvent{
 				Metadata: rtMeta(),
 				Decision: decision.Decision{
-					Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+					Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 					Outcome: decision.OutcomeTriggered, Severity: decision.SeverityHigh,
 					Confidence: v, Final: true, Timestamp: rtTime,
 				},
@@ -600,7 +600,7 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	decEvent := decision.DecisionEvaluatedEvent{
 		Metadata: events.Metadata{ID: "dec-001", OccurredAt: rtTime, CorrelationID: "chain-001", CausationID: "signal-001"},
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityHigh,
 			Confidence: "0.8333",
 			Rationale:  "RSI 10.00 is 20.00 points below threshold 30 (severity: high)",
@@ -614,7 +614,7 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	stratEvent := strategy.StrategyResolvedEvent{
 		Metadata: events.Metadata{ID: "strat-001", OccurredAt: rtTime, CorrelationID: "chain-001", CausationID: "dec-001"},
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.8333",
 			Decisions: []strategy.DecisionInput{{
 				Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.8333",
@@ -630,7 +630,7 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	riskEvent := risk.RiskAssessedEvent{
 		Metadata: events.Metadata{ID: "risk-001", OccurredAt: rtTime, CorrelationID: "chain-001", CausationID: "strat-001"},
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.7500",
 			Strategies: []risk.StrategyInput{{
 				Type: "mean_reversion_entry", Direction: "long", Confidence: "0.8333",
@@ -1130,7 +1130,7 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	decEvent := decision.DecisionEvaluatedEvent{
 		Metadata: events.Metadata{ID: "dec-chain-001", OccurredAt: rtTime, CorrelationID: "full-chain-001", CausationID: "signal-chain-001"},
 		Decision: decision.Decision{
-			Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "rsi_oversold", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Outcome: decision.OutcomeTriggered, Severity: decision.SeverityHigh,
 			Confidence: "0.8333",
 			Rationale:  "RSI 10.00 is 20.00 points below threshold 30 (severity: high)",
@@ -1144,7 +1144,7 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	stratEvent := strategy.StrategyResolvedEvent{
 		Metadata: events.Metadata{ID: "strat-chain-001", OccurredAt: rtTime, CorrelationID: "full-chain-001", CausationID: "dec-chain-001"},
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.8333",
 			Decisions: []strategy.DecisionInput{{
 				Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.8333",
@@ -1160,7 +1160,7 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	riskEvent := risk.RiskAssessedEvent{
 		Metadata: events.Metadata{ID: "risk-chain-001", OccurredAt: rtTime, CorrelationID: "full-chain-001", CausationID: "strat-chain-001"},
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.7500",
 			Strategies: []risk.StrategyInput{{
 				Type: "mean_reversion_entry", Direction: "long", Confidence: "0.8333",
@@ -1190,8 +1190,8 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 				Price: "45000.00", Quantity: "0.0192", Fee: "0.96",
 				Simulated: true, Timestamp: rtTime,
 			}},
-			Parameters: map[string]string{"target_offset": "0.03", "stop_offset": "0.01"},
-			Metadata:   map[string]string{"decision_severity": "high", "strategy_type": "mean_reversion_entry"},
+			Parameters:    map[string]string{"target_offset": "0.03", "stop_offset": "0.01"},
+			Metadata:      map[string]string{"decision_severity": "high", "strategy_type": "mean_reversion_entry"},
 			CorrelationID: "full-chain-001",
 			CausationID:   "risk-chain-001",
 			Final:         true,
@@ -1306,8 +1306,8 @@ func TestBehavioralRoundTrip_Execution_RejectedOrder(t *testing.T) {
 			},
 			Fills:         []execution.FillRecord{},
 			CorrelationID: "chain-rejected", CausationID: "risk-rejected",
-			Final:         true,
-			Timestamp:     rtTime,
+			Final:     true,
+			Timestamp: rtTime,
 		},
 	}
 

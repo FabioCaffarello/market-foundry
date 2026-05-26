@@ -34,7 +34,7 @@ func TestRiskWebHandler_GetLatestRisk(t *testing.T) {
 	assessment := &risk.RiskAssessment{
 		Type:        "position_exposure",
 		Source:      "binancef",
-		Symbol:      "btcusdt",
+		Instrument:  btcUSDTPerp(t),
 		Timeframe:   60,
 		Disposition: risk.DispositionApproved,
 		Confidence:  "0.85",

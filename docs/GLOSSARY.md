@@ -94,8 +94,40 @@ Pattern introduced in Onda H-6.a (Fase Multi-venue): when
 sub-onda that removes it. The method's name is intentionally
 distinct from any canonical accessor to prevent latent shadowing
 bugs (see [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md)
-→ "Transitory-method pattern"). Reusable in H-6.b–H-6.e as new
-domain types migrate.
+→ "Transitory-method pattern"). Reused mechanically in Onda H-6.b
+across 7 derivative-analytics domain types
+(`EvidenceCandle`/`EvidenceTradeBurst`/`EvidenceVolume`,
+`Signal`/`Decision`/`Strategy`/`RiskAssessment`) — each gains
+`VenueSymbol() string` with identical sunset wording.
+
+**Migration state (`policies/domain_types.toml`)**
+The declarative state of each domain type under the canonical
+instrument migration, declared in
+`tools/raccoon-cli/policies/domain_types.toml` and enforced by
+the `check-instruments` analyzer (Onda H-6.b extension). Two
+values:
+- **`migrated`** — the type file MUST contain a
+  `instrument.CanonicalInstrument` reference AND a
+  `VenueSymbol() string` method. Analyzer fails if either is
+  missing.
+- **`pending`** — the type still uses `Symbol string`. Analyzer
+  tolerates this until the responsible sub-onda flips the entry
+  to `migrated`.
+Adding a new domain type to the migration is a two-step ritual:
+migrate the code, then flip the entry. Forgetting either step
+produces a hard analyzer fail.
+
+**`instrumentFromBinding(source, venueNative)`**
+A per-package transitory helper (in
+`internal/application/signal/`, `decision/`, `strategy/`,
+`risk/`) that reconstructs a `CanonicalInstrument` from the
+`(source, venueNative)` binding pair the actor-layer config still
+carries during H-6.b. The function recognizes `binances` → spot
+and `binancef` → perpetual; unknown sources or non-USDT symbols
+produce a zero `CanonicalInstrument` (caught by domain-type
+`Validate` downstream). Slated for sunset in Onda H-6.c, when
+sampler/evaluator constructors gain `CanonicalInstrument`
+directly and the helper is removed.
 
 **Storage tier**
 The class of persistent store a piece of data lives in. Per

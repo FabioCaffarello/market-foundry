@@ -2,8 +2,10 @@ package strategy
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
 
@@ -32,18 +34,28 @@ type DecisionInput struct {
 
 // Strategy represents a discrete, typed resolution combining decisions into a directional intent.
 // All strategy families share this struct; type-specific fields live in Parameters and Metadata.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b.
 type Strategy struct {
-	Type       string            `json:"type"`
-	Source     string            `json:"source"`
-	Symbol     string            `json:"symbol"`
-	Timeframe  int               `json:"timeframe"`
-	Direction  Direction         `json:"direction"`
-	Confidence string            `json:"confidence"`
-	Decisions  []DecisionInput   `json:"decisions"`
-	Parameters map[string]string `json:"parameters"`
-	Metadata   map[string]string `json:"metadata"`
-	Final      bool              `json:"final"`
-	Timestamp  time.Time         `json:"timestamp"`
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Direction  Direction                      `json:"direction"`
+	Confidence string                         `json:"confidence"`
+	Decisions  []DecisionInput                `json:"decisions"`
+	Parameters map[string]string              `json:"parameters"`
+	Metadata   map[string]string              `json:"metadata"`
+	Final      bool                           `json:"final"`
+	Timestamp  time.Time                      `json:"timestamp"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b → sunset H-6.f). See ADR-0021.
+func (s Strategy) VenueSymbol() string {
+	return strings.ToLower(string(s.Instrument.Base) + string(s.Instrument.Quote))
 }
 
 func (s Strategy) Validate() *problem.Problem {
@@ -55,8 +67,10 @@ func (s Strategy) Validate() *problem.Problem {
 	if s.Source == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "source", Message: "must not be empty"})
 	}
-	if s.Symbol == "" {
-		issues = append(issues, problem.ValidationIssue{Field: "symbol", Message: "must not be empty"})
+	if s.Instrument.IsZero() {
+		issues = append(issues, problem.ValidationIssue{Field: "instrument", Message: "must not be zero"})
+	} else if prob := s.Instrument.Validate(); prob != nil {
+		return prob
 	}
 	if s.Timeframe <= 0 {
 		issues = append(issues, problem.ValidationIssue{Field: "timeframe", Message: "must be a positive integer"})
@@ -85,9 +99,10 @@ func (s Strategy) Validate() *problem.Problem {
 	return problem.Validation(problem.InvalidArgument, "strategy is invalid", issues...)
 }
 
-// PartitionKey returns the key used for KV bucket entries: "{source}.{symbol}.{timeframe}".
+// PartitionKey returns the key used for KV bucket entries:
+// "{source}.{venuesymbol}.{timeframe}". Preserves H-6.b back-compat.
 func (s Strategy) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", s.Source, s.Symbol, s.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", s.Source, s.VenueSymbol(), s.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
@@ -98,5 +113,5 @@ func (s Strategy) PartitionKey() string {
 // Production kline cadence is ≥1s so the bug was latent, but rapid-publish
 // integration tests and any future sub-second producers depend on this.
 func (s Strategy) DeduplicationKey() string {
-	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.Symbol, s.Timeframe, s.Timestamp.UnixNano())
+	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.VenueSymbol(), s.Timeframe, s.Timestamp.UnixNano())
 }

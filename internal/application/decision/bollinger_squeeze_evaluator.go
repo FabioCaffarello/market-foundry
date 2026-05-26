@@ -6,6 +6,7 @@ import (
 	"time"
 
 	domaindecision "internal/domain/decision"
+	"internal/domain/instrument"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 type BollingerSqueezeEvaluator struct {
 	source           string
 	symbol           string
+	instrument       instrument.CanonicalInstrument
 	timeframe        int
 	squeezeThreshold float64
 }
@@ -32,6 +34,7 @@ func NewBollingerSqueezeEvaluator(source, symbol string, timeframe int) *Bolling
 	return &BollingerSqueezeEvaluator{
 		source:           source,
 		symbol:           symbol,
+		instrument:       instrumentFromBinding(source, symbol),
 		timeframe:        timeframe,
 		squeezeThreshold: defaultSqueezeThreshold,
 	}
@@ -109,7 +112,7 @@ func (e *BollingerSqueezeEvaluator) Evaluate(signalType, signalValue string, sig
 	return domaindecision.Decision{
 		Type:       "bollinger_squeeze",
 		Source:     e.source,
-		Symbol:     e.symbol,
+		Instrument: e.instrument,
 		Timeframe:  e.timeframe,
 		Outcome:    outcome,
 		Severity:   severity,
@@ -119,7 +122,7 @@ func (e *BollingerSqueezeEvaluator) Evaluate(signalType, signalValue string, sig
 			{Type: signalType, Value: signalValue, Timeframe: signalTimeframe},
 		},
 		Metadata: map[string]string{
-			"squeeze_threshold": strconv.FormatFloat(e.squeezeThreshold, 'f', 4, 64),
+			"squeeze_threshold":  strconv.FormatFloat(e.squeezeThreshold, 'f', 4, 64),
 			"relative_bandwidth": strconv.FormatFloat(relativeBW, 'f', 4, 64),
 			"bandwidth":          bandwidthStr,
 			"sma":                smaStr,

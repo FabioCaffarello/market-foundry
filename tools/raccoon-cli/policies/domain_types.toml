@@ -1,0 +1,121 @@
+# Domain types policy — declarative list of domain types subject to
+# the canonical instrument migration (ADR-0021).
+#
+# Invariant enforced by `check instruments`:
+#
+# Each declared type has a migration_state:
+#
+#   "migrated"  — type's production .go file MUST:
+#                 1. Have a field `Instrument instrument.CanonicalInstrument`.
+#                 2. Have a method named `VenueSymbol() string` (the
+#                    transitory accessor per ADR-0021 / H-6.b).
+#                 If either is missing, the analyzer fails.
+#
+#   "pending"   — type still uses `Symbol string`. The analyzer
+#                 tolerates this; declaration is informational.
+#                 No enforcement.
+#
+# Adding a new domain type to the migration:
+#   1. Migrate the type (Symbol string → Instrument
+#      CanonicalInstrument + VenueSymbol() method).
+#   2. Update the entry here from "pending" to "migrated".
+#   3. The analyzer then enforces both invariants going forward.
+#
+# Removing a transitory accessor (sunset H-6.f):
+#   The analyzer entry can be updated to "completed" (TODO: support
+#   that state in H-6.f) once VenueSymbol() is removed and all
+#   readers reason about CanonicalInstrument directly.
+#
+# Per P5 of the Harvest protocol, every onda that adds an invariant
+# also adds the analyzer that enforces it. H-6.b adds this policy
+# file mid-migration so each domain-type rename produces a visible
+# enforcement step instead of relying on review eyes.
+
+# H-6.a (closed) — first canonical migration
+[domain_types.observation_trade]
+package = "internal/domain/observation"
+file = "trade.go"
+type_name = "ObservationTrade"
+migration_state = "migrated"
+
+# H-6.b — Evidence family
+[domain_types.evidence_candle]
+package = "internal/domain/evidence"
+file = "candle.go"
+type_name = "EvidenceCandle"
+migration_state = "migrated"
+
+[domain_types.evidence_trade_burst]
+package = "internal/domain/evidence"
+file = "trade_burst.go"
+type_name = "EvidenceTradeBurst"
+migration_state = "migrated"
+
+[domain_types.evidence_volume]
+package = "internal/domain/evidence"
+file = "volume.go"
+type_name = "EvidenceVolume"
+migration_state = "migrated"
+
+# H-6.b — derivative analytics (PartitionKey family)
+[domain_types.signal]
+package = "internal/domain/signal"
+file = "signal.go"
+type_name = "Signal"
+migration_state = "migrated"
+
+[domain_types.decision]
+package = "internal/domain/decision"
+file = "decision.go"
+type_name = "Decision"
+migration_state = "migrated"
+
+[domain_types.strategy]
+package = "internal/domain/strategy"
+file = "strategy.go"
+type_name = "Strategy"
+migration_state = "migrated"
+
+[domain_types.risk_assessment]
+package = "internal/domain/risk"
+file = "risk.go"
+type_name = "RiskAssessment"
+migration_state = "migrated"
+
+# H-6.b' — Execution chain (pending)
+[domain_types.execution_intent]
+package = "internal/domain/execution"
+file = "execution.go"
+type_name = "ExecutionIntent"
+migration_state = "pending"
+
+[domain_types.attribution]
+package = "internal/domain/effectiveness"
+file = "effectiveness.go"
+type_name = "Attribution"
+migration_state = "pending"
+
+[domain_types.audit_lifecycle_entry]
+package = "internal/domain/execution"
+file = "audit_bundle.go"
+type_name = "AuditLifecycleEntry"
+migration_state = "pending"
+
+# H-6.b'' — Pairing chain (pending)
+[domain_types.pairing_leg]
+package = "internal/domain/pairing"
+file = "pairing.go"
+type_name = "Leg"
+migration_state = "pending"
+
+[domain_types.pairing_round_trip]
+package = "internal/domain/pairing"
+file = "pairing.go"
+type_name = "RoundTrip"
+migration_state = "pending"
+
+[domain_types.cross_session_window]
+package = "internal/domain/pairing"
+file = "continuity.go"
+type_name = "CrossSessionWindow"
+migration_state = "pending"

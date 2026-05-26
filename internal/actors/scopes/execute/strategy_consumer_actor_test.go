@@ -60,7 +60,8 @@ func spawnTestStrategyWithConfig(t *testing.T, cfg StrategyConsumerConfig) (*act
 	return engine, collector, pid
 }
 
-func makeStrategyEvent(direction strategy.Direction, confidence string, strategyType string) strategy.StrategyResolvedEvent {
+func makeStrategyEvent(t *testing.T, direction strategy.Direction, confidence string, strategyType string) strategy.StrategyResolvedEvent {
+	t.Helper()
 	return strategy.StrategyResolvedEvent{
 		Metadata: events.Metadata{
 			ID:            "evt-001",
@@ -71,7 +72,7 @@ func makeStrategyEvent(direction strategy.Direction, confidence string, strategy
 		Strategy: strategy.Strategy{
 			Type:       strategyType,
 			Source:     "test-source",
-			Symbol:     "BTCUSDT",
+			Instrument: btcUSDTPerpExec(t),
 			Timeframe:  60,
 			Direction:  direction,
 			Confidence: confidence,
@@ -113,7 +114,7 @@ func TestStrategyConsumer_LongDirection_ProducesBuySide(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	intent := msg.Event.ExecutionIntent
@@ -129,7 +130,7 @@ func TestStrategyConsumer_ShortDirection_ProducesSellSide(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionShort, "0.7000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionShort, "0.7000", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	intent := msg.Event.ExecutionIntent
@@ -147,7 +148,7 @@ func TestStrategyConsumer_FlatDirection_ProducesNoExecution(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionFlat, "0.0000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionFlat, "0.0000", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	intent := msg.Event.ExecutionIntent
@@ -165,7 +166,7 @@ func TestStrategyConsumer_PassThroughRisk(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.02")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.9000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.9000", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	risk := msg.Event.ExecutionIntent.Risk
@@ -183,7 +184,7 @@ func TestStrategyConsumer_CorrelationCausationChain(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	event := makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")
+	event := makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")
 	event.Metadata.CorrelationID = "corr-test-chain"
 	event.Metadata.ID = "evt-cause-id"
 
@@ -214,7 +215,7 @@ func TestStrategyConsumer_UsesStrategyTimestamp(t *testing.T) {
 	defer engine.Poison(pid)
 
 	fixedTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
-	event := makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")
+	event := makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")
 	event.Strategy.Timestamp = fixedTime
 
 	engine.Send(pid, strategyReceivedMessage{Event: event})
@@ -231,7 +232,7 @@ func TestStrategyConsumer_StrategyTypeIdentity(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Risk.StrategyType != "mean_reversion_entry" {
@@ -248,7 +249,7 @@ func TestStrategyConsumer_WrongType_Skipped(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "trend_following_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "trend_following_entry")})
 
 	// Give time for processing.
 	time.Sleep(100 * time.Millisecond)
@@ -264,7 +265,7 @@ func TestStrategyConsumer_ConfigurableMaxPositionPct(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.05")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Quantity != "0.05" {
@@ -278,7 +279,7 @@ func TestStrategyConsumer_DefaultMaxPositionPct(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Quantity != DefaultMaxPositionPct {
@@ -292,7 +293,7 @@ func TestStrategyConsumer_DecisionSeverityPreserved(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	event := makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")
+	event := makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")
 	event.Strategy.Decisions[0].Severity = "moderate"
 
 	engine.Send(pid, strategyReceivedMessage{Event: event})
@@ -315,7 +316,7 @@ func TestStrategyConsumer_ConfidenceThreshold_AboveThreshold_Evaluated(t *testin
 	})
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Side != domainexec.SideBuy {
@@ -330,7 +331,7 @@ func TestStrategyConsumer_ConfidenceThreshold_BelowThreshold_Skipped(t *testing.
 	})
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.5000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.5000", "mean_reversion_entry")})
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -346,7 +347,7 @@ func TestStrategyConsumer_ConfidenceThreshold_EmptyString_DisablesFilter(t *test
 	})
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.0100", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.0100", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Side != domainexec.SideBuy {
@@ -361,7 +362,7 @@ func TestStrategyConsumer_ConfidenceThreshold_EqualToThreshold_Evaluated(t *test
 	})
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.5000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.5000", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Side != domainexec.SideBuy {
@@ -378,7 +379,7 @@ func TestStrategyConsumer_ExplainabilityFields_Present(t *testing.T) {
 	})
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionLong, "0.8500", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	params := msg.Event.ExecutionIntent.Parameters
@@ -397,7 +398,7 @@ func TestStrategyConsumer_ExplainabilityFields_FlatOutcome(t *testing.T) {
 	engine, collector, pid := spawnTestStrategy(t, "0.01")
 	defer engine.Poison(pid)
 
-	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(strategy.DirectionFlat, "0.0000", "mean_reversion_entry")})
+	engine.Send(pid, strategyReceivedMessage{Event: makeStrategyEvent(t, strategy.DirectionFlat, "0.0000", "mean_reversion_entry")})
 	msg := waitForIntent(t, collector)
 
 	if msg.Event.ExecutionIntent.Parameters["evaluation_outcome"] != "flat" {

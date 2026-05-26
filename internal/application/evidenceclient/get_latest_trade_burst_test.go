@@ -46,7 +46,7 @@ func TestGetLatestTradeBurstUseCase_ReturnsTradeBurst(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	burst := &evidence.EvidenceTradeBurst{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		TradeCount: 42,
 		BuyVolume:  "500.00",

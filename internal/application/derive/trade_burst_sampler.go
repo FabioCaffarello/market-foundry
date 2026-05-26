@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/domain/observation"
 )
 
@@ -22,6 +23,7 @@ type TradeBurstSampler struct {
 	timeframe time.Duration
 
 	// Current window state.
+	instrument instrument.CanonicalInstrument
 	tradeCount int64
 	buyVolume  *big.Float
 	sellVolume *big.Float
@@ -71,6 +73,7 @@ func (s *TradeBurstSampler) AddTrade(trade observation.ObservationTrade) (finali
 	if !s.active {
 		s.openTime = openTime
 		s.closeTime = closeTime
+		s.instrument = trade.Instrument
 		s.buyVolume = new(big.Float)
 		s.sellVolume = new(big.Float)
 		s.tradeCount = 0
@@ -100,7 +103,7 @@ func (s *TradeBurstSampler) snapshot(final bool) evidence.EvidenceTradeBurst {
 
 	return evidence.EvidenceTradeBurst{
 		Source:     s.source,
-		Symbol:     s.symbol,
+		Instrument: s.instrument,
 		Timeframe:  int(s.timeframe.Seconds()),
 		TradeCount: s.tradeCount,
 		BuyVolume:  s.buyVolume.Text('f', 8),
@@ -114,6 +117,7 @@ func (s *TradeBurstSampler) snapshot(final bool) evidence.EvidenceTradeBurst {
 
 func (s *TradeBurstSampler) reset() {
 	s.active = false
+	s.instrument = instrument.CanonicalInstrument{}
 	s.tradeCount = 0
 	s.buyVolume = nil
 	s.sellVolume = nil

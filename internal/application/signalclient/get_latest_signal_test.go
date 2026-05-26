@@ -6,9 +6,19 @@ import (
 	"time"
 
 	"internal/application/signalclient"
+	"internal/domain/instrument"
 	"internal/domain/signal"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type mockSignalGateway struct {
 	sig  *signal.Signal
@@ -46,14 +56,14 @@ func TestGetLatestSignalUseCase_ValidatesInput(t *testing.T) {
 func TestGetLatestSignalUseCase_ReturnsSignal(t *testing.T) {
 	now := time.Now().UTC()
 	sig := &signal.Signal{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Value:     "65.32",
-		Metadata:  map[string]string{"avg_gain": "1.20", "avg_loss": "0.64"},
-		Timestamp: now,
-		Final:     true,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Value:      "65.32",
+		Metadata:   map[string]string{"avg_gain": "1.20", "avg_loss": "0.64"},
+		Timestamp:  now,
+		Final:      true,
 	}
 
 	uc := signalclient.NewGetLatestSignalUseCase(&mockSignalGateway{sig: sig})

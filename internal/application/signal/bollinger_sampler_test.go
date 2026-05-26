@@ -29,8 +29,8 @@ func TestBollingerSampler_WarmUp(t *testing.T) {
 	if sig.Type != "bollinger" {
 		t.Fatalf("expected type bollinger, got %s", sig.Type)
 	}
-	if sig.Source != "binancef" || sig.Symbol != "btcusdt" || sig.Timeframe != 300 {
-		t.Fatalf("unexpected scope: %s/%s/%d", sig.Source, sig.Symbol, sig.Timeframe)
+	if sig.Source != "binancef" || sig.VenueSymbol() != "btcusdt" || sig.Timeframe != 300 {
+		t.Fatalf("unexpected scope: %s/%s/%d", sig.Source, sig.VenueSymbol(), sig.Timeframe)
 	}
 	if !sig.Final {
 		t.Fatal("expected Final=true")

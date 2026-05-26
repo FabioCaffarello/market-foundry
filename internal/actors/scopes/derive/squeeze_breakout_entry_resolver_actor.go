@@ -91,7 +91,7 @@ func (a *SqueezeBreakoutEntryResolverActor) onDecisionEvaluated(c *actor.Context
 			decRationale = strat.Decisions[0].Rationale
 		}
 		c.Send(a.cfg.ScopePID, strategyResolvedMessage{
-			Symbol:             strat.Symbol,
+			Symbol:             strat.VenueSymbol(),
 			StrategyType:       strat.Type,
 			StrategyDirection:  string(strat.Direction),
 			StrategyConfidence: strat.Confidence,

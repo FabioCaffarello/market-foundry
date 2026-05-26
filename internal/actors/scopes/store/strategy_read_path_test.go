@@ -87,7 +87,7 @@ func deriveProducedEvent(ts time.Time) strategy.StrategyResolvedEvent {
 		Strategy: strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerpStrategy(),
 			Timeframe:  60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.8500",
@@ -277,7 +277,7 @@ func TestReadPath_QueryUseCaseReturnsStoredStrategy(t *testing.T) {
 	strat := &strategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpStrategy(),
 		Timeframe:  60,
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.8500",

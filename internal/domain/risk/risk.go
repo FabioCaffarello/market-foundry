@@ -2,8 +2,10 @@ package risk
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
 
@@ -42,20 +44,30 @@ type Constraints struct {
 
 // RiskAssessment represents a discrete, typed risk evaluation applied to a strategy intent.
 // All risk families share this struct; type-specific fields live in Parameters and Metadata.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b.
 type RiskAssessment struct {
-	Type        string            `json:"type"`
-	Source      string            `json:"source"`
-	Symbol      string            `json:"symbol"`
-	Timeframe   int               `json:"timeframe"`
-	Disposition Disposition       `json:"disposition"`
-	Confidence  string            `json:"confidence"`
-	Strategies  []StrategyInput   `json:"strategies"`
-	Constraints Constraints       `json:"constraints"`
-	Rationale   string            `json:"rationale"`
-	Parameters  map[string]string `json:"parameters"`
-	Metadata    map[string]string `json:"metadata"`
-	Final       bool              `json:"final"`
-	Timestamp   time.Time         `json:"timestamp"`
+	Type        string                         `json:"type"`
+	Source      string                         `json:"source"`
+	Instrument  instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe   int                            `json:"timeframe"`
+	Disposition Disposition                    `json:"disposition"`
+	Confidence  string                         `json:"confidence"`
+	Strategies  []StrategyInput                `json:"strategies"`
+	Constraints Constraints                    `json:"constraints"`
+	Rationale   string                         `json:"rationale"`
+	Parameters  map[string]string              `json:"parameters"`
+	Metadata    map[string]string              `json:"metadata"`
+	Final       bool                           `json:"final"`
+	Timestamp   time.Time                      `json:"timestamp"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b → sunset H-6.f). See ADR-0021.
+func (r RiskAssessment) VenueSymbol() string {
+	return strings.ToLower(string(r.Instrument.Base) + string(r.Instrument.Quote))
 }
 
 func (r RiskAssessment) Validate() *problem.Problem {
@@ -67,8 +79,10 @@ func (r RiskAssessment) Validate() *problem.Problem {
 	if r.Source == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "source", Message: "must not be empty"})
 	}
-	if r.Symbol == "" {
-		issues = append(issues, problem.ValidationIssue{Field: "symbol", Message: "must not be empty"})
+	if r.Instrument.IsZero() {
+		issues = append(issues, problem.ValidationIssue{Field: "instrument", Message: "must not be zero"})
+	} else if prob := r.Instrument.Validate(); prob != nil {
+		return prob
 	}
 	if r.Timeframe <= 0 {
 		issues = append(issues, problem.ValidationIssue{Field: "timeframe", Message: "must be a positive integer"})
@@ -100,13 +114,14 @@ func (r RiskAssessment) Validate() *problem.Problem {
 	return problem.Validation(problem.InvalidArgument, "risk assessment is invalid", issues...)
 }
 
-// PartitionKey returns the key used for KV bucket entries: "{source}.{symbol}.{timeframe}".
+// PartitionKey returns the key used for KV bucket entries:
+// "{source}.{venuesymbol}.{timeframe}". Preserves H-6.b back-compat.
 func (r RiskAssessment) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", r.Source, r.Symbol, r.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", r.Source, r.VenueSymbol(), r.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
 // Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
 func (r RiskAssessment) DeduplicationKey() string {
-	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.Symbol, r.Timeframe, r.Timestamp.UnixNano())
+	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.VenueSymbol(), r.Timeframe, r.Timestamp.UnixNano())
 }

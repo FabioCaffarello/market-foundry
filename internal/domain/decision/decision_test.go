@@ -6,13 +6,24 @@ import (
 	"time"
 
 	"internal/domain/decision"
+	"internal/domain/instrument"
 )
 
-func validDecision() decision.Decision {
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
+func validDecision(t *testing.T) decision.Decision {
+	t.Helper()
 	return decision.Decision{
 		Type:       "rsi_oversold",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
 		Severity:   decision.SeverityLow,
@@ -28,7 +39,7 @@ func validDecision() decision.Decision {
 }
 
 func TestDecision_Validate_Valid(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	if prob := d.Validate(); prob != nil {
 		t.Fatalf("expected valid decision, got: %s", prob.Message)
 	}
@@ -42,7 +53,7 @@ func TestDecision_Validate_RequiredFields(t *testing.T) {
 	}{
 		{"empty type", func(d *decision.Decision) { d.Type = "" }, "type"},
 		{"empty source", func(d *decision.Decision) { d.Source = "" }, "source"},
-		{"empty symbol", func(d *decision.Decision) { d.Symbol = "" }, "symbol"},
+		{"zero instrument", func(d *decision.Decision) { d.Instrument = instrument.CanonicalInstrument{} }, "instrument"},
 		{"zero timeframe", func(d *decision.Decision) { d.Timeframe = 0 }, "timeframe"},
 		{"negative timeframe", func(d *decision.Decision) { d.Timeframe = -1 }, "timeframe"},
 		{"empty outcome", func(d *decision.Decision) { d.Outcome = "" }, "outcome"},
@@ -52,7 +63,7 @@ func TestDecision_Validate_RequiredFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := validDecision()
+			d := validDecision(t)
 			tt.mutate(&d)
 			prob := d.Validate()
 			if prob == nil {
@@ -63,7 +74,7 @@ func TestDecision_Validate_RequiredFields(t *testing.T) {
 }
 
 func TestDecision_Validate_InvalidOutcome(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	d.Outcome = "invalid_outcome"
 	prob := d.Validate()
 	if prob == nil {
@@ -72,7 +83,7 @@ func TestDecision_Validate_InvalidOutcome(t *testing.T) {
 }
 
 func TestDecision_Validate_InvalidSeverity(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	d.Severity = "invalid_severity"
 	prob := d.Validate()
 	if prob == nil {
@@ -89,7 +100,7 @@ func TestDecision_Validate_AllOutcomes(t *testing.T) {
 
 	for _, outcome := range outcomes {
 		t.Run(string(outcome), func(t *testing.T) {
-			d := validDecision()
+			d := validDecision(t)
 			d.Outcome = outcome
 			if prob := d.Validate(); prob != nil {
 				t.Fatalf("expected valid outcome %s, got: %s", outcome, prob.Message)
@@ -108,7 +119,7 @@ func TestDecision_Validate_AllSeverities(t *testing.T) {
 
 	for _, sev := range severities {
 		t.Run(string(sev), func(t *testing.T) {
-			d := validDecision()
+			d := validDecision(t)
 			d.Severity = sev
 			if prob := d.Validate(); prob != nil {
 				t.Fatalf("expected valid severity %s, got: %s", sev, prob.Message)
@@ -118,7 +129,7 @@ func TestDecision_Validate_AllSeverities(t *testing.T) {
 }
 
 func TestDecision_Validate_EmptySeverityValid(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	d.Severity = ""
 	if prob := d.Validate(); prob != nil {
 		t.Fatalf("empty severity should be valid (optional), got: %s", prob.Message)
@@ -126,7 +137,7 @@ func TestDecision_Validate_EmptySeverityValid(t *testing.T) {
 }
 
 func TestDecision_PartitionKey(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	key := d.PartitionKey()
 	expected := "binancef.btcusdt.60"
 	if key != expected {
@@ -136,7 +147,7 @@ func TestDecision_PartitionKey(t *testing.T) {
 
 func TestDecision_DeduplicationKey(t *testing.T) {
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
-	d := validDecision()
+	d := validDecision(t)
 	d.Timestamp = ts
 	key := d.DeduplicationKey()
 	// P4.1.11.a: dedup key precision raised to UnixNano (see decision.go doc).
@@ -147,10 +158,10 @@ func TestDecision_DeduplicationKey(t *testing.T) {
 }
 
 func TestDecision_DeduplicationKey_DifferentTimestamps(t *testing.T) {
-	d1 := validDecision()
+	d1 := validDecision(t)
 	d1.Timestamp = time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
-	d2 := validDecision()
+	d2 := validDecision(t)
 	d2.Timestamp = time.Date(2026, 3, 17, 12, 1, 0, 0, time.UTC)
 
 	if d1.DeduplicationKey() == d2.DeduplicationKey() {
@@ -159,10 +170,10 @@ func TestDecision_DeduplicationKey_DifferentTimestamps(t *testing.T) {
 }
 
 func TestDecision_DeduplicationKey_DifferentTypes(t *testing.T) {
-	d1 := validDecision()
+	d1 := validDecision(t)
 	d1.Type = "rsi_oversold"
 
-	d2 := validDecision()
+	d2 := validDecision(t)
 	d2.Type = "macd_crossover"
 
 	if d1.DeduplicationKey() == d2.DeduplicationKey() {
@@ -171,7 +182,7 @@ func TestDecision_DeduplicationKey_DifferentTypes(t *testing.T) {
 }
 
 func TestDecision_NilMetadata(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	d.Metadata = nil
 	if prob := d.Validate(); prob != nil {
 		t.Fatalf("nil metadata should be valid, got: %s", prob.Message)
@@ -179,7 +190,7 @@ func TestDecision_NilMetadata(t *testing.T) {
 }
 
 func TestDecision_NilSignals(t *testing.T) {
-	d := validDecision()
+	d := validDecision(t)
 	d.Signals = nil
 	if prob := d.Validate(); prob != nil {
 		t.Fatalf("nil signals should be valid, got: %s", prob.Message)
@@ -187,11 +198,15 @@ func TestDecision_NilSignals(t *testing.T) {
 }
 
 func TestDecision_MultiSymbolIsolation(t *testing.T) {
-	d1 := validDecision()
-	d1.Symbol = "btcusdt"
+	d1 := validDecision(t)
+	d1.Instrument = btcUSDTPerp(t)
 
-	d2 := validDecision()
-	d2.Symbol = "ethusdt"
+	ethInst, prob := instrument.New("ETH", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup ETH/USDT: %v", prob)
+	}
+	d2 := validDecision(t)
+	d2.Instrument = ethInst
 
 	if d1.PartitionKey() == d2.PartitionKey() {
 		t.Fatal("different symbols must have different partition keys")
@@ -199,10 +214,10 @@ func TestDecision_MultiSymbolIsolation(t *testing.T) {
 }
 
 func TestDecision_TimeframeIsolation(t *testing.T) {
-	d1 := validDecision()
+	d1 := validDecision(t)
 	d1.Timeframe = 60
 
-	d2 := validDecision()
+	d2 := validDecision(t)
 	d2.Timeframe = 300
 
 	if d1.PartitionKey() == d2.PartitionKey() {
@@ -211,50 +226,58 @@ func TestDecision_TimeframeIsolation(t *testing.T) {
 }
 
 func TestDecision_DeduplicationKey_MultiSymbolIsolation(t *testing.T) {
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	bases := []string{"BTC", "ETH", "SOL"}
 	timeframes := []int{60, 300}
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 	keys := make(map[string]bool)
 
-	for _, sym := range symbols {
+	for _, base := range bases {
+		inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup %s/USDT: %v", base, prob)
+		}
 		for _, tf := range timeframes {
-			d := validDecision()
-			d.Symbol = sym
+			d := validDecision(t)
+			d.Instrument = inst
 			d.Timeframe = tf
 			d.Timestamp = ts
 			key := d.DeduplicationKey()
 			if keys[key] {
-				t.Fatalf("deduplication key collision: symbol=%s tf=%d key=%s", sym, tf, key)
+				t.Fatalf("deduplication key collision: base=%s tf=%d key=%s", base, tf, key)
 			}
 			keys[key] = true
 		}
 	}
 
-	expectedCount := len(symbols) * len(timeframes)
+	expectedCount := len(bases) * len(timeframes)
 	if len(keys) != expectedCount {
 		t.Errorf("expected %d unique dedup keys, got %d", expectedCount, len(keys))
 	}
 }
 
 func TestDecision_PartitionKey_MultiSymbolMultiTimeframe(t *testing.T) {
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	bases := []string{"BTC", "ETH", "SOL"}
 	timeframes := []int{60, 300}
 	keys := make(map[string]bool)
 
-	for _, sym := range symbols {
+	for _, base := range bases {
+		inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup %s/USDT: %v", base, prob)
+		}
 		for _, tf := range timeframes {
-			d := validDecision()
-			d.Symbol = sym
+			d := validDecision(t)
+			d.Instrument = inst
 			d.Timeframe = tf
 			key := d.PartitionKey()
 			if keys[key] {
-				t.Fatalf("partition key collision: symbol=%s tf=%d key=%s", sym, tf, key)
+				t.Fatalf("partition key collision: base=%s tf=%d key=%s", base, tf, key)
 			}
 			keys[key] = true
 		}
 	}
 
-	expectedCount := len(symbols) * len(timeframes)
+	expectedCount := len(bases) * len(timeframes)
 	if len(keys) != expectedCount {
 		t.Errorf("expected %d unique partition keys, got %d", expectedCount, len(keys))
 	}

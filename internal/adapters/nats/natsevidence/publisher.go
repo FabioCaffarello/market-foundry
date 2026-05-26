@@ -63,7 +63,7 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Candle.Source,
-		event.Candle.Symbol,
+		event.Candle.VenueSymbol(),
 		event.Candle.Timeframe,
 	)
 
@@ -73,7 +73,7 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 	}
 
 	dedupKey := event.Candle.Source + ":" +
-		event.Candle.Symbol + ":" +
+		event.Candle.VenueSymbol() + ":" +
 		strconv.Itoa(event.Candle.Timeframe) + ":" +
 		strconv.FormatInt(event.Candle.OpenTime.Unix(), 10)
 
@@ -93,7 +93,7 @@ func (p *Publisher) PublishTradeBurst(ctx context.Context, event evidence.TradeB
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.TradeBurst.Source,
-		event.TradeBurst.Symbol,
+		event.TradeBurst.VenueSymbol(),
 		event.TradeBurst.Timeframe,
 	)
 
@@ -103,7 +103,7 @@ func (p *Publisher) PublishTradeBurst(ctx context.Context, event evidence.TradeB
 	}
 
 	dedupKey := "burst:" + event.TradeBurst.Source + ":" +
-		event.TradeBurst.Symbol + ":" +
+		event.TradeBurst.VenueSymbol() + ":" +
 		strconv.Itoa(event.TradeBurst.Timeframe) + ":" +
 		strconv.FormatInt(event.TradeBurst.OpenTime.Unix(), 10)
 
@@ -123,7 +123,7 @@ func (p *Publisher) PublishVolume(ctx context.Context, event evidence.VolumeSamp
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Volume.Source,
-		event.Volume.Symbol,
+		event.Volume.VenueSymbol(),
 		event.Volume.Timeframe,
 	)
 
@@ -133,7 +133,7 @@ func (p *Publisher) PublishVolume(ctx context.Context, event evidence.VolumeSamp
 	}
 
 	dedupKey := "vol:" + event.Volume.Source + ":" +
-		event.Volume.Symbol + ":" +
+		event.Volume.VenueSymbol() + ":" +
 		strconv.Itoa(event.Volume.Timeframe) + ":" +
 		strconv.FormatInt(event.Volume.OpenTime.Unix(), 10)
 

@@ -82,7 +82,7 @@ func (s *CandleKVStore) Put(ctx context.Context, candle evidence.EvidenceCandle)
 		return natskit.PutWritten, problem.New(problem.Unavailable, "candle KV store is unavailable")
 	}
 
-	key := candleKey(candle.Source, candle.Symbol, candle.Timeframe)
+	key := candleKey(candle.Source, candle.VenueSymbol(), candle.Timeframe)
 
 	existing, err := s.kv.Get(ctx, key)
 	if err == nil {
@@ -137,7 +137,7 @@ func (s *CandleKVStore) PutHistory(ctx context.Context, candle evidence.Evidence
 		return problem.New(problem.Unavailable, "candle history KV store is unavailable")
 	}
 
-	key := candleHistoryKey(candle.Source, candle.Symbol, candle.Timeframe, candle.OpenTime)
+	key := candleHistoryKey(candle.Source, candle.VenueSymbol(), candle.Timeframe, candle.OpenTime)
 
 	data, err := json.Marshal(candle)
 	if err != nil {

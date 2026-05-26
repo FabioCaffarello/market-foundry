@@ -89,8 +89,8 @@ func TestRSISignalSamplerActor_AfterWarmup_ProducesSignalAndFansOut(t *testing.T
 	if sig.Source != "binancef" {
 		t.Errorf("signal source: want binancef, got %s", sig.Source)
 	}
-	if sig.Symbol != "btcusdt" {
-		t.Errorf("signal symbol: want btcusdt, got %s", sig.Symbol)
+	if sig.VenueSymbol() != "btcusdt" {
+		t.Errorf("signal symbol: want btcusdt, got %s", sig.VenueSymbol())
 	}
 	if sig.Timeframe != 60 {
 		t.Errorf("signal timeframe: want 60, got %d", sig.Timeframe)

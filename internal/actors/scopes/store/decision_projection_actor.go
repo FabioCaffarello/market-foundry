@@ -107,7 +107,7 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 			"error", prob.Message,
 			"type", dec.Type,
 			"source", dec.Source,
-			"symbol", dec.Symbol,
+			"symbol", dec.VenueSymbol(),
 			"timeframe", dec.Timeframe,
 		)
 		return
@@ -126,7 +126,7 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 			"error", prob.Message,
 			"type", dec.Type,
 			"source", dec.Source,
-			"symbol", dec.Symbol,
+			"symbol", dec.VenueSymbol(),
 			"timeframe", dec.Timeframe,
 		)
 		return
@@ -147,14 +147,14 @@ func (a *DecisionProjectionActor) onDecision(msg decisionReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + dec.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + dec.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("decision materialized",
 			"type", dec.Type,
 			"source", dec.Source,
-			"symbol", dec.Symbol,
+			"symbol", dec.VenueSymbol(),
 			"timeframe", dec.Timeframe,
 			"outcome", string(dec.Outcome),
 			"confidence", dec.Confidence,

@@ -5,16 +5,27 @@ import (
 	"testing"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/signal"
 )
 
-func validSignal() signal.Signal {
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
+func validSignal(t *testing.T) signal.Signal {
+	t.Helper()
 	return signal.Signal{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 300,
-		Value:     "72.45",
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  300,
+		Value:      "72.45",
 		Metadata: map[string]string{
 			"period":   "14",
 			"avg_gain": "0.85",
@@ -26,7 +37,7 @@ func validSignal() signal.Signal {
 }
 
 func TestSignal_Validate(t *testing.T) {
-	s := validSignal()
+	s := validSignal(t)
 	if prob := s.Validate(); prob != nil {
 		t.Fatalf("expected valid signal, got: %v", prob)
 	}
@@ -39,7 +50,10 @@ func TestSignal_Validate_RequiredFields(t *testing.T) {
 	}{
 		{"empty type", func(s signal.Signal) signal.Signal { s.Type = ""; return s }},
 		{"empty source", func(s signal.Signal) signal.Signal { s.Source = ""; return s }},
-		{"empty symbol", func(s signal.Signal) signal.Signal { s.Symbol = ""; return s }},
+		{"zero instrument", func(s signal.Signal) signal.Signal {
+			s.Instrument = instrument.CanonicalInstrument{}
+			return s
+		}},
 		{"zero timeframe", func(s signal.Signal) signal.Signal { s.Timeframe = 0; return s }},
 		{"negative timeframe", func(s signal.Signal) signal.Signal { s.Timeframe = -1; return s }},
 		{"empty value", func(s signal.Signal) signal.Signal { s.Value = ""; return s }},
@@ -48,7 +62,7 @@ func TestSignal_Validate_RequiredFields(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s := tc.mutate(validSignal())
+			s := tc.mutate(validSignal(t))
 			if prob := s.Validate(); prob == nil {
 				t.Fatal("expected validation error")
 			}
@@ -57,7 +71,7 @@ func TestSignal_Validate_RequiredFields(t *testing.T) {
 }
 
 func TestSignal_Validate_NilMetadata(t *testing.T) {
-	s := validSignal()
+	s := validSignal(t)
 	s.Metadata = nil
 	if prob := s.Validate(); prob != nil {
 		t.Fatalf("nil metadata should be valid, got: %v", prob)
@@ -65,7 +79,7 @@ func TestSignal_Validate_NilMetadata(t *testing.T) {
 }
 
 func TestSignal_PartitionKey(t *testing.T) {
-	s := validSignal()
+	s := validSignal(t)
 	got := s.PartitionKey()
 	want := "binancef.btcusdt.300"
 	if got != want {
@@ -75,7 +89,7 @@ func TestSignal_PartitionKey(t *testing.T) {
 
 func TestSignal_DeduplicationKey(t *testing.T) {
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
-	s := validSignal()
+	s := validSignal(t)
 	s.Timestamp = ts
 	got := s.DeduplicationKey()
 	// P4.1.11.a: dedup key precision raised to UnixNano (see signal.go doc).
@@ -87,53 +101,61 @@ func TestSignal_DeduplicationKey(t *testing.T) {
 
 func TestSignal_PartitionKey_MultiSymbolIsolation(t *testing.T) {
 	ts := time.Now().UTC()
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	bases := []string{"BTC", "ETH", "SOL"}
 	keys := make(map[string]string)
 
-	for _, sym := range symbols {
+	for _, base := range bases {
+		inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup %s/USDT: %v", base, prob)
+		}
 		s := signal.Signal{
-			Type:      "rsi",
-			Source:    "binancef",
-			Symbol:    sym,
-			Timeframe: 60,
-			Value:     "55.00",
-			Timestamp: ts,
-			Final:     true,
+			Type:       "rsi",
+			Source:     "binancef",
+			Instrument: inst,
+			Timeframe:  60,
+			Value:      "55.00",
+			Timestamp:  ts,
+			Final:      true,
 		}
 		key := s.PartitionKey()
 		if prev, exists := keys[key]; exists {
-			t.Fatalf("partition key collision: %q used by both %s and %s", key, prev, sym)
+			t.Fatalf("partition key collision: %q used by both %s and %s", key, prev, base)
 		}
-		keys[key] = sym
+		keys[key] = base
 
-		// Verify key contains the symbol
-		want := "binancef." + sym + ".60"
+		// Verify key contains the venue symbol form
+		want := "binancef." + s.VenueSymbol() + ".60"
 		if key != want {
-			t.Errorf("symbol %s: PartitionKey() = %q, want %q", sym, key, want)
+			t.Errorf("base %s: PartitionKey() = %q, want %q", base, key, want)
 		}
 	}
 }
 
 func TestSignal_DeduplicationKey_MultiSymbolIsolation(t *testing.T) {
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
-	symbols := []string{"btcusdt", "ethusdt"}
+	bases := []string{"BTC", "ETH"}
 	keys := make(map[string]string)
 
-	for _, sym := range symbols {
+	for _, base := range bases {
+		inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup %s/USDT: %v", base, prob)
+		}
 		s := signal.Signal{
-			Type:      "rsi",
-			Source:    "binancef",
-			Symbol:    sym,
-			Timeframe: 60,
-			Value:     "55.00",
-			Timestamp: ts,
-			Final:     true,
+			Type:       "rsi",
+			Source:     "binancef",
+			Instrument: inst,
+			Timeframe:  60,
+			Value:      "55.00",
+			Timestamp:  ts,
+			Final:      true,
 		}
 		key := s.DeduplicationKey()
 		if prev, exists := keys[key]; exists {
-			t.Fatalf("dedup key collision: %q used by both %s and %s", key, prev, sym)
+			t.Fatalf("dedup key collision: %q used by both %s and %s", key, prev, base)
 		}
-		keys[key] = sym
+		keys[key] = base
 	}
 }
 
@@ -143,13 +165,13 @@ func TestSignal_PartitionKey_TimeframeIsolation(t *testing.T) {
 
 	for _, tf := range timeframes {
 		s := signal.Signal{
-			Type:      "rsi",
-			Source:    "binancef",
-			Symbol:    "btcusdt",
-			Timeframe: tf,
-			Value:     "55.00",
-			Timestamp: time.Now().UTC(),
-			Final:     true,
+			Type:       "rsi",
+			Source:     "binancef",
+			Instrument: btcUSDTPerp(t),
+			Timeframe:  tf,
+			Value:      "55.00",
+			Timestamp:  time.Now().UTC(),
+			Final:      true,
 		}
 		key := s.PartitionKey()
 		if prev, exists := keys[key]; exists {

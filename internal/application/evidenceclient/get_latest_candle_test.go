@@ -7,8 +7,18 @@ import (
 
 	"internal/application/evidenceclient"
 	"internal/domain/evidence"
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-perpetual: %v", prob)
+	}
+	return inst
+}
 
 type mockEvidenceGateway struct {
 	candle *evidence.EvidenceCandle
@@ -46,7 +56,7 @@ func TestGetLatestCandleUseCase_ReturnsCandle(t *testing.T) {
 	now := time.Now().UTC().Truncate(60 * time.Second)
 	candle := &evidence.EvidenceCandle{
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerp(t),
 		Timeframe:  60,
 		Open:       "100.00",
 		High:       "105.00",

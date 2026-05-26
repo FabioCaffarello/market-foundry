@@ -27,7 +27,7 @@ func validDecision(ts time.Time) decision.Decision {
 	return decision.Decision{
 		Type:       "rsi_oversold",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpForCandleTest(),
 		Timeframe:  60,
 		Outcome:    decision.OutcomeTriggered,
 		Severity:   decision.SeverityLow,

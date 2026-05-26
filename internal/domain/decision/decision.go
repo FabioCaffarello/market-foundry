@@ -2,8 +2,10 @@ package decision
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/shared/problem"
 )
 
@@ -40,19 +42,29 @@ type SignalInput struct {
 
 // Decision represents a discrete, typed evaluation combining signals into a categorical judgment.
 // All decision families share this struct; type-specific fields live in Metadata.
+//
+// Per ADR-0021, the canonical instrument identity is carried in the
+// Instrument field. Migrated from Symbol string in H-6.b.
 type Decision struct {
-	Type       string            `json:"type"`
-	Source     string            `json:"source"`
-	Symbol     string            `json:"symbol"`
-	Timeframe  int               `json:"timeframe"`
-	Outcome    Outcome           `json:"outcome"`
-	Severity   Severity          `json:"severity"`
-	Confidence string            `json:"confidence"`
-	Rationale  string            `json:"rationale"`
-	Signals    []SignalInput     `json:"signals"`
-	Metadata   map[string]string `json:"metadata"`
-	Final      bool              `json:"final"`
-	Timestamp  time.Time         `json:"timestamp"`
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Outcome    Outcome                        `json:"outcome"`
+	Severity   Severity                       `json:"severity"`
+	Confidence string                         `json:"confidence"`
+	Rationale  string                         `json:"rationale"`
+	Signals    []SignalInput                  `json:"signals"`
+	Metadata   map[string]string              `json:"metadata"`
+	Final      bool                           `json:"final"`
+	Timestamp  time.Time                      `json:"timestamp"`
+}
+
+// VenueSymbol returns the lowercase venue-native symbol form.
+//
+// TRANSITORY ADAPTER (H-6.b → sunset H-6.f).
+func (d Decision) VenueSymbol() string {
+	return strings.ToLower(string(d.Instrument.Base) + string(d.Instrument.Quote))
 }
 
 func (d Decision) Validate() *problem.Problem {
@@ -64,8 +76,10 @@ func (d Decision) Validate() *problem.Problem {
 	if d.Source == "" {
 		issues = append(issues, problem.ValidationIssue{Field: "source", Message: "must not be empty"})
 	}
-	if d.Symbol == "" {
-		issues = append(issues, problem.ValidationIssue{Field: "symbol", Message: "must not be empty"})
+	if d.Instrument.IsZero() {
+		issues = append(issues, problem.ValidationIssue{Field: "instrument", Message: "must not be zero"})
+	} else if prob := d.Instrument.Validate(); prob != nil {
+		return prob
 	}
 	if d.Timeframe <= 0 {
 		issues = append(issues, problem.ValidationIssue{Field: "timeframe", Message: "must be a positive integer"})
@@ -96,13 +110,14 @@ func (d Decision) Validate() *problem.Problem {
 	return problem.Validation(problem.InvalidArgument, "decision is invalid", issues...)
 }
 
-// PartitionKey returns the key used for KV bucket entries: "{source}.{symbol}.{timeframe}".
+// PartitionKey returns the key used for KV bucket entries:
+// "{source}.{venuesymbol}.{timeframe}". Preserves H-6.b back-compat.
 func (d Decision) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", d.Source, d.Symbol, d.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", d.Source, d.VenueSymbol(), d.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
 // Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
 func (d Decision) DeduplicationKey() string {
-	return fmt.Sprintf("dec:%s:%s:%s:%d:%d", d.Type, d.Source, d.Symbol, d.Timeframe, d.Timestamp.UnixNano())
+	return fmt.Sprintf("dec:%s:%s:%s:%d:%d", d.Type, d.Source, d.VenueSymbol(), d.Timeframe, d.Timestamp.UnixNano())
 }

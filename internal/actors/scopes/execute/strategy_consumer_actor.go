@@ -114,7 +114,7 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 			"confidence", strat.Confidence,
 			"min_confidence", a.cfg.MinConfidence,
 			"source", strat.Source,
-			"symbol", strat.Symbol,
+			"symbol", strat.VenueSymbol(),
 			"timeframe", strat.Timeframe,
 			"correlation_id", event.Metadata.CorrelationID,
 		)
@@ -131,18 +131,18 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 	}
 
 	// Evaluate via PaperOrderEvaluator with pass-through risk (INV-4).
-	evaluator := appexec.NewPaperOrderEvaluator(strat.Source, strat.Symbol, strat.Timeframe)
+	evaluator := appexec.NewPaperOrderEvaluator(strat.Source, strat.VenueSymbol(), strat.Timeframe)
 	intent, ok := evaluator.Evaluate(
-		"pass_through",                 // riskType — INV-4: explicit pass-through marker
-		"approved",                     // riskDisposition — INV-4: auto-approved
-		strat.Confidence,               // riskConfidence — from strategy
-		a.maxPositionPct(),             // maxPositionPct — configurable
-		string(strat.Direction),        // strategyDirection
-		strat.Confidence,               // strategyConfidence
-		strat.Type,                     // strategyType — INV-1
-		decisionSeverity,               // decisionSeverity
-		strat.Timeframe,                // riskTimeframe
-		strat.Timestamp,                // ts — INV-5: strategy timestamp, NOT time.Now()
+		"pass_through",          // riskType — INV-4: explicit pass-through marker
+		"approved",              // riskDisposition — INV-4: auto-approved
+		strat.Confidence,        // riskConfidence — from strategy
+		a.maxPositionPct(),      // maxPositionPct — configurable
+		string(strat.Direction), // strategyDirection
+		strat.Confidence,        // strategyConfidence
+		strat.Type,              // strategyType — INV-1
+		decisionSeverity,        // decisionSeverity
+		strat.Timeframe,         // riskTimeframe
+		strat.Timestamp,         // ts — INV-5: strategy timestamp, NOT time.Now()
 	)
 	if !ok {
 		if tracker != nil {
@@ -151,7 +151,7 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 		metrics.IncStrategyEvaluation(strat.Type, "error")
 		a.logger.Error("strategy evaluation failed",
 			"source", strat.Source,
-			"symbol", strat.Symbol,
+			"symbol", strat.VenueSymbol(),
 			"timeframe", strat.Timeframe,
 			"direction", string(strat.Direction),
 			"correlation_id", event.Metadata.CorrelationID,
@@ -198,7 +198,7 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 
 	a.logger.Info("strategy event evaluated",
 		"source", strat.Source,
-		"symbol", strat.Symbol,
+		"symbol", strat.VenueSymbol(),
 		"timeframe", strat.Timeframe,
 		"direction", string(strat.Direction),
 		"side", string(intent.Side),
@@ -256,4 +256,3 @@ func (a *StrategyConsumerActor) logStats() {
 		"errors", tracker.ErrorCount(),
 	)
 }
-

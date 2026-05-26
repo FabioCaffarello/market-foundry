@@ -24,8 +24,8 @@ func TestRSIOversoldEvaluator_Triggered(t *testing.T) {
 	if d.Type != "rsi_oversold" {
 		t.Fatalf("expected type rsi_oversold, got %s", d.Type)
 	}
-	if d.Source != "binancef" || d.Symbol != "btcusdt" || d.Timeframe != 60 {
-		t.Fatalf("unexpected partition: %s/%s/%d", d.Source, d.Symbol, d.Timeframe)
+	if d.Source != "binancef" || d.VenueSymbol() != "btcusdt" || d.Timeframe != 60 {
+		t.Fatalf("unexpected partition: %s/%s/%d", d.Source, d.VenueSymbol(), d.Timeframe)
 	}
 	if !d.Final {
 		t.Fatal("expected final=true")

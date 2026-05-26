@@ -15,11 +15,11 @@ import (
 
 // StrategyResolverConfig holds the configuration for a strategy resolver actor.
 type StrategyResolverConfig struct {
-	Source              string
-	Symbol              string
-	Timeframe           time.Duration
+	Source               string
+	Symbol               string
+	Timeframe            time.Duration
 	StrategyPublisherPID *actor.PID
-	ScopePID            *actor.PID // for fan-out to risk evaluators
+	ScopePID             *actor.PID // for fan-out to risk evaluators
 }
 
 // MeanReversionEntryResolverActor owns a MeanReversionEntryResolver and publishes finalized strategies.
@@ -100,7 +100,7 @@ func (a *MeanReversionEntryResolverActor) onDecisionEvaluated(c *actor.Context, 
 			decRationale = strat.Decisions[0].Rationale
 		}
 		c.Send(a.cfg.ScopePID, strategyResolvedMessage{
-			Symbol:             strat.Symbol,
+			Symbol:             strat.VenueSymbol(),
 			StrategyType:       strat.Type,
 			StrategyDirection:  string(strat.Direction),
 			StrategyConfidence: strat.Confidence,
