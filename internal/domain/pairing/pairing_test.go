@@ -8,14 +8,43 @@ import (
 	"internal/domain/instrument"
 )
 
-func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
-	t.Helper()
+// Package-level test fixtures for canonical instruments. Constructed
+// once at init via IIFE; panic on invalid setup mirrors the precedent
+// in get_composite_chain_test.go (fullChainBTC). Vars (not functions)
+// because they are referenced from many call sites — including helper
+// builders like makeLeg — and propagating *testing.T everywhere would
+// be churn without benefit.
+
+// btcUSDTPerp is the canonical BTC/USDT-perpetual instrument.
+var btcUSDTPerp = func() instrument.CanonicalInstrument {
 	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
 	if prob != nil {
-		t.Fatalf("setup: %v", prob)
+		panic("test setup: BTC/USDT-perpetual: " + prob.Message)
 	}
 	return inst
-}
+}()
+
+// btcUSDTSpot is the canonical BTC/USDT-spot instrument. Used by Leg
+// fixtures whose Source is "binance_spot" — the contract type matches
+// the source segment for semantic consistency.
+var btcUSDTSpot = func() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		panic("test setup: BTC/USDT-spot: " + prob.Message)
+	}
+	return inst
+}()
+
+// ethUSDTSpot is the canonical ETH/USDT-spot instrument. Used by Leg
+// fixtures that need a Base-different instrument to exercise the M1
+// invariant (entry.Instrument != exit.Instrument).
+var ethUSDTSpot = func() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("ETH", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		panic("test setup: ETH/USDT-spot: " + prob.Message)
+	}
+	return inst
+}()
 
 // --- Type validation tests ---
 
@@ -103,7 +132,7 @@ func TestIntentToLeg_AggregatesMultipleFills(t *testing.T) {
 	intent := execution.ExecutionIntent{
 		Type:       "market",
 		Source:     "binance_spot",
-		Instrument: btcUSDTPerp(t),
+		Instrument: btcUSDTPerp,
 		Timeframe:  60,
 		Side:       execution.SideBuy,
 		Quantity:   "0.1",
@@ -135,7 +164,7 @@ func TestIntentToLeg_NoFillsFallback(t *testing.T) {
 	intent := execution.ExecutionIntent{
 		Type:       "market",
 		Source:     "binance_spot",
-		Instrument: btcUSDTPerp(t),
+		Instrument: btcUSDTPerp,
 		Timeframe:  60,
 		Side:       execution.SideBuy,
 		Quantity:   "0.1",
@@ -207,8 +236,12 @@ func TestMatchFIFO_PerfectPair(t *testing.T) {
 	if rts[0].MatchedQuantity != formatFloat(0.1) {
 		t.Errorf("matched_quantity=%s, want 0.10000000", rts[0].MatchedQuantity)
 	}
-	if rts[0].Symbol != "BTCUSDT" {
-		t.Errorf("symbol=%s, want BTCUSDT", rts[0].Symbol)
+	// VenueSymbol() returns lowercase venue-native form per the
+	// migrated Leg.Instrument bridge (commit 2 of H-6.b''). The
+	// RoundTrip.Symbol field is still a string in commit 2 — it
+	// migrates to Instrument in commit 3.
+	if rts[0].Symbol != "btcusdt" {
+		t.Errorf("symbol=%s, want btcusdt", rts[0].Symbol)
 	}
 }
 
@@ -244,15 +277,18 @@ func TestMatchFIFO_TemporalOrderingEnforced(t *testing.T) {
 	}
 }
 
-func TestMatchFIFO_DifferentSymbolsDoNotPair(t *testing.T) {
+func TestMatchFIFO_DifferentInstrumentsDoNotPair(t *testing.T) {
 	entry := makeLeg(LegEntry, execution.SideBuy, "0.1", "5000.00", t0)
 	exit := makeLeg(LegExit, execution.SideSell, "0.1", "5100.00", t0.Add(time.Minute))
-	exit.Symbol = "ETHUSDT"
+	// M1 invariant (ADR-0021): pairing requires equal canonical
+	// instrument identity. Mutating exit.Instrument to a different
+	// base (ETH vs BTC) must prevent pairing.
+	exit.Instrument = ethUSDTSpot
 
 	rts := MatchFIFO([]Leg{entry, exit}, DefaultMatchingConfig())
 	for _, rt := range rts {
 		if rt.State == StatePaired {
-			t.Error("different symbols should not pair")
+			t.Error("different instruments should not pair")
 		}
 	}
 }
@@ -434,7 +470,7 @@ func makeIntent(t *testing.T, side execution.Side, price, qty, fee, costBasis st
 	return execution.ExecutionIntent{
 		Type:       "market",
 		Source:     "binance_spot",
-		Instrument: btcUSDTPerp(t),
+		Instrument: btcUSDTSpot,
 		Timeframe:  60,
 		Side:       side,
 		Quantity:   qty,
@@ -450,15 +486,15 @@ func makeIntent(t *testing.T, side execution.Side, price, qty, fee, costBasis st
 
 func makeLeg(dir LegDirection, side execution.Side, qty, costBasis string, ts time.Time) Leg {
 	return Leg{
-		Direction: dir,
-		Side:      side,
-		Symbol:    "BTCUSDT",
-		Source:    "binance_spot",
-		Timeframe: 60,
-		Quantity:  qty,
-		Price:     "50000.00",
-		Fee:       "0.50",
-		CostBasis: costBasis,
-		Timestamp: ts,
+		Direction:  dir,
+		Side:       side,
+		Instrument: btcUSDTSpot,
+		Source:     "binance_spot",
+		Timeframe:  60,
+		Quantity:   qty,
+		Price:      "50000.00",
+		Fee:        "0.50",
+		CostBasis:  costBasis,
+		Timestamp:  ts,
 	}
 }

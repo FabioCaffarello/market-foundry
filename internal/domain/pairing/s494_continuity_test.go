@@ -534,7 +534,7 @@ func makeFilledIntent(t *testing.T, side execution.Side, price, qty string) exec
 	return execution.ExecutionIntent{
 		Type:       "venue_market_order",
 		Source:     "binance_spot",
-		Instrument: btcUSDTPerp(t),
+		Instrument: btcUSDTSpot,
 		Timeframe:  60,
 		Side:       side,
 		Quantity:   qty,

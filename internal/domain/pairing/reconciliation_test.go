@@ -10,11 +10,11 @@ import (
 func TestReconcileRoundTrip_CleanPair(t *testing.T) {
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Price: "50000.00", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5000.00",
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Price: "51000.00", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 		},
 		State:           StatePaired,
@@ -46,11 +46,11 @@ func TestReconcileRoundTrip_CleanPair(t *testing.T) {
 func TestReconcileRoundTrip_FeeGap(t *testing.T) {
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_futures",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTPerp, Source: "binance_futures",
 			Quantity: "0.1", Price: "50000.00", Fee: "0", CostBasis: "5000.00",
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_futures",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTPerp, Source: "binance_futures",
 			Quantity: "0.1", Price: "51000.00", Fee: "0", CostBasis: "5100.00",
 		},
 		State:  StatePaired,
@@ -75,11 +75,11 @@ func TestReconcileRoundTrip_FeeGap(t *testing.T) {
 func TestReconcileRoundTrip_CostBasisZero(t *testing.T) {
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Price: "0", Fee: "0", CostBasis: "0",
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Price: "0", Fee: "0", CostBasis: "0",
 		},
 		State:  StatePaired,
@@ -175,12 +175,12 @@ func TestReconcileRoundTrip_FuturesFeeSourceUnavailableIsReliable(t *testing.T) 
 	// because the system knows why fee=0 — it's an expected API limitation.
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_futures",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTPerp, Source: "binance_futures",
 			Quantity: "0.1", Price: "50000.00", Fee: "0", CostBasis: "5000.00",
 			FeeSource: execution.FeeSourceUnavailable,
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_futures",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTPerp, Source: "binance_futures",
 			Quantity: "0.1", Price: "51000.00", Fee: "0", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceUnavailable,
 		},
@@ -205,12 +205,12 @@ func TestReconcileRoundTrip_FeeRatioAnomaly(t *testing.T) {
 	// Fee = 600 on cost_basis = 5000 → 12% ratio → anomaly.
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "600.00", FeeAsset: "USDT", CostBasis: "5000.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
@@ -231,12 +231,12 @@ func TestReconcileRoundTrip_FeeRatioNormal(t *testing.T) {
 	// Fee = 0.50 on cost_basis = 5000 → 0.01% → normal.
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5000.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
@@ -257,12 +257,12 @@ func TestReconcileRoundTrip_FeeSourceFallback(t *testing.T) {
 	// A leg with FeeSource=fallback should trigger the flag.
 	rt := RoundTrip{
 		Entry: &Leg{
-			Direction: LegEntry, Side: execution.SideBuy, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegEntry, Side: execution.SideBuy, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "0", CostBasis: "5000.00",
 			FeeSource: execution.FeeSourceFallback,
 		},
 		Exit: &Leg{
-			Direction: LegExit, Side: execution.SideSell, Symbol: "BTCUSDT", Source: "binance_spot",
+			Direction: LegExit, Side: execution.SideSell, Instrument: btcUSDTSpot, Source: "binance_spot",
 			Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5100.00",
 			FeeSource: execution.FeeSourceVenue,
 		},
