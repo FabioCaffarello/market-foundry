@@ -268,11 +268,11 @@ func TestS303_OBS3_CausalMetadataIntegrity(t *testing.T) {
 			if chain.Decision.VenueSymbol() != sym {
 				t.Errorf("decision.symbol=%q, want %q", chain.Decision.VenueSymbol(), sym)
 			}
-			if chain.Strategy.Symbol != sym {
-				t.Errorf("strategy.symbol=%q, want %q", chain.Strategy.Symbol, sym)
+			if chain.Strategy.VenueSymbol() != sym {
+				t.Errorf("strategy.symbol=%q, want %q", chain.Strategy.VenueSymbol(), sym)
 			}
-			if chain.Risk.Symbol != sym {
-				t.Errorf("risk.symbol=%q, want %q", chain.Risk.Symbol, sym)
+			if chain.Risk.VenueSymbol() != sym {
+				t.Errorf("risk.symbol=%q, want %q", chain.Risk.VenueSymbol(), sym)
 			}
 			if chain.Execution.Symbol != sym {
 				t.Errorf("execution.symbol=%q, want %q", chain.Execution.Symbol, sym)
@@ -571,14 +571,14 @@ func buildS303DetailedChain(corrID, symbol, disposition, rationale, severity, di
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: stratType, Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: stratType, Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Direction: strategy.Direction(dir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Disposition: risk.Disposition(disposition), Confidence: "0.75", Rationale: rationale,
 				Constraints: risk.Constraints{MaxPositionSize: maxPos, MaxExposure: maxExp},
 				Strategies: []risk.StrategyInput{{

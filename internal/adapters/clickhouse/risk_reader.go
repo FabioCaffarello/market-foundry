@@ -72,10 +72,17 @@ func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source, sym
 			return nil, fmt.Errorf("scan risk row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("risk instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		assessments = append(assessments, risk.RiskAssessment{
 			Type:        typ,
 			Source:      src,
-			Symbol:      sym,
+			Instrument:  inst,
 			Timeframe:   int(tf),
 			Disposition: risk.Disposition(disp),
 			Confidence:  FormatFloat(confidence),

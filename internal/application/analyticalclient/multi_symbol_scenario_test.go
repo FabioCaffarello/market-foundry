@@ -68,14 +68,14 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: sc.StrategyType, Source: "binancef", Symbol: sc.Symbol, Timeframe: 60,
+				Type: sc.StrategyType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
 				Direction: strategy.Direction(sc.StrategyDir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: sc.Symbol, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
 				Disposition: risk.Disposition(sc.RiskDisp), Confidence: "0.75", Rationale: sc.RiskRationale,
 				Constraints: risk.Constraints{MaxPositionSize: sc.MaxPosPct, MaxExposure: sc.MaxExposure},
 				Strategies: []risk.StrategyInput{{
@@ -185,11 +185,11 @@ func TestS302_SC1_SimultaneousApprovedChains(t *testing.T) {
 			if chain.Decision.VenueSymbol() != sym {
 				t.Errorf("[%s] decision.symbol=%q", sym, chain.Decision.VenueSymbol())
 			}
-			if chain.Strategy.Symbol != sym {
-				t.Errorf("[%s] strategy.symbol=%q", sym, chain.Strategy.Symbol)
+			if chain.Strategy.VenueSymbol() != sym {
+				t.Errorf("[%s] strategy.symbol=%q", sym, chain.Strategy.VenueSymbol())
 			}
-			if chain.Risk.Symbol != sym {
-				t.Errorf("[%s] risk.symbol=%q", sym, chain.Risk.Symbol)
+			if chain.Risk.VenueSymbol() != sym {
+				t.Errorf("[%s] risk.symbol=%q", sym, chain.Risk.VenueSymbol())
 			}
 			if chain.Execution.Symbol != sym {
 				t.Errorf("[%s] execution.symbol=%q", sym, chain.Execution.Symbol)

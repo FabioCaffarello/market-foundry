@@ -5,18 +5,38 @@ import (
 	"testing"
 	"time"
 
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 )
+
+func btcUSDTPerpInst(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
+func mustInstrument(t *testing.T, base, quote string) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New(base, quote, instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // S367: Read-path verification — KV round-trip field preservation.
 // These tests prove that JSON serialization/deserialization (the format used
 // by KVStore.Put / KVStore.Get) preserves all strategy fields without loss.
 
-func referenceStrategy(ts time.Time) strategy.Strategy {
+func referenceStrategy(t *testing.T, ts time.Time) strategy.Strategy {
+	t.Helper()
 	return strategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpInst(t),
 		Timeframe:  60,
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.8500",
@@ -45,7 +65,7 @@ func referenceStrategy(ts time.Time) strategy.Strategy {
 
 func TestKVRoundTrip_AllFieldsPreserved(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	original := referenceStrategy(now)
+	original := referenceStrategy(t, now)
 
 	data, err := json.Marshal(original)
 	if err != nil {
@@ -64,8 +84,8 @@ func TestKVRoundTrip_AllFieldsPreserved(t *testing.T) {
 	if restored.Source != original.Source {
 		t.Errorf("source: want %q, got %q", original.Source, restored.Source)
 	}
-	if restored.Symbol != original.Symbol {
-		t.Errorf("symbol: want %q, got %q", original.Symbol, restored.Symbol)
+	if restored.VenueSymbol() != original.VenueSymbol() {
+		t.Errorf("symbol: want %q, got %q", original.VenueSymbol(), restored.VenueSymbol())
 	}
 	if restored.Timeframe != original.Timeframe {
 		t.Errorf("timeframe: want %d, got %d", original.Timeframe, restored.Timeframe)
@@ -113,7 +133,7 @@ func TestKVRoundTrip_AllFieldsPreserved(t *testing.T) {
 
 func TestKVRoundTrip_PartitionKeyStable(t *testing.T) {
 	now := time.Now().UTC()
-	original := referenceStrategy(now)
+	original := referenceStrategy(t, now)
 
 	data, err := json.Marshal(original)
 	if err != nil {
@@ -132,7 +152,7 @@ func TestKVRoundTrip_PartitionKeyStable(t *testing.T) {
 
 func TestKVRoundTrip_DeduplicationKeyStable(t *testing.T) {
 	now := time.Now().UTC()
-	original := referenceStrategy(now)
+	original := referenceStrategy(t, now)
 
 	data, err := json.Marshal(original)
 	if err != nil {
@@ -151,7 +171,7 @@ func TestKVRoundTrip_DeduplicationKeyStable(t *testing.T) {
 
 func TestKVRoundTrip_ValidationSurvives(t *testing.T) {
 	now := time.Now().UTC()
-	original := referenceStrategy(now)
+	original := referenceStrategy(t, now)
 
 	data, err := json.Marshal(original)
 	if err != nil {
@@ -171,21 +191,25 @@ func TestKVRoundTrip_ValidationSurvives(t *testing.T) {
 func TestKVRoundTrip_MultiSymbolIsolation(t *testing.T) {
 	now := time.Now().UTC()
 
-	symbols := []string{"btcusdt", "ethusdt", "solusdt"}
+	insts := []instrument.CanonicalInstrument{
+		mustInstrument(t, "BTC", "USDT"),
+		mustInstrument(t, "ETH", "USDT"),
+		mustInstrument(t, "SOL", "USDT"),
+	}
 	stored := make(map[string][]byte)
 
-	for _, sym := range symbols {
-		strat := referenceStrategy(now)
-		strat.Symbol = sym
+	for _, inst := range insts {
+		strat := referenceStrategy(t, now)
+		strat.Instrument = inst
 		data, err := json.Marshal(strat)
 		if err != nil {
-			t.Fatalf("marshal %s: %v", sym, err)
+			t.Fatalf("marshal %s: %v", strat.VenueSymbol(), err)
 		}
 		stored[strat.PartitionKey()] = data
 	}
 
-	if len(stored) != len(symbols) {
-		t.Fatalf("expected %d partition keys, got %d", len(symbols), len(stored))
+	if len(stored) != len(insts) {
+		t.Fatalf("expected %d partition keys, got %d", len(insts), len(stored))
 	}
 
 	// Verify each entry restores to its own symbol.
@@ -205,7 +229,7 @@ func TestKVRoundTrip_EventMetadataNotPersisted(t *testing.T) {
 	// Event metadata (correlation_id, causation_id) is NOT in the KV payload.
 	// This test documents the gap explicitly.
 	now := time.Now().UTC()
-	strat := referenceStrategy(now)
+	strat := referenceStrategy(t, now)
 
 	data, err := json.Marshal(strat)
 	if err != nil {

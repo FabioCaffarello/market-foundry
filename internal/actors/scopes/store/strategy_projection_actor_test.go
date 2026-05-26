@@ -7,10 +7,30 @@ import (
 	"time"
 
 	"internal/adapters/nats/natskit"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/shared/healthz"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerpStrategy() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: " + prob.Message)
+	}
+	return inst
+}
+
+func instrumentForVenueStrategy(venueSym string) instrument.CanonicalInstrument {
+	// venueSym is like "btcusdt", "ethusdt", "solusdt" — split into 3+4 chars.
+	base := venueSym[:len(venueSym)-4]
+	quote := venueSym[len(venueSym)-4:]
+	inst, prob := instrument.New(base, quote, instrument.ContractPerpetual)
+	if prob != nil {
+		panic("test setup: " + prob.Message)
+	}
+	return inst
+}
 
 type mockStrategyStore struct {
 	putResult  natskit.PutResult
@@ -27,7 +47,7 @@ func validStrategy(ts time.Time) strategy.Strategy {
 	return strategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     "binancef",
-		Symbol:     "btcusdt",
+		Instrument: btcUSDTPerpStrategy(),
 		Timeframe:  60,
 		Direction:  strategy.DirectionLong,
 		Confidence: "0.85",
@@ -223,7 +243,7 @@ func TestStrategyProjection_MultiSymbol_IndependentMaterialization(t *testing.T)
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			strat := validStrategy(now.Add(time.Duration(eventCount) * time.Minute))
-			strat.Symbol = sym
+			strat.Instrument = instrumentForVenueStrategy(sym)
 			strat.Timeframe = tf
 			a.onStrategy(strategyReceivedMessage{Event: strategy.StrategyResolvedEvent{Strategy: strat}})
 			eventCount++
@@ -256,7 +276,7 @@ func TestStrategyProjection_MultiSymbol_NoBleed_PartitionKeys(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			strat := validStrategy(now)
-			strat.Symbol = sym
+			strat.Instrument = instrumentForVenueStrategy(sym)
 			strat.Timeframe = tf
 			key := strat.PartitionKey()
 			if existing, collision := keys[key]; collision {
@@ -280,7 +300,7 @@ func TestStrategyProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 
 	for _, sym := range symbols {
 		strat := validStrategy(ts)
-		strat.Symbol = sym
+		strat.Instrument = instrumentForVenueStrategy(sym)
 		key := strat.DeduplicationKey()
 		if existing, collision := dedupKeys[key]; collision {
 			t.Fatalf("dedup key collision: %q used by both %q and %q", key, existing, sym)

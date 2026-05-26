@@ -121,8 +121,8 @@ func TestS304_RX1_RiskExecutionCoherence(t *testing.T) {
 			if ch.Signal.VenueSymbol() != p.symbol {
 				t.Errorf("signal.symbol=%q", ch.Signal.VenueSymbol())
 			}
-			if ch.Risk.Symbol != p.symbol {
-				t.Errorf("risk.symbol=%q", ch.Risk.Symbol)
+			if ch.Risk.VenueSymbol() != p.symbol {
+				t.Errorf("risk.symbol=%q", ch.Risk.VenueSymbol())
 			}
 
 			// Risk constraints.
@@ -459,14 +459,14 @@ func buildS304DetailedChain(corrID, symbol, disposition, rationale, stratType, s
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: stratType, Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: stratType, Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Direction: strategy.Direction(dir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Symbol: symbol, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(symbol), Timeframe: 60,
 				Disposition: risk.Disposition(disposition), Confidence: "0.72", Rationale: rationale,
 				Constraints: risk.Constraints{MaxPositionSize: maxPos, MaxExposure: maxExp},
 				Strategies: []risk.StrategyInput{{

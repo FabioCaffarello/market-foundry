@@ -299,11 +299,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan strategy: %w", err)
 	}
 
+	stratInst, _ := reconstructInstrumentFromLegacy(src, sym)
 	return &analyticalclient.StrategyWithTrace{
 		Strategy: strategy.Strategy{
 			Type:       typ,
 			Source:     src,
-			Symbol:     sym,
+			Instrument: stratInst,
 			Timeframe:  int(tf),
 			Direction:  strategy.Direction(dir),
 			Confidence: FormatFloat(confidence),
@@ -356,11 +357,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan risk: %w", err)
 	}
 
+	riskInst, _ := reconstructInstrumentFromLegacy(src, sym)
 	return &analyticalclient.RiskWithTrace{
 		RiskAssessment: risk.RiskAssessment{
 			Type:        typ,
 			Source:      src,
-			Symbol:      sym,
+			Instrument:  riskInst,
 			Timeframe:   int(tf),
 			Disposition: risk.Disposition(disp),
 			Confidence:  FormatFloat(confidence),

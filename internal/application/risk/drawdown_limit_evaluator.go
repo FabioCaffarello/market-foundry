@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	domainrisk "internal/domain/risk"
 )
 
@@ -25,6 +26,7 @@ const (
 type DrawdownLimitEvaluator struct {
 	source          string
 	symbol          string
+	instrument      instrument.CanonicalInstrument
 	timeframe       int
 	maxDrawdownPct  float64
 	stopDistancePct float64
@@ -34,6 +36,7 @@ func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLi
 	return &DrawdownLimitEvaluator{
 		source:          source,
 		symbol:          symbol,
+		instrument:      instrumentFromBinding(source, symbol),
 		timeframe:       timeframe,
 		maxDrawdownPct:  defaultMaxDrawdownPct,
 		stopDistancePct: defaultStopDistancePct,
@@ -76,8 +79,8 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 	effectiveMaxDrawdown := e.maxDrawdownPct * sevFactor
 
 	baseParams := map[string]string{
-		"max_drawdown_pct":           fmt.Sprintf("%.4f", e.maxDrawdownPct),
-		"stop_distance_pct":          fmt.Sprintf("%.4f", e.stopDistancePct),
+		"max_drawdown_pct":            fmt.Sprintf("%.4f", e.maxDrawdownPct),
+		"stop_distance_pct":           fmt.Sprintf("%.4f", e.stopDistancePct),
 		"effective_stop_distance_pct": fmt.Sprintf("%.4f", effectiveStopBase),
 		"effective_max_drawdown_pct":  fmt.Sprintf("%.4f", effectiveMaxDrawdown),
 		"confidence_factor":           fmt.Sprintf("%.2f", confidenceFactor),
@@ -90,7 +93,7 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 		return domainrisk.RiskAssessment{
 			Type:        "drawdown_limit",
 			Source:      e.source,
-			Symbol:      e.symbol,
+			Instrument:  e.instrument,
 			Timeframe:   e.timeframe,
 			Disposition: domainrisk.DispositionApproved,
 			Confidence:  "1.0000",
@@ -119,7 +122,7 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 		return domainrisk.RiskAssessment{
 			Type:        "drawdown_limit",
 			Source:      e.source,
-			Symbol:      e.symbol,
+			Instrument:  e.instrument,
 			Timeframe:   e.timeframe,
 			Disposition: domainrisk.DispositionRejected,
 			Confidence:  "0.0000",
@@ -171,7 +174,7 @@ func (e *DrawdownLimitEvaluator) Evaluate(
 	return domainrisk.RiskAssessment{
 		Type:        "drawdown_limit",
 		Source:      e.source,
-		Symbol:      e.symbol,
+		Instrument:  e.instrument,
 		Timeframe:   e.timeframe,
 		Disposition: disposition,
 		Confidence:  riskConfidence,

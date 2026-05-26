@@ -227,8 +227,8 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 		for _, tf := range timeframes {
 			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
 			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
-			if r.Symbol != sym {
-				t.Errorf("expected symbol %s, got %s", sym, r.Symbol)
+			if r.VenueSymbol() != sym {
+				t.Errorf("expected symbol %s, got %s", sym, r.VenueSymbol())
 			}
 			if r.Timeframe != tf {
 				t.Errorf("expected timeframe %d, got %d", tf, r.Timeframe)
@@ -256,14 +256,14 @@ func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 	}
 
 	// Verify symbol isolation
-	if rBTC.Symbol == rETH.Symbol {
+	if rBTC.VenueSymbol() == rETH.VenueSymbol() {
 		t.Fatal("symbols should differ between evaluators")
 	}
-	if rBTC.Symbol != "btcusdt" {
-		t.Errorf("BTC symbol bleed: got %s", rBTC.Symbol)
+	if rBTC.VenueSymbol() != "btcusdt" {
+		t.Errorf("BTC symbol bleed: got %s", rBTC.VenueSymbol())
 	}
-	if rETH.Symbol != "ethusdt" {
-		t.Errorf("ETH symbol bleed: got %s", rETH.Symbol)
+	if rETH.VenueSymbol() != "ethusdt" {
+		t.Errorf("ETH symbol bleed: got %s", rETH.VenueSymbol())
 	}
 
 	// Verify partition key isolation

@@ -313,7 +313,7 @@ func buildChainSnapshot(chain *CompositeExecutionChain) consistency.ChainSnapsho
 		snap.HasStrategy = true
 		snap.StrategyDirection = string(st.Direction)
 		snap.StrategyConfidence = st.Confidence
-		snap.StrategySymbol = st.Symbol
+		snap.StrategySymbol = st.VenueSymbol()
 		snap.StrategySource = st.Source
 		snap.StrategyTimeframe = st.Timeframe
 	}
@@ -323,7 +323,7 @@ func buildChainSnapshot(chain *CompositeExecutionChain) consistency.ChainSnapsho
 		snap.HasRisk = true
 		snap.RiskDisposition = string(r.Disposition)
 		snap.RiskConfidence = r.Confidence
-		snap.RiskSymbol = r.Symbol
+		snap.RiskSymbol = r.VenueSymbol()
 		snap.RiskSource = r.Source
 		snap.RiskTimeframe = r.Timeframe
 		if len(r.Strategies) > 0 {

@@ -70,10 +70,17 @@ func (r *StrategyReader) QueryStrategyHistory(ctx context.Context, strategyType,
 			return nil, fmt.Errorf("scan strategy row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("strategy instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		strategies = append(strategies, strategy.Strategy{
 			Type:       typ,
 			Source:     src,
-			Symbol:     sym,
+			Instrument: inst,
 			Timeframe:  int(tf),
 			Direction:  strategy.Direction(dir),
 			Confidence: FormatFloat(confidence),

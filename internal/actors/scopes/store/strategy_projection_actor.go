@@ -107,7 +107,7 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 			"error", prob.Message,
 			"type", strat.Type,
 			"source", strat.Source,
-			"symbol", strat.Symbol,
+			"symbol", strat.VenueSymbol(),
 			"timeframe", strat.Timeframe,
 		)
 		return
@@ -126,7 +126,7 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 			"error", prob.Message,
 			"type", strat.Type,
 			"source", strat.Source,
-			"symbol", strat.Symbol,
+			"symbol", strat.VenueSymbol(),
 			"timeframe", strat.Timeframe,
 		)
 		return
@@ -147,14 +147,14 @@ func (a *StrategyProjectionActor) onStrategy(msg strategyReceivedMessage) {
 
 	if a.cfg.Tracker != nil {
 		a.cfg.Tracker.RecordEvent()
-		a.cfg.Tracker.Counter("materialized:" + strat.Symbol).Add(1)
+		a.cfg.Tracker.Counter("materialized:" + strat.VenueSymbol()).Add(1)
 	}
 
 	if result == natskit.PutWritten {
 		a.logger.Info("strategy materialized",
 			"type", strat.Type,
 			"source", strat.Source,
-			"symbol", strat.Symbol,
+			"symbol", strat.VenueSymbol(),
 			"timeframe", strat.Timeframe,
 			"direction", string(strat.Direction),
 			"confidence", strat.Confidence,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"internal/domain/instrument"
 	domainstrategy "internal/domain/strategy"
 )
 
@@ -48,16 +49,18 @@ var meanReversionStopMultiplier = map[string]float64{
 //	This produces strategies that are more aggressive on strong signals and
 //	more cautious on weak signals, reflecting the decision's conviction level.
 type MeanReversionEntryResolver struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 }
 
 func NewMeanReversionEntryResolver(source, symbol string, timeframe int) *MeanReversionEntryResolver {
 	return &MeanReversionEntryResolver{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
 	}
 }
 
@@ -136,7 +139,7 @@ func (r *MeanReversionEntryResolver) Resolve(
 	return domainstrategy.Strategy{
 		Type:       "mean_reversion_entry",
 		Source:     r.source,
-		Symbol:     r.symbol,
+		Instrument: r.instrument,
 		Timeframe:  r.timeframe,
 		Direction:  direction,
 		Confidence: confidence,

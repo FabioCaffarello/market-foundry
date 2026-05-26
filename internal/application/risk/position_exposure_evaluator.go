@@ -5,11 +5,12 @@ import (
 	"strconv"
 	"time"
 
+	"internal/domain/instrument"
 	domainrisk "internal/domain/risk"
 )
 
 const (
-	defaultMaxPositionPct         = 0.02
+	defaultMaxPositionPct          = 0.02
 	defaultMaxPortfolioExposurePct = 0.10
 )
 
@@ -24,6 +25,7 @@ const (
 type PositionExposureEvaluator struct {
 	source                  string
 	symbol                  string
+	instrument              instrument.CanonicalInstrument
 	timeframe               int
 	maxPositionPct          float64
 	maxPortfolioExposurePct float64
@@ -33,6 +35,7 @@ func NewPositionExposureEvaluator(source, symbol string, timeframe int) *Positio
 	return &PositionExposureEvaluator{
 		source:                  source,
 		symbol:                  symbol,
+		instrument:              instrumentFromBinding(source, symbol),
 		timeframe:               timeframe,
 		maxPositionPct:          defaultMaxPositionPct,
 		maxPortfolioExposurePct: defaultMaxPortfolioExposurePct,
@@ -83,7 +86,7 @@ func (e *PositionExposureEvaluator) Evaluate(
 		return domainrisk.RiskAssessment{
 			Type:        "position_exposure",
 			Source:      e.source,
-			Symbol:      e.symbol,
+			Instrument:  e.instrument,
 			Timeframe:   e.timeframe,
 			Disposition: domainrisk.DispositionApproved,
 			Confidence:  "1.0000",
@@ -112,7 +115,7 @@ func (e *PositionExposureEvaluator) Evaluate(
 		return domainrisk.RiskAssessment{
 			Type:        "position_exposure",
 			Source:      e.source,
-			Symbol:      e.symbol,
+			Instrument:  e.instrument,
 			Timeframe:   e.timeframe,
 			Disposition: domainrisk.DispositionRejected,
 			Confidence:  "0.0000",
@@ -163,7 +166,7 @@ func (e *PositionExposureEvaluator) Evaluate(
 	return domainrisk.RiskAssessment{
 		Type:        "position_exposure",
 		Source:      e.source,
-		Symbol:      e.symbol,
+		Instrument:  e.instrument,
 		Timeframe:   e.timeframe,
 		Disposition: disposition,
 		Confidence:  riskConfidence,

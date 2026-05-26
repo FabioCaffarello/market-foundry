@@ -250,7 +250,7 @@ func TestMapStrategyRow_ColumnCount(t *testing.T) {
 	e := strategy.StrategyResolvedEvent{
 		Metadata: testMetadata(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Direction: strategy.DirectionLong, Confidence: "0.75",
 			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "low", Rationale: "RSI below threshold", Timeframe: 60}},
 			Final:     true, Timestamp: fixedTime,
@@ -267,7 +267,7 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	e := strategy.StrategyResolvedEvent{
 		Metadata: testMetadata(),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: ethUSDTPerp(t), Timeframe: 300,
 			Direction: strategy.DirectionShort, Confidence: "0.65",
 			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "moderate", Rationale: "RSI 15.00 below threshold", Timeframe: 60}},
 			Parameters: map[string]string{"lookback": "5"},
@@ -301,7 +301,7 @@ func TestMapRiskRow_ColumnCount(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.9",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "low", DecisionRationale: "RSI below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1000", StopDistance: "50"},
@@ -320,7 +320,7 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionModified, Confidence: "0.7",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.75", Timeframe: 60, DecisionSeverity: "moderate", DecisionRationale: "RSI 15.00 below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.05"},
@@ -350,7 +350,7 @@ func TestMapRiskRow_StrategyInputDecisionContext(t *testing.T) {
 	e := risk.RiskAssessedEvent{
 		Metadata: testMetadata(),
 		RiskAssessment: risk.RiskAssessment{
-			Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "position_exposure", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Disposition: risk.DispositionApproved, Confidence: "0.8",
 			Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.85", Timeframe: 60, DecisionSeverity: "high", DecisionRationale: "RSI 10.00 below threshold"}},
 			Constraints: risk.Constraints{MaxPositionSize: "0.01"},

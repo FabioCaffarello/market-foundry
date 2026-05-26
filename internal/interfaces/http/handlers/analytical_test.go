@@ -437,7 +437,7 @@ func TestAnalyticalWebHandler_GetStrategyHistory(t *testing.T) {
 		{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerp(t),
 			Timeframe:  60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.85",
@@ -588,7 +588,7 @@ func TestAnalyticalWebHandler_GetRiskHistory(t *testing.T) {
 		{
 			Type:        "position_exposure",
 			Source:      "binancef",
-			Symbol:      "btcusdt",
+			Instrument:  btcUSDTPerp(t),
 			Timeframe:   60,
 			Disposition: risk.DispositionApproved,
 			Confidence:  "0.82",

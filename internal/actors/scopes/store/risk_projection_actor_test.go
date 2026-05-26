@@ -27,7 +27,7 @@ func validRiskAssessment(ts time.Time) risk.RiskAssessment {
 	return risk.RiskAssessment{
 		Type:        "position_exposure",
 		Source:      "binancef",
-		Symbol:      "btcusdt",
+		Instrument:  btcUSDTPerpStrategy(),
 		Timeframe:   60,
 		Disposition: risk.DispositionApproved,
 		Confidence:  "0.85",
@@ -225,7 +225,7 @@ func TestRiskProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			assessment := validRiskAssessment(now.Add(time.Duration(eventCount) * time.Minute))
-			assessment.Symbol = sym
+			assessment.Instrument = instrumentForVenueStrategy(sym)
 			assessment.Timeframe = tf
 			a.onRisk(riskReceivedMessage{Event: risk.RiskAssessedEvent{RiskAssessment: assessment}})
 			eventCount++
@@ -258,7 +258,7 @@ func TestRiskProjection_MultiSymbol_NoBleed_PartitionKeys(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			assessment := validRiskAssessment(now)
-			assessment.Symbol = sym
+			assessment.Instrument = instrumentForVenueStrategy(sym)
 			assessment.Timeframe = tf
 			key := assessment.PartitionKey()
 			if existing, collision := keys[key]; collision {
@@ -282,7 +282,7 @@ func TestRiskProjection_MultiSymbol_DeduplicationKeys(t *testing.T) {
 
 	for _, sym := range symbols {
 		assessment := validRiskAssessment(ts)
-		assessment.Symbol = sym
+		assessment.Instrument = instrumentForVenueStrategy(sym)
 		key := assessment.DeduplicationKey()
 		if existing, collision := dedupKeys[key]; collision {
 			t.Fatalf("dedup key collision: %q used by both %q and %q", key, existing, sym)

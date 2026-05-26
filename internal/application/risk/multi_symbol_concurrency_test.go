@@ -62,8 +62,8 @@ func TestS304_RE1_SameStraTypeDifferentSeverities(t *testing.T) {
 		if r.Disposition != domainrisk.DispositionApproved {
 			t.Errorf("[%s] expected approved, got %s", sc.symbol, r.Disposition)
 		}
-		if r.Symbol != sc.symbol {
-			t.Errorf("[%s] symbol bleed: got %s", sc.symbol, r.Symbol)
+		if r.VenueSymbol() != sc.symbol {
+			t.Errorf("[%s] symbol bleed: got %s", sc.symbol, r.VenueSymbol())
 		}
 	}
 
@@ -129,8 +129,8 @@ func TestS304_RE2_DifferentStrategyTypes(t *testing.T) {
 			}
 
 			// Symbol ownership.
-			if r.Symbol != sc.symbol {
-				t.Errorf("symbol bleed: got %s", r.Symbol)
+			if r.VenueSymbol() != sc.symbol {
+				t.Errorf("symbol bleed: got %s", r.VenueSymbol())
 			}
 
 			// Risk confidence = baseConf × strategy-type factor.
@@ -191,7 +191,7 @@ func TestS304_RE3_MixedDispositionsAcrossSymbols(t *testing.T) {
 	}
 
 	// Symbol isolation.
-	if btc.Symbol != "btcusdt" || eth.Symbol != "ethusdt" || sol.Symbol != "solusdt" {
+	if btc.VenueSymbol() != "btcusdt" || eth.VenueSymbol() != "ethusdt" || sol.VenueSymbol() != "solusdt" {
 		t.Fatal("symbol ownership bleed detected")
 	}
 
@@ -247,8 +247,8 @@ func TestS304_RE4_DrawdownMultiSymbolStopDiversity(t *testing.T) {
 		if r.Type != "drawdown_limit" {
 			t.Errorf("[%s] type=%q, want drawdown_limit", sc.symbol, r.Type)
 		}
-		if r.Symbol != sc.symbol {
-			t.Errorf("[%s] symbol bleed: got %s", sc.symbol, r.Symbol)
+		if r.VenueSymbol() != sc.symbol {
+			t.Errorf("[%s] symbol bleed: got %s", sc.symbol, r.VenueSymbol())
 		}
 		if r.Constraints.StopDistance == "" {
 			t.Errorf("[%s] missing stop_distance constraint", sc.symbol)
@@ -318,8 +318,8 @@ func TestS304_RE5_CrossEvaluatorCoherence(t *testing.T) {
 			}
 
 			// Both evaluators must agree on symbol.
-			if posResult.Symbol != sym || ddResult.Symbol != sym {
-				t.Fatalf("symbol mismatch: pos=%s dd=%s", posResult.Symbol, ddResult.Symbol)
+			if posResult.VenueSymbol() != sym || ddResult.VenueSymbol() != sym {
+				t.Fatalf("symbol mismatch: pos=%s dd=%s", posResult.VenueSymbol(), ddResult.VenueSymbol())
 			}
 
 			// Both carry the same strategy type in metadata.
@@ -394,11 +394,11 @@ func TestS304_RE6_FlatDirectionNoLeakage(t *testing.T) {
 			}
 
 			// Symbol isolation.
-			if posR.Symbol != sym {
-				t.Errorf("pos symbol bleed: got %s", posR.Symbol)
+			if posR.VenueSymbol() != sym {
+				t.Errorf("pos symbol bleed: got %s", posR.VenueSymbol())
 			}
-			if ddR.Symbol != sym {
-				t.Errorf("dd symbol bleed: got %s", ddR.Symbol)
+			if ddR.VenueSymbol() != sym {
+				t.Errorf("dd symbol bleed: got %s", ddR.VenueSymbol())
 			}
 		})
 	}

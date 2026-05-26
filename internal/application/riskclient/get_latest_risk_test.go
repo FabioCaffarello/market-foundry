@@ -6,9 +6,19 @@ import (
 	"time"
 
 	"internal/application/riskclient"
+	"internal/domain/instrument"
 	"internal/domain/risk"
 	"internal/shared/problem"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 type mockRiskGateway struct {
 	assessment *risk.RiskAssessment
@@ -48,7 +58,7 @@ func TestGetLatestRiskUseCase_ReturnsRisk(t *testing.T) {
 	assessment := &risk.RiskAssessment{
 		Type:        "position_exposure",
 		Source:      "binancef",
-		Symbol:      "btcusdt",
+		Instrument:  btcUSDTPerp(t),
 		Timeframe:   60,
 		Disposition: risk.DispositionApproved,
 		Confidence:  "0.85",

@@ -16,14 +16,24 @@ import (
 	"testing"
 	"time"
 
-	appexec "internal/application/execution"
 	natsstrategy "internal/adapters/nats/natsstrategy"
+	appexec "internal/application/execution"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/shared/events"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
 )
+
+func btcUSDTPerpExec(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // TestS374_FailureIsolation_DurableConsumerSpecStable verifies that the execute
 // consumer spec uses a stable durable name. This is critical for restart recovery:
@@ -113,7 +123,7 @@ func TestS374_FailureIsolation_ActorHandlesRedelivery(t *testing.T) {
 		Strategy: strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerpExec(t),
 			Timeframe:  60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.8500",
@@ -194,9 +204,9 @@ func TestS374_FailureIsolation_TrackerSurvivesActorRecreation(t *testing.T) {
 	event := strategy.StrategyResolvedEvent{
 		Metadata: events.NewMetadata().WithCorrelationID("s374-survive-corr"),
 		Strategy: strategy.Strategy{
-			Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt",
+			Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerpExec(t),
 			Timeframe: 60, Direction: strategy.DirectionLong, Confidence: "0.8500",
-			Decisions: []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "high", Timeframe: 60}},
+			Decisions:  []strategy.DecisionInput{{Type: "rsi_oversold", Outcome: "triggered", Confidence: "0.85", Severity: "high", Timeframe: 60}},
 			Parameters: map[string]string{}, Metadata: map[string]string{},
 			Final: true, Timestamp: ts,
 		},

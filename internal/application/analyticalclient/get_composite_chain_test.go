@@ -62,7 +62,7 @@ func fullChain(corrID string) *analyticalclient.CompositeExecutionChain {
 			OccurredAt:    now,
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
-			Strategy:      strategy.Strategy{Type: "mean_reversion_entry", Source: "binance", Symbol: "btcusdt", Timeframe: 60, Direction: "long", Confidence: "0.80", Timestamp: now},
+			Strategy:      strategy.Strategy{Type: "mean_reversion_entry", Source: "binance", Instrument: fullChainBTC, Timeframe: 60, Direction: "long", Confidence: "0.80", Timestamp: now},
 			EventID:       "str-001",
 			CorrelationID: corrID,
 			CausationID:   "dec-001",
@@ -70,7 +70,7 @@ func fullChain(corrID string) *analyticalclient.CompositeExecutionChain {
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+				Type: "position_exposure", Source: "binance", Instrument: fullChainBTC, Timeframe: 60,
 				Disposition: "approved", Confidence: "0.75", Rationale: "within limits",
 				Constraints: risk.Constraints{MaxPositionSize: "0.1", MaxExposure: "1.0"},
 				Strategies:  []risk.StrategyInput{{Type: "mean_reversion_entry", Direction: "long", Confidence: "0.80", DecisionSeverity: "high"}},

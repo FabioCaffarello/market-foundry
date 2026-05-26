@@ -72,13 +72,13 @@ func (a *RiskPublisherActor) Receive(c *actor.Context) {
 				"code", prob.Code,
 				"type", msg.Event.RiskAssessment.Type,
 				"source", msg.Event.RiskAssessment.Source,
-				"symbol", msg.Event.RiskAssessment.Symbol,
+				"symbol", msg.Event.RiskAssessment.VenueSymbol(),
 				"timeframe", msg.Event.RiskAssessment.Timeframe,
 				"correlation_id", msg.Event.Metadata.CorrelationID,
 			)
 		} else if a.cfg.Tracker != nil {
 			a.cfg.Tracker.RecordEvent()
-			a.cfg.Tracker.Counter("published:" + msg.Event.RiskAssessment.Symbol).Add(1)
+			a.cfg.Tracker.Counter("published:" + msg.Event.RiskAssessment.VenueSymbol()).Add(1)
 			a.cfg.Tracker.Counter("risk:" + msg.Event.RiskAssessment.Type + ":" + string(msg.Event.RiskAssessment.Disposition)).Add(1)
 		}
 

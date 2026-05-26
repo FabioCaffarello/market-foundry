@@ -44,8 +44,8 @@ func TestSqueezeBreakoutResolverActor_Triggered_LongDirection(t *testing.T) {
 	if s.Source != "binancef" {
 		t.Errorf("source: want binancef, got %s", s.Source)
 	}
-	if s.Symbol != "btcusdt" {
-		t.Errorf("symbol: want btcusdt, got %s", s.Symbol)
+	if s.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol: want btcusdt, got %s", s.VenueSymbol())
 	}
 	if string(s.Direction) != "long" {
 		t.Errorf("direction: want long, got %s", s.Direction)

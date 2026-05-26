@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"internal/domain/instrument"
 	domainstrategy "internal/domain/strategy"
 )
 
 const (
 	// Base parameters for squeeze breakout entry.
 	// Breakout from a Bollinger squeeze expects a sharp directional move.
-	baseBreakoutTargetPct = 0.04 // wider target — breakouts are momentum-driven
+	baseBreakoutTargetPct = 0.04  // wider target — breakouts are momentum-driven
 	baseBreakoutStopPct   = 0.015 // tighter stop — invalidated quickly if squeeze fails
 )
 
@@ -61,16 +62,18 @@ var squeezeBreakoutStopMultiplier = map[string]float64{
 //	"not_triggered" — no squeeze detected → flat (no position)
 //	"insufficient"  — insufficient signal data → flat with reason
 type SqueezeBreakoutEntryResolver struct {
-	source    string
-	symbol    string
-	timeframe int
+	source     string
+	symbol     string
+	instrument instrument.CanonicalInstrument
+	timeframe  int
 }
 
 func NewSqueezeBreakoutEntryResolver(source, symbol string, timeframe int) *SqueezeBreakoutEntryResolver {
 	return &SqueezeBreakoutEntryResolver{
-		source:    source,
-		symbol:    symbol,
-		timeframe: timeframe,
+		source:     source,
+		symbol:     symbol,
+		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
 	}
 }
 
@@ -105,7 +108,7 @@ func (r *SqueezeBreakoutEntryResolver) Resolve(
 		stop := AdjustParam(baseBreakoutStopPct, decisionSeverity, squeezeBreakoutStopMultiplier)
 
 		params = map[string]string{
-			"entry":             "market",
+			"entry":               "market",
 			"breakout_target_pct": FormatParam(target),
 			"breakout_stop_pct":   FormatParam(stop),
 		}
@@ -147,7 +150,7 @@ func (r *SqueezeBreakoutEntryResolver) Resolve(
 	return domainstrategy.Strategy{
 		Type:       "squeeze_breakout_entry",
 		Source:     r.source,
-		Symbol:     r.symbol,
+		Instrument: r.instrument,
 		Timeframe:  r.timeframe,
 		Direction:  direction,
 		Confidence: confidence,

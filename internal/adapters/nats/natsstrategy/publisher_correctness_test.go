@@ -17,9 +17,28 @@ import (
 	"time"
 
 	"internal/adapters/nats/natskit"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/shared/events"
 )
+
+func btcUSDTPerpForPub(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
+
+func ethUSDTPerpForPub(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("ETH", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // ── Registry Contract Tests ─────────────────────────────────────────
 
@@ -169,11 +188,11 @@ func TestSubjectConstruction_MatchesConsumerFilter(t *testing.T) {
 func TestDeduplicationKey_Format(t *testing.T) {
 	ts := time.Date(2025, 7, 1, 12, 0, 0, 0, time.UTC)
 	s := strategy.Strategy{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Timestamp: ts,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: btcUSDTPerpForPub(t),
+		Timeframe:  60,
+		Timestamp:  ts,
 	}
 
 	// P4.1.10: dedup key precision is nanoseconds (was seconds);
@@ -189,11 +208,11 @@ func TestDeduplicationKey_Format(t *testing.T) {
 func TestDeduplicationKey_Uniqueness_DifferentTimestamps(t *testing.T) {
 	base := time.Date(2025, 7, 1, 12, 0, 0, 0, time.UTC)
 	s1 := strategy.Strategy{
-		Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt",
+		Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerpForPub(t),
 		Timeframe: 60, Timestamp: base,
 	}
 	s2 := strategy.Strategy{
-		Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt",
+		Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerpForPub(t),
 		Timeframe: 60, Timestamp: base.Add(time.Minute),
 	}
 
@@ -205,11 +224,11 @@ func TestDeduplicationKey_Uniqueness_DifferentTimestamps(t *testing.T) {
 func TestDeduplicationKey_Uniqueness_DifferentSymbols(t *testing.T) {
 	ts := time.Date(2025, 7, 1, 12, 0, 0, 0, time.UTC)
 	s1 := strategy.Strategy{
-		Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt",
+		Type: "mean_reversion_entry", Source: "binancef", Instrument: btcUSDTPerpForPub(t),
 		Timeframe: 60, Timestamp: ts,
 	}
 	s2 := strategy.Strategy{
-		Type: "mean_reversion_entry", Source: "binancef", Symbol: "ethusdt",
+		Type: "mean_reversion_entry", Source: "binancef", Instrument: ethUSDTPerpForPub(t),
 		Timeframe: 60, Timestamp: ts,
 	}
 
@@ -329,7 +348,7 @@ func TestStrategyResolvedEvent_ImplementsEventInterface(t *testing.T) {
 		Strategy: strategy.Strategy{
 			Type:       "mean_reversion_entry",
 			Source:     "binancef",
-			Symbol:     "btcusdt",
+			Instrument: btcUSDTPerpForPub(t),
 			Timeframe:  60,
 			Direction:  strategy.DirectionLong,
 			Confidence: "0.8500",
