@@ -57,9 +57,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-5** | Fechada (PR #25 mergeada em `main` em `6df8e66`, 2026-05-25) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
 | **H-6** | Sub-dividida em H-6.a/b/b'/b''/c/d/e/f por cascade discovery (pré-flight H-6.a: 342 `.Symbol` refs em 106 production files em 31 packages; pré-flight H-6.b: 15 domain types em 174 test files → split por dependency order em b/b'/b''). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md). Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
 | **H-6.a** | Fechada (PR #26 mergeada em `main` em `ac7fb8f`, 2026-05-26) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits incl. ADR-0021 erratum (criterion #4 split em #4a/#4b), PRD-0004, `internal/domain/instrument/` package, atomic `ObservationTrade.Symbol` → `Instrument` + `VenueSymbol()`, ambos Binance adapters com regex `_\d{6}$` para delivery futures, raccoon-cli `check instruments` analyzer (4 checks). ADR-0021 permanece `Proposed`. |
-| **H-6.b** | **Atual** (esta entrega) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure (este commit). 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
-| **H-6.b'** | Destravada após merge de H-6.b em `main` (P9 + sub-onda sequencing policy) | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry migrate. ADR-0021 permanece `Proposed`. |
-| **H-6.b''** | Destravada após merge de H-6.b' em `main` | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites migrate. ADR-0021 permanece `Proposed`. |
+| **H-6.b** | Fechada (PR #27 mergeada em `main` em `d7fae4c`, 2026-05-26) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure. 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
+| **H-6.b'** | **Atual** (esta entrega) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits: ExecutionIntent atomic (production cascade ~50 sites; PartitionKey/DeduplicationKey via VenueSymbol), Attribution (derived from intent.Instrument), AuditLifecycleEntry (reconstrução via novo per-package `instrumentFromBinding` em `executionclient`), policy flip (3 entries `pending` → `migrated`), docs closure (este commit). check-instruments analyzer continua com 6 checks PASS. **Triage drop closure note** (verificado em pré-flight, zero migration sites nesta sub-wave): DecisionTriageItem é buffered pelo ReviewTransform DTO (application-layer; domain→DTO boundary migrado em H-6.b commit 4; DTO→Triage permanece string-to-string até H-6.c migrar ReviewTransform); ExecutionTriageItem não existe no codebase; RoundTripTriageItem corretamente deferido para H-6.b'' (upstream RoundTrip migra lá). ADR-0021 permanece `Proposed`. |
+| **H-6.b''** | Destravada após merge de H-6.b' em `main` (P9 + sub-onda sequencing policy) | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites migrate. ADR-0021 permanece `Proposed`. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -219,7 +219,99 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.b (esta sessão):
+Entregas H-6.b' (esta sessão):
+
+- **Commit 1** (`234193e`):
+  **ExecutionIntent atomic migration** (~50 production sites + ~85
+  test files). Domain type `execution.ExecutionIntent` migra
+  `Symbol string` → `Instrument CanonicalInstrument` +
+  `VenueSymbol()` transitory accessor. PartitionKey e
+  DeduplicationKey composers em `internal/adapters/nats/natsexecution/`
+  reescritos via `VenueSymbol()` para preservar back-compat de KV
+  bucket layout. Production cascade abrange: actors
+  (`derive/execution_publisher_actor.go`, `execute/venue_adapter_actor.go`,
+  3 `store/*_projection_actor.go`), adapters (`nats/natsexecution/publisher.go`,
+  `clickhouse/{execution,composite}_reader.go` e `writerpipeline/support.go`),
+  application (`paper_order_evaluator.go`, `dry_run_submitter.go`,
+  `paper_venue_adapter.go`, `post200_reconciler.go`, ambos
+  `binance_*_testnet_adapter.go`), domain (`pairing.IntentToLeg`),
+  cmd (`gateway/session_reader.go`), e analyticalclient
+  (`contracts.go`, `get_decision_review.go`). Per-package
+  `instrumentFromBinding(source, venueNative)` transitory helper
+  adicionado em `internal/application/execution/`. ClickHouse readers
+  reusam `reconstructInstrumentFromLegacy` de H-6.a.
+- **Commit 2** (`4cccaf7`):
+  **Attribution migration** (3 files).
+  `effectiveness.Attribution.Symbol` → `.Instrument` (derived from
+  `intent.Instrument` em `Classify`/`ClassifyPair`); `VenueSymbol()`
+  transitory accessor adicionado. `Explain()` usa `.VenueSymbol()`
+  em todos os fmt.Sprintf sites. effectiveness_test.go atualizado
+  via helper `btcUSDTPerp(t)` já existente.
+- **Commit 2.1** (`0e18664`):
+  **chore**: remoção de `cmd/gateway/gateway` binário acidentalmente
+  committado em commit 2 via `git add -A`. `.gitignore` line 163
+  tem `/gateway` (root-only) mas não cobre nested
+  `cmd/<name>/<name>`. Removido via `git rm --cached`.
+- **Commit 3** (`4707ef7`):
+  **AuditLifecycleEntry migration** (3 files).
+  `execution.AuditLifecycleEntry.Symbol` → `.Instrument` +
+  `VenueSymbol()`. `convertLifecycleEntries` em
+  `executionclient/audit_session.go` reconstrói Instrument do
+  `(source, symbol)` do LifecycleEntry DTO via novo
+  per-package `instrumentFromBinding` em
+  `internal/application/executionclient/instrument_binding.go`
+  (sunset H-6.f — LifecycleEntry permanece string-based até read-path
+  migration na mesma onda).
+- **Commit 4** (`e8be08c`):
+  **policy flip** em `tools/raccoon-cli/policies/domain_types.toml`:
+  `execution_intent`, `attribution`, `audit_lifecycle_entry`
+  flipam de `pending` → `migrated`. check-instruments analyzer
+  re-run reporta 6/6 PASS; full make verify 10/10 analyzers,
+  102/102 checks GREEN.
+- **Commit 5** (este commit): TRUTH-MAP / RESUMPTION /
+  PROGRAM-0004 closure.
+
+**Marco**: H-6.b' fecha a migração da camada execution chain — 3
+dos 8 domain types restantes pós-H-6.b agora carregam
+`Instrument CanonicalInstrument` + `VenueSymbol()` transitory
+accessor (ExecutionIntent + Attribution + AuditLifecycleEntry).
+Total agora: **10 dos 15 domain types** com Symbol field
+migrados (3 de H-6.a/H-6.b + 7 de H-6.b + 3 desta sub-onda).
+ADR-0021 critério #2 ainda **não** literalmente satisfeito —
+restam Pairing chain types (Leg, RoundTrip, CrossSessionWindow)
+para H-6.b''. **ADR-0021 permanece `Proposed`**; promoção é
+evento atômico em H-6.f.
+
+**Triage drop closure note** (verbatim do user em pré-flight
+Decisão #1): Triage population sites verified during pre-flight.
+Zero sites required migration in this sub-wave:
+- `DecisionTriageItem`: buffered by ReviewTransform DTO
+  (application-layer); domain→DTO boundary migrated in H-6.b
+  commit 4. DTO→Triage remains string-to-string until H-6.c
+  migrates ReviewTransform.
+- `ExecutionTriageItem`: type does not exist in codebase.
+- `RoundTripTriageItem`: correctly deferred to H-6.b''
+  (upstream RoundTrip migrates there).
+
+**Sub-wave naming convention** (estabelecida nesta sub-onda):
+- Documentation/prose: H-6.b, H-6.b', H-6.b'' (apostrophes
+  distinguish dependency layers within the wave H-6.b family).
+- Branch names / git tags: feat/h-6-b1-…, feat/h-6-b2-…
+  (numeric suffix for portability across shells/CI tools where
+  apostrophes are unsafe).
+
+Established at H-6.b' (branch `feat/h-6-b1-execution-chain`);
+applies retroactively to existing prose references. Documentada
+em PROGRAM-0004 → "Sub-wave naming convention".
+
+**Próxima sub-onda destravada após merge**: H-6.b'' — migration
+de Pairing.Leg + RoundTrip + CrossSessionWindow + Triage
+RoundTrip population site. Sub-onda sequencing policy estrita:
+H-6.b'' abre branch APENAS após merge de H-6.b' em `main`.
+
+---
+
+Entregas H-6.b (sessão anterior):
 
 - **Commit 1** ([`e303202`](https://github.com/FabioCaffarello/market-foundry/commit/e303202)):
   [`docs/programs/PROGRAM-0004-multi-venue.md`](programs/PROGRAM-0004-multi-venue.md)

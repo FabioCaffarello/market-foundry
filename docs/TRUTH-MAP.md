@@ -139,16 +139,18 @@ with placeholder code/test anchors; each is promoted to `Accepted`
 (T1) by the onda that ships the supporting code, in the same
 commit that flips the `Status` field.
 
-Current state (post-Onda H-6.a, 2026-05-25):
+Current state (post-Onda H-6.b', 2026-05-26):
 - **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 (promoted
   by Onda H-3.b); ADR-0019, ADR-0020 (promoted by Onda H-4 — dual
   promotion closing Fase Wire); ADR-0024, ADR-0025 (promoted by
   Onda H-5 — dual promotion in PROGRAM-0003 Observability).
 - **Proposed** (T3, `Partially Implemented`): ADR-0021 — domain
-  root + 2 adapters + analyzer landed in H-6.a, but promotion to
-  `Accepted` is gated on criterion #2 (all domain-layer call
-  sites migrated) which finishes in H-6.b–H-6.e. Promotion is an
-  atomic event in H-6.f when all criteria are literally true.
+  root + 2 adapters + analyzer landed in H-6.a; 7 derivative
+  analytics domain types migrated in H-6.b; 3 execution-chain
+  domain types migrated in H-6.b'. Promotion to `Accepted` is
+  gated on criterion #2 (all domain-layer call sites migrated)
+  which finishes in H-6.b''–H-6.e. Promotion is an atomic event
+  in H-6.f when all criteria are literally true.
 - **Proposed** (T3, `Planned`): ADR-0022 (H-7); ADR-0023 (H-9
   partial / H-10 full, may remain `Proposed` indefinitely if
   empirical triggers T1/T2/T3 never fire).
@@ -159,7 +161,7 @@ Current state (post-Onda H-6.a, 2026-05-25):
 | Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Schemas + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (H-3.a). Generated Go boundary: `internal/shared/contracts/` (H-3.b — `envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked, gitignored entry G removed). Analyzer: `tools/raccoon-cli/src/analyzers/check_proto.rs:analyze` (H-3.b). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (H-3.a). `make proto-check` + `raccoon-cli check proto` analyzer with 9 unit tests (H-3.b). `make verify` invokes both `proto-lint` and `check proto` (via `quality-gate`). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. `protoc-gen-go` pinned at v1.36.8 in `scripts/bootstrap-check.sh` matching the runtime in `internal/shared/go.mod`. |
 | Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | Ports: `internal/shared/clock/clock.go:Clock`, `internal/shared/random/random.go:Source`. Replay: `internal/shared/replay/recorder.go:Recorder`, `…:Player`. Analyzer: `tools/raccoon-cli/src/analyzers/check_determinism.rs:analyze`. Domain migration: `internal/domain/execution/{control,session,activation,verification}.go` (5 production call sites, all migrated to `clock.Clock`). | `internal/shared/clock/clock_test.go`, `internal/shared/random/random_test.go`, `internal/shared/replay/replay_test.go`, `internal/shared/replay/golden_test.go:TestGolden_Synthetic100_ByteIdentical`, `…:TestGolden_ByteStability_N50`. `make verify` runs `check determinism` as Step 7 of the gate. | Implemented | ADR promoted to `Accepted` in Onda H-4 (dual promotion with ADR-0020). `internal/domain/` production code mechanically free of `time.Now`. Test files exempted from analyzer per documented rationale in ADR References. |
 | Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | Package: `internal/shared/sequencer/sequencer.go:Sequencer`, `…:StreamKey`. KV adapter: `internal/adapters/nats/natssequencer/store.go:Store`, `…:SequencerStateBucket`. Counter: `internal/shared/metrics/sequencer_metrics.go:IncSeqGap`. | `internal/shared/sequencer/sequencer_test.go:TestSequencer_MonotonicWithinKey`, `…:TestSequencer_ConcurrentSafe`, `…:TestSequencer_RestoreResumesFromSnapshot`. Integration: `internal/adapters/nats/natssequencer/store_roundtrip_test.go` (`//go:build integration`). | Implemented | ADR promoted to `Accepted` in Onda H-4. Per-writer Sequencer integration in the running stack (ADR-0020 critério 5) explicitly deferred to a successor fase as execution-of-decision; the architectural decision and shipping primitives are Accepted. |
-| Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | Domain package: `internal/domain/instrument/asset.go:BaseAsset`, `…:QuoteAsset`; `internal/domain/instrument/venue.go:Venue`; `internal/domain/instrument/contract_type.go:ContractType`; `internal/domain/instrument/canonical.go:CanonicalInstrument`, `…:New`, `…:Symbol`, `…:FromSymbol`. Migrated domain types (H-6.a + H-6.b): `internal/domain/observation/trade.go:ObservationTrade`, `internal/domain/evidence/{candle,trade_burst,volume}.go`, `internal/domain/signal/signal.go:Signal`, `internal/domain/decision/decision.go:Decision`, `internal/domain/strategy/strategy.go:Strategy`, `internal/domain/risk/risk.go:RiskAssessment` — all carry `Instrument CanonicalInstrument` + `VenueSymbol()` transitory accessor. Adapter integration: `internal/adapters/exchanges/binances/aggtrade.go:parseSpotSymbol`; `internal/adapters/exchanges/binancef/aggtrade.go:parseFuturesSymbol` (with `deliverySuffix` regex). Analyzer: `tools/raccoon-cli/src/analyzers/check_instruments.rs:analyze`; policies: `tools/raccoon-cli/policies/adapters.toml` (adapter allowlist) + `tools/raccoon-cli/policies/domain_types.toml` (per-type migration state, H-6.b). | `internal/domain/instrument/instrument_test.go` (21 tests); `internal/domain/observation/trade_test.go:TestObservationTrade_VenueSymbol`; `internal/adapters/exchanges/binancef/aggtrade_test.go:TestNormalize_DeliveryFuturesPattern`, `…:TestNormalize_PerpetualClassification`, `…:TestNormalize_RejectsNonUSDTQuote`; `internal/adapters/exchanges/binances/aggtrade_test.go:TestNormalize_RejectsNonUSDTQuote`; per-type `TestSignal_VenueSymbol`, `TestDecision_VenueSymbol`, `TestStrategy_VenueSymbol`, `TestRisk_VenueSymbol` (+ multi-symbol partition-key isolation tests); `cargo test analyzers::check_instruments` (14 tests). | Partially Implemented | ADR-0021 stays `Proposed` through PROGRAM-0004 H-6.a–H-6.e; flips to `Accepted` only in H-6.f when criterion #2 ("all domain-layer call sites migrated") is literally satisfied. H-6.a erratum split criterion #4 into #4a (writer-side adapt, this onda) and #4b (ClickHouse migration, H-6.d). H-6.b migrated 7 of the remaining types (Evidence × 3 + Signal/Decision/Strategy/Risk); H-6.b'/b'' will migrate the remaining types (ExecutionIntent + Attribution + Pairing chain). |
+| Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | Domain package: `internal/domain/instrument/asset.go:BaseAsset`, `…:QuoteAsset`; `internal/domain/instrument/venue.go:Venue`; `internal/domain/instrument/contract_type.go:ContractType`; `internal/domain/instrument/canonical.go:CanonicalInstrument`, `…:New`, `…:Symbol`, `…:FromSymbol`. Migrated domain types (H-6.a + H-6.b + H-6.b'): `internal/domain/observation/trade.go:ObservationTrade`, `internal/domain/evidence/{candle,trade_burst,volume}.go`, `internal/domain/signal/signal.go:Signal`, `internal/domain/decision/decision.go:Decision`, `internal/domain/strategy/strategy.go:Strategy`, `internal/domain/risk/risk.go:RiskAssessment`, `internal/domain/execution/execution.go:ExecutionIntent`, `internal/domain/effectiveness/effectiveness.go:Attribution`, `internal/domain/execution/audit_bundle.go:AuditLifecycleEntry` — all carry `Instrument CanonicalInstrument` + `VenueSymbol()` transitory accessor. Adapter integration: `internal/adapters/exchanges/binances/aggtrade.go:parseSpotSymbol`; `internal/adapters/exchanges/binancef/aggtrade.go:parseFuturesSymbol` (with `deliverySuffix` regex). Per-package `instrumentFromBinding` transitory helpers landed in: `internal/application/signal/`, `internal/application/decision/`, `internal/application/strategy/`, `internal/application/risk/`, `internal/application/execution/`, `internal/application/executionclient/`. Analyzer: `tools/raccoon-cli/src/analyzers/check_instruments.rs:analyze`; policies: `tools/raccoon-cli/policies/adapters.toml` (adapter allowlist) + `tools/raccoon-cli/policies/domain_types.toml` (per-type migration state — 10 migrated, 4 pending in Pairing chain). | `internal/domain/instrument/instrument_test.go` (21 tests); `internal/domain/observation/trade_test.go:TestObservationTrade_VenueSymbol`; `internal/adapters/exchanges/binancef/aggtrade_test.go:TestNormalize_DeliveryFuturesPattern`, `…:TestNormalize_PerpetualClassification`, `…:TestNormalize_RejectsNonUSDTQuote`; `internal/adapters/exchanges/binances/aggtrade_test.go:TestNormalize_RejectsNonUSDTQuote`; per-type `TestSignal_VenueSymbol`, `TestDecision_VenueSymbol`, `TestStrategy_VenueSymbol`, `TestRisk_VenueSymbol` (+ multi-symbol partition-key isolation tests); `internal/domain/effectiveness/effectiveness_test.go` (Attribution migrated via `btcUSDTPerp(t)` helper); `cargo test analyzers::check_instruments` (14 tests). | Partially Implemented | ADR-0021 stays `Proposed` through PROGRAM-0004 H-6.a–H-6.e; flips to `Accepted` only in H-6.f when criterion #2 ("all domain-layer call sites migrated") is literally satisfied. H-6.a erratum split criterion #4 into #4a (writer-side adapt, this onda) and #4b (ClickHouse migration, H-6.d). H-6.b migrated 7 types (Evidence × 3 + Signal/Decision/Strategy/Risk); H-6.b' migrated 3 types (ExecutionIntent + Attribution + AuditLifecycleEntry); H-6.b'' will migrate the remaining types (Pairing.Leg, RoundTrip, CrossSessionWindow). |
 | Multi-venue normalization policy (Capabilities + `check venue-parity`) | [ADR-0022](decisions/0022-multi-venue-normalization-policy.md) | TODO (Onda H-7 — adapter `Capabilities()`; `/venues/capabilities` HTTP route; raccoon-cli `check venue-parity`) | TODO (Onda H-7 — `cmd/gateway/boot_test.go` entry; analyzer tests) | Planned | First non-Binance adapter is typically Bybit; route registration updates the gateway boot test per ADR-0010. |
 | Storage tier roadmap (Stage 1 → Stage 2 with empirical triggers) | [ADR-0023](decisions/0023-storage-tier-roadmap.md) | Stage 1: existing ClickHouse + KV (no new code); Stage 2 TODO (Onda H-10 — `internal/adapters/storage/timescale/`) | Stage 1: existing analytical + projection tests; Stage 2 TODO (Onda H-10) | Planned (partial) | Stage 1 active today on existing ClickHouse + KV. Stage 2 (TimescaleDB) opens only when triggers T1/T2/T3 fire; may remain `Planned` indefinitely. |
 | Metrics policy (naming + label budget + cardinality + log compensation pattern) | [ADR-0024](decisions/0024-metrics-policy.md) | Policy ratifies existing pattern in `internal/shared/metrics/{metrics,sequencer_metrics}.go`. Refactor (drop `instrument` from `consumer_seq_gap_total`) shipped in `internal/shared/metrics/sequencer_metrics.go:IncSeqGap` (now `(venue, eventType)`). Analyzer: `tools/raccoon-cli/src/analyzers/check_metrics.rs:analyze`. Policy file: `tools/raccoon-cli/policies/binaries.toml`. | `internal/shared/metrics/sequencer_metrics_test.go:TestIncSeqGap_*` (3 tests covering new label shape). `make verify` invokes `check metrics` via gate Step 8 (3 checks). `cargo test analyzers::check_metrics` (10 tests). | Implemented | ADR promoted to `Accepted` in PROGRAM-0003 H-5. Naming convention grandfathered for `marketfoundry_http_*`; new metrics conform to MP-1. Label validation against MP-2 is documented as future-onda analyzer extension. |
@@ -224,7 +226,7 @@ a TRUTH-MAP row either.
 
 ---
 
-## Summary counts (2026-05-26, post-H-6.b)
+## Summary counts (2026-05-26, post-H-6.b')
 
 - HTTP routes registered: **60** (in `cmd/gateway/boot_test.go`).
 - NATS streams declared: **11**.
@@ -319,6 +321,31 @@ a TRUTH-MAP row either.
   `check metrics`); 3 PRDs (added PROGRAM-0003 Active); 44
   recording rules + 13 alert rules + 5 Grafana dashboards new
   metrics infrastructure declared.
+- **2026-05-26** — Onda H-6.b' closure: **execution chain domain
+  types migrated**. Three additional domain types migrated `Symbol
+  string` → `Instrument CanonicalInstrument` + `VenueSymbol()`
+  transitory accessor: ExecutionIntent (with PartitionKey and
+  DeduplicationKey composers updated via `VenueSymbol()`),
+  Attribution (derived from `intent.Instrument` in Classify /
+  ClassifyPair), AuditLifecycleEntry (reconstructed at conversion
+  boundary via new per-package `instrumentFromBinding` helper in
+  `internal/application/executionclient/`). LifecycleEntry DTO
+  remains string-based — read-path migration deferred to H-6.f
+  along with VenueSymbol sunset. Total domain types now migrated:
+  10 of 15 with Symbol field (3 from H-6.a/H-6.b + 7 from H-6.b +
+  3 from H-6.b'). Policy file `policies/domain_types.toml` flipped
+  the 3 H-6.b' entries from `pending` → `migrated`; check-instruments
+  analyzer remains at 6 checks PASS. Summary counts unchanged at
+  102 verify checks; ADR-0021 row stays `Partially Implemented`
+  pending Pairing chain (H-6.b'') and the H-6.f atomic promotion.
+  Triage drop closure note: zero population sites required migration
+  in this sub-wave — DecisionTriageItem is buffered by ReviewTransform
+  DTO (domain→DTO boundary migrated in H-6.b; DTO→Triage remains
+  string until H-6.c migrates ReviewTransform); ExecutionTriageItem
+  does not exist in codebase; RoundTripTriageItem deferred to
+  H-6.b''. Sub-wave naming convention documented: prose uses
+  apostrophes (H-6.b, H-6.b', H-6.b''); branch names use numeric
+  suffix (feat/h-6-b1-…, feat/h-6-b2-…) for shell portability.
 - **2026-05-26** — Onda H-6.b closure: **derivative analytics
   domain types migrated**. Seven domain types migrated `Symbol
   string` → `Instrument CanonicalInstrument` + `VenueSymbol()`
