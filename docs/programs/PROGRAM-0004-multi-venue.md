@@ -75,7 +75,49 @@ H-6 é portanto implementada em **6 sub-ondas serializadas**:
 | **H-6.e** | NATS subject composition decision (pause-and-report) | **Primeiro ato**: pause-and-report obrigatório. Decidir: (i) migrar NATS subject/key composition para canonical form (com window de dual-publish/dual-read se necessário), OU (ii) declarar deferral indefinido com **segundo erratum REAL ao critério #2 do ADR-0021** documentando "NATS subjects use Instrument.Symbol() (derived form) as canonical representation for routing; direct CanonicalInstrument fields not used in subjects per [justificativa]". Sem opção #2 sem erratum honesto. **ADR-0021 permanece `Proposed`.** |
 | **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
 
-### Sub-onda sequencing policy
+### Transitory-method pattern (introduzido em H-6.a)
+
+H-6.a precisou consumir a cascade de `.Symbol` references sem
+forçar migração simultânea de todos os 31 packages. A solução —
+adotada após pause-and-report e descartando dual-write — foi
+introduzir um **accessor transitório com nome semanticamente
+distinto** no domain type recém-migrado:
+
+- O field `Symbol string` foi removido e substituído por
+  `Instrument CanonicalInstrument` (verdade canônica).
+- Um método **`VenueSymbol() string`** foi adicionado, derivando
+  forma venue-native (lowercase `base+quote`) da identidade
+  canônica.
+
+Por que **`VenueSymbol`** e não `Symbol()`:
+
+- `CanonicalInstrument.Symbol()` retorna a forma canônica
+  `"BTC/USDT-spot"`.
+- `ObservationTrade.VenueSymbol()` retorna a forma venue-native
+  `"btcusdt"`.
+- Se ambos fossem chamados `Symbol()`, em 6 meses um caller
+  escreveria `t.Symbol()` esperando a forma canônica e receberia
+  silenciosamente a venue-native — bug latente clássico.
+
+Atributos da disciplina:
+
+1. **Sunset declarado no docstring**: cada método transitório lista
+   a sub-onda que o remove. `VenueSymbol()` é removida em H-6.f
+   quando o último reader venue-native sai do código.
+2. **Limitações documentadas**: `VenueSymbol()` é lossy para
+   delivery futures (`BTCUSDT_240329` colapsa para `"btcusdt"`).
+   Aceitável em H-6.a porque nenhum contrato delivery rida o
+   routing path atual; H-6.e revisita o shape da subject NATS.
+3. **Nome distinto do canônico**: nunca substituir um símbolo
+   canônico por um símbolo transitório com o mesmo identificador.
+
+Sub-ondas H-6.b–H-6.e podem reusar o pattern conforme novos
+domain types migram — cada um define seu próprio `VenueSymbol()`
+ou equivalente, todos com sunset documentado para H-6.f.
+
+---
+
+## Sub-onda sequencing policy
 
 Sub-ondas H-6.a → H-6.b → H-6.c → H-6.d → H-6.e → H-6.f → H-7
 executam **estritamente serial**. Próxima sub-onda abre branch
@@ -296,3 +338,19 @@ no foundry com tipos fortes per ADR-0021 spec.
   sequencing policy declarada (mais estrita que P4 top-level).
   Lands como entrega de **commit 1 da H-6.a**, alongside ADR-0021
   erratum (criterion #4 split) em commit 0.
+- **2026-05-25** — H-6.a fechada. Entregas: erratum ADR-0021
+  (criterion #4 split em #4a/#4b), abertura PROGRAM-0004,
+  `internal/domain/instrument/` package (Venue, BaseAsset,
+  QuoteAsset, ContractType, CanonicalInstrument com JSON tags +
+  21 testes), `ObservationTrade.Symbol string` → `Instrument
+  CanonicalInstrument` com método transitório
+  `VenueSymbol()` (sunset H-6.f), ambos Binance adapters migrados
+  com pattern detection `_\d{6}$` para discriminar delivery
+  futures, raccoon-cli `check instruments` analyzer + policy
+  `policies/adapters.toml` (allowlist binances/binancef) integrado
+  como Step 9 do quality-gate. Transitory-method pattern
+  documentado nesta PRD para reuso em sub-ondas seguintes.
+  ADR-0021 permanece `Proposed` — promoção é evento atômico em
+  H-6.f após critério #2 literal. **Sub-onda H-6.b destravada
+  apenas após merge desta em `main`** (sub-onda sequencing
+  policy estrita).

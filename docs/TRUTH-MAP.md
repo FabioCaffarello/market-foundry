@@ -1,7 +1,7 @@
 # TRUTH-MAP — Capability × Evidence cross-reference
 
 **Status:** Active
-**Date:** 2026-05-24
+**Date:** 2026-05-25
 **Owner:** Repository maintainer
 **Authority tier:** T1 — Canonical
 ([`AUTHORITY.md`](AUTHORITY.md))
@@ -60,7 +60,7 @@ says *where* you can verify it in the code.
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
 | Configctl lifecycle (Draft→Validated→Compiled→Active→Deactivated→Archived) | [ADR-0006](decisions/0006-configctl-lifecycle-authority.md) | `internal/domain/configctl/lifecycle.go:VersionLifecycle`; `internal/domain/configctl/config_set.go:ConfigSet` | `internal/domain/configctl/document_test.go:TestConfigSetLifecycleTransitions`; `…:TestConfigSetRejectsInvalidLifecycleTransitions` | Implemented | All seven states declared; transitions enforced. |
-| Observation domain (Trade) | [ADR-0009](decisions/0009-subject-taxonomy.md) (subject), [ADR-0008](decisions/0008-single-writer-invariant.md) (writer) | `internal/domain/observation/trade.go`; `internal/adapters/nats/natsobservation/registry.go:DefaultRegistry` | `internal/domain/observation/trade_test.go` | Implemented | Single writer = `ingest`. |
+| Observation domain (Trade) | [ADR-0009](decisions/0009-subject-taxonomy.md) (subject), [ADR-0008](decisions/0008-single-writer-invariant.md) (writer), [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) (identity, partial) | `internal/domain/observation/trade.go:ObservationTrade` (now carries `Instrument CanonicalInstrument` + transitory `VenueSymbol()` method); `internal/adapters/nats/natsobservation/registry.go:DefaultRegistry` | `internal/domain/observation/trade_test.go:TestObservationTrade_VenueSymbol`, `…:TestObservationTrade_Validate` | Implemented | Single writer = `ingest`. H-6.a migrated the `Symbol string` field to `Instrument CanonicalInstrument`; `VenueSymbol()` is transitory (sunset H-6.f). |
 | Evidence domain (Candle, Volume, TradeBurst) | [ADR-0008](decisions/0008-single-writer-invariant.md), [ADR-0009](decisions/0009-subject-taxonomy.md) | `internal/domain/evidence/`; `internal/adapters/nats/natsevidence/registry.go` | (per-type evidence tests under `internal/domain/evidence/`) | Implemented | Single writer = `derive`. |
 | Signal domain (RSI, EMA crossover, MACD, Bollinger, VWAP, ATR) | [ADR-0008](decisions/0008-single-writer-invariant.md), [ADR-0009](decisions/0009-subject-taxonomy.md) | `internal/domain/signal/`; `internal/adapters/nats/natssignal/registry.go` | `internal/actors/scopes/derive/signal_sampler_actor_test.go:TestRSISignalSamplerActor_WarmupPeriod_NoSignal` | Partially Implemented | Only 2 of 6 signal types have a KV bucket (G2 in RESUMPTION). |
 | Decision domain (evaluators per signal) | [ADR-0008](decisions/0008-single-writer-invariant.md), [ADR-0009](decisions/0009-subject-taxonomy.md) | `internal/domain/decision/`; `internal/adapters/nats/natsdecision/registry.go` | (per-evaluator tests) | Implemented | Single writer = `derive`. |
@@ -139,14 +139,19 @@ with placeholder code/test anchors; each is promoted to `Accepted`
 (T1) by the onda that ships the supporting code, in the same
 commit that flips the `Status` field.
 
-Current state (post-Onda H-5, 2026-05-25):
+Current state (post-Onda H-6.a, 2026-05-25):
 - **Accepted** (T1, `Implemented`): ADR-0017, ADR-0018 (promoted
   by Onda H-3.b); ADR-0019, ADR-0020 (promoted by Onda H-4 — dual
   promotion closing Fase Wire); ADR-0024, ADR-0025 (promoted by
   Onda H-5 — dual promotion in PROGRAM-0003 Observability).
-- **Proposed** (T3, `Planned`): ADR-0021 (H-6); ADR-0022 (H-7);
-  ADR-0023 (H-9 partial / H-10 full, may remain `Proposed`
-  indefinitely if empirical triggers T1/T2/T3 never fire).
+- **Proposed** (T3, `Partially Implemented`): ADR-0021 — domain
+  root + 2 adapters + analyzer landed in H-6.a, but promotion to
+  `Accepted` is gated on criterion #2 (all domain-layer call
+  sites migrated) which finishes in H-6.b–H-6.e. Promotion is an
+  atomic event in H-6.f when all criteria are literally true.
+- **Proposed** (T3, `Planned`): ADR-0022 (H-7); ADR-0023 (H-9
+  partial / H-10 full, may remain `Proposed` indefinitely if
+  empirical triggers T1/T2/T3 never fire).
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
@@ -154,7 +159,7 @@ Current state (post-Onda H-5, 2026-05-25):
 | Protobuf contract layer (proto wire + buf tooling + raccoon-cli `check proto`) | [ADR-0018](decisions/0018-protobuf-contract-layer.md) | Schemas + tooling: `proto/buf.yaml`, `proto/buf.gen.yaml`, `proto/registry.json` (H-3.a). Generated Go boundary: `internal/shared/contracts/` (H-3.b — `envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked, gitignored entry G removed). Analyzer: `tools/raccoon-cli/src/analyzers/check_proto.rs:analyze` (H-3.b). | `make proto-lint`, `make proto-gen`, `make proto-breaking` (H-3.a). `make proto-check` + `raccoon-cli check proto` analyzer with 9 unit tests (H-3.b). `make verify` invokes both `proto-lint` and `check proto` (via `quality-gate`). | Implemented | ADR promoted to `Accepted` in Onda H-3.b. Proto primary for mesh; JSON fallback during migration; HTTP-API stays JSON. `protoc-gen-go` pinned at v1.36.8 in `scripts/bootstrap-check.sh` matching the runtime in `internal/shared/go.mod`. |
 | Deterministic replay invariants (INV-D1..D4) | [ADR-0019](decisions/0019-deterministic-replay-time-invariants.md) | Ports: `internal/shared/clock/clock.go:Clock`, `internal/shared/random/random.go:Source`. Replay: `internal/shared/replay/recorder.go:Recorder`, `…:Player`. Analyzer: `tools/raccoon-cli/src/analyzers/check_determinism.rs:analyze`. Domain migration: `internal/domain/execution/{control,session,activation,verification}.go` (5 production call sites, all migrated to `clock.Clock`). | `internal/shared/clock/clock_test.go`, `internal/shared/random/random_test.go`, `internal/shared/replay/replay_test.go`, `internal/shared/replay/golden_test.go:TestGolden_Synthetic100_ByteIdentical`, `…:TestGolden_ByteStability_N50`. `make verify` runs `check determinism` as Step 7 of the gate. | Implemented | ADR promoted to `Accepted` in Onda H-4 (dual promotion with ADR-0020). `internal/domain/` production code mechanically free of `time.Now`. Test files exempted from analyzer per documented rationale in ADR References. |
 | Sequencer producing monotonic seq per stream key | [ADR-0020](decisions/0020-sequencing-and-time-normalization.md) | Package: `internal/shared/sequencer/sequencer.go:Sequencer`, `…:StreamKey`. KV adapter: `internal/adapters/nats/natssequencer/store.go:Store`, `…:SequencerStateBucket`. Counter: `internal/shared/metrics/sequencer_metrics.go:IncSeqGap`. | `internal/shared/sequencer/sequencer_test.go:TestSequencer_MonotonicWithinKey`, `…:TestSequencer_ConcurrentSafe`, `…:TestSequencer_RestoreResumesFromSnapshot`. Integration: `internal/adapters/nats/natssequencer/store_roundtrip_test.go` (`//go:build integration`). | Implemented | ADR promoted to `Accepted` in Onda H-4. Per-writer Sequencer integration in the running stack (ADR-0020 critério 5) explicitly deferred to a successor fase as execution-of-decision; the architectural decision and shipping primitives are Accepted. |
-| Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | TODO (Onda H-6 — `internal/domain/instrument/`) | TODO (Onda H-6) | Planned | Requires refactor of existing `binances/` and `binancef/` adapters to `ToCanonical`/`FromCanonical`. |
+| Canonical instrument & venue model | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) | Domain package: `internal/domain/instrument/asset.go:BaseAsset`, `…:QuoteAsset`; `internal/domain/instrument/venue.go:Venue`; `internal/domain/instrument/contract_type.go:ContractType`; `internal/domain/instrument/canonical.go:CanonicalInstrument`, `…:New`, `…:Symbol`, `…:FromSymbol`. First adopters: `internal/domain/observation/trade.go:ObservationTrade.Instrument`; `internal/adapters/exchanges/binances/aggtrade.go:parseSpotSymbol`; `internal/adapters/exchanges/binancef/aggtrade.go:parseFuturesSymbol` (with `deliverySuffix` regex). Analyzer: `tools/raccoon-cli/src/analyzers/check_instruments.rs:analyze`; policy: `tools/raccoon-cli/policies/adapters.toml`. | `internal/domain/instrument/instrument_test.go` (21 tests); `internal/domain/observation/trade_test.go:TestObservationTrade_VenueSymbol`; `internal/adapters/exchanges/binancef/aggtrade_test.go:TestNormalize_DeliveryFuturesPattern`, `…:TestNormalize_PerpetualClassification`, `…:TestNormalize_RejectsNonUSDTQuote`; `internal/adapters/exchanges/binances/aggtrade_test.go:TestNormalize_RejectsNonUSDTQuote`; `cargo test analyzers::check_instruments` (9 tests). | Partially Implemented | ADR-0021 stays `Proposed` through PROGRAM-0004 H-6.a–H-6.e; flips to `Accepted` only in H-6.f when criterion #2 ("all domain-layer call sites migrated") is literally satisfied. H-6.a erratum split criterion #4 into #4a (writer-side adapt, this onda) and #4b (ClickHouse migration, H-6.d). |
 | Multi-venue normalization policy (Capabilities + `check venue-parity`) | [ADR-0022](decisions/0022-multi-venue-normalization-policy.md) | TODO (Onda H-7 — adapter `Capabilities()`; `/venues/capabilities` HTTP route; raccoon-cli `check venue-parity`) | TODO (Onda H-7 — `cmd/gateway/boot_test.go` entry; analyzer tests) | Planned | First non-Binance adapter is typically Bybit; route registration updates the gateway boot test per ADR-0010. |
 | Storage tier roadmap (Stage 1 → Stage 2 with empirical triggers) | [ADR-0023](decisions/0023-storage-tier-roadmap.md) | Stage 1: existing ClickHouse + KV (no new code); Stage 2 TODO (Onda H-10 — `internal/adapters/storage/timescale/`) | Stage 1: existing analytical + projection tests; Stage 2 TODO (Onda H-10) | Planned (partial) | Stage 1 active today on existing ClickHouse + KV. Stage 2 (TimescaleDB) opens only when triggers T1/T2/T3 fire; may remain `Planned` indefinitely. |
 | Metrics policy (naming + label budget + cardinality + log compensation pattern) | [ADR-0024](decisions/0024-metrics-policy.md) | Policy ratifies existing pattern in `internal/shared/metrics/{metrics,sequencer_metrics}.go`. Refactor (drop `instrument` from `consumer_seq_gap_total`) shipped in `internal/shared/metrics/sequencer_metrics.go:IncSeqGap` (now `(venue, eventType)`). Analyzer: `tools/raccoon-cli/src/analyzers/check_metrics.rs:analyze`. Policy file: `tools/raccoon-cli/policies/binaries.toml`. | `internal/shared/metrics/sequencer_metrics_test.go:TestIncSeqGap_*` (3 tests covering new label shape). `make verify` invokes `check metrics` via gate Step 8 (3 checks). `cargo test analyzers::check_metrics` (10 tests). | Implemented | ADR promoted to `Accepted` in PROGRAM-0003 H-5. Naming convention grandfathered for `marketfoundry_http_*`; new metrics conform to MP-1. Label validation against MP-2 is documented as future-onda analyzer extension. |
@@ -162,6 +167,7 @@ Current state (post-Onda H-5, 2026-05-25):
 | Observability stack (Prometheus + Grafana, compose profile) | [PROGRAM-0003](programs/PROGRAM-0003-observability.md), [ADR-0024](decisions/0024-metrics-policy.md), [ADR-0025](decisions/0025-alerting-strategy.md) | `deploy/observability/prometheus/{prometheus,recording.rules,alerts.rules}.yml`; `deploy/observability/grafana/{provisioning,dashboards}/`. 5 dashboards (ingest/derive/store/gateway/determinism-health). Compose: `deploy/compose/docker-compose.yaml` profile `observability`. Makefile: `obs-up`/`obs-down`/`obs-reload`/`metrics-check`. | `make verify` runs `check metrics` analyzer as gate Step 8. `make obs-up` brings stack up; manual validation via Prometheus :9090 + Grafana :3000. | Implemented | Opt-in profile (does not come up under `make up`). Single phase (H-5) of PROGRAM-0003. Operator guide: [`operations/observability.md`](operations/observability.md). |
 | `marketfoundry_consumer_seq_gap_total` label refactor (drop instrument; log compensation) | [ADR-0024](decisions/0024-metrics-policy.md) MP-2 + MP-5 | `internal/shared/metrics/sequencer_metrics.go:consumerSeqGapTotal` (label set now `{venue, event_type}`); `IncSeqGap(venue, eventType string)` helper documents log compensation pattern inline. | `internal/shared/metrics/sequencer_metrics_test.go:TestIncSeqGap_IncrementsCounter`, `…:TestIncSeqGap_LabelsAreIndependent`, `…:TestSeqGapTotal_ExposedOnMetricsEndpoint` (assert new labels appear + `stream_key` absent). | Implemented | H-4 declared counter with composite `stream_key`; H-5 refactored per ADR-0024 MP-2 (instrument is high-cardinality, prohibited). Log compensation pattern (MP-5) documented inline at IncSeqGap docstring for future callers. |
 | Raccoon-cli `check metrics` analyzer (every long-running `cmd/*/main.go` exposes `/metrics`) | [ADR-0024](decisions/0024-metrics-policy.md), [PROGRAM-0003](programs/PROGRAM-0003-observability.md) | `tools/raccoon-cli/src/analyzers/check_metrics.rs:analyze`; `tools/raccoon-cli/policies/binaries.toml` (declarative allowlist: `one_shot = ["migrate"]`, `transitive_registration = ["gateway"]`); CLI variant + dispatch + gate Step 8 integration. | `cargo test analyzers::check_metrics` (10 tests). `make verify` GREEN includes `check metrics` PASS. `make metrics-check` standalone target. | Implemented | Declarative allowlist over inferred patterns (per H-5 user refinement). Transitive registration list documented as known tech debt (future scan via `go list -deps`). |
+| Raccoon-cli `check instruments` analyzer (every exchange adapter normalizes via the canonical instrument constructor) | [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md), [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) | `tools/raccoon-cli/src/analyzers/check_instruments.rs:analyze`; `tools/raccoon-cli/policies/adapters.toml` (declarative allowlist: `["binances", "binancef"]`); CLI variant + dispatch + gate Step 9 integration. | `cargo test analyzers::check_instruments` (9 tests covering pass/fail × import/constructor × in-out allowlist × test-file exclusion). `make verify` GREEN includes `check-instruments` PASS (4 checks). | Implemented | Declarative allowlist over pattern inference (same shape as H-5 `check metrics`). New venue requires both the allowlist edit and the `instrument.New(...)`/`instrument.FromSymbol(...)` adoption in the adapter — struct-literal bypass is rejected by check 3. Test files (`*_test.go`) are excluded from the production scan. |
 
 ### Gate (verification surface)
 
@@ -218,7 +224,7 @@ a TRUTH-MAP row either.
 
 ---
 
-## Summary counts (2026-05-24)
+## Summary counts (2026-05-25, post-H-6.a)
 
 - HTTP routes registered: **60** (in `cmd/gateway/boot_test.go`).
 - NATS streams declared: **11**.
@@ -229,11 +235,14 @@ a TRUTH-MAP row either.
 - ADRs published: **25** (0001–0020 `Accepted` + 0024–0025
   `Accepted`; 0021–0023 `Proposed`). 0017+0018 promoted by Onda
   H-3.b; 0019+0020 promoted by Onda H-4; 0024+0025 promoted by
-  Onda H-5 (dual promotion in PROGRAM-0003).
-- PRDs published: **3** (PROGRAM-0001 `Active`; PROGRAM-0002
-  `Closed` by Onda H-4; PROGRAM-0003 `Active` opened by Onda H-5).
-- `make verify` checks executed: **96** (across 8 active analyzers
-  in the gate; `check metrics` added as Step 8 in Onda H-5).
+  Onda H-5 (dual promotion in PROGRAM-0003); 0021 carries an
+  erratum landed in H-6.a (criterion #4 split into #4a/#4b).
+- PRDs published: **4** (PROGRAM-0001 `Active`; PROGRAM-0002
+  `Closed` by Onda H-4; PROGRAM-0003 `Active` opened by Onda H-5;
+  PROGRAM-0004 `Active` opened by Onda H-6.a).
+- `make verify` checks executed: **100** (across 9 static
+  analyzers in the gate; `check-instruments` added as Step 9 in
+  Onda H-6.a).
 - Prometheus recording rules: **44** (4 SLOs × ~10 rules each +
   runtime-aggregates group). Alert rules: **13** (8 SLO burn-rate
   + 5 runtime-safety).
@@ -309,3 +318,24 @@ a TRUTH-MAP row either.
   `check metrics`); 3 PRDs (added PROGRAM-0003 Active); 44
   recording rules + 13 alert rules + 5 Grafana dashboards new
   metrics infrastructure declared.
+- **2026-05-25** — Onda H-6.a closure: **PROGRAM-0004 opened +
+  partial ADR-0021 implementation**. PROGRAM-0004
+  (Multi-venue) opened with 6 sub-ondas H-6.a–H-6.f + H-7 (sub-
+  onda sequencing policy stricter than P4). Erratum to ADR-0021
+  splitting criterion #4 into #4a (writer-side adapt, this
+  onda — zero schema change) and #4b (ClickHouse migration,
+  H-6.d). `internal/domain/instrument/` package shipped (Venue,
+  BaseAsset, QuoteAsset, ContractType, CanonicalInstrument with
+  21 tests). `ObservationTrade.Symbol string` migrated to
+  `Instrument CanonicalInstrument` atomically with both Binance
+  adapters (binances spot, binancef perpetual + delivery futures
+  pattern detection via `_\d{6}$` regex) — option (C) transitory
+  accessor `VenueSymbol()` with semantically distinct name
+  documents the sunset onda (H-6.f). New `check instruments`
+  analyzer added to the gate at Step 9, backed by
+  `policies/adapters.toml` (allowlist `binances`/`binancef`).
+  ADR-0021 remains `Proposed` — promotion is atomic in H-6.f
+  after criterion #2 literally satisfied. Summary counts updated:
+  100 `make verify` checks (+4 from `check-instruments`); 4 PRDs
+  (added PROGRAM-0004 Active); ADR-0021 row state changed from
+  `Planned` to `Partially Implemented` while staying `Proposed`.
