@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"strings"
 	"time"
 
 	domainexec "internal/domain/execution"
@@ -22,6 +23,23 @@ func NewPaperOrderEvaluator(source, symbol string, timeframe int) *PaperOrderEva
 		source:     source,
 		symbol:     symbol,
 		instrument: instrumentFromBinding(source, symbol),
+		timeframe:  timeframe,
+	}
+}
+
+// NewPaperOrderEvaluatorForInstrument constructs an evaluator with an explicit
+// CanonicalInstrument, bypassing the source-based reconstruction. Used when the
+// caller already carries the canonical instrument (e.g., the strategy consumer
+// reading from `Strategy.Instrument`) and the upstream `Source` label is not a
+// venue identifier recognized by `instrumentFromBinding`.
+//
+// TRANSITORY (H-6.b' → sunset H-6.c when the evaluator API itself migrates to
+// CanonicalInstrument as the single source of truth).
+func NewPaperOrderEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *PaperOrderEvaluator {
+	return &PaperOrderEvaluator{
+		source:     source,
+		symbol:     strings.ToLower(string(inst.Base) + string(inst.Quote)),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
 }
