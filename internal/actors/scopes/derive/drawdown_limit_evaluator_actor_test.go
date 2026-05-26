@@ -14,6 +14,7 @@ func TestDrawdownLimitEvaluatorActor_Long_Approved(t *testing.T) {
 	evalPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -90,6 +91,7 @@ func TestDrawdownLimitEvaluatorActor_Flat_Approved(t *testing.T) {
 	evalPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -126,6 +128,7 @@ func TestDrawdownLimitEvaluatorActor_UnknownDirection_NoPublish(t *testing.T) {
 	evalPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -159,6 +162,7 @@ func TestDrawdownLimitEvaluatorActor_FanOut_IncludesDecisionSeverity(t *testing.
 	evalPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 		ScopePID:         scopePID,

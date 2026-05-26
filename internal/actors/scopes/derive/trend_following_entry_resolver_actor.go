@@ -39,7 +39,7 @@ func (a *TrendFollowingEntryResolverActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.resolver = appstrategy.NewTrendFollowingEntryResolver(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.resolver = appstrategy.NewTrendFollowingEntryResolverForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("trend following entry resolver started")
 
 	case actor.Stopped:

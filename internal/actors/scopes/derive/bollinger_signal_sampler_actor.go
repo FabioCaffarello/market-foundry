@@ -39,7 +39,7 @@ func (a *BollingerSignalSamplerActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.sampler = appsignal.NewBollingerSampler(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.sampler = appsignal.NewBollingerSamplerForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("bollinger signal sampler started")
 
 	case actor.Stopped:

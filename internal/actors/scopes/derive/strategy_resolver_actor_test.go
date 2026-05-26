@@ -14,6 +14,7 @@ func TestMeanReversionResolverActor_Triggered_LongDirection(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -93,6 +94,7 @@ func TestMeanReversionResolverActor_NotTriggered_FlatDirection(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -131,6 +133,7 @@ func TestMeanReversionResolverActor_Insufficient_FlatWithReason(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -166,6 +169,7 @@ func TestMeanReversionResolverActor_UnknownOutcome_NoPublish(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -196,6 +200,7 @@ func TestMeanReversionResolverActor_SeverityAndRationale_Propagated(t *testing.T
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -244,6 +249,7 @@ func TestMeanReversionResolverActor_NilScopePID_PublishesWithoutFanout(t *testin
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 		ScopePID:             nil,
@@ -278,6 +284,7 @@ func TestMeanReversionResolverActor_FanOut_IncludesDecisionContext(t *testing.T)
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 		ScopePID:             scopePID,
@@ -327,6 +334,7 @@ func TestMeanReversionResolverActor_InvalidConfidence_NoPublish(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -357,6 +365,7 @@ func TestMeanReversionResolverActor_SequentialDecisions_Independent(t *testing.T
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")

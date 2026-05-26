@@ -16,6 +16,7 @@ func TestRSIOversoldEvaluatorActor_LowRSI_TriggeredWithFanout(t *testing.T) {
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 		ScopePID:             scopePID,
@@ -92,6 +93,7 @@ func TestRSIOversoldEvaluatorActor_HighRSI_NotTriggered(t *testing.T) {
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 	}), "evaluator")
@@ -124,6 +126,7 @@ func TestRSIOversoldEvaluatorActor_InvalidSignalValue_NoPanic(t *testing.T) {
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 	}), "evaluator")
@@ -154,6 +157,7 @@ func TestRSIOversoldEvaluatorActor_NilScopePID_PublishesWithoutFanout(t *testing
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 		ScopePID:             nil,
@@ -185,6 +189,7 @@ func TestRSIOversoldEvaluatorActor_BoundaryRSI_AtThreshold(t *testing.T) {
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 	}), "evaluator")
@@ -216,6 +221,7 @@ func TestRSIOversoldEvaluatorActor_MultipleSignals_IndependentEvaluation(t *test
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 	}), "evaluator")

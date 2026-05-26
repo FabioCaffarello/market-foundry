@@ -20,6 +20,7 @@ func TestActorChain_BollingerSignalSampler_ProducesSignal(t *testing.T) {
 	samplerPID := e.Spawn(NewBollingerSignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: signalPubPID,
 		ScopePID:           scopeFanoutPID,
@@ -102,6 +103,7 @@ func TestActorChain_BollingerSignal_To_BollingerSqueezeDecision(t *testing.T) {
 	samplerPID := e.Spawn(NewBollingerSignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: signalPubPID,
 		ScopePID:           signalFanoutPID,
@@ -110,6 +112,7 @@ func TestActorChain_BollingerSignal_To_BollingerSqueezeDecision(t *testing.T) {
 	decisionEvalPID := e.Spawn(NewBollingerSqueezeEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: decisionPubPID,
 		ScopePID:             decFanoutPID,
@@ -179,6 +182,7 @@ func TestActorChain_BollingerSignal_WideBands_NotTriggered(t *testing.T) {
 	decisionEvalPID := e.Spawn(NewBollingerSqueezeEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: decisionPubPID,
 		ScopePID:             decFanoutPID,

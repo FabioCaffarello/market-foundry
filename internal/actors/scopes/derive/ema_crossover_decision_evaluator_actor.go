@@ -39,7 +39,7 @@ func (a *EMACrossoverEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = appdecision.NewEMACrossoverEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = appdecision.NewEMACrossoverEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("ema crossover evaluator started")
 
 	case actor.Stopped:

@@ -39,7 +39,7 @@ func (a *DrawdownLimitEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = apprisk.NewDrawdownLimitEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = apprisk.NewDrawdownLimitEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("drawdown limit evaluator started")
 
 	case actor.Stopped:

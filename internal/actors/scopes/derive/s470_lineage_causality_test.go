@@ -29,6 +29,7 @@ func TestS470_DecisionCarriesSignalEventID(t *testing.T) {
 	evalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: pubPID,
 		ScopePID:             scopePID,
@@ -89,6 +90,7 @@ func TestS470_StrategyCarriesDecisionEventID(t *testing.T) {
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 		ScopePID:             scopePID,
@@ -144,6 +146,7 @@ func TestS470_RiskCarriesStrategyEventID(t *testing.T) {
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 		ScopePID:         scopePID,
@@ -196,6 +199,7 @@ func TestS470_ExecutionCarriesRiskEventID(t *testing.T) {
 	evalPID := e.Spawn(NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
 		Source:                "binancef",
 		Symbol:                "btcusdt",
+		Instrument:            btcUSDTPerp(),
 		Timeframe:             60 * time.Second,
 		ExecutionPublisherPID: pubPID,
 	}), "paper-eval")

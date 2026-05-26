@@ -16,6 +16,7 @@ func TestRSISignalSamplerActor_WarmupPeriod_NoSignal(t *testing.T) {
 	rsiPID := e.Spawn(NewRSISignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: pubPID,
 		ScopePID:           scopePID,
@@ -55,6 +56,7 @@ func TestRSISignalSamplerActor_AfterWarmup_ProducesSignalAndFansOut(t *testing.T
 	rsiPID := e.Spawn(NewRSISignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: pubPID,
 		ScopePID:           scopePID,
@@ -130,6 +132,7 @@ func TestRSISignalSamplerActor_SubsequentCandles_ProduceSignals(t *testing.T) {
 	rsiPID := e.Spawn(NewRSISignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: pubPID,
 	}), "rsi-sampler")
@@ -162,6 +165,7 @@ func TestRSISignalSamplerActor_NilScopePID_PublishesWithoutFanout(t *testing.T) 
 	rsiPID := e.Spawn(NewRSISignalSamplerActor(SignalSamplerConfig{
 		Source:             "binancef",
 		Symbol:             "btcusdt",
+		Instrument:         btcUSDTPerp(),
 		Timeframe:          60 * time.Second,
 		SignalPublisherPID: pubPID,
 		ScopePID:           nil,

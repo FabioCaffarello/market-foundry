@@ -14,6 +14,7 @@ func TestTrendFollowingResolverActor_Triggered_LongDirection(t *testing.T) {
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -93,6 +94,7 @@ func TestTrendFollowingResolverActor_NotTriggered_FlatDirection(t *testing.T) {
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -131,6 +133,7 @@ func TestTrendFollowingResolverActor_Insufficient_FlatWithReason(t *testing.T) {
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -166,6 +169,7 @@ func TestTrendFollowingResolverActor_UnknownOutcome_NoPublish(t *testing.T) {
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -196,6 +200,7 @@ func TestTrendFollowingResolverActor_SeverityAndRationale_Propagated(t *testing.
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "resolver")
@@ -246,6 +251,7 @@ func TestTrendFollowingResolverActor_FanOut_IncludesDecisionContext(t *testing.T
 	resolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: pubPID,
 		ScopePID:             scopePID,
