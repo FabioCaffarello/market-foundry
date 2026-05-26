@@ -124,18 +124,18 @@ file = "audit_bundle.go"
 type_name = "AuditLifecycleEntry"
 migration_state = "migrated"
 
-# H-6.b'' — Pairing chain (pending)
+# H-6.b'' — Pairing chain (migrated)
 [domain_types.pairing_leg]
 package = "internal/domain/pairing"
 file = "pairing.go"
 type_name = "Leg"
-migration_state = "pending"
+migration_state = "migrated"
 
 [domain_types.pairing_round_trip]
 package = "internal/domain/pairing"
 file = "pairing.go"
 type_name = "RoundTrip"
-migration_state = "pending"
+migration_state = "migrated"
 
 [domain_types.cross_session_window]
 package = "internal/domain/pairing"
