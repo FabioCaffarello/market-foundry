@@ -438,12 +438,16 @@ no foundry com tipos fortes per ADR-0021 spec.
   imediatamente. Commit 5 do plano permaneceu como test-only
   (Decisão #5β canary coverage). Per H-6.b' precedent (PR #28):
   pull-forward by compile pressure é documentado no commit
-  afetado, não escondido em renumbering. Branch
-  `feat/h-6-b1-execution-chain` carrega ambas H-6.b' e
-  H-6.b'' empilhadas — H-6.b'' iniciou antes do merge de
-  H-6.b' em `main` (deviation observada de P4/P9 sub-onda
-  sequencing policy; combinado em entrega única para o
-  maintainer).
+  afetado, não escondido em renumbering. **P4/P9 deviation
+  observada**: branch `feat/h-6-b1-execution-chain` iniciou
+  trabalho de H-6.b'' antes do merge de H-6.b' em `main`
+  (PR #28). Pós-merge de H-6.b', branch foi rebased em
+  `origin/main` (commit `6b62d89`) para reconciliar histórico
+  e produzir uma PR limpa contendo apenas os 9 commits de
+  H-6.b''. Lesson registrada em PR description (link no
+  Changelog) e em `CONTRIBUTING.md` pre-push validation
+  discipline.
+
 
   **H-6.f scope revision (post-pré-flight 6 de H-6.b'')**:
   pré-flight 6 descobriu que o débito real de H-6.f é maior
@@ -472,8 +476,8 @@ no foundry com tipos fortes per ADR-0021 spec.
   Esta revisão garante que H-6.f não é "remove transitory
   methods" mas o trabalho semântico real. ADR-0021 permanece
   `Proposed` — promoção continua sendo evento atômico em
-  H-6.f. Sub-onda H-6.c destravada após merge da combinada
-  H-6.b' + H-6.b'' em `main`.
+  H-6.f. Sub-onda H-6.c destravada após merge desta PR
+  (H-6.b'') em `main`.
 
 - **2026-05-26** — H-6.b' fechada. Entregas: três domain types
   da execution chain migrados `Symbol string` → `Instrument

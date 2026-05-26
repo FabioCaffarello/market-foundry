@@ -282,9 +282,13 @@ a TRUTH-MAP row either.
   literal zero source-string-based instrument reconstruction in
   production. **8 commits delivered** (plan declared 9 —
   consolidation via compile pressure documented in commits 3
-  and 8). Sub-onda branch `feat/h-6-b1-execution-chain` carries
-  both H-6.b' and H-6.b'' commits (H-6.b'' empilhada sobre
-  H-6.b' devido a entrega combinada).
+  and 8). **P4/P9 deviation observed**: H-6.b'' work started on
+  branch `feat/h-6-b1-execution-chain` before H-6.b' merged in
+  `main` (PR #28); branch was rebased on `origin/main` (commit
+  `6b62d89`) post-H-6.b'-merge to reconcile history and produce
+  a clean PR containing only the 9 H-6.b'' commits. Lesson
+  registered in PR description and in `CONTRIBUTING.md`
+  pre-push validation discipline.
 
 - **2026-05-24** — Initial version, shipped as H-1 deliverable.
   All current ADRs (0001–0016), PRDs (PROGRAM-0001), 8 binaries,
