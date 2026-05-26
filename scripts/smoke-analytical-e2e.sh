@@ -11,6 +11,10 @@
 #   [Wave B F-04] NATS JetStream → writer → ClickHouse → reader → GET /analytical/risk/history      (position_exposure)
 #   [Breadth S243] NATS JetStream → writer → ClickHouse → reader → GET /analytical/risk/history      (drawdown_limit)
 #   [Wave B F-05] NATS JetStream → writer → ClickHouse → reader → GET /analytical/execution/history
+#   [H-6.b'' γ]   NATS JetStream → writer → ClickHouse → reader → GET /analytical/composite/pairing/review
+#                 Canary for the canonical-Instrument projection on pairing.RoundTrip
+#                 (Decision #5γ; tri-state PASS/WARN/FAIL — WARN when pairing matched-pair
+#                 data is unavailable since smoke setup does not explicitly seed both legs).
 #
 # This script validates the complete analytical data path in the minimum useful scope:
 #   1. Infrastructure readiness (ClickHouse + writer + gateway)
@@ -606,6 +610,63 @@ if [[ "$EXEC_STATUS_CODE" == "200" ]]; then
     pass "Execution endpoint with status=filled → 200"
 else
     record_fail "Execution endpoint with status=filled → ${EXEC_STATUS_CODE} (expected 200)"
+fi
+
+# --- Pairing/Round-Trip Review — H-6.b'' γ canary ---
+#
+# Canary for the canonical-instrument projection at the pairing read
+# surface. Decision #5γ of H-6.b''. Tri-state semantics:
+#
+#   HTTP 200 + reviews populated + instrument.base populated → PASS
+#       (route OK, data available, canonical identity propagated).
+#   HTTP 200 + reviews empty                                 → WARN
+#       (route OK; pairing requires matched entry+exit which the smoke
+#       setup does not explicitly seed — canary inapplicable for this
+#       run, not a regression).
+#   HTTP 200 + reviews populated + instrument.base empty     → FAIL
+#       (regression-shape: pairing.RoundTrip.Instrument arrived zero,
+#       analogous to the H-6.b' regression that caused commit 37f8ddd).
+#   HTTP != 200                                              → FAIL
+#       (route regression).
+info "Querying pairing/review endpoint (H-6.b'' γ canary)..."
+PAIRING_REVIEW_URL="${BASE_URL}/analytical/composite/pairing/review?source=binances&symbol=btcusdt&timeframe=60&limit=10"
+PAIRING_REVIEW_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${PAIRING_REVIEW_URL}")
+
+if [[ "$PAIRING_REVIEW_CODE" != "200" ]]; then
+    record_fail "GET /analytical/composite/pairing/review → ${PAIRING_REVIEW_CODE} (expected 200)"
+else
+    pass "GET /analytical/composite/pairing/review → 200"
+    PAIRING_REVIEW_RESPONSE=$(curl -s "${PAIRING_REVIEW_URL}")
+    PAIRING_REVIEW_CHECK=$(echo "$PAIRING_REVIEW_RESPONSE" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    reviews = d.get('reviews', [])
+    if not isinstance(reviews, list):
+        print('FAIL: reviews is not an array')
+        sys.exit(1)
+    if len(reviews) == 0:
+        print('SKIP: reviews empty (no matched entry+exit produced in smoke window; canary inapplicable)')
+        sys.exit(2)
+    first = reviews[0]
+    inst = first.get('instrument', {})
+    base = inst.get('base', '')
+    quote = inst.get('quote', '')
+    contract = inst.get('contract', '')
+    if not base:
+        print(f'FAIL: reviews[0].instrument.base is empty (H-6.b\\\"\\\" regression-shape canary tripped — pairing.RoundTrip.Instrument arrived zero)')
+        sys.exit(1)
+    print(f'OK: reviews[0].instrument={{base={base}, quote={quote}, contract={contract}}} (reviews_count={len(reviews)})')
+except Exception as e:
+    print(f'FAIL: response parse error: {e}')
+    sys.exit(1)
+" 2>&1)
+    PAIRING_REVIEW_EXIT=$?
+    case $PAIRING_REVIEW_EXIT in
+        0) pass "Pairing/review canonical Instrument populated: ${PAIRING_REVIEW_CHECK}" ;;
+        2) warn "Pairing/review canary skipped — ${PAIRING_REVIEW_CHECK#SKIP: }" ;;
+        *) record_fail "Pairing/review: ${PAIRING_REVIEW_CHECK}" ;;
+    esac
 fi
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1290,6 +1351,7 @@ if [[ $ERRORS -eq 0 ]]; then
     echo "  [Wave B F-04]   Risk (Position Exposure)  — NATS → writer → ClickHouse → reader → HTTP"
     echo "  [Breadth S243]  Risk (Drawdown Limit)     — NATS → writer → ClickHouse → reader → HTTP"
     echo "  [Wave B F-05]   Executions (Paper Order)  — NATS → writer → ClickHouse → reader → HTTP"
+    echo "  [H-6.b'' γ]     Pairing review instrument — Canonical Instrument projection canary"
 else
     echo -e "${RED}${BOLD}ANALYTICAL E2E PROOF: ${ERRORS} ISSUE(S) DETECTED${NC}"
     echo ""
