@@ -34,7 +34,7 @@ func TestVA1_1_HTTP401_InvalidArgument_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 401")
 	}
@@ -62,7 +62,7 @@ func TestVA1_2_HTTP403_InvalidArgument_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 403")
 	}
@@ -90,7 +90,7 @@ func TestVA1_3_HTTP400_InvalidArgument_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 400")
 	}
@@ -118,7 +118,7 @@ func TestVA1_4_HTTP422_InvalidArgument_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 422")
 	}
@@ -146,7 +146,7 @@ func TestVA1_5_HTTP429_Unavailable_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 429")
 	}
@@ -174,7 +174,7 @@ func TestVA1_6_HTTP503_Unavailable_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 503")
 	}
@@ -202,7 +202,7 @@ func TestVA1_7_HTTP500_Unavailable_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 500")
 	}
@@ -230,7 +230,7 @@ func TestVA1_8_HTTP502_Unavailable_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 502")
 	}
@@ -254,7 +254,7 @@ func TestVA1_9_NetworkFailure_Unavailable_Retryable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for network failure")
 	}
@@ -275,7 +275,7 @@ func TestVA1_9_DNSFailure_Unavailable_Retryable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for DNS failure")
 	}
@@ -301,7 +301,7 @@ func TestVA1_9_ConnectionRefused_Unavailable_Retryable(t *testing.T) {
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 2*time.Second).
 		WithBaseURL("http://" + addr)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for connection refused")
 	}
@@ -327,7 +327,7 @@ func TestVA1_10_MalformedJSON_Internal_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for malformed JSON")
 	}
@@ -350,7 +350,7 @@ func TestVA1_10_EmptyBody_Internal_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for empty response body")
 	}
@@ -386,7 +386,7 @@ func TestVA1_11_UnknownVenueStatus_Internal_NotRetryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for unknown venue status")
 	}
@@ -435,7 +435,7 @@ func TestVA1_13_NoCredentialsInErrorMessages(t *testing.T) {
 			}
 
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob == nil {
 				t.Fatal("expected error")
 			}
@@ -466,7 +466,7 @@ func TestRF1_6_ContextDeadline_Retryable(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for context deadline")
 	}
@@ -511,7 +511,7 @@ func TestRF1_1_AllErrorPaths_RetryableConsistency(t *testing.T) {
 			creds := testCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob == nil {
 				t.Fatalf("expected error for HTTP %d", tc.statusCode)
 			}
@@ -541,7 +541,7 @@ func TestVA1_ErrorDetails_VenueHTTPStatus(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error")
 	}
@@ -603,7 +603,7 @@ func TestVA1_StatusMapping_AllKnownStatuses(t *testing.T) {
 			creds := testCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob != nil {
 				t.Fatalf("unexpected error for status %s: %s", tc.binanceStatus, prob.Message)
 			}

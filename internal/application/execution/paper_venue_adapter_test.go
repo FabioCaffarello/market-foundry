@@ -15,13 +15,13 @@ func TestPaperVenueAdapter_SubmitOrder_Buy(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.05",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.05",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -57,13 +57,13 @@ func TestPaperVenueAdapter_SubmitOrder_Sell(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "ETHUSDT",
-		Timeframe: 300,
-		Side:      domainexec.SideSell,
-		Quantity:  "1.0",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: ethUSDTPerp(t),
+		Timeframe:  300,
+		Side:       domainexec.SideSell,
+		Quantity:   "1.0",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -89,13 +89,13 @@ func TestPaperVenueAdapter_SubmitOrder_NoAction(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideNone,
-		Quantity:  "0",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideNone,
+		Quantity:   "0",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "rejected",
@@ -118,13 +118,13 @@ func TestPaperVenueAdapter_UniqueVenueOrderIDs(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -155,13 +155,13 @@ func TestPaperVenueAdapter_SubmitOrder_CancelledContext(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -190,13 +190,13 @@ func TestPaperVenueAdapter_FillDelay_RespectsDelay(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(delay)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "test",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.01",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "venue_market_order",
+		Source:     "test",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.01",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",

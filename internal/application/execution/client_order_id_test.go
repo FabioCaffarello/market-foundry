@@ -11,7 +11,7 @@ import (
 
 // EC-1.1: Same intent → same ID across multiple calls.
 func TestClientOrderID_Deterministic(t *testing.T) {
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 
 	id1 := appexec.ClientOrderID(intent)
 	id2 := appexec.ClientOrderID(intent)
@@ -25,13 +25,13 @@ func TestClientOrderID_Deterministic(t *testing.T) {
 // EC-1.2: Different intents → different IDs.
 func TestClientOrderID_Uniqueness(t *testing.T) {
 	base := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -57,7 +57,7 @@ func TestClientOrderID_Uniqueness(t *testing.T) {
 
 	// Vary symbol.
 	v3 := base
-	v3.Symbol = "ethusdt"
+	v3.Instrument = ethUSDTPerp(t)
 	checkUnique(t, seen, "symbol", appexec.ClientOrderID(v3))
 
 	// Vary timeframe.
@@ -74,7 +74,7 @@ func TestClientOrderID_Uniqueness(t *testing.T) {
 // EC-1.3: Generated ID conforms to Binance newClientOrderId format constraints.
 // Binance: alphanumeric, max 36 characters.
 func TestClientOrderID_BinanceFormat(t *testing.T) {
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	id := appexec.ClientOrderID(intent)
 
 	if len(id) > 36 {
@@ -98,11 +98,11 @@ func TestClientOrderID_BinanceFormat(t *testing.T) {
 // Verified by calling with the same frozen intent 1000 times.
 func TestClientOrderID_NoRandomInputs(t *testing.T) {
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Timestamp: time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC),
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Timestamp:  time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC),
 	}
 
 	expected := appexec.ClientOrderID(intent)

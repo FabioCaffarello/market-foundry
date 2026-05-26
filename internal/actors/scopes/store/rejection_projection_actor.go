@@ -120,7 +120,7 @@ func (a *RejectionProjectionActor) onRejection(msg rejectionReceivedMessage) {
 			"error", prob.Message,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 		)
 		return
@@ -141,7 +141,7 @@ func (a *RejectionProjectionActor) onRejection(msg rejectionReceivedMessage) {
 			"code", prob.Code,
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"status", string(intent.Status),
@@ -173,7 +173,7 @@ func (a *RejectionProjectionActor) onRejection(msg rejectionReceivedMessage) {
 		a.logger.Info("rejection materialized",
 			"type", intent.Type,
 			"source", intent.Source,
-			"symbol", intent.Symbol,
+			"symbol", intent.VenueSymbol(),
 			"timeframe", intent.Timeframe,
 			"side", string(intent.Side),
 			"status", string(intent.Status),

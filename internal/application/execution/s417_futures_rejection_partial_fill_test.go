@@ -47,15 +47,16 @@ import (
 // Helpers
 // ═══════════════════════════════════════════════════════════════════
 
-func s417FuturesBuyIntent() domainexec.ExecutionIntent {
+func s417FuturesBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -93,7 +94,7 @@ func TestS417_Rejection_InsufficientMargin(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for insufficient margin")
 	}
@@ -125,7 +126,7 @@ func TestS417_Rejection_InsufficientBalance(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for insufficient balance")
 	}
@@ -150,7 +151,7 @@ func TestS417_Rejection_InvalidQuantity(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s417FuturesBuyIntent()
+	intent := s417FuturesBuyIntent(t)
 	intent.Quantity = "0.0000001" // below LOT_SIZE minimum
 
 	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -178,7 +179,7 @@ func TestS417_Rejection_AuthFailure(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected rejection for auth failure")
 	}
@@ -202,7 +203,7 @@ func TestS417_Rejection_RateLimit(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for rate limit")
 	}
@@ -224,7 +225,7 @@ func TestS417_Rejection_VenueInternalOverride(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for venue internal error")
 	}
@@ -249,7 +250,7 @@ func TestS417_Rejection_OrderRateLimitOverride(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for order rate limit")
 	}
@@ -275,7 +276,7 @@ func TestS417_Rejection_ServerError(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected problem for server error")
 	}
@@ -310,7 +311,7 @@ func TestS417_Rejection_VenueRejectedStatus(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("HTTP 200 should not produce Problem, got: %s", prob.Message)
 	}
@@ -349,7 +350,7 @@ func TestS417_Rejection_VenueExpiredStatus(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -382,7 +383,7 @@ func TestS417_Rejection_CorrelationPreserved(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s417FuturesBuyIntent()
+	intent := s417FuturesBuyIntent(t)
 	intent.CorrelationID = "s417-corr-rejection"
 	intent.CausationID = "s417-cause-rejection"
 
@@ -429,7 +430,7 @@ func TestS417_PartialFill_FuturesFormat(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	intent := s417FuturesBuyIntent()
+	intent := s417FuturesBuyIntent(t)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not error: %s", prob.Message)
@@ -519,7 +520,7 @@ func TestS417_PartialFill_QuantityMonotonicity(t *testing.T) {
 			creds := s416FuturesCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-			intent := s417FuturesBuyIntent()
+			intent := s417FuturesBuyIntent(t)
 			intent.Quantity = tt.quantity
 
 			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -558,7 +559,7 @@ func TestS417_PartialFill_FillTimestamp(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -582,7 +583,7 @@ func TestS417_Regression_FilledStillWorks(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s417FuturesBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("filled should not error: %s", prob.Message)
 	}

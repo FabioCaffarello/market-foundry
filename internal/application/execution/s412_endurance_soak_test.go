@@ -36,7 +36,7 @@ import (
 // ==========================================================================
 
 const (
-	enduranceCycles    = 200  // Number of cycles per endurance test
+	enduranceCycles    = 200 // Number of cycles per endurance test
 	enduranceSymbols   = 5   // Number of symbols to exercise concurrently
 	enduranceSources   = 2   // Number of sources (binances, binancef)
 	enduranceTimeframe = 60  // Timeframe in seconds
@@ -47,11 +47,12 @@ var enduranceSourceSet = []string{"binances", "binancef"}
 
 // ---------- helpers ----------
 
-func s412Intent(source, symbol string, cycle int) domainexec.ExecutionIntent {
+func s412Intent(t *testing.T, source, symbol string, cycle int) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        source,
-		Symbol:        symbol,
+		Instrument:    instrumentFromVenueSymbol(t, source, symbol),
 		Timeframe:     enduranceTimeframe,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.01",
@@ -82,7 +83,7 @@ func TestS412_END1_SustainedWriterRowMapping(t *testing.T) {
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
 		source := enduranceSourceSet[cycle%enduranceSources]
 		symbol := enduranceSymbolSet[cycle%enduranceSymbols]
-		intent := s412Intent(source, symbol, cycle)
+		intent := s412Intent(t, source, symbol, cycle)
 		intent.Parameters = map[string]string{"cycle": fmt.Sprintf("%d", cycle)}
 		intent.Metadata = map[string]string{"endurance": "true", "iteration": fmt.Sprintf("%d", cycle)}
 
@@ -193,7 +194,7 @@ func TestS412_END3_FillRecordAccumulation(t *testing.T) {
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
 		source := enduranceSourceSet[cycle%enduranceSources]
 		symbol := enduranceSymbolSet[cycle%enduranceSymbols]
-		intent := s412Intent(source, symbol, cycle)
+		intent := s412Intent(t, source, symbol, cycle)
 
 		receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: intent,
@@ -246,7 +247,7 @@ func TestS412_END4_RejectionRowMappingStability(t *testing.T) {
 		symbol := enduranceSymbolSet[cycle%enduranceSymbols]
 		code := rejectionCodes[cycle%len(rejectionCodes)]
 
-		intent := s412Intent(source, symbol, cycle)
+		intent := s412Intent(t, source, symbol, cycle)
 		intent.Status = domainexec.StatusRejected
 		intent.Final = true
 
@@ -295,7 +296,7 @@ func TestS412_END5_WriterColumnFidelityDrift(t *testing.T) {
 	// to detect any column count drift between event types targeting the same table.
 
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
-		intent := s412Intent("binances", "btcusdt", cycle)
+		intent := s412Intent(t, "binances", "btcusdt", cycle)
 
 		// Paper event.
 		paperEvent := domainexec.PaperOrderSubmittedEvent{
@@ -349,7 +350,7 @@ func TestS412_END6_CorrelationChainPreservation(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
-		intent := s412Intent("binances", "btcusdt", cycle)
+		intent := s412Intent(t, "binances", "btcusdt", cycle)
 		expectedCorrID := intent.CorrelationID
 		expectedCausID := intent.CausationID
 
@@ -390,7 +391,7 @@ func TestS412_END7_ConcurrentSubmissionStability(t *testing.T) {
 			defer wg.Done()
 			for cycle := 0; cycle < cyclesPerGoroutine; cycle++ {
 				symbol := enduranceSymbolSet[(goroutineID+cycle)%enduranceSymbols]
-				intent := s412Intent("binances", symbol, goroutineID*1000+cycle)
+				intent := s412Intent(t, "binances", symbol, goroutineID*1000+cycle)
 
 				receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 					Intent: intent,
@@ -463,7 +464,7 @@ func TestS412_END9_DryRunSubmitterEndurance(t *testing.T) {
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
 		source := enduranceSourceSet[cycle%enduranceSources]
 		symbol := enduranceSymbolSet[cycle%enduranceSymbols]
-		intent := s412Intent(source, symbol, cycle)
+		intent := s412Intent(t, source, symbol, cycle)
 
 		receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: intent,
@@ -534,7 +535,7 @@ func TestS412_END10_VenueLiveAdapterEndurance(t *testing.T) {
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
 	for cycle := 0; cycle < enduranceCycles; cycle++ {
-		intent := s412Intent("binances", "btcusdt", cycle)
+		intent := s412Intent(t, "binances", "btcusdt", cycle)
 
 		receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: intent,
@@ -585,7 +586,7 @@ func mapPaperOrderRow(e domainexec.PaperOrderSubmittedEvent) []any {
 	m := e.Metadata
 	return []any{
 		m.ID, m.OccurredAt, m.CorrelationID, m.CausationID,
-		x.Type, x.Source, x.Symbol, uint32(x.Timeframe),
+		x.Type, x.Source, x.VenueSymbol(), uint32(x.Timeframe),
 		string(x.Side), parseFloat(x.Quantity), parseFloat(x.FilledQuantity), string(x.Status),
 		marshalJSON(x.Risk), marshalJSON(x.Fills), marshalJSON(x.Parameters), marshalJSON(x.Metadata),
 		x.CorrelationID, x.CausationID, x.Final, x.Timestamp,
@@ -597,7 +598,7 @@ func mapVenueFillRow(e domainexec.VenueOrderFilledEvent) []any {
 	m := e.Metadata
 	return []any{
 		m.ID, m.OccurredAt, m.CorrelationID, m.CausationID,
-		x.Type, x.Source, x.Symbol, uint32(x.Timeframe),
+		x.Type, x.Source, x.VenueSymbol(), uint32(x.Timeframe),
 		string(x.Side), parseFloat(x.Quantity), parseFloat(x.FilledQuantity), string(x.Status),
 		marshalJSON(x.Risk), marshalJSON(x.Fills), marshalJSON(x.Parameters), marshalJSON(x.Metadata),
 		x.CorrelationID, x.CausationID, x.Final, x.Timestamp,
@@ -624,7 +625,7 @@ func mapVenueRejectionRow(e domainexec.VenueOrderRejectedEvent) []any {
 
 	return []any{
 		m.ID, m.OccurredAt, m.CorrelationID, m.CausationID,
-		x.Type, x.Source, x.Symbol, uint32(x.Timeframe),
+		x.Type, x.Source, x.VenueSymbol(), uint32(x.Timeframe),
 		string(x.Side), parseFloat(x.Quantity), parseFloat(x.FilledQuantity), string(x.Status),
 		marshalJSON(x.Risk), marshalJSON(x.Fills), marshalJSON(x.Parameters), marshalJSON(enrichedMeta),
 		x.CorrelationID, x.CausationID, x.Final, x.Timestamp,

@@ -32,7 +32,8 @@ import (
 
 // s405SpotVenueIntent creates an intent mimicking what VenueAdapterActor.onIntent receives
 // after the execute supervisor processes a PaperOrderSubmittedEvent from the derive binary.
-func s405SpotVenueIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func s405SpotVenueIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	qty := "0.001"
 	if side == domainexec.SideNone {
 		qty = "0"
@@ -40,7 +41,7 @@ func s405SpotVenueIntent(side domainexec.Side) domainexec.ExecutionIntent {
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binances",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTSpotS379(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      qty,
@@ -60,7 +61,7 @@ func s405SpotFilledServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"orderId":             55555,
-			"clientOrderId":      r.URL.Query().Get("newClientOrderId"),
+			"clientOrderId":       r.URL.Query().Get("newClientOrderId"),
 			"symbol":              r.URL.Query().Get("symbol"),
 			"status":              "FILLED",
 			"side":                r.URL.Query().Get("side"),
@@ -125,7 +126,7 @@ func TestS405_ActorComposition_SpotVenueLive_Buy_Filled(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -189,7 +190,7 @@ func TestS405_ActorComposition_SpotVenueLive_Sell_Filled(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideSell)
+	intent := s405SpotVenueIntent(t, domainexec.SideSell)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -212,7 +213,7 @@ func TestS405_ActorComposition_SpotVenueLive_None_NoContact(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideNone)
+	intent := s405SpotVenueIntent(t, domainexec.SideNone)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -233,10 +234,10 @@ func TestS405_ActorComposition_SpotVenueLive_None_NoContact(t *testing.T) {
 func TestS405_ActorComposition_SpotQueryOrder_Reconciliation(t *testing.T) {
 	spotSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
-			"orderId":     55555,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      55555,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65430.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -270,10 +271,10 @@ func TestS405_ActorComposition_DryRunDisabled_RealAdapterCalled(t *testing.T) {
 	spotSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		adapterCalled = true
 		resp := map[string]any{
-			"orderId":     55555,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      55555,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65430.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -287,7 +288,7 @@ func TestS405_ActorComposition_DryRunDisabled_RealAdapterCalled(t *testing.T) {
 
 	// In venue_live mode (dry_run=false), the SegmentRouter is the outermost adapter.
 	// DryRunSubmitter is NOT composed. Real HTTP calls reach the venue.
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -314,7 +315,7 @@ func TestS405_ActorComposition_DryRunEnabled_InterceptsSpotAdapter(t *testing.T)
 	// Wrap with DryRunSubmitter (matches cmd/execute/run.go when dry_run=true).
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)

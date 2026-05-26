@@ -76,10 +76,17 @@ func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, s
 			return nil, fmt.Errorf("scan execution row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		executions = append(executions, execution.ExecutionIntent{
 			Type:           typ,
 			Source:         src,
-			Symbol:         sym,
+			Instrument:     inst,
 			Timeframe:      int(tf),
 			Side:           execution.Side(sd),
 			Quantity:       FormatFloat(quantity),
@@ -178,10 +185,17 @@ func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source, sym
 			return nil, fmt.Errorf("scan lifecycle history row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		executions = append(executions, execution.ExecutionIntent{
 			Type:           typ,
 			Source:         src,
-			Symbol:         sym,
+			Instrument:     inst,
 			Timeframe:      int(tf),
 			Side:           execution.Side(sd),
 			Quantity:       FormatFloat(quantity),
@@ -283,10 +297,17 @@ func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, sour
 			return nil, fmt.Errorf("scan execution list row: %w", err)
 		}
 
+		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
+				"source", src, "symbol", sym, "error", instErr,
+			)
+		}
+
 		executions = append(executions, execution.ExecutionIntent{
 			Type:           typ,
 			Source:         src,
-			Symbol:         sym,
+			Instrument:     inst,
 			Timeframe:      int(tf),
 			Side:           execution.Side(sd),
 			Quantity:       FormatFloat(quantity),

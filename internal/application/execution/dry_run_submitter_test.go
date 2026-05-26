@@ -23,11 +23,12 @@ func (s *spyVenueAdapter) SubmitOrder(_ context.Context, _ ports.VenueOrderReque
 	return ports.VenueOrderReceipt{}, nil
 }
 
-func makeIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func makeIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      "0.001",
@@ -44,7 +45,7 @@ func TestDryRunSubmitter_InterceptsBuyIntent(t *testing.T) {
 	tracker := healthz.NewTracker("test-dryrun")
 	sub := appexec.NewDryRunSubmitter(inner).WithTracker(tracker)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -79,7 +80,7 @@ func TestDryRunSubmitter_InterceptsSellIntent(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner)
 
-	intent := makeIntent(domainexec.SideSell)
+	intent := makeIntent(t, domainexec.SideSell)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -101,7 +102,7 @@ func TestDryRunSubmitter_InterceptsNoActionIntent(t *testing.T) {
 	tracker := healthz.NewTracker("test-dryrun-noop")
 	sub := appexec.NewDryRunSubmitter(inner).WithTracker(tracker)
 
-	intent := makeIntent(domainexec.SideNone)
+	intent := makeIntent(t, domainexec.SideNone)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -130,7 +131,7 @@ func TestDryRunSubmitter_NeverDelegatesToInner(t *testing.T) {
 	sub := appexec.NewDryRunSubmitter(inner)
 
 	for _, side := range []domainexec.Side{domainexec.SideBuy, domainexec.SideSell, domainexec.SideNone} {
-		intent := makeIntent(side)
+		intent := makeIntent(t, side)
 		receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 		if prob != nil {
 			t.Fatalf("side=%s: unexpected problem: %s", side, prob.Message)
@@ -145,7 +146,7 @@ func TestDryRunSubmitter_PreservesCorrelationFields(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner)
 
-	intent := makeIntent(domainexec.SideBuy)
+	intent := makeIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "corr-abc-123"
 	intent.CausationID = "cause-xyz-789"
 
@@ -168,7 +169,7 @@ func TestDryRunSubmitter_UniqueOrderIDs(t *testing.T) {
 
 	seen := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		intent := makeIntent(domainexec.SideBuy)
+		intent := makeIntent(t, domainexec.SideBuy)
 		receipt, _ := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 		if seen[receipt.VenueOrderID] {
 			t.Fatalf("duplicate order ID at iteration %d: %s", i, receipt.VenueOrderID)

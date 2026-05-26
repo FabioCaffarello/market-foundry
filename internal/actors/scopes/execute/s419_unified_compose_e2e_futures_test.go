@@ -50,7 +50,7 @@ func TestS419_ComposeE2E_FuturesFill_ThroughUnifiedRuntime(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s419FuturesE2EIntent("s419-e2e-fill-corr", "s419-e2e-fill-cause")
+	intent := s419FuturesE2EIntent(t, "s419-e2e-fill-corr", "s419-e2e-fill-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("E2E Futures fill failed: %s", prob.Message)
@@ -136,7 +136,7 @@ func TestS419_ComposeE2E_FuturesRejection_AuditTrailComplete(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s419FuturesE2EIntent("s419-e2e-rej-corr", "s419-e2e-rej-cause")
+	intent := s419FuturesE2EIntent(t, "s419-e2e-rej-corr", "s419-e2e-rej-cause")
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Futures adapter")
@@ -198,7 +198,7 @@ func TestS419_ComposeE2E_FuturesRejection_AuditTrailComplete(t *testing.T) {
 // Futures rejection audit metadata survives the KV round-trip (JSON
 // serialize -> deserialize) that compose-level store performs.
 func TestS419_ComposeE2E_RejectionMetadata_FuturesKVRoundTrip(t *testing.T) {
-	intent := s419FuturesE2EIntent("s419-kv-rt-corr", "s419-kv-rt-cause")
+	intent := s419FuturesE2EIntent(t, "s419-kv-rt-corr", "s419-kv-rt-cause")
 	intent.Status = domainexec.StatusRejected
 	intent.Final = true
 	intent.Metadata = map[string]string{
@@ -265,7 +265,7 @@ func TestS419_ComposeE2E_DryRun_WrapsFuturesOnUnifiedRouter(t *testing.T) {
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s419FuturesE2EIntent("s419-dryrun-corr", "s419-dryrun-cause")
+	intent := s419FuturesE2EIntent(t, "s419-dryrun-corr", "s419-dryrun-cause")
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -306,7 +306,7 @@ func TestS419_ComposeE2E_FillEventConstruction_FuturesSegment(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s419FuturesE2EIntent("s419-fill-evt-corr", "s419-fill-evt-cause")
+	intent := s419FuturesE2EIntent(t, "s419-fill-evt-corr", "s419-fill-evt-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -378,7 +378,7 @@ func TestS419_ComposeE2E_ConfigCoexistence_FuturesAndSpotEnabled(t *testing.T) {
 	}
 
 	// Futures intent routes to Futures adapter
-	futuresIntent := s419FuturesE2EIntent("s419-coex-futures", "")
+	futuresIntent := s419FuturesE2EIntent(t, "s419-coex-futures", "")
 	futuresReceipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: futuresIntent})
 	if prob != nil {
 		t.Fatalf("Futures submit failed: %s", prob.Message)
@@ -388,7 +388,7 @@ func TestS419_ComposeE2E_ConfigCoexistence_FuturesAndSpotEnabled(t *testing.T) {
 	}
 
 	// Source unknown intent rejected (fail-closed)
-	unknownIntent := s419FuturesE2EIntent("s419-coex-unknown", "")
+	unknownIntent := s419FuturesE2EIntent(t, "s419-coex-unknown", "")
 	unknownIntent.Source = "unknown_exchange"
 	_, unknownProb := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: unknownIntent})
 	if unknownProb == nil {
@@ -406,14 +406,14 @@ func TestS419_ComposeE2E_ConfigCoexistence_FuturesAndSpotEnabled(t *testing.T) {
 func TestS419_ComposeE2E_FuturesPartialFill_UnifiedRuntime(t *testing.T) {
 	futuresSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
-			"orderId":     88888,
+			"orderId":       88888,
 			"clientOrderId": r.URL.Query().Get("newClientOrderId"),
-			"symbol":      "BTCUSDT",
-			"status":      "PARTIALLY_FILLED",
-			"avgPrice":    "65500.00",
-			"executedQty": "0.0005",
-			"cumQuote":    "32.75",
-			"updateTime":  time.Now().UnixMilli(),
+			"symbol":        "BTCUSDT",
+			"status":        "PARTIALLY_FILLED",
+			"avgPrice":      "65500.00",
+			"executedQty":   "0.0005",
+			"cumQuote":      "32.75",
+			"updateTime":    time.Now().UnixMilli(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -422,7 +422,7 @@ func TestS419_ComposeE2E_FuturesPartialFill_UnifiedRuntime(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s419FuturesE2EIntent("s419-partial-corr", "s419-partial-cause")
+	intent := s419FuturesE2EIntent(t, "s419-partial-corr", "s419-partial-cause")
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -503,11 +503,12 @@ func TestS419_ComposeE2E_AllowedSourcesGate_FuturesPermitted(t *testing.T) {
 // ═══════════════════════════════════════════════════════════════════
 
 // s419FuturesE2EIntent creates a Futures intent for E2E compose proof tests.
-func s419FuturesE2EIntent(correlationID, causationID string) domainexec.ExecutionIntent {
+func s419FuturesE2EIntent(t *testing.T, correlationID, causationID string) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerpS379(t),
 		Timeframe:     60,
 		Side:          domainexec.SideBuy,
 		Quantity:      "0.001",

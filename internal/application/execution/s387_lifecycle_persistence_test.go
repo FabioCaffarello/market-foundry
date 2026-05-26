@@ -40,7 +40,7 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 		{
 			name: "intent_only_returns_intent_status",
 			intent: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusSubmitted, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -53,7 +53,7 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 			name:   "result_only_returns_result_status",
 			intent: nil,
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				FilledQuantity: "0.01", Status: domainexec.StatusFilled, Final: true, Timestamp: ts,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -67,7 +67,7 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 			intent: nil,
 			result: nil,
 			rejection: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusRejected, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -75,17 +75,17 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 			wantProp: "rejected",
 		},
 		{
-			name: "result_and_rejection_newer_rejection_wins",
+			name:   "result_and_rejection_newer_rejection_wins",
 			intent: nil,
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				FilledQuantity: "0.01", Status: domainexec.StatusFilled, Final: true, Timestamp: tsEarlier,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 				Fills: []domainexec.FillRecord{{Price: "50000", Quantity: "0.01", Fee: "0", Simulated: true, Timestamp: tsEarlier}},
 			},
 			rejection: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusRejected, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -93,17 +93,17 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 			wantProp: "rejected",
 		},
 		{
-			name: "result_and_rejection_newer_result_wins",
+			name:   "result_and_rejection_newer_result_wins",
 			intent: nil,
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				FilledQuantity: "0.01", Status: domainexec.StatusFilled, Final: true, Timestamp: ts,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 				Fills: []domainexec.FillRecord{{Price: "50000", Quantity: "0.01", Fee: "0", Simulated: true, Timestamp: ts}},
 			},
 			rejection: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusRejected, Final: true, Timestamp: tsEarlier,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -113,20 +113,20 @@ func TestS387_DeriveEffectivePropagation_WithRejection(t *testing.T) {
 		{
 			name: "all_three_present_most_recent_outcome_wins",
 			intent: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusSubmitted, Final: true, Timestamp: tsEarlier,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 			},
 			result: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				FilledQuantity: "0.01", Status: domainexec.StatusFilled, Final: true, Timestamp: tsEarlier,
 				Risk:  domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 				Fills: []domainexec.FillRecord{{Price: "50000", Quantity: "0.01", Fee: "0", Simulated: true, Timestamp: tsEarlier}},
 			},
 			rejection: &domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusRejected, Final: true, Timestamp: ts,
 				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -161,7 +161,7 @@ func TestS387_ExecutionStatusReply_RejectionField(t *testing.T) {
 
 	t.Run("rejection_field_present_when_rejected", func(t *testing.T) {
 		rejection := &domainexec.ExecutionIntent{
-			Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+			Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 			Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 			Status: domainexec.StatusRejected, Final: true, Timestamp: ts,
 			Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
@@ -203,11 +203,11 @@ func TestS387_PriceSource_WiringValidation(t *testing.T) {
 
 		receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusSubmitted, Final: true,
 				Timestamp: time.Now().UTC(),
-				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
+				Risk:      domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 			},
 		})
 		if prob != nil {
@@ -230,11 +230,11 @@ func TestS387_PriceSource_WiringValidation(t *testing.T) {
 
 		receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideSell, Quantity: "0.02",
 				Status: domainexec.StatusSubmitted, Final: true,
 				Timestamp: time.Now().UTC(),
-				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
+				Risk:      domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 			},
 		})
 		if prob != nil {
@@ -255,11 +255,11 @@ func TestS387_PriceSource_WiringValidation(t *testing.T) {
 
 		receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{
 			Intent: domainexec.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: "btcusdt",
+				Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t),
 				Timeframe: 60, Side: domainexec.SideBuy, Quantity: "0.01",
 				Status: domainexec.StatusSubmitted, Final: true,
 				Timestamp: time.Now().UTC(),
-				Risk: domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
+				Risk:      domainexec.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.85", Timeframe: 60},
 			},
 		})
 		if prob != nil {

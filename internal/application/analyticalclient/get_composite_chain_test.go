@@ -82,7 +82,7 @@ func fullChain(corrID string) *analyticalclient.CompositeExecutionChain {
 			OccurredAt:    now,
 		},
 		Execution: &analyticalclient.ExecutionWithTrace{
-			ExecutionIntent:    execution.ExecutionIntent{Type: "paper_order", Source: "binance", Symbol: "btcusdt", Timeframe: 60, Side: "buy", Quantity: "0.1", Status: "submitted", Timestamp: now},
+			ExecutionIntent:    execution.ExecutionIntent{Type: "paper_order", Source: "binance", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60, Side: "buy", Quantity: "0.1", Status: "submitted", Timestamp: now},
 			EventID:            "exc-001",
 			EventCorrelationID: corrID,
 			EventCausationID:   "rsk-001",

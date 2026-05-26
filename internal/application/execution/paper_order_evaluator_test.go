@@ -20,8 +20,8 @@ func TestPaperOrderEvaluator_ApprovedLong_ProducesBuy(t *testing.T) {
 	if intent.Quantity != "0.02" {
 		t.Fatalf("expected quantity 0.02, got %q", intent.Quantity)
 	}
-	if intent.Symbol != "btcusdt" {
-		t.Fatalf("expected symbol btcusdt, got %q", intent.Symbol)
+	if intent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("expected symbol btcusdt, got %q", intent.VenueSymbol())
 	}
 }
 
@@ -37,8 +37,8 @@ func TestPaperOrderEvaluator_ApprovedShort_ProducesSell(t *testing.T) {
 	if intent.Quantity != "0.03" {
 		t.Fatalf("expected quantity 0.03, got %q", intent.Quantity)
 	}
-	if intent.Symbol != "ethusdt" {
-		t.Fatalf("expected symbol ethusdt, got %q", intent.Symbol)
+	if intent.VenueSymbol() != "ethusdt" {
+		t.Fatalf("expected symbol ethusdt, got %q", intent.VenueSymbol())
 	}
 }
 
@@ -160,8 +160,8 @@ func TestPaperOrderEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) {
 			}
 
 			// Verify symbol/timeframe ownership.
-			if intent.Symbol != sym {
-				t.Fatalf("expected symbol %q, got %q", sym, intent.Symbol)
+			if intent.VenueSymbol() != sym {
+				t.Fatalf("expected symbol %q, got %q", sym, intent.VenueSymbol())
 			}
 			if intent.Timeframe != tf {
 				t.Fatalf("expected timeframe %d, got %d", tf, intent.Timeframe)
@@ -225,7 +225,7 @@ func TestPaperOrderEvaluator_MultiSymbol_DifferentDispositions(t *testing.T) {
 	}
 
 	// No bleed: each intent owns its correct symbol.
-	if btc.Symbol != "btcusdt" || eth.Symbol != "ethusdt" || sol.Symbol != "solusdt" {
+	if btc.VenueSymbol() != "btcusdt" || eth.VenueSymbol() != "ethusdt" || sol.VenueSymbol() != "solusdt" {
 		t.Fatal("symbol ownership bleed detected")
 	}
 

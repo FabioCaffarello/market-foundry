@@ -68,7 +68,7 @@ func TestS417_ActorComposition_FuturesRejection_InsufficientMargin(t *testing.T)
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Futures adapter")
@@ -104,7 +104,7 @@ func TestS417_ActorComposition_FuturesRejection_LOTSize(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	intent.Quantity = "0.0000001"
 
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -128,7 +128,7 @@ func TestS417_ActorComposition_FuturesRejectionEvent_Construction(t *testing.T) 
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	intent.Source = "binancef"
 	intent.CorrelationID = "s417-futures-corr"
 	intent.CausationID = "s417-futures-cause"
@@ -185,8 +185,8 @@ func TestS417_ActorComposition_FuturesRejectionEvent_Construction(t *testing.T) 
 	if event.ExecutionIntent.Source != "binancef" {
 		t.Errorf("source lost: expected binancef, got %s", event.ExecutionIntent.Source)
 	}
-	if event.ExecutionIntent.Symbol != "btcusdt" {
-		t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.Symbol)
+	if event.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.VenueSymbol())
 	}
 
 	// No fills on rejection
@@ -214,7 +214,7 @@ func TestS417_ActorComposition_FuturesRejection_VenueRejectedStatus200(t *testin
 
 	router := s416BuildSegmentRouter(t, srv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("HTTP 200 with REJECTED status should not produce Problem: %s", prob.Message)
@@ -269,7 +269,7 @@ func TestS417_ActorComposition_FuturesPartialFill_ThroughRouter(t *testing.T) {
 
 	router := s416BuildSegmentRouter(t, futuresSrv, spotSrv)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not produce Problem: %s", prob.Message)
@@ -320,7 +320,7 @@ func TestS417_ActorComposition_FuturesPartialFill_CorrelationPreserved(t *testin
 
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s417-partial-corr"
 	intent.CausationID = "s417-partial-cause"
 
@@ -350,7 +350,7 @@ func TestS417_ActorComposition_FuturesPartialFill_DryRunIntercepted(t *testing.T
 	router := s416BuildSegmentRouter(t, futuresSrv, nil)
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s416FuturesVenueIntent(domainexec.SideBuy)
+	intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("dry run should not fail: %s", prob.Message)
@@ -414,7 +414,7 @@ func TestS417_RejectionEvent_FuturesVenueDetails_AuditTrail(t *testing.T) {
 			defer srv.Close()
 
 			router := s416BuildSegmentRouter(t, srv, nil)
-			intent := s416FuturesVenueIntent(domainexec.SideBuy)
+			intent := s416FuturesVenueIntent(t, domainexec.SideBuy)
 
 			_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 			if prob == nil {

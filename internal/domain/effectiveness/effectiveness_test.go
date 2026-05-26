@@ -5,7 +5,17 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 func TestValidOutcome(t *testing.T) {
 	tests := []struct {
@@ -27,7 +37,7 @@ func TestValidOutcome(t *testing.T) {
 }
 
 func TestClassify_RejectedReturnsNil(t *testing.T) {
-	intent := makeIntent(execution.StatusRejected, execution.SideBuy, nil)
+	intent := makeIntent(t, execution.StatusRejected, execution.SideBuy, nil)
 	attr := Classify(intent)
 	if attr != nil {
 		t.Fatal("expected nil for rejected order")
@@ -38,7 +48,7 @@ func TestClassify_NonTerminalIsUnresolved(t *testing.T) {
 	for _, status := range []execution.Status{
 		execution.StatusSubmitted, execution.StatusSent, execution.StatusAccepted,
 	} {
-		intent := makeIntent(status, execution.SideBuy, nil)
+		intent := makeIntent(t, status, execution.SideBuy, nil)
 		attr := Classify(intent)
 		if attr == nil {
 			t.Fatalf("status=%s: expected attribution, got nil", status)
@@ -50,7 +60,7 @@ func TestClassify_NonTerminalIsUnresolved(t *testing.T) {
 }
 
 func TestClassify_CancelledNoFillsIsUnresolved(t *testing.T) {
-	intent := makeIntent(execution.StatusCancelled, execution.SideBuy, nil)
+	intent := makeIntent(t, execution.StatusCancelled, execution.SideBuy, nil)
 	attr := Classify(intent)
 	if attr == nil {
 		t.Fatal("expected attribution, got nil")
@@ -67,7 +77,7 @@ func TestClassify_FilledSingleLegIsUnresolved(t *testing.T) {
 	fills := []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", FeeAsset: "USDT", CostBasis: "5000.00", Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusFilled, execution.SideBuy, fills)
 	attr := Classify(intent)
 	if attr == nil {
 		t.Fatal("expected attribution, got nil")
@@ -92,7 +102,7 @@ func TestClassify_ZeroCostBasisIsUnresolved(t *testing.T) {
 	fills := []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0", CostBasis: "0", Simulated: true, Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusFilled, execution.SideBuy, fills)
 	attr := Classify(intent)
 	if attr == nil {
 		t.Fatal("expected attribution")
@@ -109,7 +119,7 @@ func TestClassify_PartiallyFilledIsUnresolved(t *testing.T) {
 	fills := []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.05", Fee: "0.25", FeeAsset: "USDT", CostBasis: "2500.00", Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusPartiallyFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusPartiallyFilled, execution.SideBuy, fills)
 	attr := Classify(intent)
 	if attr == nil {
 		t.Fatal("expected attribution")
@@ -124,12 +134,12 @@ func TestClassify_AttributionCarriesContext(t *testing.T) {
 	fills := []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusFilled, execution.SideBuy, fills)
 	intent.CorrelationID = "corr-123"
 	intent.Risk.Type = "ema_crossover"
 	intent.Risk.DecisionSeverity = "high"
 	intent.Risk.StrategyType = "trend_following"
-	intent.Symbol = "BTCUSDT"
+	intent.Instrument = btcUSDTPerp(t)
 	intent.Source = "binance_spot"
 	intent.Timeframe = 60
 
@@ -146,16 +156,16 @@ func TestClassify_AttributionCarriesContext(t *testing.T) {
 	if attr.StrategyType != "trend_following" {
 		t.Errorf("strategy_type=%s, want trend_following", attr.StrategyType)
 	}
-	if attr.Symbol != "BTCUSDT" {
-		t.Errorf("symbol=%s, want BTCUSDT", attr.Symbol)
+	if attr.Symbol != "btcusdt" {
+		t.Errorf("symbol=%s, want btcusdt", attr.Symbol)
 	}
 }
 
 func TestClassifyPair_WinRoundTrip(t *testing.T) {
-	entry := makeIntent(execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
+	entry := makeIntent(t, execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
-	exit := makeIntent(execution.StatusFilled, execution.SideSell, []execution.FillRecord{
+	exit := makeIntent(t, execution.StatusFilled, execution.SideSell, []execution.FillRecord{
 		{Price: "51000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5100.00", Timestamp: time.Now()},
 	})
 
@@ -180,10 +190,10 @@ func TestClassifyPair_WinRoundTrip(t *testing.T) {
 }
 
 func TestClassifyPair_LossRoundTrip(t *testing.T) {
-	entry := makeIntent(execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
+	entry := makeIntent(t, execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
-	exit := makeIntent(execution.StatusFilled, execution.SideSell, []execution.FillRecord{
+	exit := makeIntent(t, execution.StatusFilled, execution.SideSell, []execution.FillRecord{
 		{Price: "49000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "4900.00", Timestamp: time.Now()},
 	})
 
@@ -202,10 +212,10 @@ func TestClassifyPair_LossRoundTrip(t *testing.T) {
 }
 
 func TestClassifyPair_ShortWin(t *testing.T) {
-	entry := makeIntent(execution.StatusFilled, execution.SideSell, []execution.FillRecord{
+	entry := makeIntent(t, execution.StatusFilled, execution.SideSell, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
-	exit := makeIntent(execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
+	exit := makeIntent(t, execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
 		{Price: "49000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "4900.00", Timestamp: time.Now()},
 	})
 
@@ -220,10 +230,10 @@ func TestClassifyPair_ShortWin(t *testing.T) {
 }
 
 func TestClassifyPair_Breakeven(t *testing.T) {
-	entry := makeIntent(execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
+	entry := makeIntent(t, execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
-	exit := makeIntent(execution.StatusFilled, execution.SideSell, []execution.FillRecord{
+	exit := makeIntent(t, execution.StatusFilled, execution.SideSell, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
 
@@ -234,14 +244,14 @@ func TestClassifyPair_Breakeven(t *testing.T) {
 }
 
 func TestClassifyPair_RejectedReturnsNil(t *testing.T) {
-	entry := makeIntent(execution.StatusRejected, execution.SideBuy, nil)
-	exit := makeIntent(execution.StatusFilled, execution.SideSell, nil)
+	entry := makeIntent(t, execution.StatusRejected, execution.SideBuy, nil)
+	exit := makeIntent(t, execution.StatusFilled, execution.SideSell, nil)
 	if ClassifyPair(entry, exit) != nil {
 		t.Error("rejected entry should return nil")
 	}
 
-	entry2 := makeIntent(execution.StatusFilled, execution.SideBuy, nil)
-	exit2 := makeIntent(execution.StatusRejected, execution.SideSell, nil)
+	entry2 := makeIntent(t, execution.StatusFilled, execution.SideBuy, nil)
+	exit2 := makeIntent(t, execution.StatusRejected, execution.SideSell, nil)
 	if ClassifyPair(entry2, exit2) != nil {
 		t.Error("rejected exit should return nil")
 	}
@@ -275,7 +285,7 @@ func TestClassify_MultipleFillsAggregated(t *testing.T) {
 		{Price: "50000.00", Quantity: "0.05", Fee: "0.25", CostBasis: "2500.00", Timestamp: time.Now()},
 		{Price: "50100.00", Quantity: "0.05", Fee: "0.25", CostBasis: "2505.00", Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusFilled, execution.SideBuy, fills)
 	attr := Classify(intent)
 	if attr.EntryCostBasis != 5005.0 {
 		t.Errorf("entry_cost_basis=%f, want 5005.0", attr.EntryCostBasis)
@@ -291,10 +301,10 @@ func TestClassify_MultipleFillsAggregated(t *testing.T) {
 // S499: ExitCostBasis tests.
 
 func TestClassifyPair_ExitCostBasisPopulated(t *testing.T) {
-	entry := makeIntent(execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
+	entry := makeIntent(t, execution.StatusFilled, execution.SideBuy, []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	})
-	exit := makeIntent(execution.StatusFilled, execution.SideSell, []execution.FillRecord{
+	exit := makeIntent(t, execution.StatusFilled, execution.SideSell, []execution.FillRecord{
 		{Price: "51000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5100.00", Timestamp: time.Now()},
 	})
 
@@ -314,7 +324,7 @@ func TestClassify_SingleLeg_ExitCostBasisIsZero(t *testing.T) {
 	fills := []execution.FillRecord{
 		{Price: "50000.00", Quantity: "0.1", Fee: "0.50", CostBasis: "5000.00", Timestamp: time.Now()},
 	}
-	intent := makeIntent(execution.StatusFilled, execution.SideBuy, fills)
+	intent := makeIntent(t, execution.StatusFilled, execution.SideBuy, fills)
 	attr := Classify(intent)
 	if attr == nil {
 		t.Fatal("expected attribution")
@@ -326,15 +336,16 @@ func TestClassify_SingleLeg_ExitCostBasisIsZero(t *testing.T) {
 
 // --- helpers ---
 
-func makeIntent(status execution.Status, side execution.Side, fills []execution.FillRecord) execution.ExecutionIntent {
+func makeIntent(t *testing.T, status execution.Status, side execution.Side, fills []execution.FillRecord) execution.ExecutionIntent {
+	t.Helper()
 	return execution.ExecutionIntent{
-		Type:      "market",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      side,
-		Quantity:  "0.1",
-		Status:    status,
+		Type:       "market",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       side,
+		Quantity:   "0.1",
+		Status:     status,
 		Risk: execution.RiskInput{
 			Type:        "ema_crossover",
 			Disposition: "approved",

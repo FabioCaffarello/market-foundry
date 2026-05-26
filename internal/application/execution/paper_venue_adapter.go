@@ -61,7 +61,7 @@ func (a *PaperVenueAdapter) SubmitOrder(_ context.Context, req ports.VenueOrderR
 	// adapter must not fail just because upstream was cancelled); the
 	// price-source read is bounded here independently.
 	priceCtx, priceCancel := context.WithTimeout(context.Background(), paperPriceLookupTimeout)
-	fillPrice := a.resolvePrice(priceCtx, intent.Source, intent.Symbol, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	fillPrice := a.resolvePrice(priceCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
 	priceCancel()
 
 	filled := intent

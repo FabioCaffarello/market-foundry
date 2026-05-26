@@ -92,7 +92,7 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 	if sc.HasExecution {
 		chain.Execution = &analyticalclient.ExecutionWithTrace{
 			ExecutionIntent: execution.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Symbol: sc.Symbol, Timeframe: 60,
+				Type: "paper_order", Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
 				Side: execution.Side(sc.ExecSide), Quantity: sc.ExecQty, Status: execution.Status(sc.ExecStatus), Timestamp: now,
 			},
 			EventID: "exc-" + corrID, EventCorrelationID: corrID, EventCausationID: "rsk-" + corrID, OccurredAt: now,
@@ -191,8 +191,8 @@ func TestS302_SC1_SimultaneousApprovedChains(t *testing.T) {
 			if chain.Risk.VenueSymbol() != sym {
 				t.Errorf("[%s] risk.symbol=%q", sym, chain.Risk.VenueSymbol())
 			}
-			if chain.Execution.Symbol != sym {
-				t.Errorf("[%s] execution.symbol=%q", sym, chain.Execution.Symbol)
+			if chain.Execution.VenueSymbol() != sym {
+				t.Errorf("[%s] execution.symbol=%q", sym, chain.Execution.VenueSymbol())
 			}
 
 			// Attribution correctness per symbol.
@@ -400,8 +400,8 @@ func TestS302_SC3_ConcurrentBatchPerSymbol(t *testing.T) {
 				if ch.Signal != nil && ch.Signal.VenueSymbol() != sym {
 					t.Errorf("[%s] chain[%d].signal.symbol=%q", sym, i, ch.Signal.VenueSymbol())
 				}
-				if ch.Execution != nil && ch.Execution.Symbol != sym {
-					t.Errorf("[%s] chain[%d].execution.symbol=%q", sym, i, ch.Execution.Symbol)
+				if ch.Execution != nil && ch.Execution.VenueSymbol() != sym {
+					t.Errorf("[%s] chain[%d].execution.symbol=%q", sym, i, ch.Execution.VenueSymbol())
 				}
 			}
 		})

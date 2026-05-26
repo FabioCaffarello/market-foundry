@@ -6,8 +6,18 @@ import (
 
 	"internal/domain/effectiveness"
 	"internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/domain/pairing"
 )
+
+func btcUSDTPerpExternal(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // ---------------------------------------------------------------------------
 // S500: Lifecycle close hardening — pairing edge case tests
@@ -18,13 +28,13 @@ import (
 func TestClassifyCarryForward_CancelledWithFills_IsEligible(t *testing.T) {
 	// An order cancelled after partial fill should be eligible (R-CF5).
 	intent := execution.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      execution.SideBuy,
-		Quantity:  "0.1",
-		Status:    execution.StatusCancelled,
+		Type:       "venue_market_order",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerpExternal(t),
+		Timeframe:  60,
+		Side:       execution.SideBuy,
+		Quantity:   "0.1",
+		Status:     execution.StatusCancelled,
 		Fills: []execution.FillRecord{
 			{
 				Price:     "50000",
@@ -55,13 +65,13 @@ func TestClassifyCarryForward_AllNonTerminalStatuses(t *testing.T) {
 
 	for _, st := range nonTerminal {
 		intent := execution.ExecutionIntent{
-			Type:      "venue_market_order",
-			Source:    "binance_spot",
-			Symbol:    "BTCUSDT",
-			Timeframe: 60,
-			Side:      execution.SideBuy,
-			Quantity:  "0.1",
-			Status:    st,
+			Type:       "venue_market_order",
+			Source:     "binance_spot",
+			Instrument: btcUSDTPerpExternal(t),
+			Timeframe:  60,
+			Side:       execution.SideBuy,
+			Quantity:   "0.1",
+			Status:     st,
 			Fills: []execution.FillRecord{
 				{Price: "50000", Quantity: "0.05", Fee: "0.025", CostBasis: "2500", Timestamp: time.Now()},
 			},
@@ -93,7 +103,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 					Direction: pairing.LegEntry, Side: execution.SideBuy,
 					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "entry-big",
-					Price: "50000", Quantity: "0.3", Fee: "0.15", CostBasis: "15000",
+					Price:         "50000", Quantity: "0.3", Fee: "0.15", CostBasis: "15000",
 					Timestamp: t0,
 				},
 				SessionID: "s1",
@@ -103,7 +113,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 					Direction: pairing.LegExit, Side: execution.SideSell,
 					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "exit-1",
-					Price: "51000", Quantity: "0.1", Fee: "0.051", CostBasis: "5100",
+					Price:         "51000", Quantity: "0.1", Fee: "0.051", CostBasis: "5100",
 					Timestamp: t0.Add(time.Hour),
 				},
 				SessionID: "s2",
@@ -113,7 +123,7 @@ func TestMatchFIFO_CrossSession_PartialRemainderCascade(t *testing.T) {
 					Direction: pairing.LegExit, Side: execution.SideSell,
 					Symbol: "BTCUSDT", Source: "binance_spot", Timeframe: 60,
 					CorrelationID: "exit-2",
-					Price: "52000", Quantity: "0.1", Fee: "0.052", CostBasis: "5200",
+					Price:         "52000", Quantity: "0.1", Fee: "0.052", CostBasis: "5200",
 					Timestamp: t0.Add(2 * time.Hour),
 				},
 				SessionID: "s3",
@@ -432,14 +442,14 @@ func TestClassifyContinuity_QuantityRemainder_IsOpen(t *testing.T) {
 
 func TestIntentToLeg_CancelledWithPartialFill_ProducesValidLeg(t *testing.T) {
 	intent := execution.ExecutionIntent{
-		Type:      "venue_market_order",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      execution.SideBuy,
-		Quantity:  "0.1",
-		Status:    execution.StatusCancelled,
-		Risk:      execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
+		Type:       "venue_market_order",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerpExternal(t),
+		Timeframe:  60,
+		Side:       execution.SideBuy,
+		Quantity:   "0.1",
+		Status:     execution.StatusCancelled,
+		Risk:       execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
 		Fills: []execution.FillRecord{
 			{Price: "50000", Quantity: "0.03", Fee: "0.015", CostBasis: "1500", Timestamp: time.Now()},
 			{Price: "50100", Quantity: "0.02", Fee: "0.010", CostBasis: "1002", Timestamp: time.Now()},

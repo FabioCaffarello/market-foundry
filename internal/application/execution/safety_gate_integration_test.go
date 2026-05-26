@@ -72,7 +72,7 @@ func venueAdapterOnIntent(
 	// Counter: processed.
 	if tracker != nil {
 		tracker.Counter("processed").Add(1)
-		tracker.Counter("processed:" + intent.Symbol).Add(1)
+		tracker.Counter("processed:" + intent.VenueSymbol()).Add(1)
 	}
 
 	// Gates 1+2: Kill switch and staleness guard.
@@ -116,7 +116,7 @@ func venueAdapterOnIntent(
 	if tracker != nil {
 		tracker.RecordEvent()
 		tracker.Counter("filled").Add(1)
-		tracker.Counter("filled:" + intent.Symbol).Add(1)
+		tracker.Counter("filled:" + intent.VenueSymbol()).Add(1)
 	}
 
 	return &fillEvent, false, ""

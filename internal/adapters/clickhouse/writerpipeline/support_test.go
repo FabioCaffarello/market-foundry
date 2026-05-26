@@ -35,6 +35,24 @@ func ethUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
 	return inst
 }
 
+func btcUSDTSpot(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical BTC/USDT-spot: %v", prob)
+	}
+	return inst
+}
+
+func ethUSDTSpot(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("ETH", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("test setup: failed to build canonical ETH/USDT-spot: %v", prob)
+	}
+	return inst
+}
+
 func testMetadata() events.Metadata {
 	return events.Metadata{
 		ID:            "abc123",
@@ -380,7 +398,7 @@ func TestMapExecutionRow_ColumnCount(t *testing.T) {
 	e := execution.PaperOrderSubmittedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.1", FilledQuantity: "0.1",
 			Status: execution.StatusFilled,
 			Risk:   execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
@@ -399,7 +417,7 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 	e := execution.PaperOrderSubmittedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "binancef", Symbol: "ethusdt", Timeframe: 300,
+			Type: "paper_order", Source: "binancef", Instrument: ethUSDTPerp(t), Timeframe: 300,
 			Side: execution.SideSell, Quantity: "1.5", FilledQuantity: "1.0",
 			Status: execution.StatusPartiallyFilled,
 			Risk:   execution.RiskInput{Type: "position_exposure", Disposition: "approved", Confidence: "0.9", Timeframe: 60},
@@ -533,7 +551,7 @@ func TestMapVenueRejectionRow_ColumnCount(t *testing.T) {
 	e := execution.VenueOrderRejectedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binances", Instrument: btcUSDTSpot(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0",
 			Status: execution.StatusRejected,
 			Final:  true, Timestamp: fixedTime,
@@ -552,7 +570,7 @@ func TestMapVenueRejectionRow_StatusIsRejected(t *testing.T) {
 	e := execution.VenueOrderRejectedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binances", Instrument: btcUSDTSpot(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
 			Final: true, Timestamp: fixedTime,
 		},
@@ -568,7 +586,7 @@ func TestMapVenueRejectionRow_MetadataContainsRejectionFields(t *testing.T) {
 	e := execution.VenueOrderRejectedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binances", Symbol: "ethusdt", Timeframe: 300,
+			Type: "venue_market_order", Source: "binances", Instrument: ethUSDTSpot(t), Timeframe: 300,
 			Side: execution.SideSell, Quantity: "1.0", Status: execution.StatusRejected,
 			Metadata:      map[string]string{"origin": "testnet"},
 			CorrelationID: "exec-corr-rej",
@@ -616,7 +634,7 @@ func TestMapVenueRejectionRow_NilMetadataCreatesNew(t *testing.T) {
 	e := execution.VenueOrderRejectedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binances", Instrument: btcUSDTSpot(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
 			Metadata: nil,
 			Final:    true, Timestamp: fixedTime,
@@ -640,7 +658,7 @@ func TestMapVenueRejectionRow_EmptyRejectionFieldsNotEmbedded(t *testing.T) {
 	e := execution.VenueOrderRejectedEvent{
 		Metadata: testMetadata(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binances", Instrument: btcUSDTSpot(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", Status: execution.StatusRejected,
 			Final: true, Timestamp: fixedTime,
 		},

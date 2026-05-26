@@ -744,7 +744,7 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.0192", FilledQuantity: "0.0192",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -891,7 +891,7 @@ func TestBehavioralRoundTrip_Execution_SideEnumValues(t *testing.T) {
 			event := execution.PaperOrderSubmittedEvent{
 				Metadata: execMeta(),
 				ExecutionIntent: execution.ExecutionIntent{
-					Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+					Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 					Side: side, Quantity: "0.01", FilledQuantity: "0",
 					Status: execution.StatusSubmitted,
 					Risk: execution.RiskInput{
@@ -925,7 +925,7 @@ func TestBehavioralRoundTrip_Execution_StatusEnumValues(t *testing.T) {
 			event := execution.PaperOrderSubmittedEvent{
 				Metadata: execMeta(),
 				ExecutionIntent: execution.ExecutionIntent{
-					Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+					Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 					Side: execution.SideBuy, Quantity: "0.01", FilledQuantity: "0",
 					Status: st,
 					Risk: execution.RiskInput{
@@ -950,7 +950,7 @@ func TestBehavioralRoundTrip_Execution_RiskCausalContext_CounterTrend(t *testing
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.0192", FilledQuantity: "0.0192",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -981,7 +981,7 @@ func TestBehavioralRoundTrip_Execution_RiskCausalContext_ProTrend(t *testing.T) 
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.0150", FilledQuantity: "0.0150",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -1014,7 +1014,7 @@ func TestBehavioralRoundTrip_Execution_MultipleFills(t *testing.T) {
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.05", FilledQuantity: "0.05",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -1066,7 +1066,7 @@ func TestBehavioralRoundTrip_Execution_EmptyFills(t *testing.T) {
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.01", FilledQuantity: "0",
 			Status: execution.StatusSubmitted,
 			Risk: execution.RiskInput{
@@ -1103,7 +1103,7 @@ func TestBehavioralRoundTrip_Execution_QuantityPrecision(t *testing.T) {
 			event := execution.PaperOrderSubmittedEvent{
 				Metadata: execMeta(),
 				ExecutionIntent: execution.ExecutionIntent{
-					Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+					Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 					Side: execution.SideBuy, Quantity: v, FilledQuantity: v,
 					Status: execution.StatusFilled,
 					Risk: execution.RiskInput{
@@ -1178,7 +1178,7 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	execEvent := execution.PaperOrderSubmittedEvent{
 		Metadata: events.Metadata{ID: "exec-chain-001", OccurredAt: rtTime, CorrelationID: "full-chain-001", CausationID: "risk-chain-001"},
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.0192", FilledQuantity: "0.0192",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -1296,7 +1296,7 @@ func TestBehavioralRoundTrip_Execution_RejectedOrder(t *testing.T) {
 	event := execution.PaperOrderSubmittedEvent{
 		Metadata: execMeta(),
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "derive", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideNone, Quantity: "0", FilledQuantity: "0",
 			Status: execution.StatusRejected,
 			Risk: execution.RiskInput{
@@ -1346,7 +1346,7 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 			CausationID:   "caus-s334-intake",
 		},
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0.001",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{
@@ -1465,7 +1465,7 @@ func TestBehavioralRoundTrip_VenueFill_PaperOrderColumnAlignment(t *testing.T) {
 			CorrelationID: "corr-s334-align", CausationID: "caus-s334-risk",
 		},
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "paper_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "paper_order", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0",
 			Status: execution.StatusSubmitted,
 			Risk: execution.RiskInput{
@@ -1483,7 +1483,7 @@ func TestBehavioralRoundTrip_VenueFill_PaperOrderColumnAlignment(t *testing.T) {
 			CorrelationID: "corr-s334-align", CausationID: "caus-s334-paper",
 		},
 		ExecutionIntent: execution.ExecutionIntent{
-			Type: "venue_market_order", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Type: "venue_market_order", Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60,
 			Side: execution.SideBuy, Quantity: "0.001", FilledQuantity: "0.001",
 			Status: execution.StatusFilled,
 			Risk: execution.RiskInput{

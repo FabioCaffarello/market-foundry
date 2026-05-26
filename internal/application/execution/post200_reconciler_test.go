@@ -68,7 +68,7 @@ func TestRC01_BodyReadFailure_RecoveredViaQuery(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	receipt, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("RC-01: expected recovery, got error: %s", prob.Message)
 	}
@@ -119,7 +119,7 @@ func TestRC02_BodyReadFailure_QueryFails_OriginalErrorReturned(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	_, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("RC-02: expected error when both submit body read and query fail")
 	}
@@ -154,7 +154,7 @@ func TestRC03_NonBodyReadError_PassesThrough(t *testing.T) {
 
 	reconciler := appexec.NewPost200Reconciler(venue, queryVenue, 5*time.Second)
 
-	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("RC-03: expected error to pass through")
 	}
@@ -180,7 +180,7 @@ func TestRC04_SuccessfulSubmit_NoReconciliation(t *testing.T) {
 
 	reconciler := appexec.NewPost200Reconciler(venue, queryVenue, 5*time.Second)
 
-	receipt, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("RC-04: expected success, got: %s", prob.Message)
 	}
@@ -222,7 +222,7 @@ func TestRC05_NoDuplicateSubmit_OnlyOnePostThenGet(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	_, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("RC-05: expected recovery, got: %s", prob.Message)
 	}
@@ -239,7 +239,7 @@ func TestRC05_NoDuplicateSubmit_OnlyOnePostThenGet(t *testing.T) {
 // RC-06: Client order ID in recovered receipt matches original intent
 // ---------------------------------------------------------------------------
 func TestRC06_RecoveredReceipt_HasCorrectClientOrderID(t *testing.T) {
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	expectedID := appexec.ClientOrderID(intent)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -291,7 +291,7 @@ func TestRC06_RecoveredReceipt_HasCorrectClientOrderID(t *testing.T) {
 // RC-07: Recovered intent preserves original fields (symbol, source, etc.)
 // ---------------------------------------------------------------------------
 func TestRC07_RecoveredIntent_PreservesOriginalFields(t *testing.T) {
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
@@ -323,8 +323,8 @@ func TestRC07_RecoveredIntent_PreservesOriginalFields(t *testing.T) {
 	}
 
 	// Original intent fields must be preserved.
-	if receipt.Intent.Symbol != intent.Symbol {
-		t.Fatalf("RC-07: symbol changed: %s → %s", intent.Symbol, receipt.Intent.Symbol)
+	if receipt.Intent.VenueSymbol() != intent.VenueSymbol() {
+		t.Fatalf("RC-07: symbol changed: %s → %s", intent.VenueSymbol(), receipt.Intent.VenueSymbol())
 	}
 	if receipt.Intent.Source != intent.Source {
 		t.Fatalf("RC-07: source changed: %s → %s", intent.Source, receipt.Intent.Source)
@@ -355,7 +355,7 @@ func TestRC08_RetryableError_PassesThrough(t *testing.T) {
 
 	reconciler := appexec.NewPost200Reconciler(venue, queryVenue, 5*time.Second)
 
-	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("RC-08: expected error to pass through")
 	}
@@ -416,7 +416,7 @@ func TestRC09_Reconciler_ComposesWithRetrySubmitter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	receipt, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := reconciler.SubmitOrder(ctx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("RC-09: expected recovery after retry+reconciliation, got: %s", prob.Message)
 	}

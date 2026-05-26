@@ -39,7 +39,8 @@ import (
 
 // ---------- helpers ----------
 
-func s405SpotIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func s405SpotIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	qty := "0.001"
 	if side == domainexec.SideNone {
 		qty = "0"
@@ -47,7 +48,7 @@ func s405SpotIntent(side domainexec.Side) domainexec.ExecutionIntent {
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binances",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTSpot(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      qty,
@@ -80,7 +81,7 @@ func spotFilledHandler(fills []map[string]any, executedQty string) http.Handler 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"orderId":             67890,
-			"clientOrderId":      r.URL.Query().Get("newClientOrderId"),
+			"clientOrderId":       r.URL.Query().Get("newClientOrderId"),
 			"symbol":              r.URL.Query().Get("symbol"),
 			"status":              "FILLED",
 			"side":                r.URL.Query().Get("side"),
@@ -105,7 +106,7 @@ func TestS405_SpotVenueLive_Buy_SubmittedToFilled(t *testing.T) {
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.001"))
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -140,7 +141,7 @@ func TestS405_SpotVenueLive_Sell_SubmittedToFilled(t *testing.T) {
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.001"))
 
-	intent := s405SpotIntent(domainexec.SideSell)
+	intent := s405SpotIntent(t, domainexec.SideSell)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -165,7 +166,7 @@ func TestS405_SpotVenueLive_None_NoVenueContact(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	intent := s405SpotIntent(domainexec.SideNone)
+	intent := s405SpotIntent(t, domainexec.SideNone)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -194,7 +195,7 @@ func TestS405_SpotVenueLive_FillRecordFidelity_SingleLeg(t *testing.T) {
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.001"))
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -239,7 +240,7 @@ func TestS405_SpotVenueLive_FillRecordFidelity_MultiFillAggregation(t *testing.T
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.003"))
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	intent.Quantity = "0.003"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -286,7 +287,7 @@ func TestS405_SpotVenueLive_FillTimestampFromTransactTime(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -307,7 +308,7 @@ func TestS405_SpotVenueLive_CorrelationChainPreserved(t *testing.T) {
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.001"))
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s405-spot-corr-chain"
 	intent.CausationID = "s405-spot-cause-chain"
 
@@ -325,7 +326,7 @@ func TestS405_SpotVenueLive_IntentFieldPreservation(t *testing.T) {
 	}
 	adapter := newSpotTestAdapter(t, spotFilledHandler(fills, "0.001"))
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -335,8 +336,8 @@ func TestS405_SpotVenueLive_IntentFieldPreservation(t *testing.T) {
 	if ri.Source != "binances" {
 		t.Errorf("Source lost: expected binances, got %s", ri.Source)
 	}
-	if ri.Symbol != "btcusdt" {
-		t.Errorf("Symbol lost: expected btcusdt, got %s", ri.Symbol)
+	if ri.VenueSymbol() != "btcusdt" {
+		t.Errorf("Symbol lost: expected btcusdt, got %s", ri.VenueSymbol())
 	}
 	if ri.Timeframe != 60 {
 		t.Errorf("Timeframe lost: expected 60, got %d", ri.Timeframe)
@@ -367,7 +368,7 @@ func TestS405_SpotVenueLive_QueryOrder_ReconcilesFill(t *testing.T) {
 			// but returns status and executedQty.
 			resp := map[string]any{
 				"orderId":             67890,
-				"clientOrderId":      r.URL.Query().Get("origClientOrderId"),
+				"clientOrderId":       r.URL.Query().Get("origClientOrderId"),
 				"symbol":              "BTCUSDT",
 				"status":              "FILLED",
 				"executedQty":         "0.001",
@@ -397,7 +398,7 @@ func TestS405_SpotVenueLive_QueryOrder_ReconcilesFill(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	clientOrderID := appexec.ClientOrderID(intent)
 
 	// Execute QueryOrder — verifies the reconciliation path
@@ -423,10 +424,10 @@ func TestS405_SpotVenueLive_QueryOrder_UsesCorrectAPIPath(t *testing.T) {
 		capturedPath = r.URL.Path
 		capturedMethod = r.Method
 		resp := map[string]any{
-			"orderId":     67890,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      67890,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65430.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -455,10 +456,10 @@ func TestS405_SpotVenueLive_SpotAPIPath(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedPath = r.URL.Path
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -467,7 +468,7 @@ func TestS405_SpotVenueLive_SpotAPIPath(t *testing.T) {
 		json.NewEncoder(w).Encode(resp)
 	})
 	adapter := newSpotTestAdapter(t, handler)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 
 	// Spot uses /api/v3/order (NOT /fapi/v1/order like Futures)
 	if capturedPath != "/api/v3/order" {
@@ -480,10 +481,10 @@ func TestS405_SpotVenueLive_SymbolUppercased(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedSymbol = r.URL.Query().Get("symbol")
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      capturedSymbol,
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       capturedSymbol,
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -492,7 +493,7 @@ func TestS405_SpotVenueLive_SymbolUppercased(t *testing.T) {
 		json.NewEncoder(w).Encode(resp)
 	})
 	adapter := newSpotTestAdapter(t, handler)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 
 	if capturedSymbol != "BTCUSDT" {
 		t.Fatalf("expected BTCUSDT (uppercased), got %s", capturedSymbol)
@@ -506,10 +507,10 @@ func TestS405_SpotVenueLive_RequestSigned(t *testing.T) {
 		hasAPIKey = r.Header.Get("X-MBX-APIKEY") != ""
 		hasTimestamp = r.URL.Query().Get("timestamp") != ""
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -518,7 +519,7 @@ func TestS405_SpotVenueLive_RequestSigned(t *testing.T) {
 		json.NewEncoder(w).Encode(resp)
 	})
 	adapter := newSpotTestAdapter(t, handler)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 
 	if !hasSignature {
 		t.Error("request must include HMAC-SHA256 signature")
@@ -536,10 +537,10 @@ func TestS405_SpotVenueLive_ClientOrderIDSent(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedClientOrderID = r.URL.Query().Get("newClientOrderId")
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -549,7 +550,7 @@ func TestS405_SpotVenueLive_ClientOrderIDSent(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	expectedClientOrderID := appexec.ClientOrderID(intent)
 
 	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -567,10 +568,10 @@ func TestS405_SpotVenueLive_FULLResponseTypeRequested(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedRespType = r.URL.Query().Get("newOrderRespType")
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -579,7 +580,7 @@ func TestS405_SpotVenueLive_FULLResponseTypeRequested(t *testing.T) {
 		json.NewEncoder(w).Encode(resp)
 	})
 	adapter := newSpotTestAdapter(t, handler)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 
 	// Spot adapter must request FULL response type to get fills[] array
 	if capturedRespType != "FULL" {
@@ -597,10 +598,10 @@ func TestS405_SegmentRouter_SpotSourceDispatchesToSpotAdapter(t *testing.T) {
 	spotHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		spotCalled = true
 		resp := map[string]any{
-			"orderId":     1,
-			"symbol":      "BTCUSDT",
-			"status":      "FILLED",
-			"executedQty": "0.001",
+			"orderId":      1,
+			"symbol":       "BTCUSDT",
+			"status":       "FILLED",
+			"executedQty":  "0.001",
 			"transactTime": time.Now().UnixMilli(),
 			"fills": []map[string]any{
 				{"price": "65000.00", "qty": "0.001", "commission": "0.0001", "commissionAsset": "BNB"},
@@ -633,7 +634,7 @@ func TestS405_SegmentRouter_SpotSourceDispatchesToSpotAdapter(t *testing.T) {
 	router.Register(settings.MarketSegmentFutures, futuresAdapter)
 
 	// Submit Spot intent — should route to Spot adapter only
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -653,7 +654,7 @@ func TestS405_SegmentRouter_SpotSourceDispatchesToSpotAdapter(t *testing.T) {
 func TestS405_SegmentRouter_UnknownSourceRejected(t *testing.T) {
 	router := appexec.NewSegmentRouter()
 
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	intent.Source = "unknown_exchange"
 
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -720,18 +721,18 @@ func TestS405_SpotLifecycleAlignment_BinanceStatusMapping(t *testing.T) {
 	for _, tc := range statuses {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			resp := map[string]any{
-				"orderId":     int64(100),
-				"symbol":      "BTCUSDT",
-				"status":      tc.binanceStatus,
-				"executedQty": "0.001",
+				"orderId":      int64(100),
+				"symbol":       "BTCUSDT",
+				"status":       tc.binanceStatus,
+				"executedQty":  "0.001",
 				"transactTime": time.Now().UnixMilli(),
-				"fills":       fills,
+				"fills":        fills,
 			}
 			json.NewEncoder(w).Encode(resp)
 		})
 		adapter := newSpotTestAdapter(t, handler)
 
-		receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+		receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 		if prob != nil {
 			t.Fatalf("status %s: submit failed: %s", tc.binanceStatus, prob.Message)
 		}
@@ -811,7 +812,7 @@ func TestS405_VenueLiveSpotConfig_SpotAdapterResolved(t *testing.T) {
 // ==========================================================================
 
 func TestS405_SpotVenueLive_ClientOrderIDDeterministic(t *testing.T) {
-	intent := s405SpotIntent(domainexec.SideBuy)
+	intent := s405SpotIntent(t, domainexec.SideBuy)
 	id1 := appexec.ClientOrderID(intent)
 	id2 := appexec.ClientOrderID(intent)
 
@@ -843,7 +844,7 @@ func TestS405_SpotVenueLive_InsufficientBalance_NonRetryable(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected problem for insufficient balance")
 	}
@@ -862,7 +863,7 @@ func TestS405_SpotVenueLive_RateLimit_Retryable(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected problem for rate limit")
 	}
@@ -877,7 +878,7 @@ func TestS405_SpotVenueLive_ServerError_Retryable(t *testing.T) {
 	})
 	adapter := newSpotTestAdapter(t, handler)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s405SpotIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected problem for server error")
 	}

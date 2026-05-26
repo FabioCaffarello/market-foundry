@@ -420,11 +420,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan execution: %w", err)
 	}
 
+	execInst, _ := reconstructInstrumentFromLegacy(src, sym)
 	return &analyticalclient.ExecutionWithTrace{
 		ExecutionIntent: execution.ExecutionIntent{
 			Type:           typ,
 			Source:         src,
-			Symbol:         sym,
+			Instrument:     execInst,
 			Timeframe:      int(tf),
 			Side:           execution.Side(sd),
 			Quantity:       FormatFloat(quantity),

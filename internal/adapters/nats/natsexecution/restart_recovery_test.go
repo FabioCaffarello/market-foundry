@@ -254,7 +254,7 @@ func TestRestartRecovery_KVProjection_PersistsAcrossRestart(t *testing.T) {
 	}
 
 	ts := time.Date(2026, 3, 21, 10, 0, 0, 0, time.UTC)
-	intent := testIntent(ts)
+	intent := testIntent(t, ts)
 	intent.CorrelationID = "rr-3-persisted"
 
 	result, prob := store1.Put(context.Background(), intent)
@@ -291,7 +291,7 @@ func TestRestartRecovery_KVProjection_PersistsAcrossRestart(t *testing.T) {
 
 	// Phase 4: Verify monotonicity guard still works after restart.
 	olderTS := ts.Add(-5 * time.Minute)
-	olderIntent := testIntent(olderTS)
+	olderIntent := testIntent(t, olderTS)
 	result, prob = store2.Put(context.Background(), olderIntent)
 	if prob != nil {
 		t.Fatalf("put older: %s", prob.Message)

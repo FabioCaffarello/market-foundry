@@ -291,8 +291,8 @@ func TestLiveConsumerFlow_RealSupervisorDeliversToActor(t *testing.T) {
 	if fill.ExecutionIntent.Source != "binancef" {
 		t.Fatalf("[source] want binancef, got %q", fill.ExecutionIntent.Source)
 	}
-	if fill.ExecutionIntent.Symbol != "btcusdt" {
-		t.Fatalf("[symbol] want btcusdt, got %q", fill.ExecutionIntent.Symbol)
+	if fill.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("[symbol] want btcusdt, got %q", fill.ExecutionIntent.VenueSymbol())
 	}
 	if len(fill.ExecutionIntent.Fills) == 0 {
 		t.Fatal("[fills] no fill records — venue adapter did not populate fills")

@@ -25,7 +25,7 @@ func TestGetExecutionListUseCase_HappyPath(t *testing.T) {
 	now := time.Now().UTC()
 	reader := &stubExecutionListReader{
 		intents: []execution.ExecutionIntent{
-			{Type: "paper_order", Source: "derive", Symbol: "btcusdt", Timeframe: 60, Side: "buy", Status: "submitted", Final: true, Timestamp: now},
+			{Type: "paper_order", Source: "derive", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60, Side: "buy", Status: "submitted", Final: true, Timestamp: now},
 		},
 	}
 

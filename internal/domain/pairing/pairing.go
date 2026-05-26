@@ -352,7 +352,7 @@ func IntentToLeg(intent execution.ExecutionIntent, strategyDirection string) Leg
 	return Leg{
 		Direction:     dir,
 		Side:          intent.Side,
-		Symbol:        intent.Symbol,
+		Symbol:        intent.VenueSymbol(),
 		Source:        intent.Source,
 		Timeframe:     intent.Timeframe,
 		CorrelationID: intent.CorrelationID,

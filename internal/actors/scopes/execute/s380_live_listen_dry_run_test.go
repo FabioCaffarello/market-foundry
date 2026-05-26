@@ -401,7 +401,7 @@ func TestS380_DryRunSubmitter_NeverDelegatesInPipelineContext(t *testing.T) {
 			intent := domainexec.ExecutionIntent{
 				Type:          "paper_order",
 				Source:        "binancef",
-				Symbol:        "btcusdt",
+				Instrument:    btcUSDTPerpIntegration(t),
 				Timeframe:     60,
 				Side:          d.side,
 				Quantity:      "0.001",

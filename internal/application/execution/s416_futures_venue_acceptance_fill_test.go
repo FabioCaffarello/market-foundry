@@ -39,7 +39,8 @@ import (
 
 // ---------- helpers ----------
 
-func s416FuturesIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func s416FuturesIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	qty := "0.001"
 	if side == domainexec.SideNone {
 		qty = "0"
@@ -47,7 +48,7 @@ func s416FuturesIntent(side domainexec.Side) domainexec.ExecutionIntent {
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      qty,
@@ -101,7 +102,7 @@ func TestS416_FuturesVenueLive_Buy_SubmittedToFilled(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -125,7 +126,7 @@ func TestS416_FuturesVenueLive_Sell_SubmittedToFilled(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideSell)
+	intent := s416FuturesIntent(t, domainexec.SideSell)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -150,7 +151,7 @@ func TestS416_FuturesVenueLive_None_NoVenueContact(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideNone)
+	intent := s416FuturesIntent(t, domainexec.SideNone)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -175,7 +176,7 @@ func TestS416_FuturesVenueLive_FillRecordFidelity(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -225,7 +226,7 @@ func TestS416_FuturesVenueLive_FillTimestampFromUpdateTime(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -247,7 +248,7 @@ func TestS416_FuturesVenueLive_CorrelationChainPreserved(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -268,7 +269,7 @@ func TestS416_FuturesVenueLive_IntentFieldPreservation(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -281,8 +282,8 @@ func TestS416_FuturesVenueLive_IntentFieldPreservation(t *testing.T) {
 	if ri.Source != "binancef" {
 		t.Errorf("Source lost: %s", ri.Source)
 	}
-	if ri.Symbol != "btcusdt" {
-		t.Errorf("Symbol lost: %s", ri.Symbol)
+	if ri.VenueSymbol() != "btcusdt" {
+		t.Errorf("Symbol lost: %s", ri.VenueSymbol())
 	}
 	if ri.Timeframe != 60 {
 		t.Errorf("Timeframe lost: %d", ri.Timeframe)
@@ -391,7 +392,7 @@ func TestS416_FuturesVenueLive_FuturesAPIPath(t *testing.T) {
 
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 
 	if capturedPath != "/fapi/v1/order" {
 		t.Fatalf("Futures must use /fapi/v1/order, got %s", capturedPath)
@@ -417,7 +418,7 @@ func TestS416_FuturesVenueLive_RESULTResponseType(t *testing.T) {
 
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 
 	if capturedRespType != "RESULT" {
 		t.Fatalf("Futures should use RESULT response type, got %s", capturedRespType)
@@ -444,8 +445,8 @@ func TestS416_FuturesVenueLive_SymbolUppercased(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
-	intent.Symbol = "ethusdt"
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
+	intent.Instrument = ethUSDTPerp(t)
 	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 
 	if capturedSymbol != "ETHUSDT" {
@@ -472,7 +473,7 @@ func TestS416_FuturesVenueLive_RequestSigned(t *testing.T) {
 
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 
 	if capturedSig == "" {
 		t.Fatal("signature must be present in request")
@@ -502,7 +503,7 @@ func TestS416_FuturesVenueLive_ClientOrderIDSent(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 
 	if capturedCOID == "" {
@@ -515,7 +516,7 @@ func TestS416_FuturesVenueLive_ClientOrderIDSent(t *testing.T) {
 }
 
 func TestS416_FuturesVenueLive_ClientOrderIDDeterministic(t *testing.T) {
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	id1 := appexec.ClientOrderID(intent)
 	id2 := appexec.ClientOrderID(intent)
 	if id1 != id2 {
@@ -588,7 +589,7 @@ func TestS416_FuturesLifecycleAlignment_BinanceStatusMapping(t *testing.T) {
 			creds := s416FuturesCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 			if prob != nil {
 				t.Fatalf("submit failed: %s", prob.Message)
 			}
@@ -641,7 +642,7 @@ func TestS416_SegmentRouter_FuturesSourceDispatchesToFuturesAdapter(t *testing.T
 	router.Register(settings.MarketSegmentFutures, futuresAdapter)
 	router.Register(settings.MarketSegmentSpot, spotAdapter)
 
-	intent := s416FuturesIntent(domainexec.SideBuy)
+	intent := s416FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
@@ -725,7 +726,7 @@ func TestS416_FuturesVenueLive_InsufficientMargin_NonRetryable(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected error for insufficient margin")
 	}
@@ -747,7 +748,7 @@ func TestS416_FuturesVenueLive_RateLimit_Retryable(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected error for rate limit")
 	}
@@ -769,7 +770,7 @@ func TestS416_FuturesVenueLive_ServerError_Retryable(t *testing.T) {
 	creds := s416FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
 	if prob == nil {
 		t.Fatal("expected error for server failure")
 	}
@@ -832,8 +833,8 @@ func TestS416_SpotFuturesDifference_APIPathAndResponseType(t *testing.T) {
 	sCreds, _ := appexec.LoadCredentials("binance_spot_testnet", []string{"API_KEY", "API_SECRET"})
 	spotAdapter := appexec.NewBinanceSpotTestnetAdapter(sCreds, 5*time.Second).WithBaseURL(spotSrv.URL)
 
-	futuresAdapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(domainexec.SideBuy)})
-	spotIntent := s416FuturesIntent(domainexec.SideBuy)
+	futuresAdapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: s416FuturesIntent(t, domainexec.SideBuy)})
+	spotIntent := s416FuturesIntent(t, domainexec.SideBuy)
 	spotIntent.Source = "binances"
 	spotAdapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: spotIntent})
 

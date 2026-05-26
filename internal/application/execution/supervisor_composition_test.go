@@ -60,7 +60,7 @@ func TestSC01_FullComposition_RetryThenReconciler(t *testing.T) {
 			ClientOrderID: clientOrderID,
 			Status:        domainexec.StatusFilled,
 			Intent: domainexec.ExecutionIntent{
-				Symbol:         symbol,
+				Instrument:     instrumentFromVenueSymbol(t, "binancef", symbol),
 				FilledQuantity: "0.001",
 				Fills: []domainexec.FillRecord{
 					{Price: "65000.00", Quantity: "0.001", Fee: "65.00", Timestamp: time.Now().UTC()},
@@ -87,7 +87,7 @@ func TestSC01_FullComposition_RetryThenReconciler(t *testing.T) {
 	reconciler := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
 	receipt, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob != nil {
 		t.Fatalf("SC-01: expected recovery, got error: %s (details: %v)", prob.Message, prob.Details)
@@ -120,7 +120,7 @@ func TestSC02_FullComposition_SuccessOnFirstAttempt(t *testing.T) {
 		return ports.VenueOrderReceipt{
 			VenueOrderID: "direct-success-123",
 			Status:       domainexec.StatusFilled,
-			Intent:       testBuyIntent(),
+			Intent:       testBuyIntent(t),
 		}, nil
 	}}
 	queryVenue := &fakeQueryVenue{behavior: func(_, _ string) (ports.VenueOrderReceipt, *problem.Problem) {
@@ -133,7 +133,7 @@ func TestSC02_FullComposition_SuccessOnFirstAttempt(t *testing.T) {
 	reconciler := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
 	receipt, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob != nil {
 		t.Fatalf("SC-02: expected success, got: %s", prob.Message)
@@ -160,7 +160,7 @@ func TestSC03_FullComposition_NonRetryablePassthrough(t *testing.T) {
 	reconciler := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
 	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob == nil {
 		t.Fatal("SC-03: expected error")
@@ -199,7 +199,7 @@ func TestSC04_FullComposition_HaltCheckerAborts(t *testing.T) {
 	reconciler := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
 	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob == nil {
 		t.Fatal("SC-04: expected error when halt checker fires")
@@ -235,7 +235,7 @@ func TestSC05_CompositionWithoutQueryPort_RetryOnly(t *testing.T) {
 		return ports.VenueOrderReceipt{
 			VenueOrderID: "retry-success-456",
 			Status:       domainexec.StatusFilled,
-			Intent:       testBuyIntent(),
+			Intent:       testBuyIntent(t),
 		}, nil
 	}}
 
@@ -248,7 +248,7 @@ func TestSC05_CompositionWithoutQueryPort_RetryOnly(t *testing.T) {
 
 	// No reconciler — just the retrier as the composed venue.
 	receipt, prob := retrier.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob != nil {
 		t.Fatalf("SC-05: expected success after retries, got: %s", prob.Message)
@@ -283,7 +283,7 @@ func TestSC06_RetryMetadataSurfaces_ThroughReconciler(t *testing.T) {
 	reconciler := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
 	_, prob := reconciler.SubmitOrder(context.Background(), ports.VenueOrderRequest{
-		Intent: testBuyIntent(),
+		Intent: testBuyIntent(t),
 	})
 	if prob == nil {
 		t.Fatal("SC-06: expected error after retry exhaustion")
@@ -320,7 +320,7 @@ func TestSC07_StructuredLog_ContainsComponentTag(t *testing.T) {
 		WithLogger(logger).
 		TestWithSleepFn(noSleep)
 
-	retrier.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	retrier.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 
 	// Parse log lines and verify component tag.
 	for _, line := range bytes.Split(logBuf.Bytes(), []byte("\n")) {

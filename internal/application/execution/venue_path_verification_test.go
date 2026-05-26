@@ -45,7 +45,7 @@ func TestVP01_VenuePath_RetrySuccessThenFillEvent(t *testing.T) {
 		if n < 3 {
 			return ports.VenueOrderReceipt{}, problem.New(problem.Unavailable, "503 transient").MarkRetryable()
 		}
-		intent := testBuyIntent()
+		intent := testBuyIntent(t)
 		intent.Status = domainexec.StatusFilled
 		intent.FilledQuantity = "0.001"
 		intent.Fills = []domainexec.FillRecord{
@@ -81,7 +81,7 @@ func TestVP01_VenuePath_RetrySuccessThenFillEvent(t *testing.T) {
 	submitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.CorrelationID = "vp01-corr"
 	intent.CausationID = "vp01-caus"
 
@@ -112,8 +112,8 @@ func TestVP01_VenuePath_RetrySuccessThenFillEvent(t *testing.T) {
 	if len(fillEvent.ExecutionIntent.Fills) != 1 {
 		t.Fatalf("VP-01: expected 1 fill, got %d", len(fillEvent.ExecutionIntent.Fills))
 	}
-	if fillEvent.ExecutionIntent.Symbol != "btcusdt" {
-		t.Fatalf("VP-01: symbol bleed — expected btcusdt, got %s", fillEvent.ExecutionIntent.Symbol)
+	if fillEvent.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("VP-01: symbol bleed — expected btcusdt, got %s", fillEvent.ExecutionIntent.VenueSymbol())
 	}
 
 	// Verify retry observability tracked at actor level.
@@ -151,7 +151,7 @@ func TestVP02_VenuePath_Post200RecoveryThenFillEvent(t *testing.T) {
 			ClientOrderID: clientOrderID,
 			Status:        domainexec.StatusFilled,
 			Intent: domainexec.ExecutionIntent{
-				Symbol:         symbol,
+				Instrument:     instrumentFromVenueSymbol(t, "binancef", symbol),
 				FilledQuantity: "0.001",
 				Side:           domainexec.SideBuy,
 				Status:         domainexec.StatusFilled,
@@ -174,7 +174,7 @@ func TestVP02_VenuePath_Post200RecoveryThenFillEvent(t *testing.T) {
 	submitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.CorrelationID = "vp02-corr"
 	intent.CausationID = "vp02-caus"
 
@@ -253,7 +253,7 @@ func TestVP03_VenuePath_RetryMetadataInActorErrorLog(t *testing.T) {
 	submitCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, prob := composedVenue.SubmitOrder(submitCtx, ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := composedVenue.SubmitOrder(submitCtx, ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("VP-03: expected error after retry exhaustion")
 	}
@@ -307,7 +307,7 @@ func TestVP04_VenuePath_FillEventIntentFieldPreservation(t *testing.T) {
 
 	now := time.Now().UTC()
 	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
-		intent := testBuyIntent()
+		intent := testBuyIntent(t)
 		intent.Status = domainexec.StatusFilled
 		intent.FilledQuantity = "0.001"
 		intent.CorrelationID = "vp04-corr"
@@ -333,7 +333,7 @@ func TestVP04_VenuePath_FillEventIntentFieldPreservation(t *testing.T) {
 		TestWithSleepFn(noSleep)
 	composedVenue := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.CorrelationID = "vp04-corr"
 	intent.CausationID = "vp04-caus"
 
@@ -357,8 +357,8 @@ func TestVP04_VenuePath_FillEventIntentFieldPreservation(t *testing.T) {
 	if ei.Source != "binancef" {
 		t.Fatalf("VP-04: source not preserved: got %q", ei.Source)
 	}
-	if ei.Symbol != "btcusdt" {
-		t.Fatalf("VP-04: symbol not preserved: got %q", ei.Symbol)
+	if ei.VenueSymbol() != "btcusdt" {
+		t.Fatalf("VP-04: symbol not preserved: got %q", ei.VenueSymbol())
 	}
 	if ei.Timeframe != 60 {
 		t.Fatalf("VP-04: timeframe not preserved: got %d", ei.Timeframe)
@@ -421,14 +421,14 @@ func TestVP05_VenuePath_TrackerCountersReflectPipeline(t *testing.T) {
 		if n == 1 {
 			return ports.VenueOrderReceipt{}, problem.New(problem.Unavailable, "transient").MarkRetryable()
 		}
-		return ports.VenueOrderReceipt{VenueOrderID: "a", Status: domainexec.StatusFilled, Intent: testBuyIntent()}, nil
+		return ports.VenueOrderReceipt{VenueOrderID: "a", Status: domainexec.StatusFilled, Intent: testBuyIntent(t)}, nil
 	}}
 
 	retrierA := appexec.NewRetrySubmitter(venueA, appexec.RetryPolicy{
 		MaxAttempts: 3, BaseDelay: time.Millisecond, MaxDelay: 5 * time.Millisecond, Factor: 2.0,
 	}).WithTracker(tracker).TestWithSleepFn(noSleep)
 
-	_, prob := retrierA.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := retrierA.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("VP-05A: expected success, got: %s", prob.Message)
 	}
@@ -442,7 +442,7 @@ func TestVP05_VenuePath_TrackerCountersReflectPipeline(t *testing.T) {
 		MaxAttempts: 2, BaseDelay: time.Millisecond, MaxDelay: 5 * time.Millisecond, Factor: 2.0,
 	}).WithTracker(tracker).TestWithSleepFn(noSleep)
 
-	_, prob = retrierB.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob = retrierB.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("VP-05B: expected exhaustion error")
 	}
@@ -459,7 +459,7 @@ func TestVP05_VenuePath_TrackerCountersReflectPipeline(t *testing.T) {
 		WithTracker(tracker).
 		TestWithSleepFn(noSleep)
 
-	_, prob = retrierC.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob = retrierC.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("VP-05C: expected halt error")
 	}
@@ -502,7 +502,7 @@ func TestVP06_VenuePath_HaltPropagationToActorErrorPath(t *testing.T) {
 
 	composedVenue := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
-	_, prob := composedVenue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := composedVenue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("VP-06: expected error when halted")
 	}
@@ -526,7 +526,7 @@ func TestVP07_VenuePath_PaperMode_RetryOnlyFillEventIntact(t *testing.T) {
 	// This mirrors the exact path for paper_simulator in production.
 
 	venue := &fakeVenue{behavior: func(_ int) (ports.VenueOrderReceipt, *problem.Problem) {
-		intent := testBuyIntent()
+		intent := testBuyIntent(t)
 		intent.Status = domainexec.StatusFilled
 		intent.FilledQuantity = "0.001"
 		intent.Fills = []domainexec.FillRecord{
@@ -547,7 +547,7 @@ func TestVP07_VenuePath_PaperMode_RetryOnlyFillEventIntact(t *testing.T) {
 		TestWithSleepFn(noSleep)
 	composedVenue := ports.VenuePort(retrier) // No reconciler wrapping.
 
-	intent := testBuyIntent()
+	intent := testBuyIntent(t)
 	intent.CorrelationID = "vp07-corr"
 	intent.CausationID = "vp07-caus"
 
@@ -615,7 +615,7 @@ func TestVP08_VenuePath_RetryThenPost200Recovery_FillEvent(t *testing.T) {
 			ClientOrderID: clientOrderID,
 			Status:        domainexec.StatusFilled,
 			Intent: domainexec.ExecutionIntent{
-				Symbol:         symbol,
+				Instrument:     instrumentFromVenueSymbol(t, "binancef", symbol),
 				Side:           domainexec.SideBuy,
 				Status:         domainexec.StatusFilled,
 				FilledQuantity: "0.001",
@@ -642,7 +642,7 @@ func TestVP08_VenuePath_RetryThenPost200Recovery_FillEvent(t *testing.T) {
 
 	composedVenue := appexec.NewPost200Reconciler(retrier, queryVenue, 5*time.Second)
 
-	receipt, prob := composedVenue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	receipt, prob := composedVenue.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("VP-08: expected recovery, got: %s (details: %v)", prob.Message, prob.Details)
 	}

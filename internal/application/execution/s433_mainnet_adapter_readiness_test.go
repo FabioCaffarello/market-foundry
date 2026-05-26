@@ -63,15 +63,15 @@ func TestBinanceSpotMainnetAdapter_BaseURL(t *testing.T) {
 	adapter.WithBaseURL(server.URL)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
-		Final:     true,
-		Timestamp: time.Now().UTC(),
+		Type:       "paper_order",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
+		Final:      true,
+		Timestamp:  time.Now().UTC(),
 	}
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -134,15 +134,15 @@ func TestBinanceFuturesMainnetAdapter_BaseURL(t *testing.T) {
 	adapter.WithBaseURL(server.URL)
 
 	intent := domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
-		Final:     true,
-		Timestamp: time.Now().UTC(),
+		Type:       "paper_order",
+		Source:     "binancef",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
+		Final:      true,
+		Timestamp:  time.Now().UTC(),
 	}
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -180,10 +180,10 @@ func TestRateLimiter_PassesThrough(t *testing.T) {
 	defer rl.Close()
 
 	intent := domainexec.ExecutionIntent{
-		Source:   "binances",
-		Symbol:   "btcusdt",
-		Side:     domainexec.SideBuy,
-		Quantity: "0.001",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
 	}
 
 	receipt, prob := rl.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})

@@ -111,8 +111,8 @@ func TestPaperOrder_FullChain_RSIOversold_Buy(t *testing.T) {
 	if intent.Status != domainexec.StatusFilled {
 		t.Fatalf("expected StatusFilled (paper fill simulation), got %q", intent.Status)
 	}
-	if intent.Symbol != "btcusdt" {
-		t.Fatalf("expected symbol btcusdt, got %q", intent.Symbol)
+	if intent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("expected symbol btcusdt, got %q", intent.VenueSymbol())
 	}
 	if intent.Source != "binancef" {
 		t.Fatalf("expected source binancef, got %q", intent.Source)

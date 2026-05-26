@@ -24,15 +24,16 @@ func spotTestCredentials(t *testing.T) *appexec.CredentialSet {
 	return creds
 }
 
-func testSpotBuyIntent() domainexec.ExecutionIntent {
+func testSpotBuyIntent(t *testing.T) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
-		Type:      "paper_order",
-		Source:    "binances",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Side:      domainexec.SideBuy,
-		Quantity:  "0.001",
-		Status:    domainexec.StatusSubmitted,
+		Type:       "paper_order",
+		Source:     "binances",
+		Instrument: btcUSDTSpot(t),
+		Timeframe:  60,
+		Side:       domainexec.SideBuy,
+		Quantity:   "0.001",
+		Status:     domainexec.StatusSubmitted,
 		Risk: domainexec.RiskInput{
 			Type:        "position_exposure",
 			Disposition: "approved",
@@ -90,7 +91,7 @@ func TestBinanceSpotAdapter_SubmitOrder_Filled(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -147,7 +148,7 @@ func TestBinanceSpotAdapter_SubmitOrder_MultiFill(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("submit failed: %s", prob.Message)
 	}
@@ -188,7 +189,7 @@ func TestBinanceSpotAdapter_SubmitOrder_NoAction(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := testSpotBuyIntent()
+	intent := testSpotBuyIntent(t)
 	intent.Side = domainexec.SideNone
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -216,7 +217,7 @@ func TestBinanceSpotAdapter_SubmitOrder_AuthError(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for auth failure")
 	}
@@ -247,7 +248,7 @@ func TestBinanceSpotAdapter_APIPath(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 
 	if capturedPath != "/api/v3/order" {
 		t.Fatalf("expected /api/v3/order, got %s", capturedPath)
@@ -274,7 +275,7 @@ func TestBinanceSpotAdapter_FillNotSimulated(t *testing.T) {
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent()})
+	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testSpotBuyIntent(t)})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
 	}
@@ -305,7 +306,7 @@ func TestBinanceSpotAdapter_ClientOrderID_InReceipt(t *testing.T) {
 
 	creds := spotTestCredentials(t)
 	adapter := appexec.NewBinanceSpotTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-	intent := testSpotBuyIntent()
+	intent := testSpotBuyIntent(t)
 
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {

@@ -62,7 +62,7 @@ func TestS406_ActorComposition_SpotRejection_InsufficientBalance(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Spot adapter")
@@ -98,7 +98,7 @@ func TestS406_ActorComposition_SpotRejection_LOTSize(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	intent.Quantity = "0.0000001"
 
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -121,7 +121,7 @@ func TestS406_ActorComposition_SpotRejectionEvent_Construction(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	intent.Source = "binances"
 	intent.CorrelationID = "s406-spot-corr"
 	intent.CausationID = "s406-spot-cause"
@@ -178,8 +178,8 @@ func TestS406_ActorComposition_SpotRejectionEvent_Construction(t *testing.T) {
 	if event.ExecutionIntent.Source != "binances" {
 		t.Errorf("source lost: expected binances, got %s", event.ExecutionIntent.Source)
 	}
-	if event.ExecutionIntent.Symbol != "btcusdt" {
-		t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.Symbol)
+	if event.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.VenueSymbol())
 	}
 
 	// No fills on rejection
@@ -207,7 +207,7 @@ func TestS406_ActorComposition_SpotRejection_VenueRejectedStatus200(t *testing.T
 
 	router := s405BuildSegmentRouter(t, srv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("HTTP 200 with REJECTED status should not produce Problem: %s", prob.Message)
@@ -266,7 +266,7 @@ func TestS406_ActorComposition_SpotPartialFill_ThroughRouter(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, futuresSrv)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not produce Problem: %s", prob.Message)
@@ -315,7 +315,7 @@ func TestS406_ActorComposition_SpotPartialFill_MultiLeg(t *testing.T) {
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
@@ -349,7 +349,7 @@ func TestS406_ActorComposition_SpotPartialFill_CorrelationPreserved(t *testing.T
 
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s406-partial-corr"
 	intent.CausationID = "s406-partial-cause"
 
@@ -379,7 +379,7 @@ func TestS406_ActorComposition_SpotPartialFill_DryRunIntercepted(t *testing.T) {
 	router := s405BuildSegmentRouter(t, spotSrv, nil)
 	drs := appexec.NewDryRunSubmitter(router)
 
-	intent := s405SpotVenueIntent(domainexec.SideBuy)
+	intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 	receipt, prob := drs.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("dry run should not fail: %s", prob.Message)
@@ -439,7 +439,7 @@ func TestS406_RejectionEvent_SpotVenueDetails_AuditTrail(t *testing.T) {
 			defer srv.Close()
 
 			router := s405BuildSegmentRouter(t, srv, nil)
-			intent := s405SpotVenueIntent(domainexec.SideBuy)
+			intent := s405SpotVenueIntent(t, domainexec.SideBuy)
 
 			_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 			if prob == nil {

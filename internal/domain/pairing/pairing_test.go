@@ -5,7 +5,17 @@ import (
 	"time"
 
 	"internal/domain/execution"
+	"internal/domain/instrument"
 )
+
+func btcUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}
 
 // --- Type validation tests ---
 
@@ -47,7 +57,7 @@ func TestValidPairingState(t *testing.T) {
 // --- IntentToLeg tests ---
 
 func TestIntentToLeg_LongBuyIsEntry(t *testing.T) {
-	intent := makeIntent(execution.SideBuy, "50000.00", "0.1", "0.50", "5000.00")
+	intent := makeIntent(t, execution.SideBuy, "50000.00", "0.1", "0.50", "5000.00")
 	leg := IntentToLeg(intent, "long")
 	if leg.Direction != LegEntry {
 		t.Errorf("direction=%s, want entry", leg.Direction)
@@ -58,7 +68,7 @@ func TestIntentToLeg_LongBuyIsEntry(t *testing.T) {
 }
 
 func TestIntentToLeg_LongSellIsExit(t *testing.T) {
-	intent := makeIntent(execution.SideSell, "51000.00", "0.1", "0.50", "5100.00")
+	intent := makeIntent(t, execution.SideSell, "51000.00", "0.1", "0.50", "5100.00")
 	leg := IntentToLeg(intent, "long")
 	if leg.Direction != LegExit {
 		t.Errorf("direction=%s, want exit", leg.Direction)
@@ -66,7 +76,7 @@ func TestIntentToLeg_LongSellIsExit(t *testing.T) {
 }
 
 func TestIntentToLeg_ShortSellIsEntry(t *testing.T) {
-	intent := makeIntent(execution.SideSell, "50000.00", "0.1", "0.50", "5000.00")
+	intent := makeIntent(t, execution.SideSell, "50000.00", "0.1", "0.50", "5000.00")
 	leg := IntentToLeg(intent, "short")
 	if leg.Direction != LegEntry {
 		t.Errorf("direction=%s, want entry", leg.Direction)
@@ -74,7 +84,7 @@ func TestIntentToLeg_ShortSellIsEntry(t *testing.T) {
 }
 
 func TestIntentToLeg_ShortBuyIsExit(t *testing.T) {
-	intent := makeIntent(execution.SideBuy, "49000.00", "0.1", "0.50", "4900.00")
+	intent := makeIntent(t, execution.SideBuy, "49000.00", "0.1", "0.50", "4900.00")
 	leg := IntentToLeg(intent, "short")
 	if leg.Direction != LegExit {
 		t.Errorf("direction=%s, want exit", leg.Direction)
@@ -82,7 +92,7 @@ func TestIntentToLeg_ShortBuyIsExit(t *testing.T) {
 }
 
 func TestIntentToLeg_DefaultDirectionIsLong(t *testing.T) {
-	intent := makeIntent(execution.SideBuy, "50000.00", "0.1", "0.50", "5000.00")
+	intent := makeIntent(t, execution.SideBuy, "50000.00", "0.1", "0.50", "5000.00")
 	leg := IntentToLeg(intent, "")
 	if leg.Direction != LegEntry {
 		t.Errorf("direction=%s, want entry (default long)", leg.Direction)
@@ -91,14 +101,14 @@ func TestIntentToLeg_DefaultDirectionIsLong(t *testing.T) {
 
 func TestIntentToLeg_AggregatesMultipleFills(t *testing.T) {
 	intent := execution.ExecutionIntent{
-		Type:      "market",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      execution.SideBuy,
-		Quantity:  "0.1",
-		Status:    execution.StatusFilled,
-		Risk:      execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
+		Type:       "market",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       execution.SideBuy,
+		Quantity:   "0.1",
+		Status:     execution.StatusFilled,
+		Risk:       execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
 		Fills: []execution.FillRecord{
 			{Price: "50000.00", Quantity: "0.05", Fee: "0.25", CostBasis: "2500.00", Timestamp: t0},
 			{Price: "50100.00", Quantity: "0.05", Fee: "0.25", CostBasis: "2505.00", Timestamp: t0.Add(time.Second)},
@@ -123,15 +133,15 @@ func TestIntentToLeg_AggregatesMultipleFills(t *testing.T) {
 
 func TestIntentToLeg_NoFillsFallback(t *testing.T) {
 	intent := execution.ExecutionIntent{
-		Type:      "market",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      execution.SideBuy,
-		Quantity:  "0.1",
-		Status:    execution.StatusSubmitted,
-		Risk:      execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
-		Timestamp: t0,
+		Type:       "market",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       execution.SideBuy,
+		Quantity:   "0.1",
+		Status:     execution.StatusSubmitted,
+		Risk:       execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
+		Timestamp:  t0,
 	}
 	leg := IntentToLeg(intent, "long")
 	if leg.Price != "0" {
@@ -419,16 +429,17 @@ func TestRoundTrip_IsOpen(t *testing.T) {
 
 var t0 = time.Date(2026, 3, 26, 10, 0, 0, 0, time.UTC)
 
-func makeIntent(side execution.Side, price, qty, fee, costBasis string) execution.ExecutionIntent {
+func makeIntent(t *testing.T, side execution.Side, price, qty, fee, costBasis string) execution.ExecutionIntent {
+	t.Helper()
 	return execution.ExecutionIntent{
-		Type:      "market",
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Side:      side,
-		Quantity:  qty,
-		Status:    execution.StatusFilled,
-		Risk:      execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
+		Type:       "market",
+		Source:     "binance_spot",
+		Instrument: btcUSDTPerp(t),
+		Timeframe:  60,
+		Side:       side,
+		Quantity:   qty,
+		Status:     execution.StatusFilled,
+		Risk:       execution.RiskInput{Type: "ema_crossover", Disposition: "approved"},
 		Fills: []execution.FillRecord{
 			{Price: price, Quantity: qty, Fee: fee, CostBasis: costBasis, Timestamp: t0},
 		},

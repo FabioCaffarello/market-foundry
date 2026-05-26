@@ -43,16 +43,17 @@ func nonRetryableProblem(msg string) *problem.Problem {
 	return problem.New(problem.InvalidArgument, msg)
 }
 
-func dummyRequest() ports.VenueOrderRequest {
+func dummyRequest(t *testing.T) ports.VenueOrderRequest {
+	t.Helper()
 	return ports.VenueOrderRequest{
 		Intent: domainexec.ExecutionIntent{
-			Type:      "paper_order",
-			Source:    "binancef",
-			Symbol:    "btcusdt",
-			Timeframe: 3600,
-			Side:      domainexec.SideBuy,
-			Quantity:  "0.001",
-			Timestamp: time.Now(),
+			Type:       "paper_order",
+			Source:     "binancef",
+			Instrument: btcUSDTPerp(t),
+			Timeframe:  3600,
+			Side:       domainexec.SideBuy,
+			Quantity:   "0.001",
+			Timestamp:  time.Now(),
 		},
 	}
 }
@@ -79,7 +80,7 @@ func TestRetry_SuccessOnFirstAttempt(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected no error, got: %v", prob)
 	}
@@ -102,7 +103,7 @@ func TestRetry_SuccessOnSecondAttempt(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success on retry, got: %v", prob)
 	}
@@ -128,7 +129,7 @@ func TestRetry_ExhaustsMaxAttempts(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, policy)
 	rs = rs.TestWithSleepFn(noSleep)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -155,7 +156,7 @@ func TestRetry_NonRetryableError_NoRetry(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
 	rs = rs.TestWithSleepFn(noSleep)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error")
 	}
@@ -190,7 +191,7 @@ func TestRetry_ContextCancelled_AbortsLoop(t *testing.T) {
 		cancel()
 	})
 
-	_, prob := rs.SubmitOrder(ctx, dummyRequest())
+	_, prob := rs.SubmitOrder(ctx, dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error after context cancel")
 	}
@@ -212,7 +213,7 @@ func TestRetry_PreservesDeterministicClientOrderID(t *testing.T) {
 	}}
 
 	// Wrap to capture intents.
-	intent := dummyRequest().Intent
+	intent := dummyRequest(t).Intent
 	expectedID := execution.ClientOrderID(intent)
 
 	policy := execution.RetryPolicy{
@@ -250,7 +251,7 @@ func TestRetry_PolicyMaxAttemptsZero_DefaultsToOne(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, policy)
 	rs = rs.TestWithSleepFn(noSleep)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -276,7 +277,7 @@ func TestRetry_BackoffIncreases(t *testing.T) {
 		delays = append(delays, d)
 	})
 
-	rs.SubmitOrder(context.Background(), dummyRequest())
+	rs.SubmitOrder(context.Background(), dummyRequest(t))
 
 	if len(delays) != 3 { // 4 attempts = 3 sleeps
 		t.Fatalf("expected 3 delays, got %d", len(delays))
@@ -317,7 +318,7 @@ func TestRetry_SuccessOnThirdAttempt_MatchesRealScenario(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success on third attempt, got: %v", prob)
 	}
@@ -353,7 +354,7 @@ func TestRetry_DeadlineExceeded_AbortsLoop(t *testing.T) {
 		return start.Add(time.Duration(n) * 20 * time.Millisecond)
 	})
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error after deadline exceeded")
 	}
@@ -389,7 +390,7 @@ func TestRetry_DeadlineZero_NoDeadlineEnforced(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, policy)
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -413,7 +414,7 @@ func TestRetry_HaltChecker_HaltsDuringRetry(t *testing.T) {
 	rs = rs.TestWithSleepFn(noSleep)
 	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error when kill switch is halted")
 	}
@@ -447,7 +448,7 @@ func TestRetry_HaltChecker_NotHalted_RetriesNormally(t *testing.T) {
 	rs = rs.TestWithSleepFn(noSleep)
 	rs = rs.WithHaltChecker(&mockGateChecker{halted: false})
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -472,7 +473,7 @@ func TestRetry_HaltChecker_Nil_FailOpen(t *testing.T) {
 	rs = rs.TestWithSleepFn(noSleep)
 	// No WithHaltChecker call — nil by default.
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success with nil halt checker, got: %v", prob)
 	}
@@ -507,7 +508,7 @@ func TestRetry_HaltChecker_BecomesHaltedMidLoop(t *testing.T) {
 	rs = rs.TestWithSleepFn(noSleep)
 	rs = rs.WithHaltChecker(dynamicChecker)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error when halt triggers mid-loop")
 	}
@@ -539,7 +540,7 @@ func TestRetry_DeadlineAndHalt_DeadlineWinsWhenBothTrigger(t *testing.T) {
 	})
 	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error")
 	}
@@ -569,7 +570,7 @@ func TestRetry_SuccessBeforeDeadline_NoDeadlineMetadata(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, policy)
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -603,7 +604,7 @@ func TestRetryObservability_SuccessAfterRetry_LogsAndCounts(t *testing.T) {
 	rs = rs.WithLogger(logger)
 	rs = rs.WithTracker(tracker)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -648,7 +649,7 @@ func TestRetryObservability_Exhaustion_LogsAndCounts(t *testing.T) {
 	rs = rs.WithLogger(logger)
 	rs = rs.WithTracker(tracker)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -687,7 +688,7 @@ func TestRetryObservability_Halt_LogsAndCounts(t *testing.T) {
 	rs = rs.WithTracker(tracker)
 	rs = rs.WithHaltChecker(&mockGateChecker{halted: true})
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error when halted")
 	}
@@ -728,7 +729,7 @@ func TestRetryObservability_Deadline_LogsAndCounts(t *testing.T) {
 	rs = rs.WithLogger(logger)
 	rs = rs.WithTracker(tracker)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected error after deadline")
 	}
@@ -756,7 +757,7 @@ func TestRetryObservability_FirstAttemptSuccess_NoRetryLogs(t *testing.T) {
 	rs = rs.WithLogger(logger)
 	rs = rs.WithTracker(tracker)
 
-	_, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}
@@ -787,7 +788,7 @@ func TestRetryObservability_NilLoggerAndTracker_NoPanic(t *testing.T) {
 	rs := execution.NewRetrySubmitter(venue, execution.DefaultRetryPolicy())
 	rs = rs.TestWithSleepFn(noSleep)
 
-	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest())
+	receipt, prob := rs.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != nil {
 		t.Fatalf("expected success, got: %v", prob)
 	}

@@ -681,8 +681,8 @@ func TestMultiBinary_KVMaterialization_AcrossBinaryBoundary(t *testing.T) {
 	if fill.ExecutionIntent.Source != "binancef" {
 		t.Fatalf("fill source: want binancef, got %q", fill.ExecutionIntent.Source)
 	}
-	if fill.ExecutionIntent.Symbol != "btcusdt" {
-		t.Fatalf("fill symbol: want btcusdt, got %q", fill.ExecutionIntent.Symbol)
+	if fill.ExecutionIntent.VenueSymbol() != "btcusdt" {
+		t.Fatalf("fill symbol: want btcusdt, got %q", fill.ExecutionIntent.VenueSymbol())
 	}
 	if fill.ExecutionIntent.Type != "paper_order" {
 		t.Fatalf("fill type: want paper_order, got %q", fill.ExecutionIntent.Type)

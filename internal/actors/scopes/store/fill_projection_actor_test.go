@@ -17,7 +17,7 @@ func validFillIntent(ts time.Time) execution.ExecutionIntent {
 	return execution.ExecutionIntent{
 		Type:           "paper_order",
 		Source:         "binancef",
-		Symbol:         "btcusdt",
+		Instrument:     btcUSDTPerpForCandleTest(),
 		Timeframe:      60,
 		Side:           execution.SideBuy,
 		Quantity:       "0.02",
@@ -245,7 +245,7 @@ func TestFillProjection_MultiSymbol_IndependentMaterialization(t *testing.T) {
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
 			intent := validFillIntent(now.Add(time.Duration(eventCount) * time.Minute))
-			intent.Symbol = sym
+			intent.Instrument = instrumentForVenueSymbol(t, sym)
 			intent.Timeframe = tf
 			h.onFill(fillReceivedMessage{Event: fillEvent(intent, "paper-"+sym)})
 			eventCount++

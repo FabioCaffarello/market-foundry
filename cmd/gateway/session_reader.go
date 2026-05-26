@@ -65,7 +65,7 @@ func (a *sessionCHListerAdapter) List(ctx context.Context, symbol, execType, sta
 			fills = []execution.FillRecord{}
 		}
 		results = append(results, executionclient.VerifyCHListResult{
-			Symbol: intent.Symbol,
+			Symbol: intent.VenueSymbol(),
 			Status: string(intent.Status),
 			Type:   intent.Type,
 			Fills:  fills,

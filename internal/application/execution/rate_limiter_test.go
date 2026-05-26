@@ -72,7 +72,7 @@ func TestRateLimiter_AllowsBurstImmediately(t *testing.T) {
 	defer cancel()
 
 	for i := 0; i < burst; i++ {
-		if _, prob := rl.SubmitOrder(ctx, dummyRequest()); prob != nil {
+		if _, prob := rl.SubmitOrder(ctx, dummyRequest(t)); prob != nil {
 			t.Fatalf("call %d: unexpected problem: %v", i, prob)
 		}
 	}
@@ -90,7 +90,7 @@ func TestRateLimiter_BlocksWhenExhausted(t *testing.T) {
 	rl := execution.NewRateLimiter(venue, 1, 10*time.Second) // single token, refill effectively never
 	defer rl.Close()
 
-	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest()); prob != nil {
+	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest(t)); prob != nil {
 		t.Fatalf("first call should succeed: %v", prob)
 	}
 
@@ -98,7 +98,7 @@ func TestRateLimiter_BlocksWhenExhausted(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, prob := rl.SubmitOrder(ctx, dummyRequest())
+	_, prob := rl.SubmitOrder(ctx, dummyRequest(t))
 	elapsed := time.Since(start)
 
 	if prob == nil {
@@ -126,7 +126,7 @@ func TestRateLimiter_RefillsAfterInterval(t *testing.T) {
 	defer rl.Close()
 
 	// Drain the bucket.
-	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest()); prob != nil {
+	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest(t)); prob != nil {
 		t.Fatalf("drain call failed: %v", prob)
 	}
 
@@ -136,7 +136,7 @@ func TestRateLimiter_RefillsAfterInterval(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	if _, prob := rl.SubmitOrder(ctx, dummyRequest()); prob != nil {
+	if _, prob := rl.SubmitOrder(ctx, dummyRequest(t)); prob != nil {
 		t.Fatalf("expected refilled token to allow call, got %v", prob)
 	}
 	elapsed := time.Since(start)
@@ -159,7 +159,7 @@ func TestRateLimiter_ContextCancellation(t *testing.T) {
 	defer rl.Close()
 
 	// Drain the bucket.
-	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest()); prob != nil {
+	if _, prob := rl.SubmitOrder(context.Background(), dummyRequest(t)); prob != nil {
 		t.Fatalf("drain call failed: %v", prob)
 	}
 
@@ -169,7 +169,7 @@ func TestRateLimiter_ContextCancellation(t *testing.T) {
 		cancel()
 	}()
 
-	_, prob := rl.SubmitOrder(ctx, dummyRequest())
+	_, prob := rl.SubmitOrder(ctx, dummyRequest(t))
 	if prob == nil {
 		t.Fatal("expected problem when ctx canceled")
 	}
@@ -200,7 +200,7 @@ func TestRateLimiter_ConcurrentAccess(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			if _, prob := rl.SubmitOrder(ctx, dummyRequest()); prob == nil {
+			if _, prob := rl.SubmitOrder(ctx, dummyRequest(t)); prob == nil {
 				successes.Add(1)
 			}
 		}()
@@ -225,7 +225,7 @@ func TestRateLimiter_DelegatesReceiptAndProblem(t *testing.T) {
 	rl := execution.NewRateLimiter(venue, 1, 100*time.Millisecond)
 	defer rl.Close()
 
-	_, prob := rl.SubmitOrder(context.Background(), dummyRequest())
+	_, prob := rl.SubmitOrder(context.Background(), dummyRequest(t))
 	if prob != want {
 		t.Fatalf("expected inner problem to pass through, got %v", prob)
 	}
@@ -247,7 +247,7 @@ func TestRateLimiter_InnerBlockingDoesNotAffectOtherCallers(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer wg.Done()
-			rl.SubmitOrder(ctx, dummyRequest())
+			rl.SubmitOrder(ctx, dummyRequest(t))
 		}()
 	}
 
@@ -279,7 +279,7 @@ func TestRateLimiter_MinimumBurst(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	if _, prob := rl.SubmitOrder(ctx, dummyRequest()); prob != nil {
+	if _, prob := rl.SubmitOrder(ctx, dummyRequest(t)); prob != nil {
 		t.Fatalf("expected at least one token even when maxBurst=0; got %v", prob)
 	}
 }

@@ -34,15 +34,15 @@ func (s *s455aKVReader) Execute(_ context.Context, _ executionclient.ExecutionSt
 func TestSessionExplain_ConsistentFilled(t *testing.T) {
 	now := time.Now()
 	intent := execution.ExecutionIntent{
-		Type: "paper_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "paper_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "0.5", FilledQuantity: "0", Status: execution.StatusSubmitted,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now.Add(-2 * time.Minute),
 	}
 	fill := execution.ExecutionIntent{
-		Type: "venue_market_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "venue_market_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "0.5", FilledQuantity: "0.5", Status: execution.StatusFilled,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now.Add(-1 * time.Minute),
 	}
 
@@ -92,15 +92,15 @@ func TestSessionExplain_ConsistentFilled(t *testing.T) {
 func TestSessionExplain_Divergent(t *testing.T) {
 	now := time.Now()
 	intent := execution.ExecutionIntent{
-		Type: "paper_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "paper_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "1", FilledQuantity: "0", Status: execution.StatusSubmitted,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now,
 	}
 	fill := execution.ExecutionIntent{
-		Type: "venue_market_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "venue_market_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "1", FilledQuantity: "1", Status: execution.StatusFilled,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now.Add(time.Minute),
 	}
 
@@ -138,9 +138,9 @@ func TestSessionExplain_Divergent(t *testing.T) {
 func TestSessionExplain_KVUnavailable(t *testing.T) {
 	now := time.Now()
 	intent := execution.ExecutionIntent{
-		Type: "paper_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "paper_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "0.5", FilledQuantity: "0", Status: execution.StatusSubmitted,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now,
 	}
 
@@ -169,9 +169,9 @@ func TestSessionExplain_KVUnavailable(t *testing.T) {
 func TestSessionExplain_NilKVReader(t *testing.T) {
 	now := time.Now()
 	intent := execution.ExecutionIntent{
-		Type: "paper_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "paper_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "0.5", FilledQuantity: "0", Status: execution.StatusSubmitted,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now,
 	}
 
@@ -218,16 +218,16 @@ func TestSessionExplain_ValidationErrors(t *testing.T) {
 func TestSessionExplain_RejectionConsistency(t *testing.T) {
 	now := time.Now()
 	intent := execution.ExecutionIntent{
-		Type: "paper_order", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "paper_order", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "1", FilledQuantity: "0", Status: execution.StatusSubmitted,
-		Risk: execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
 		Timestamp: now.Add(-2 * time.Minute),
 	}
 	rejection := execution.ExecutionIntent{
-		Type: "venue_rejection", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Type: "venue_rejection", Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 		Side: execution.SideBuy, Quantity: "1", FilledQuantity: "0", Status: execution.StatusRejected,
-		Risk:     execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
-		Metadata: map[string]string{"rejection_code": "INSUFFICIENT_MARGIN", "rejection_reason": "margin too low"},
+		Risk:      execution.RiskInput{Type: "position_exposure", Disposition: "approved"},
+		Metadata:  map[string]string{"rejection_code": "INSUFFICIENT_MARGIN", "rejection_reason": "margin too low"},
 		Timestamp: now.Add(-1 * time.Minute),
 	}
 

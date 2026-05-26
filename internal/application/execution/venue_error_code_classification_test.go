@@ -35,7 +35,7 @@ func TestEC_S325_1_HTTP400_Code1001_VenueInternal_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 400 with code -1001")
 	}
@@ -68,7 +68,7 @@ func TestEC_S325_2_HTTP418_Code1003_IPRateLimit_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 418 with code -1003")
 	}
@@ -101,7 +101,7 @@ func TestEC_S325_3_HTTP400_Code1015_OrderRateLimit_Retryable(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 400 with code -1015")
 	}
@@ -134,7 +134,7 @@ func TestEC_S325_4_HTTP400_Code1121_NoOverride_InvalidArgument(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 400 with code -1121")
 	}
@@ -170,7 +170,7 @@ func TestEC_S325_5_HTTP401_Code1001_AuthNotOverridden(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 401")
 	}
@@ -200,7 +200,7 @@ func TestEC_S325_6_HTTP429_Code1015_AlreadyCorrect(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 429")
 	}
@@ -229,7 +229,7 @@ func TestEC_S325_7_HTTP500_Code1001_5xxNotOverridden(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 500")
 	}
@@ -256,7 +256,7 @@ func TestEC_S325_8_HTTP400_NoCode_FallsThrough(t *testing.T) {
 	creds := testCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 	if prob == nil {
 		t.Fatal("expected error for HTTP 400 with no code")
 	}
@@ -305,7 +305,7 @@ func TestEC_S325_9_CredentialRedaction_WithOverride(t *testing.T) {
 			}
 
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
-			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob == nil {
 				t.Fatal("expected error")
 			}
@@ -363,7 +363,7 @@ func TestEC_S325_10_ExistingClassification_Unchanged(t *testing.T) {
 			creds := testCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent()})
+			_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: testBuyIntent(t)})
 			if prob == nil {
 				t.Fatalf("expected error for HTTP %d", tc.statusCode)
 			}

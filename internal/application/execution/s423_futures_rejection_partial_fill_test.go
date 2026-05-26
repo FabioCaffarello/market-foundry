@@ -41,11 +41,12 @@ import (
 
 // ---------- helpers ----------
 
-func s423FuturesIntent(side domainexec.Side) domainexec.ExecutionIntent {
+func s423FuturesIntent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      "0.001",
@@ -139,7 +140,7 @@ func TestS423_Rejection_DominantPath_ValidTransitions(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	if intent.Status != domainexec.StatusSubmitted {
 		t.Fatalf("intent must start as submitted, got %s", intent.Status)
 	}
@@ -178,7 +179,7 @@ func TestS423_Rejection_HTTP200_REJECTED_ValidTransitions(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("HTTP 200 REJECTED should not produce Problem: %s", prob.Message)
@@ -213,7 +214,7 @@ func TestS423_Rejection_HTTP200_EXPIRED_ValidTransitions(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("HTTP 200 EXPIRED should not produce Problem: %s", prob.Message)
@@ -283,7 +284,7 @@ func TestS423_RejectionEvent_MultiScenario_AuditTrail(t *testing.T) {
 			creds := s423FuturesCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-			intent := s423FuturesIntent(domainexec.SideBuy)
+			intent := s423FuturesIntent(t, domainexec.SideBuy)
 			intent.CorrelationID = fmt.Sprintf("s423-%s-corr", sc.name)
 			intent.CausationID = fmt.Sprintf("s423-%s-cause", sc.name)
 
@@ -348,8 +349,8 @@ func TestS423_RejectionEvent_MultiScenario_AuditTrail(t *testing.T) {
 			if event.ExecutionIntent.Source != "binancef" {
 				t.Errorf("source lost: expected binancef, got %s", event.ExecutionIntent.Source)
 			}
-			if event.ExecutionIntent.Symbol != "btcusdt" {
-				t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.Symbol)
+			if event.ExecutionIntent.VenueSymbol() != "btcusdt" {
+				t.Errorf("symbol lost: expected btcusdt, got %s", event.ExecutionIntent.VenueSymbol())
 			}
 
 			// No fills on rejection
@@ -470,7 +471,7 @@ func TestS423_PartialFill_LifecyclePath_ValidTransitions(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not error: %s", prob.Message)
@@ -580,7 +581,7 @@ func TestS423_PartialFill_QuantityMonotonicity_WithLifecycle(t *testing.T) {
 			creds := s423FuturesCredentials(t)
 			adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(srv.URL)
 
-			intent := s423FuturesIntent(domainexec.SideBuy)
+			intent := s423FuturesIntent(t, domainexec.SideBuy)
 			intent.Quantity = tc.quantity
 
 			receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
@@ -638,7 +639,7 @@ func TestS423_SegmentRouter_FuturesRejection_SpotIsolated(t *testing.T) {
 	router.Register(settings.MarketSegmentFutures, futuresAdapter)
 	router.Register(settings.MarketSegmentSpot, spotAdapter)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	_, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob == nil {
 		t.Fatal("expected rejection from Futures adapter via router")
@@ -684,7 +685,7 @@ func TestS423_SegmentRouter_FuturesPartialFill_SpotIsolated(t *testing.T) {
 	router.Register(settings.MarketSegmentFutures, futuresAdapter)
 	router.Register(settings.MarketSegmentSpot, spotAdapter)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := router.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("partial fill should not produce Problem: %s", prob.Message)
@@ -714,7 +715,7 @@ func TestS423_Regression_S422FillPathUnchanged(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("filled should not error: %s", prob.Message)
@@ -742,7 +743,7 @@ func TestS423_Regression_S422CorrelationPreserved(t *testing.T) {
 	creds := s423FuturesCredentials(t)
 	adapter := appexec.NewBinanceFuturesTestnetAdapter(creds, 10*time.Second).WithBaseURL(server.URL)
 
-	intent := s423FuturesIntent(domainexec.SideBuy)
+	intent := s423FuturesIntent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s423-regression-corr"
 	intent.CausationID = "s423-regression-cause"
 

@@ -30,7 +30,8 @@ import (
 
 // ---------- helpers ----------
 
-func s385Intent(side domainexec.Side) domainexec.ExecutionIntent {
+func s385Intent(t *testing.T, side domainexec.Side) domainexec.ExecutionIntent {
+	t.Helper()
 	qty := "0.001"
 	if side == domainexec.SideNone {
 		qty = "0"
@@ -38,7 +39,7 @@ func s385Intent(side domainexec.Side) domainexec.ExecutionIntent {
 	return domainexec.ExecutionIntent{
 		Type:          "paper_order",
 		Source:        "binancef",
-		Symbol:        "btcusdt",
+		Instrument:    btcUSDTPerp(t),
 		Timeframe:     60,
 		Side:          side,
 		Quantity:      qty,
@@ -100,7 +101,7 @@ func TestS385_DryRun_Buy_SubmittedToFilled(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner)
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -142,7 +143,7 @@ func TestS385_DryRun_Sell_SubmittedToFilled(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner)
 
-	intent := s385Intent(domainexec.SideSell)
+	intent := s385Intent(t, domainexec.SideSell)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -165,7 +166,7 @@ func TestS385_DryRun_None_SubmittedToAccepted(t *testing.T) {
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner)
 
-	intent := s385Intent(domainexec.SideNone)
+	intent := s385Intent(t, domainexec.SideNone)
 	receipt, prob := sub.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -194,7 +195,7 @@ func TestS385_DryRun_None_SubmittedToAccepted(t *testing.T) {
 func TestS385_Paper_Buy_SubmittedToFilled(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -220,7 +221,7 @@ func TestS385_Paper_Buy_SubmittedToFilled(t *testing.T) {
 func TestS385_Paper_Sell_SubmittedToFilled(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
-	intent := s385Intent(domainexec.SideSell)
+	intent := s385Intent(t, domainexec.SideSell)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -241,7 +242,7 @@ func TestS385_Paper_Sell_SubmittedToFilled(t *testing.T) {
 func TestS385_Paper_None_SubmittedToAccepted(t *testing.T) {
 	adapter := appexec.NewPaperVenueAdapter(0)
 
-	intent := s385Intent(domainexec.SideNone)
+	intent := s385Intent(t, domainexec.SideNone)
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %s", prob.Message)
@@ -360,7 +361,7 @@ func binancePartialFillHandler(avgPrice, executedQty string) http.Handler {
 func TestS385_VenueLive_Buy_SubmittedToFilled(t *testing.T) {
 	adapter, _ := newTestBinanceAdapter(t, binanceFillHandler("67432.50", "0.001"))
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.Type = "venue_market_order"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -390,7 +391,7 @@ func TestS385_VenueLive_Buy_SubmittedToFilled(t *testing.T) {
 func TestS385_VenueLive_Sell_SubmittedToFilled(t *testing.T) {
 	adapter, _ := newTestBinanceAdapter(t, binanceFillHandler("67400.00", "0.001"))
 
-	intent := s385Intent(domainexec.SideSell)
+	intent := s385Intent(t, domainexec.SideSell)
 	intent.Type = "venue_market_order"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -413,7 +414,7 @@ func TestS385_VenueLive_Buy_SubmittedToAccepted(t *testing.T) {
 	// Venue returns NEW (accepted) — the order is acknowledged but not yet filled.
 	adapter, _ := newTestBinanceAdapter(t, binanceNewHandler())
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.Type = "venue_market_order"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -435,7 +436,7 @@ func TestS385_VenueLive_Rejection_SubmittedToRejected(t *testing.T) {
 	// Venue rejects the order — e.g. insufficient margin (Binance code -2019)
 	adapter, _ := newTestBinanceAdapter(t, binanceRejectedHandler(-2019, "Margin is insufficient"))
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.Type = "venue_market_order"
 	_, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 
@@ -461,7 +462,7 @@ func TestS385_VenueLive_None_SubmittedToAccepted(t *testing.T) {
 	})
 	adapter, _ := newTestBinanceAdapter(t, handler)
 
-	intent := s385Intent(domainexec.SideNone)
+	intent := s385Intent(t, domainexec.SideNone)
 	intent.Type = "venue_market_order"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -484,7 +485,7 @@ func TestS385_VenueLive_None_SubmittedToAccepted(t *testing.T) {
 func TestS385_VenueLive_PartialFill(t *testing.T) {
 	adapter, _ := newTestBinanceAdapter(t, binancePartialFillHandler("67432.50", "0.0005"))
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.Type = "venue_market_order"
 	receipt, prob := adapter.SubmitOrder(context.Background(), ports.VenueOrderRequest{Intent: intent})
 	if prob != nil {
@@ -517,7 +518,7 @@ func TestS385_CrossMode_SimulatedFlagDifference(t *testing.T) {
 	// Venue_live produces Simulated=false fills.
 	// This test explicitly proves the semantic difference.
 
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 
 	// Dry-run
 	dryRunSub := appexec.NewDryRunSubmitter(appexec.NewPaperVenueAdapter(0))
@@ -544,7 +545,7 @@ func TestS385_CrossMode_SimulatedFlagDifference(t *testing.T) {
 }
 
 func TestS385_CrossMode_VenueOrderIDPrefixConvention(t *testing.T) {
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 
 	// Dry-run: dryrun- prefix
 	dryRunSub := appexec.NewDryRunSubmitter(appexec.NewPaperVenueAdapter(0))
@@ -571,7 +572,7 @@ func TestS385_CrossMode_VenueOrderIDPrefixConvention(t *testing.T) {
 }
 
 func TestS385_CrossMode_AllModesPreserveCorrelationChain(t *testing.T) {
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.CorrelationID = "s385-cross-corr"
 	intent.CausationID = "s385-cross-cause"
 
@@ -601,7 +602,7 @@ func TestS385_CrossMode_AllModesPreserveCorrelationChain(t *testing.T) {
 
 func TestS385_CrossMode_NoActionSemanticsConsistentAcrossModes(t *testing.T) {
 	// All modes must return StatusAccepted with 0 fills for SideNone.
-	intent := s385Intent(domainexec.SideNone)
+	intent := s385Intent(t, domainexec.SideNone)
 
 	adapters := map[string]ports.VenuePort{
 		"dry_run": appexec.NewDryRunSubmitter(appexec.NewPaperVenueAdapter(0)),
@@ -638,7 +639,7 @@ func TestS385_CrossMode_NoActionSemanticsConsistentAcrossModes(t *testing.T) {
 
 func TestS385_CrossMode_TerminalStatesAreAbsorbing(t *testing.T) {
 	// Verify that all terminal states returned by adapters are truly terminal per IsTerminal().
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 
 	// Dry-run: returns filled
 	dryRunSub := appexec.NewDryRunSubmitter(appexec.NewPaperVenueAdapter(0))
@@ -666,7 +667,7 @@ func TestS385_CrossMode_TerminalStatesAreAbsorbing(t *testing.T) {
 
 func TestS385_CrossMode_FilledQuantityEqualsQuantityOnFill(t *testing.T) {
 	// For fully filled intents, FilledQuantity must equal Quantity.
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 
 	adapters := map[string]ports.VenuePort{
 		"dry_run": appexec.NewDryRunSubmitter(appexec.NewPaperVenueAdapter(0)),
@@ -684,9 +685,9 @@ func TestS385_CrossMode_FilledQuantityEqualsQuantityOnFill(t *testing.T) {
 
 func TestS385_CrossMode_IntentFieldPreservation(t *testing.T) {
 	// Verify that all identity fields survive the write-path unchanged.
-	intent := s385Intent(domainexec.SideBuy)
+	intent := s385Intent(t, domainexec.SideBuy)
 	intent.Source = "binancef"
-	intent.Symbol = "btcusdt"
+	intent.Instrument = btcUSDTPerp(t)
 	intent.Timeframe = 60
 	intent.Risk = domainexec.RiskInput{
 		Type:        "position_exposure",
@@ -709,8 +710,8 @@ func TestS385_CrossMode_IntentFieldPreservation(t *testing.T) {
 		if ri.Source != "binancef" {
 			t.Errorf("%s: Source lost: %s", name, ri.Source)
 		}
-		if ri.Symbol != "btcusdt" {
-			t.Errorf("%s: Symbol lost: %s", name, ri.Symbol)
+		if ri.VenueSymbol() != "btcusdt" {
+			t.Errorf("%s: Symbol lost: %s", name, ri.VenueSymbol())
 		}
 		if ri.Timeframe != 60 {
 			t.Errorf("%s: Timeframe lost: %d", name, ri.Timeframe)

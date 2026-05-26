@@ -741,7 +741,7 @@ func TestAnalyticalWebHandler_GetExecutionHistory(t *testing.T) {
 		{
 			Type:           "paper_order",
 			Source:         "derive",
-			Symbol:         "btcusdt",
+			Instrument:     btcUSDTPerp(t),
 			Timeframe:      60,
 			Side:           execution.SideBuy,
 			Quantity:       "0.001",
