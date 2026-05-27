@@ -280,7 +280,17 @@ integration paths, run the canonical Makefile targets — **not**
 manually reconstructed `go test` commands:
 
 - `make verify` — fast gate (`go test ./...` + repo-consistency
-  + quality-gate + proto-lint + lint-go). Always run.
+  + quality-gate + proto-lint + lint-go). Always run. **Uses the
+  local/fast profile** of the quality gate — does NOT promote
+  warnings to errors.
+- `raccoon-cli quality-gate --profile ci` — required when the
+  change adds or modifies analyzer policy files (anti-patterns,
+  domain types, adapters, binaries allowlists). The CI profile
+  promotes warning-severity findings to errors via the `[ci]`
+  prefix mechanism (`tools/raccoon-cli/src/gate/mod.rs:408`);
+  `make verify` alone will pass while CI fails. Run locally
+  before pushing changes that touch
+  `tools/raccoon-cli/policies/*.toml` or the analyzer source.
 - `make test-integration` — integration-tagged tests against a
   local NATS at `localhost:4222` (canonical flags:
   `-tags=integration -short -timeout 18m -count=1`). Required
@@ -305,6 +315,17 @@ Lesson learned during H-6.b'' pre-push validation: a raw
 `TestEndurance_CounterMonotonicityUnderRepeatedBursts`, while
 the canonical `make test-integration` completed in 1m36s
 because the endurance test self-skips under `-short`.
+
+Lesson learned during H-6.c.1 pre-push validation (commit 13):
+PR #30 CI failed with 17 anti_patterns errors + 2 topology
+errors despite `make verify` GREEN locally on every commit.
+Root cause: `make verify` runs the local/fast quality-gate
+profile, which leaves warning-severity findings as warnings.
+The CI workflow runs `--profile ci` which promotes them to
+errors via the `[ci]` prefix mechanism. Adding the
+`raccoon-cli quality-gate --profile ci` step to pre-push
+validation closes the gap — any analyzer policy change must
+be validated against the same profile CI runs.
 
 ### PR description
 
