@@ -73,7 +73,21 @@ Pass CanonicalInstrument directly from upstream type that already carries it (pa
 
 H-6.c.1 commits 2-7d are the migration pattern reference: commits 2-5 added NewXxxForInstrument pass-through constructors per application package, commit 6 wired derive actors to compute Instrument once at the BindingTarget boundary, commits 7a-7d deleted the legacy wrappers + helper + dead `symbol` struct field.
 """
-exceptions = []
+# Exceptions are the remaining production caller files deferred to
+# later sub-ondas. Each entry carries an inline sub-onda scope tag;
+# entries are removed when the corresponding sub-onda eliminates
+# the helper from that file. Auditable shrinkage = explicit progress
+# signal. The list is exhaustive — adding a NEW caller in any
+# non-listed file surfaces as a warning/error per the CI profile,
+# acting as the canary against regression-shape reintroduction.
+exceptions = [
+    # H-6.c.2 scope — application/execution package migration
+    "internal/application/execution/paper_order_evaluator.go",
+    "internal/application/execution/binance_spot_testnet_adapter.go",
+    "internal/application/execution/binance_futures_testnet_adapter.go",
+    # H-6.f scope — executionclient (blocked by LifecycleEntry contract migration)
+    "internal/application/executionclient/audit_session.go",
+]
 
 [[anti_patterns]]
 name = "source-string-instrument-reconstructor-clickhouse"
@@ -81,4 +95,14 @@ function = "reconstructInstrumentFromLegacy"
 severity = "warning"
 why = "ClickHouse-side reconstruction of CanonicalInstrument from legacy (source, venue_native_symbol) row columns. The 13 call sites split into two patterns: 8 warn-and-emit-zero (documented degradation per H-6.b–H-6.d back-compat read window) and 5 silent discard (composite_reader.go: 188/243/302/360/423). The silent discards are the genuine concern — they propagate zero Instruments without operator visibility."
 help = "For the 8 warn-and-emit-zero sites: tolerable until H-6.d (ClickHouse schema migration with canonical columns) eliminates the need. For the 5 silent composite_reader sites: either propagate the error like the other 8, or fold the propagation into a higher-level scan loop that returns ProblemDetail. H-6.c.2 covers the composite_reader treatment per the H-6.c fragmentation."
-exceptions = []
+exceptions = [
+    # H-6.c.2 scope — silent-discard treatment (5 sites at 188/243/302/360/423)
+    "internal/adapters/clickhouse/composite_reader.go",
+    # H-6.d scope — warn-and-emit-zero sites eliminated by ClickHouse schema migration with canonical columns
+    "internal/adapters/clickhouse/candle_reader.go",
+    "internal/adapters/clickhouse/decision_reader.go",
+    "internal/adapters/clickhouse/execution_reader.go",
+    "internal/adapters/clickhouse/risk_reader.go",
+    "internal/adapters/clickhouse/signal_reader.go",
+    "internal/adapters/clickhouse/strategy_reader.go",
+]
