@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	appingest "internal/application/ingest"
 	"internal/application/ports"
 	domainexec "internal/domain/execution"
 	"internal/shared/problem"
@@ -388,7 +390,24 @@ func (a *BinanceSpotTestnetAdapter) QueryOrder(ctx context.Context, clientOrderI
 		return a.handleErrorResponse(resp.StatusCode, body)
 	}
 
-	syntheticIntent := domainexec.ExecutionIntent{Instrument: instrumentFromBinding("binances", symbol)}
+	// H-6.c.2 commit 4: reconstruct Instrument via the canonical
+	// BindingTarget boundary helper with warn-and-emit-zero fallback
+	// — same error-handling pattern as the composite_reader sites
+	// (commit 2). Spot venue identity is hardcoded "binances";
+	// reconstruction failure only occurs on symbol-parsing edge cases
+	// (non-USDT or empty), which are not in the current production
+	// path. See PROGRAM-0004 H-6.f scope notes for the candidate
+	// port-signature refactor that eliminates this reconstruction
+	// entirely.
+	inst, instErr := appingest.BindingTarget{Source: "binances", Symbol: symbol}.Instrument()
+	if instErr != nil {
+		slog.Default().Warn("instrument reconstruction failed in spot testnet adapter; emitting zero instrument",
+			"source", "binances",
+			"symbol", symbol,
+			"error", instErr,
+		)
+	}
+	syntheticIntent := domainexec.ExecutionIntent{Instrument: inst}
 	return a.parseOrderResponse(body, syntheticIntent)
 }
 
