@@ -717,7 +717,7 @@ func TestPaperOrder_SqueezeBreakoutApproved(t *testing.T) {
 		t.Fatalf("expected approved, got %s", risk.Disposition)
 	}
 
-	execEval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	execEval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	intent, ok := execEval.Evaluate(
 		risk.Type, string(risk.Disposition), risk.Confidence, risk.Constraints.MaxPositionSize,
 		"long", "0.8370", // strategy direction + risk-scaled confidence
@@ -759,7 +759,7 @@ func TestPaperOrder_SqueezeBreakoutRejected(t *testing.T) {
 		t.Fatalf("expected rejected, got %s", risk.Disposition)
 	}
 
-	execEval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	execEval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	intent, ok := execEval.Evaluate(
 		risk.Type, string(risk.Disposition), risk.Confidence, "0",
 		"long", "0.0000",

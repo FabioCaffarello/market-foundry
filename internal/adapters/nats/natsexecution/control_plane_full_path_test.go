@@ -57,7 +57,7 @@ func fullPathBuildEvent(t *testing.T, ts time.Time, corrID string) domainexec.Pa
 	// Offset by sequence counter to ensure unique dedup keys.
 	ts = ts.Add(time.Duration(fullPathSeq.Add(1)) * time.Millisecond)
 	t.Helper()
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerpKV(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",

@@ -315,7 +315,7 @@ func TestS470_FullChainLineagePreservation(t *testing.T) {
 	}
 
 	// Stage 5: Execution intent (consumes risk).
-	execEval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	execEval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(), 60)
 	intent, ok := execEval.Evaluate(
 		assessment.Type, string(assessment.Disposition), assessment.Confidence,
 		assessment.Constraints.MaxPositionSize,

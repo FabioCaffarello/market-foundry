@@ -301,7 +301,7 @@ func mbBuildEvent(t *testing.T, ts time.Time, corrID string) domainexec.PaperOrd
 	seq := mbSeq.Add(1)
 	ts = ts.Add(time.Duration(seq) * time.Millisecond)
 
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerpKV(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
