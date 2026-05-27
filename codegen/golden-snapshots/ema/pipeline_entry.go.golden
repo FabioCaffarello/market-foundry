@@ -4,7 +4,7 @@
 	consumerName:  "writer-signal-ema-consumer",
 	inserterName:  "writer-signal-ema-inserter",
 	table:         "signals",
-	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp)",
 	consumerSpec:  natssignal.WriterEMASignalConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("ema") },
 	startConsumer: writerpipeline.NewSignalStarter(reg.signal),

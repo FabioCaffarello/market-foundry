@@ -4,7 +4,7 @@
 	consumerName:  "writer-decision-ema-crossover-consumer",
 	inserterName:  "writer-decision-ema-crossover-inserter",
 	table:         "decisions",
-	insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)",
 	consumerSpec:  natsdecision.WriterEMACrossoverDecisionConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsDecisionFamilyEnabled("ema_crossover") },
 	startConsumer: writerpipeline.NewDecisionStarter(reg.decision),

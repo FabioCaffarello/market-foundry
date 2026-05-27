@@ -11,7 +11,7 @@ nats:
 
 writer:
   table: signals
-  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp"
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp"
   mapper: mapSignalRow
   pipeline_family_key: vwap
   config_array: signal_families

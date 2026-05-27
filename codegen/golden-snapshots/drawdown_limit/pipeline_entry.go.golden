@@ -4,7 +4,7 @@
 	consumerName:  "writer-risk-drawdown-limit-consumer",
 	inserterName:  "writer-risk-drawdown-limit-inserter",
 	table:         "risk_assessments",
-	insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)",
 	consumerSpec:  natsrisk.WriterDrawdownLimitRiskConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsRiskFamilyEnabled("drawdown_limit") },
 	startConsumer: writerpipeline.NewRiskStarter(reg.risk),

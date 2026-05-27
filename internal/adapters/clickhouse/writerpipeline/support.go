@@ -203,8 +203,12 @@ func recordEvent(tracker *healthz.Tracker) {
 
 // mapCandleRow maps a CandleSampledEvent to ClickHouse evidence_candles row values.
 // Column order matches DDL: event_id, occurred_at, correlation_id, causation_id,
-// source, symbol, timeframe, open, high, low, close, volume, trade_count,
-// open_time, close_time, final.
+// source, symbol, base, quote, contract, timeframe, open, high, low, close, volume,
+// trade_count, open_time, close_time, final.
+//
+// H-6.d.1 commit 2: base/quote/contract are sourced from the canonical
+// Instrument (already migrated in H-6.b); the legacy symbol column is
+// preserved alongside as the venue-native display string via VenueSymbol().
 func mapCandleRow(e evidence.CandleSampledEvent) []any {
 	m := e.Metadata
 	c := e.Candle
@@ -215,6 +219,9 @@ func mapCandleRow(e evidence.CandleSampledEvent) []any {
 		m.CausationID,
 		c.Source,
 		c.VenueSymbol(),
+		string(c.Instrument.Base),
+		string(c.Instrument.Quote),
+		string(c.Instrument.Contract),
 		uint32(c.Timeframe),
 		parseFloat(c.Open),
 		parseFloat(c.High),
@@ -230,7 +237,10 @@ func mapCandleRow(e evidence.CandleSampledEvent) []any {
 
 // mapSignalRow maps a SignalGeneratedEvent to ClickHouse signals row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, value, metadata, final, timestamp.
+// type, source, symbol, base, quote, contract, timeframe, value, metadata,
+// final, timestamp.
+//
+// H-6.d.1 commit 2: see mapCandleRow for the canonical-column rationale.
 func mapSignalRow(e signal.SignalGeneratedEvent) []any {
 	m := e.Metadata
 	s := e.Signal
@@ -242,6 +252,9 @@ func mapSignalRow(e signal.SignalGeneratedEvent) []any {
 		s.Type,
 		s.Source,
 		s.VenueSymbol(),
+		string(s.Instrument.Base),
+		string(s.Instrument.Quote),
+		string(s.Instrument.Contract),
 		uint32(s.Timeframe),
 		parseFloat(s.Value),
 		marshalJSON(s.Metadata),
@@ -252,8 +265,10 @@ func mapSignalRow(e signal.SignalGeneratedEvent) []any {
 
 // mapDecisionRow maps a DecisionEvaluatedEvent to ClickHouse decisions row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, outcome, confidence, severity, rationale,
-// signals, metadata, final, timestamp.
+// type, source, symbol, base, quote, contract, timeframe, outcome, confidence,
+// severity, rationale, signals, metadata, final, timestamp.
+//
+// H-6.d.1 commit 2: see mapCandleRow for the canonical-column rationale.
 func mapDecisionRow(e decision.DecisionEvaluatedEvent) []any {
 	m := e.Metadata
 	d := e.Decision
@@ -265,6 +280,9 @@ func mapDecisionRow(e decision.DecisionEvaluatedEvent) []any {
 		d.Type,
 		d.Source,
 		d.VenueSymbol(),
+		string(d.Instrument.Base),
+		string(d.Instrument.Quote),
+		string(d.Instrument.Contract),
 		uint32(d.Timeframe),
 		string(d.Outcome),
 		parseFloat(d.Confidence),
@@ -279,7 +297,10 @@ func mapDecisionRow(e decision.DecisionEvaluatedEvent) []any {
 
 // mapStrategyRow maps a StrategyResolvedEvent to ClickHouse strategies row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp.
+// type, source, symbol, base, quote, contract, timeframe, direction, confidence,
+// decisions, parameters, metadata, final, timestamp.
+//
+// H-6.d.1 commit 2: see mapCandleRow for the canonical-column rationale.
 func mapStrategyRow(e strategy.StrategyResolvedEvent) []any {
 	m := e.Metadata
 	s := e.Strategy
@@ -291,6 +312,9 @@ func mapStrategyRow(e strategy.StrategyResolvedEvent) []any {
 		s.Type,
 		s.Source,
 		s.VenueSymbol(),
+		string(s.Instrument.Base),
+		string(s.Instrument.Quote),
+		string(s.Instrument.Contract),
 		uint32(s.Timeframe),
 		string(s.Direction),
 		parseFloat(s.Confidence),
@@ -304,8 +328,10 @@ func mapStrategyRow(e strategy.StrategyResolvedEvent) []any {
 
 // mapRiskRow maps a RiskAssessedEvent to ClickHouse risk_assessments row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, disposition, confidence, strategies,
-// constraints, rationale, parameters, metadata, final, timestamp.
+// type, source, symbol, base, quote, contract, timeframe, disposition, confidence,
+// strategies, constraints, rationale, parameters, metadata, final, timestamp.
+//
+// H-6.d.1 commit 2: see mapCandleRow for the canonical-column rationale.
 func mapRiskRow(e risk.RiskAssessedEvent) []any {
 	m := e.Metadata
 	r := e.RiskAssessment
@@ -317,6 +343,9 @@ func mapRiskRow(e risk.RiskAssessedEvent) []any {
 		r.Type,
 		r.Source,
 		r.VenueSymbol(),
+		string(r.Instrument.Base),
+		string(r.Instrument.Quote),
+		string(r.Instrument.Contract),
 		uint32(r.Timeframe),
 		string(r.Disposition),
 		parseFloat(r.Confidence),
@@ -332,8 +361,11 @@ func mapRiskRow(e risk.RiskAssessedEvent) []any {
 
 // mapExecutionRow maps a PaperOrderSubmittedEvent to ClickHouse executions row values.
 // Column order: event_id, occurred_at, correlation_id, causation_id,
-// type, source, symbol, timeframe, side, quantity, filled_quantity, status,
-// risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp.
+// type, source, symbol, base, quote, contract, timeframe, side, quantity,
+// filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id,
+// exec_causation_id, final, timestamp.
+//
+// H-6.d.1 commit 2: see mapCandleRow for the canonical-column rationale.
 func mapExecutionRow(e execution.PaperOrderSubmittedEvent) []any {
 	m := e.Metadata
 	x := e.ExecutionIntent
@@ -345,6 +377,9 @@ func mapExecutionRow(e execution.PaperOrderSubmittedEvent) []any {
 		x.Type,
 		x.Source,
 		x.VenueSymbol(),
+		string(x.Instrument.Base),
+		string(x.Instrument.Quote),
+		string(x.Instrument.Contract),
 		uint32(x.Timeframe),
 		string(x.Side),
 		parseFloat(x.Quantity),
@@ -376,6 +411,9 @@ func mapVenueFillRow(e execution.VenueOrderFilledEvent) []any {
 		x.Type,
 		x.Source,
 		x.VenueSymbol(),
+		string(x.Instrument.Base),
+		string(x.Instrument.Quote),
+		string(x.Instrument.Contract),
 		uint32(x.Timeframe),
 		string(x.Side),
 		parseFloat(x.Quantity),
@@ -424,6 +462,9 @@ func mapVenueRejectionRow(e execution.VenueOrderRejectedEvent) []any {
 		x.Type,
 		x.Source,
 		x.VenueSymbol(),
+		string(x.Instrument.Base),
+		string(x.Instrument.Quote),
+		string(x.Instrument.Contract),
 		uint32(x.Timeframe),
 		string(x.Side),
 		parseFloat(x.Quantity),
