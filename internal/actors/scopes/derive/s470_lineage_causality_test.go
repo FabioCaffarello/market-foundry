@@ -296,7 +296,7 @@ func TestS470_FullChainLineagePreservation(t *testing.T) {
 	}
 
 	// Stage 4: Risk assessment (consumes strategy).
-	riskEval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	riskEval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp(), 60)
 	assessment, ok := riskEval.Evaluate(strat.Type, string(strat.Direction), strat.Confidence, strat.Decisions[0].Severity, strat.Decisions[0].Rationale, strat.Timeframe, ts)
 	if !ok {
 		t.Fatal("risk evaluation should succeed")

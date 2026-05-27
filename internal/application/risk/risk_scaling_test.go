@@ -39,7 +39,7 @@ func TestPositionExposure_StrategyTypeConfidence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate(tt.strategyType, "long", "0.8500", "moderate", "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -90,7 +90,7 @@ func TestPositionExposure_SeverityAdjustsPositionLimit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tt.severity, "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -106,7 +106,7 @@ func TestPositionExposure_SeverityAdjustsPositionLimit(t *testing.T) {
 // TestPositionExposure_StrategyTypeInMetadata verifies that strategy type is
 // recorded in metadata for observability.
 func TestPositionExposure_StrategyTypeInMetadata(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("trend_following_entry", "long", "0.8500", "high", "EMA bullish crossover", 60, now)
@@ -121,7 +121,7 @@ func TestPositionExposure_StrategyTypeInMetadata(t *testing.T) {
 // TestPositionExposure_RationaleIncludesStrategyType verifies that the rationale
 // explains strategy-type influence.
 func TestPositionExposure_RationaleIncludesStrategyType(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "", 60, now)
@@ -148,7 +148,7 @@ func TestPositionExposure_CombinedStrategyAndSeverity(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Mean reversion with high severity: more conservative confidence, but larger position allowed.
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", "high", "RSI 10.00 extreme", 60, now)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
@@ -219,7 +219,7 @@ func TestDrawdown_StrategyTypeConfidence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate(tt.strategyType, "long", "0.8500", "moderate", "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -260,7 +260,7 @@ func TestDrawdown_StrategyTypeAdjustsStopBase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate(tt.strategyType, "long", "0.8500", "moderate", "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -279,40 +279,40 @@ func TestDrawdown_SeverityAdjustsDrawdownTolerance(t *testing.T) {
 	now := time.Now().UTC()
 
 	tests := []struct {
-		name                       string
-		severity                   string
+		name                      string
+		severity                  string
 		expectedEffectiveDrawdown string
 	}{
 		{
-			name:                       "high severity → tolerance ×1.15",
-			severity:                   "high",
+			name:                      "high severity → tolerance ×1.15",
+			severity:                  "high",
 			expectedEffectiveDrawdown: "0.0575", // 0.05 × 1.15
 		},
 		{
-			name:                       "moderate severity → tolerance ×1.00",
-			severity:                   "moderate",
+			name:                      "moderate severity → tolerance ×1.00",
+			severity:                  "moderate",
 			expectedEffectiveDrawdown: "0.0500", // 0.05 × 1.00
 		},
 		{
-			name:                       "low severity → tolerance ×0.80",
-			severity:                   "low",
+			name:                      "low severity → tolerance ×0.80",
+			severity:                  "low",
 			expectedEffectiveDrawdown: "0.0400", // 0.05 × 0.80
 		},
 		{
-			name:                       "empty severity → tolerance ×1.00",
-			severity:                   "",
+			name:                      "empty severity → tolerance ×1.00",
+			severity:                  "",
 			expectedEffectiveDrawdown: "0.0500",
 		},
 		{
-			name:                       "none severity → tolerance ×1.00",
-			severity:                   "none",
+			name:                      "none severity → tolerance ×1.00",
+			severity:                  "none",
 			expectedEffectiveDrawdown: "0.0500",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tt.severity, "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -327,7 +327,7 @@ func TestDrawdown_SeverityAdjustsDrawdownTolerance(t *testing.T) {
 
 // TestDrawdown_StrategyTypeInMetadata verifies strategy type in metadata.
 func TestDrawdown_StrategyTypeInMetadata(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("trend_following_entry", "long", "0.8500", "high", "", 60, now)
@@ -341,7 +341,7 @@ func TestDrawdown_StrategyTypeInMetadata(t *testing.T) {
 
 // TestDrawdown_RationaleIncludesStrategyType verifies rationale explains strategy type.
 func TestDrawdown_RationaleIncludesStrategyType(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("trend_following_entry", "long", "0.8500", "high", "", 60, now)
@@ -363,7 +363,7 @@ func TestDrawdown_RationaleIncludesStrategyType(t *testing.T) {
 // TestDrawdown_CombinedStrategyAndSeverity verifies end-to-end drawdown behavior.
 func TestDrawdown_CombinedStrategyAndSeverity(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	// Mean reversion with high severity: tighter stop base, more drawdown tolerance.
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", "high", "RSI 10.00 extreme", 60, now)
@@ -414,7 +414,7 @@ func TestDrawdown_CombinedStrategyAndSeverity(t *testing.T) {
 // produces a rejected disposition instead of a degenerate approved assessment.
 func TestPositionExposure_RejectsZeroConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.0000", "high", "", 60, now)
 	if !ok {
@@ -432,7 +432,7 @@ func TestPositionExposure_RejectsZeroConfidence(t *testing.T) {
 // produces a rejected disposition.
 func TestPositionExposure_RejectsNegativeConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("trend_following_entry", "long", "-0.5000", "moderate", "", 60, now)
 	if !ok {
@@ -447,7 +447,7 @@ func TestPositionExposure_RejectsNegativeConfidence(t *testing.T) {
 // produces a rejected disposition.
 func TestDrawdown_RejectsZeroConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.0000", "high", "", 60, now)
 	if !ok {
@@ -465,7 +465,7 @@ func TestDrawdown_RejectsZeroConfidence(t *testing.T) {
 // produces a rejected disposition.
 func TestDrawdown_RejectsNegativeConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("trend_following_entry", "short", "-0.1000", "low", "", 60, now)
 	if !ok {
@@ -497,7 +497,7 @@ func TestPositionExposure_SeverityCasingNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tt.severity, "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -528,7 +528,7 @@ func TestDrawdown_SeverityCasingNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", tt.severity, "", 60, now)
 			if !ok {
 				t.Fatal("expected evaluation to succeed")
@@ -544,7 +544,7 @@ func TestDrawdown_SeverityCasingNormalization(t *testing.T) {
 // TestPositionExposure_BoundaryConfidence verifies behavior at confidence boundaries.
 func TestPositionExposure_BoundaryConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	// Confidence = 1.0000 (maximum valid)
 	r, ok := eval.Evaluate("trend_following_entry", "long", "1.0000", "moderate", "", 60, now)
@@ -571,7 +571,7 @@ func TestPositionExposure_BoundaryConfidence(t *testing.T) {
 // gets its explicit ×0.93 confidence factor, not the default.
 func TestPositionExposure_SqueezeBreakoutConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "long", "0.8500", "moderate", "", 60, now)
 	if !ok {
@@ -590,7 +590,7 @@ func TestPositionExposure_SqueezeBreakoutConfidence(t *testing.T) {
 // gets its explicit ×0.90 drawdown confidence factor.
 func TestDrawdown_SqueezeBreakoutConfidence(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "long", "0.8500", "moderate", "", 60, now)
 	if !ok {
@@ -606,7 +606,7 @@ func TestDrawdown_SqueezeBreakoutConfidence(t *testing.T) {
 // gets its explicit ×1.05 stop distance factor.
 func TestDrawdown_SqueezeBreakoutStopFactor(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "long", "0.8500", "moderate", "", 60, now)
 	if !ok {
@@ -622,7 +622,7 @@ func TestDrawdown_SqueezeBreakoutStopFactor(t *testing.T) {
 // squeeze breakout risk assessment with high severity.
 func TestPositionExposure_SqueezeBreakoutCombinedHighSeverity(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "long", "0.9000", "high", "Bollinger squeeze strong", 60, now)
 	if !ok {
@@ -655,7 +655,7 @@ func TestPositionExposure_SqueezeBreakoutCombinedHighSeverity(t *testing.T) {
 // squeeze breakout drawdown assessment with high severity.
 func TestDrawdown_SqueezeBreakoutCombinedHighSeverity(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "long", "0.9000", "high", "Bollinger squeeze strong", 60, now)
 	if !ok {
@@ -688,7 +688,7 @@ func TestDrawdown_SqueezeBreakoutCombinedHighSeverity(t *testing.T) {
 // strategies are approved with no constraints.
 func TestPositionExposure_SqueezeBreakoutFlat(t *testing.T) {
 	now := time.Now().UTC()
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 
 	r, ok := eval.Evaluate("squeeze_breakout_entry", "flat", "0.0000", "low", "", 60, now)
 	if !ok {
@@ -708,7 +708,7 @@ func TestPaperOrder_SqueezeBreakoutApproved(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Simulate: squeeze breakout → position_exposure approved → paper order
-	posEval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	posEval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	risk, ok := posEval.Evaluate("squeeze_breakout_entry", "long", "0.9000", "high", "Bollinger squeeze strong", 60, now)
 	if !ok {
 		t.Fatal("expected risk evaluation to succeed")
@@ -750,7 +750,7 @@ func TestPaperOrder_SqueezeBreakoutRejected(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Simulate: squeeze breakout with zero confidence → rejected by risk
-	posEval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	posEval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	risk, ok := posEval.Evaluate("squeeze_breakout_entry", "long", "0.0000", "low", "", 60, now)
 	if !ok {
 		t.Fatal("expected risk evaluation to succeed")

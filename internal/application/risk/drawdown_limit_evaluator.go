@@ -25,7 +25,6 @@ const (
 //   - Strategy type is recorded in metadata for observability.
 type DrawdownLimitEvaluator struct {
 	source          string
-	symbol          string
 	instrument      instrument.CanonicalInstrument
 	timeframe       int
 	maxDrawdownPct  float64
@@ -34,7 +33,7 @@ type DrawdownLimitEvaluator struct {
 
 // NewDrawdownLimitEvaluatorForInstrument constructs the evaluator from
 // a canonical Instrument directly. See NewRSISamplerForInstrument
-// (signal package) for the H-6.c.1 rationale.
+// (signal package) for the boundary-helper rationale.
 func NewDrawdownLimitEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *DrawdownLimitEvaluator {
 	return &DrawdownLimitEvaluator{
 		source:          source,
@@ -43,14 +42,6 @@ func NewDrawdownLimitEvaluatorForInstrument(source string, inst instrument.Canon
 		maxDrawdownPct:  defaultMaxDrawdownPct,
 		stopDistancePct: defaultStopDistancePct,
 	}
-}
-
-// NewDrawdownLimitEvaluator is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewDrawdownLimitEvaluatorForInstrument.
-func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLimitEvaluator {
-	e := NewDrawdownLimitEvaluatorForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	e.symbol = symbol
-	return e
 }
 
 // Evaluate processes a strategy resolution and produces a drawdown risk assessment.

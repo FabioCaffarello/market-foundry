@@ -10,7 +10,7 @@ import (
 )
 
 func TestPositionExposureEvaluator_LongApproved(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI 28.50 below threshold", 60, now)
@@ -42,7 +42,7 @@ func TestPositionExposureEvaluator_LongApproved(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_ShortApproved(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "short", "0.7500", "moderate", "", 60, now)
@@ -62,7 +62,7 @@ func TestPositionExposureEvaluator_ShortApproved(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_FlatApproved(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "", 60, now)
@@ -81,7 +81,7 @@ func TestPositionExposureEvaluator_FlatApproved(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_UnknownDirection(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("mean_reversion_entry", "sideways", "0.5000", "", "", 60, now)
@@ -91,7 +91,7 @@ func TestPositionExposureEvaluator_UnknownDirection(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_InvalidConfidence(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("mean_reversion_entry", "long", "not-a-number", "", "", 60, now)
@@ -101,7 +101,7 @@ func TestPositionExposureEvaluator_InvalidConfidence(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_TimestampPreserved(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, ts)
@@ -114,7 +114,7 @@ func TestPositionExposureEvaluator_TimestampPreserved(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_Validation(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI below threshold", 60, now)
@@ -127,7 +127,7 @@ func TestPositionExposureEvaluator_Validation(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_PartitionKey(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -140,7 +140,7 @@ func TestPositionExposureEvaluator_PartitionKey(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_StrategyInputPreserved(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 300)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", "high", "RSI 10.00 below threshold", 300, now)
@@ -172,7 +172,7 @@ func TestPositionExposureEvaluator_StrategyInputPreserved(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_ParametersPresent(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -206,7 +206,7 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sym), tf)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if !ok {
 				t.Fatalf("expected evaluation to succeed for %s/%d", sym, tf)
@@ -225,7 +225,7 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 	// Verify each result has correct symbol and timeframe
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", sym, tf)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sym), tf)
 			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if r.VenueSymbol() != sym {
 				t.Errorf("expected symbol %s, got %s", sym, r.VenueSymbol())
@@ -243,8 +243,8 @@ func TestPositionExposureEvaluator_MultiSymbol_IndependentEvaluation(t *testing.
 func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 	now := time.Now().UTC()
 
-	evalBTC := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
-	evalETH := apprisk.NewPositionExposureEvaluator("binancef", "ethusdt", 60)
+	evalBTC := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
+	evalETH := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", ethUSDTPerp, 60)
 
 	rBTC, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "BTC RSI low", 60, now)
 	if !ok {
@@ -294,7 +294,7 @@ func TestPositionExposureEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_DecisionSeverityInRationale(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "RSI 10.00 below threshold", 60, now)
@@ -307,7 +307,7 @@ func TestPositionExposureEvaluator_DecisionSeverityInRationale(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_NoSeverityInRationale_WhenNone(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "none", "", 60, now)
@@ -320,7 +320,7 @@ func TestPositionExposureEvaluator_NoSeverityInRationale_WhenNone(t *testing.T) 
 }
 
 func TestPositionExposureEvaluator_DecisionContextInMetadata(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "moderate", "RSI 20.00 below threshold", 60, now)
@@ -340,7 +340,7 @@ func TestPositionExposureEvaluator_DecisionContextInMetadata(t *testing.T) {
 }
 
 func TestPositionExposureEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -354,7 +354,7 @@ func TestPositionExposureEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T
 }
 
 func TestPositionExposureEvaluator_FlatWithDecisionContext(t *testing.T) {
-	eval := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "RSI above threshold", 60, now)

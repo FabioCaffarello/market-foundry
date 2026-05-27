@@ -48,7 +48,7 @@ func TestS304_RE1_SameStraTypeDifferentSeverities(t *testing.T) {
 	results := make(map[string]domainrisk.RiskAssessment)
 
 	for _, sc := range cases {
-		eval := apprisk.NewPositionExposureEvaluator("binancef", sc.symbol, 60)
+		eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sc.symbol), 60)
 		r, ok := eval.Evaluate("mean_reversion_entry", sc.direction, sc.conf, sc.severity, "test rationale", 60, now)
 		if !ok {
 			t.Fatalf("[%s] evaluation failed", sc.symbol)
@@ -122,7 +122,7 @@ func TestS304_RE2_DifferentStrategyTypes(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol+"_"+sc.strategyType, func(t *testing.T) {
-			eval := apprisk.NewPositionExposureEvaluator("binancef", sc.symbol, 60)
+			eval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sc.symbol), 60)
 			r, ok := eval.Evaluate(sc.strategyType, sc.direction, fmt.Sprintf("%.4f", baseConf), "moderate", "", 60, now)
 			if !ok {
 				t.Fatalf("evaluation failed")
@@ -160,21 +160,21 @@ func TestS304_RE3_MixedDispositionsAcrossSymbols(t *testing.T) {
 	now := time.Now().UTC()
 
 	// btcusdt: high severity, high conf → approved (well within limits)
-	evalBTC := apprisk.NewPositionExposureEvaluator("binancef", "btcusdt", 60)
+	evalBTC := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	btc, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.5000", "high", "BTC signal", 60, now)
 	if !ok {
 		t.Fatal("btcusdt evaluation failed")
 	}
 
 	// ethusdt: zero confidence → rejected (S256 behavior)
-	evalETH := apprisk.NewPositionExposureEvaluator("binancef", "ethusdt", 60)
+	evalETH := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", ethUSDTPerp, 60)
 	eth, ok := evalETH.Evaluate("trend_following_entry", "long", "0.0000", "moderate", "ETH signal", 60, now)
 	if !ok {
 		t.Fatal("ethusdt evaluation failed")
 	}
 
 	// solusdt: negative confidence → rejected
-	evalSOL := apprisk.NewPositionExposureEvaluator("binancef", "solusdt", 60)
+	evalSOL := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", solUSDTPerp, 60)
 	sol, ok := evalSOL.Evaluate("squeeze_breakout_entry", "short", "-0.5000", "low", "SOL signal", 60, now)
 	if !ok {
 		t.Fatal("solusdt evaluation failed")
@@ -233,7 +233,7 @@ func TestS304_RE4_DrawdownMultiSymbolStopDiversity(t *testing.T) {
 	results := make(map[string]domainrisk.RiskAssessment)
 
 	for _, sc := range cases {
-		eval := apprisk.NewDrawdownLimitEvaluator("binancef", sc.symbol, 60)
+		eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", instrumentForSymbol(sc.symbol), 60)
 		r, ok := eval.Evaluate(sc.strategyType, sc.direction, sc.conf, sc.severity, sc.symbol+" signal", 60, now)
 		if !ok {
 			t.Fatalf("[%s] drawdown evaluation failed", sc.symbol)
@@ -305,8 +305,8 @@ func TestS304_RE5_CrossEvaluatorCoherence(t *testing.T) {
 
 	for _, sym := range symbols {
 		t.Run(sym, func(t *testing.T) {
-			posEval := apprisk.NewPositionExposureEvaluator("binancef", sym, 60)
-			ddEval := apprisk.NewDrawdownLimitEvaluator("binancef", sym, 60)
+			posEval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sym), 60)
+			ddEval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", instrumentForSymbol(sym), 60)
 
 			posResult, ok := posEval.Evaluate(strategyTypes[sym], "long", "0.7500", severities[sym], sym+" signal", 60, now)
 			if !ok {
@@ -367,8 +367,8 @@ func TestS304_RE6_FlatDirectionNoLeakage(t *testing.T) {
 
 	for _, sym := range symbols {
 		t.Run(sym, func(t *testing.T) {
-			posEval := apprisk.NewPositionExposureEvaluator("binancef", sym, 60)
-			ddEval := apprisk.NewDrawdownLimitEvaluator("binancef", sym, 60)
+			posEval := apprisk.NewPositionExposureEvaluatorForInstrument("binancef", instrumentForSymbol(sym), 60)
+			ddEval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", instrumentForSymbol(sym), 60)
 
 			posR, ok := posEval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "", 60, now)
 			if !ok {
