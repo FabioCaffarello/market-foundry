@@ -55,8 +55,24 @@
 name = "source-string-instrument-reconstructor"
 function = "instrumentFromBinding"
 severity = "warning"
-why = "Reconstructs CanonicalInstrument from a (source, venueNative) string pair via a hardcoded source-to-Contract mapping (binances→Spot, binancef→Perpetual, default→zero). Production Source values include strings outside this mapping ('binance', 'binance_spot', 'derive', 'clickhouse', 'unknown_exchange', 'execute.venue-adapter'); each call site is a potential silent-zero regression analogous to commit 37f8ddd in H-6.b'."
-help = "Migrate the caller to receive instrument.CanonicalInstrument directly from upstream (pattern: NewPaperOrderEvaluatorForInstrument in internal/application/execution/paper_order_evaluator.go). Where upstream cannot carry Instrument (true boundary with venue-native input), retain the helper with an error-returning signature (no silent zero) and declare the call site in the exceptions list below."
+why = """
+Reconstructs CanonicalInstrument from a (source, venueNative) string pair via a hardcoded source-to-Contract mapping (binances→Spot, binancef→Perpetual, default→zero). Production Source values include strings outside this mapping ('binance', 'binance_spot', 'derive', 'clickhouse', 'unknown_exchange', 'execute.venue-adapter'); each call site is a potential silent-zero regression analogous to commit 37f8ddd in H-6.b'.
+
+Migration progress (H-6.c.1 closure, 2026-05-27):
+- application/signal: helper deleted, 0 callers (commit 7a).
+- application/decision: helper deleted, 0 callers (commit 7b).
+- application/strategy: helper deleted, 0 callers (commit 7c).
+- application/risk: helper deleted, 0 callers (commit 7d).
+- application/execution: 3 callers remaining (paper_order_evaluator + 2 testnet adapters) — H-6.c.2 scope.
+- application/executionclient: 1 caller remaining (audit_session) — H-6.f scope, blocked by LifecycleEntry contract migration.
+
+Total expected after H-6.f closure: 0 callers, helper deleted entirely from codebase. ADR-0021 promotion to Accepted is gated on this state. The boundary-helper replacement is internal/application/ingest.BindingTarget.Instrument() (added in H-6.c.1 commit 6) with explicit error-returning signature — the canonical reconstruction point for legitimate (source, symbol) → Instrument boundaries.
+"""
+help = """
+Pass CanonicalInstrument directly from upstream type that already carries it (pattern: NewPaperOrderEvaluatorForInstrument in internal/application/execution/paper_order_evaluator.go). Use BindingTarget.Instrument() (in internal/application/ingest/binding.go) for legitimate boundary reconstruction with error-returning signature — no silent zero.
+
+H-6.c.1 commits 2-7d are the migration pattern reference: commits 2-5 added NewXxxForInstrument pass-through constructors per application package, commit 6 wired derive actors to compute Instrument once at the BindingTarget boundary, commits 7a-7d deleted the legacy wrappers + helper + dead `symbol` struct field.
+"""
 exceptions = []
 
 [[anti_patterns]]
