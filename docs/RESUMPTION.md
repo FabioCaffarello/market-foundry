@@ -60,7 +60,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.b** | Fechada (PR #27 mergeada em `main` em `d7fae4c`, 2026-05-26) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure. 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
 | **H-6.b'** | Fechada (PR #28 mergeada em `main` em `6b62d89`, 2026-05-26) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits + fix(execute) pull-forward 37f8ddd (descoberto via CI Integration Tests em PR #28: silent zero Instrument por reconstrução source-string em `instrumentFromBinding`; fix via `NewPaperOrderEvaluatorForInstrument` passthrough). check-instruments analyzer 6 checks PASS. **Triage drop closure note** (zero migration sites nesta sub-wave): DecisionTriageItem buffered pelo ReviewTransform DTO; ExecutionTriageItem não existe; RoundTripTriageItem deferido para H-6.b''. ADR-0021 permanece `Proposed`. |
 | **H-6.b''** | Fechada (PR #29 mergeada em `main` em `54a2706`, 2026-05-26) | Layer 4: Pairing chain migrada — 2 domain types Symbol → Instrument + VenueSymbol() (pairing.Leg + pairing.RoundTrip) + 1 rename (pairing.CrossSessionWindow.Symbol → VenueSymbol string, declarado `string_filter` per Decisão #2) + 1 triage population site (`get_roundtrip_triage.go:74` adopts `review.VenueSymbol()` por compile pressure pull-forward). 8 commits (plano declarava 9 — consolidação por compile pressure documentada em commit 3 e commit 8) + 1 follow-up commit (G6 flake registry + pre-push lesson). check-instruments analyzer estendido com 3º state `string_filter` (commit 1) e 15 unit tests (was 14). ADR-0021 permanece `Proposed`. |
-| **H-6.c.1** | **Atual** (esta entrega — branch `feat/h-6-c-1-application-pass-through` aberta após merge de H-6.b'' em PR #29) | Application-layer pass-through migration: derive scope. 10 commits eliminating source-string Instrument reconstruction in 4 application packages (signal/decision/strategy/risk). Commit 1 installs declarative `policies/anti_patterns.toml` + analyzer scan extension. Commits 2-5 add `NewXxxForInstrument` pass-through constructors (14 total). Commit 6 wires derive actors to compute Instrument once at the `BindingTarget.Instrument()` boundary (new helper in `internal/application/ingest/binding.go` with error-returning signature — eliminates the H-6.b' commit 37f8ddd silent-zero regression-shape at its source). Commits 7a-7d delete the legacy `NewXxx` wrappers + per-package `instrumentFromBinding` helpers + dead `symbol` struct field, migrating ~250 test sites. Commit 8 adds derive-scope canary integration tests for the 6 synthetic sources from commit 6. Commit 9 records migration progress in `anti_patterns.toml`. Commit 10 (este commit) closes docs. **H-6.c is sub-divided** into **H-6.c.1** (derive scope, esta sub-onda) and **H-6.c.2** (execute scope: 3 remaining `instrumentFromBinding` callers in `application/execution` + ClickHouse `reconstructInstrumentFromLegacy` treatment + ReviewTransform string_filter + DecisionTriageItem cascade — deferred). ADR-0021 permanece `Proposed`. |
+| **H-6.c.1** | Fechada (PR #30 mergeada em `main` em `8125e6c`, 2026-05-27) | Application-layer pass-through migration: derive scope. 13 commits eliminating source-string Instrument reconstruction in 4 application packages (signal/decision/strategy/risk). Commit 1 installs declarative `policies/anti_patterns.toml` + analyzer scan extension. Commits 2-5 add `NewXxxForInstrument` pass-through constructors (14 total). Commit 6 wires derive actors to compute Instrument once at the `BindingTarget.Instrument()` boundary (new helper in `internal/application/ingest/binding.go` with error-returning signature — eliminates the H-6.b' commit 37f8ddd silent-zero regression-shape at its source). Commits 7a-7d delete the legacy `NewXxx` wrappers + per-package `instrumentFromBinding` helpers + dead `symbol` struct field, migrating ~250 test sites. Commit 8 adds derive-scope canary integration tests for the 6 synthetic sources from commit 6. Commit 9 records migration progress in `anti_patterns.toml`. Commit 10 closes docs. **CI fixup (commits 11-13)**: commit 11 populates anti_patterns exception list with all 11 deferred call sites (the `--profile ci` gate promotes warning→error; the policy installed with severity=warning was incompatible until exceptions covered all remaining callers); commit 12 fixes a pre-existing topology analyzer fragility (whole-file fallback in `find_stream_name_near` picked unrelated SCREAMING_SNAKE_CASE constants on Linux file iteration); commit 13 records the `--profile ci` pre-push validation requirement permanently in CONTRIBUTING.md. ADR-0021 permanece `Proposed`. |
+| **H-6.c.2** | **Atual** (esta entrega — branch `feat/h-6-c-2-execute-clickhouse` aberta após merge de H-6.c.1 em PR #30) | Application-layer pass-through migration: execute scope + ClickHouse composite_reader treatment. 8 commits eliminating the last source-string reconstruction sites in the execution package + uniformizing the ClickHouse `reconstructInstrumentFromLegacy` error-handling pattern. Commit 1 migrates ~28 paper_order_evaluator test sites to ForInstrument constructor. Commit 2 converts the 5 silent error-discard sites in `composite_reader.go` to warn-and-emit-zero (matches the 8 existing sister sites' pattern; all 13 ClickHouse readers now uniform). Commit 3 declares `ReviewTransform` as `string_filter` per Decisão Q2 of H-6.c.1 + adds inline godoc to ReviewTransform.Symbol + DecisionTriageItem.Symbol fields. Commit 4 migrates the 2 testnet adapters (`binance_spot/futures_testnet_adapter.go`) to use `BindingTarget.Instrument()` boundary helper with warn-and-emit-zero fallback per Decisão #2 — option (b) confirmed after option (a) port-signature refactor cascade analysis revealed 12 files exceeding the sub-onda threshold (a) recorded as H-6.f candidate. Commit 5 deletes the legacy `NewPaperOrderEvaluator` ctor + `instrumentFromBinding` helper file + dead `symbol` field + migrates 8 cross-scope stragglers (1 derive test + 2 risk_scaling test + 6 integration-tagged: 1 writerpipeline + 4 natsexecution + 1 live_consumer_flow). Commit 6 adds the explicit 37f8ddd canary in execute scope (`execute_venue_adapter_canary_test.go` — 2 tests / 2 passes locking the contract that "execute.venue-adapter" synthetic source preserves canonical Instrument through PaperOrderEvaluator + strategy_consumer_actor). Commit 7 shrinks `anti_patterns.toml` exception list 11→8 + uniformizes prose. Commit 8 (este commit) closes docs. ADR-0021 permanece `Proposed`; **execução agora 5 dos 6 helpers eliminados (signal/decision/strategy/risk/execution); apenas executionclient remanesce para H-6.f**. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -220,7 +221,175 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.c.1 (esta sessão):
+Entregas H-6.c.2 (esta sessão):
+
+- **Commit 1** (`df5ea36`):
+  **paper_order_evaluator test migration** (5 files, +40/-28).
+  ~28 test sites across 4 _test.go files migrated from
+  `appexec.NewPaperOrderEvaluator(...)` to
+  `appexec.NewPaperOrderEvaluatorForInstrument(...)` via uniform
+  sed pattern. New `solUSDTPerp(t)` fixture added to external
+  test helpers (third base alongside btcUSDTPerp/ethUSDTPerp).
+  Production code untouched — dual-API coexists during migration
+  window. Pre-existing out-of-scope gofmt drift discovered in
+  `live_mainnet_dryrun_test.go` (untouched, not bundled — 6th
+  instance of H-6.c.1 retrospective gofmt pattern).
+- **Commit 2** (`7e3c6b8`):
+  **composite_reader silent sites → warn-and-emit-zero**
+  (1 file, +43/-5). The 5 silent error-discard sites in
+  `composite_reader.go` (signal/decision/strategy/risk/execution
+  composite queries) converted to match the warn-and-emit-zero
+  pattern used by the 8 sister sites in candle/decision/
+  execution/risk/signal/strategy readers. Partial-chain-assembly
+  contract preserved (zero Instrument still propagates to
+  maintain stage population); the only behavior change is
+  structured Warn log emission for operator visibility. All 13
+  `reconstructInstrumentFromLegacy` callers now uniform.
+  File docstring extended with TODO(H-6.d) pointer for the
+  deferred log-emission unit canary (gap symmetric with the
+  8 sister sites that also lack such canaries).
+- **Commit 3** (`3168a76`):
+  **ReviewTransform string_filter + DecisionTriageItem godoc**
+  (3 files, +81/-23). Zero production code change — the DTO
+  symbol projection chain (decision.Decision.Instrument →
+  d.VenueSymbol() → ReviewTransform.Symbol →
+  DecisionTriageItem.Symbol) is in the post-canonical state
+  since H-6.b. Work reduces to policy declaration + inline
+  godoc. New `[domain_types.review_transform]` entry in
+  `domain_types.toml` with `migration_state = "string_filter"`
+  + full rationale comment. Inline godoc added to
+  ReviewTransform struct + Symbol field and to
+  DecisionTriageItem struct + Symbol field documenting the
+  string-filter semantics. In-scope gofmt drift bundled (7th
+  retrospective instance — pre-existing alignment drift in
+  ReviewInputs/ReviewTransform/Finding/SessionTriageItem
+  struct field blocks within the touched files).
+- **Commit 4** (`70457f5`):
+  **testnet adapters use BindingTarget.Instrument()**
+  (2 files, +41/-2). Per Decisão #2 — option (b) confirmed
+  after pre-flight verification showed option (a) port-signature
+  refactor cascade = 12 files (5 prod + 7 test), exceeding the
+  H-6.c.2 threshold. Both testnet adapter call sites
+  (`binance_spot_testnet_adapter.go:391`,
+  `binance_futures_testnet_adapter.go:395`) replace
+  `instrumentFromBinding(SOURCE, symbol)` with
+  `appingest.BindingTarget{Source: SOURCE, Symbol:
+  symbol}.Instrument()` + warn-and-emit-zero log emission.
+  Uniform pattern with commit 2. Architectural debt recorded
+  for H-6.f (see PROGRAM-0004 scope notes).
+- **Commit 5** (`789dfdb`):
+  **delete legacy NewPaperOrderEvaluator + helper + symbol
+  field** (11 files, +25/-65). Deletes
+  `internal/application/execution/instrument_binding.go`
+  (34 LoC); removes legacy ctor + dead `symbol` field +
+  unused `strings` import from
+  `paper_order_evaluator.go`. Updates inline comment in
+  `strategy_consumer_actor.go`. **8 cross-scope stragglers**
+  migrated: 1 derive (s470_lineage_causality_test) + 2 risk
+  (risk_scaling_test) + 6 integration-tagged (writerpipeline +
+  4 natsexecution + 1 live_consumer_flow). Discovery: make
+  verify masks integration-tagged build failures — the
+  explicit `go test -tags=integration -run DOES_NOT_EXIST`
+  check surfaced the 6 integration stragglers that would
+  have shipped broken to CI. Lesson reinforces H-6.c.1
+  commit 13 pre-push discipline.
+- **Commit 6** (`db0d5f1`):
+  **execute.venue-adapter canary** (1 file, +150). New file
+  `execute_venue_adapter_canary_test.go` (no integration tag,
+  runs in regular `make verify`). 2 tests / 2 passes lock the
+  37f8ddd contract:
+    * TestPaperOrderEvaluator_PreservesInstrument_WithSyntheticSource
+      (unit shape): direct ctor + Evaluate + assert
+      `intent.Instrument == input && !intent.Instrument.IsZero()`.
+    * TestStrategyConsumerActor_PreservesInstrument_WithSyntheticSource
+      (actor shape): spawn strategy_consumer_actor + send
+      strategyReceivedMessage with synthetic Source +
+      canonical Instrument + assert intent.Instrument matches.
+  Uses existing fixtures (`btcUSDTPerpExec`, `spawnTestStrategy`,
+  `waitForIntent`).
+- **Commit 7** (`e337be3`):
+  **anti_patterns.toml exception list 11 → 8** (1 file,
+  +11/-16). Net -3: removed the 3 execution package entries
+  (paper_order_evaluator + 2 testnet adapters). Kept: 1
+  executionclient entry (H-6.f scope) + 7 ClickHouse readers
+  (H-6.d scope). composite_reader.go re-tagged from "H-6.c.2
+  treatment" to "H-6.d helper removal". Prose updates:
+  instrumentFromBinding migration progress reflects execute
+  scope completion; reconstructInstrumentFromLegacy why text
+  drops the "8 warn + 5 silent" split (all 13 now uniform).
+- **Commit 8** (este commit): TRUTH-MAP / RESUMPTION /
+  PROGRAM-0004 closure.
+
+**Marco**: H-6.c.2 fecha a migração application-layer pass-
+through para execute scope + uniformiza a ClickHouse adapter
+error-handling. **5 dos 6 `instrumentFromBinding` helpers
+eliminados** (signal/decision/strategy/risk/execution); apenas
+`executionclient/instrument_binding.go` permanece para H-6.f
+(blocked by LifecycleEntry contract migration). Todos os 13
+`reconstructInstrumentFromLegacy` callers em ClickHouse readers
+agora uniformes (warn-and-emit-zero), pending helper removal
+em H-6.d schema migration. ADR-0021 critério #2 **ainda não
+literalmente satisfeito** — restam 1 helper em executionclient
++ 13 reconstruction callers em ClickHouse. **ADR-0021 permanece
+`Proposed`**; promoção é evento atómico em H-6.f.
+
+**Métricas H-6.c.2**: 8 commits, ~30 test sites migrated, 1
+helper file deleted (34 LoC), 2 testnet adapter sites converted
+to BindingTarget.Instrument(), 5 composite_reader silent sites
+treated, 1 new policy entry (ReviewTransform string_filter), 8
+cross-scope stragglers fixed (1 derive + 2 risk + 6 integration),
+1 canary test suite added (2 tests / 2 passes), anti_patterns
+exception list reduced 11 → 8. make verify GREEN every commit;
+raccoon-cli --profile ci PASSED 10/10 every commit (lesson 13
+of H-6.c.1 enforced).
+
+**H-6.f architectural debt — QueryOrder port refactor candidate
+(recorded during H-6.c.2 Decisão #2 verification)**:
+
+Option (a) cascade analysis: changing the `ports.VenueQueryPort`
+interface signature from `QueryOrder(ctx, clientOrderID, symbol
+string)` to `QueryOrder(ctx, clientOrderID string, instrument
+instrument.CanonicalInstrument)` would eliminate the residual
+source-string reconstruction in the testnet adapters entirely
+— the caller (`post200_reconciler.go:66`) already holds the
+canonical Intent.Instrument and would pass it directly.
+Architecturally cleaner than the (b) BindingTarget.Instrument()
+approach used at H-6.c.2 (reconstruction in adapter layer is
+semantically the wrong layer).
+
+Cascade size — 12 files / >8 threshold (sub-onda H-6.c.2
+exceeded):
+
+- Production (5): `internal/application/ports/venue.go` (port
+  signature), `binance_spot_testnet_adapter.go` (impl line 353),
+  `binance_futures_testnet_adapter.go` (impl line 355),
+  `segment_router.go:69-83` (wrapper), `post200_reconciler.go:66`
+  (single non-test caller).
+- Tests (7): `post200_reconciler_test.go` (1 fakeQueryVenue impl
+  + 3 callback signatures), `s405_spot_venue_acceptance_fill_test.go`
+  (2 sites), `s422_futures_venue_connectivity_fill_test.go`
+  (2 sites), `s423_futures_rejection_partial_fill_test.go`
+  (3 sites), `s416_futures_venue_acceptance_fill_test.go`
+  (2 sites), `s416_futures_venue_lifecycle_test.go` (1 site),
+  `s405_spot_venue_lifecycle_test.go` (1 site).
+
+Current state (post-H-6.c.2): testnet adapters use
+`BindingTarget.Instrument()` with warn-and-emit-zero fallback.
+Eliminates the `instrumentFromBinding` helper file in the
+execution package, but the reconstruction itself remains in
+adapter layer. H-6.f candidate refactor: port signature
+migration to Instrument. Tractable as dedicated H-6.f sub-task
+alongside executionclient + LifecycleEntry migration.
+
+**Próxima sub-onda destravada após merge**: H-6.d — ClickHouse
+schema migration with canonical `base`/`quote`/`contract`
+columns + back-compat read window. Sub-onda sequencing policy
+estrita: H-6.d abre branch APENAS após merge desta PR (H-6.c.2)
+em `main`.
+
+---
+
+Entregas H-6.c.1 (sessão anterior — PR #30 mergeada em `main` em `8125e6c`, 2026-05-27):
 
 - **Commit 1** (`9c14ac2`):
   **Anti-patterns analyzer + policy installation**. New file

@@ -33,7 +33,7 @@ import (
 // runtimeBuildIntent constructs a valid, fresh PaperOrderSubmittedEvent for runtime tests.
 func runtimeBuildIntent(t *testing.T, ts time.Time) domainexec.PaperOrderSubmittedEvent {
 	t.Helper()
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerpKV(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",

@@ -30,7 +30,7 @@ import (
 // that would normally be produced by PaperOrderEvaluatorActor.
 func buildFreshIntent(t *testing.T, ts time.Time) domainexec.PaperOrderSubmittedEvent {
 	t.Helper()
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
@@ -470,7 +470,7 @@ func TestSafetyGateIntegration_NoActionIntent_GateActive_AllowedThrough(t *testi
 	tracker := healthz.NewTracker("venue-adapter-test")
 
 	// Build a no-action intent (rejected risk → side=none).
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",
@@ -519,7 +519,7 @@ func TestSafetyGateIntegration_NoActionIntent_KillSwitch_Blocked(t *testing.T) {
 	tracker := healthz.NewTracker("venue-adapter-test")
 
 	// Build no-action intent.
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, _ := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",

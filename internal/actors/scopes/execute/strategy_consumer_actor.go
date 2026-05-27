@@ -131,10 +131,12 @@ func (a *StrategyConsumerActor) onStrategyEvent(c *actor.Context, msg strategyRe
 	}
 
 	// Evaluate via PaperOrderEvaluator with pass-through risk (INV-4).
-	// Use the Instrument-aware constructor so the canonical instrument carried
-	// by the Strategy flows through directly — the Source label may be synthetic
-	// (e.g., "execute.venue-adapter" in slice tests) and is not always a venue
-	// identifier recognized by instrumentFromBinding.
+	// The Instrument-aware constructor flows the canonical instrument
+	// carried by the Strategy through directly — the Source label may
+	// be synthetic (e.g., "execute.venue-adapter" production from
+	// execute_supervisor.go:148) and is not used for Instrument
+	// reconstruction. H-6.c.2 commit 5 made this the only constructor
+	// (legacy source-string ctor deleted).
 	evaluator := appexec.NewPaperOrderEvaluatorForInstrument(strat.Source, strat.Instrument, strat.Timeframe)
 	intent, ok := evaluator.Evaluate(
 		"pass_through",          // riskType — INV-4: explicit pass-through marker

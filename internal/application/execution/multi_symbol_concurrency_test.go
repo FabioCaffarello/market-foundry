@@ -48,7 +48,7 @@ func TestS304_EX1_MultiSymbolDispositionMapping(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sc.symbol, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sc.symbol), 60)
 			intent, ok := eval.Evaluate(
 				"position_exposure", sc.riskDisp, "0.85", sc.maxPosPct,
 				sc.direction, "0.72",
@@ -96,7 +96,7 @@ func TestS304_EX2_FullPaperLifecyclePerSymbol(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sc.symbol, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sc.symbol), 60)
 			intent, ok := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.0200",
 				sc.direction, "0.72",
@@ -153,7 +153,7 @@ func TestS304_EX3_RejectedBlocksExecution(t *testing.T) {
 
 	for _, sym := range symbols {
 		t.Run(sym, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sym, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sym), 60)
 			intent, ok := eval.Evaluate(
 				"position_exposure", "rejected", "0.30", "0.0200",
 				"long", "0.72",
@@ -215,7 +215,7 @@ func TestS304_EX4_ModifiedQuantityPerSymbol(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sc.symbol, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sc.symbol), 60)
 			intent, ok := eval.Evaluate(
 				"position_exposure", "modified", "0.60", sc.maxPos,
 				sc.direction, "0.72",
@@ -273,7 +273,7 @@ func TestS304_EX5_CausalContextPreservation(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sc.symbol, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sc.symbol), 60)
 			intent, ok := eval.Evaluate(
 				sc.riskType, "approved", "0.85", "0.0200",
 				"long", "0.72",
@@ -335,7 +335,7 @@ func TestS304_EX6_PaperVenueAdapterIsolation(t *testing.T) {
 
 	for _, sc := range cases {
 		t.Run(sc.symbol, func(t *testing.T) {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sc.symbol, 60)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sc.symbol), 60)
 			intent, _ := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.0200",
 				sc.direction, "0.72",

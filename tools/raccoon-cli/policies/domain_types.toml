@@ -152,3 +152,28 @@ migration_state = "string_filter"
 # from Symbol to VenueSymbol for semantic clarity; see the
 # struct godoc in continuity.go and the PRD-0004 H-6.b''
 # closure section.
+
+# H-6.c.2 — application-layer DTO declared as permanent string filter
+[domain_types.review_transform]
+package = "internal/application/analyticalclient"
+file = "decision_review_contracts.go"
+type_name = "ReviewTransform"
+migration_state = "string_filter"
+# Application-layer DTO carrying decision review data for the
+# /analytical/composite/decision/review surface. The Symbol field
+# at line 105 is venue-native lowercase ("btcusdt") populated via
+# d.VenueSymbol() at get_decision_review.go:188 — the canonical-
+# derived display string projected from decision.Decision.Instrument
+# (migrated in H-6.b). The field is read by exactly one downstream
+# site (triageclient/get_decision_triage.go:99) which passes it
+# through to DecisionTriageItem.Symbol for triage UI display.
+#
+# No Instrument upgrade applied per Decisão Q2 of H-6.c.1:
+# promotion would force source-string reconstruction at the DTO
+# population boundary or require the entire query-result type
+# graph to carry CanonicalInstrument — the same regression-shape
+# precedent as commit 37f8ddd. The DTO's role is venue-native
+# display projection; the canonical Instrument lives upstream in
+# the domain type. See the ReviewTransform.Symbol godoc in
+# decision_review_contracts.go and the PRD-0004 H-6.c.2 closure
+# section.

@@ -28,7 +28,7 @@ func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
 	// Step 1: Evaluate risk → execution intent.
-	eval := appexec.NewPaperOrderEvaluator(source, symbol, timeframe)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument(source, instrumentFromVenueSymbol(t, source, symbol), timeframe)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
@@ -152,7 +152,7 @@ func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 func TestPipeline_EvaluateSimulateEmit_RejectedRisk_NoFill(t *testing.T) {
 	ts := time.Now().UTC()
 
-	eval := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 300)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", ethUSDTPerp(t), 300)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",
@@ -215,7 +215,7 @@ func TestPipeline_MultiSymbol_FullIsolation(t *testing.T) {
 
 	for _, tc := range cases {
 		for _, tf := range timeframes {
-			eval := appexec.NewPaperOrderEvaluator("binancef", tc.symbol, tf)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", tc.symbol), tf)
 			intent, ok := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.02",
 				tc.direction, "0.72",
@@ -302,7 +302,7 @@ func TestPipeline_VenueAdapter_FullChain_DeriveToFill(t *testing.T) {
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
 	// Step 1: Derive-side — evaluate risk → execution intent.
-	eval := appexec.NewPaperOrderEvaluator(source, symbol, timeframe)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument(source, instrumentFromVenueSymbol(t, source, symbol), timeframe)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
@@ -412,7 +412,7 @@ func TestPipeline_VenueAdapter_FullChain_DeriveToFill(t *testing.T) {
 func TestPipeline_VenueAdapter_NoAction_NoFillRecord(t *testing.T) {
 	ts := time.Now().UTC()
 
-	eval := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 300)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", ethUSDTPerp(t), 300)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "rejected", "0.30", "0.02",
 		"long", "0.72",
@@ -452,7 +452,7 @@ func TestPipeline_StalenessGuard_Integration(t *testing.T) {
 	now := time.Now().UTC()
 
 	// Simulate a fresh intent from derive.
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	freshIntent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
@@ -585,7 +585,7 @@ func TestPipeline_MultiSymbol_FillIsolation(t *testing.T) {
 
 	for _, tc := range cases {
 		for _, tf := range timeframes {
-			eval := appexec.NewPaperOrderEvaluator("binancef", tc.symbol, tf)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", tc.symbol), tf)
 			intent, ok := eval.Evaluate(
 				"position_exposure", "approved", "0.85", "0.02",
 				tc.direction, "0.72",

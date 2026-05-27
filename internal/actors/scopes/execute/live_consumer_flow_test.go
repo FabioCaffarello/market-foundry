@@ -72,7 +72,7 @@ func s333BuildEvent(t *testing.T, ts time.Time, corrID string) domainexec.PaperO
 	// Space by full seconds to ensure unique DeduplicationKey (uses .Unix()).
 	ts = ts.Add(time.Duration(seq) * time.Second)
 
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerpIntegration(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",

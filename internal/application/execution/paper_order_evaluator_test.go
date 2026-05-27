@@ -9,7 +9,7 @@ import (
 )
 
 func TestPaperOrderEvaluator_ApprovedLong_ProducesBuy(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
@@ -26,7 +26,7 @@ func TestPaperOrderEvaluator_ApprovedLong_ProducesBuy(t *testing.T) {
 }
 
 func TestPaperOrderEvaluator_ApprovedShort_ProducesSell(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 300)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", ethUSDTPerp(t), 300)
 	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.03", "short", "0.65", "trend_following_entry", "moderate", 300, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
@@ -43,7 +43,7 @@ func TestPaperOrderEvaluator_ApprovedShort_ProducesSell(t *testing.T) {
 }
 
 func TestPaperOrderEvaluator_Rejected_ProducesNone(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate("position_exposure", "rejected", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
@@ -57,7 +57,7 @@ func TestPaperOrderEvaluator_Rejected_ProducesNone(t *testing.T) {
 }
 
 func TestPaperOrderEvaluator_FlatStrategy_ProducesNone(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "flat", "0.50", "mean_reversion_entry", "low", 60, time.Now())
 	if !ok {
 		t.Fatal("expected evaluation to succeed")
@@ -71,7 +71,7 @@ func TestPaperOrderEvaluator_FlatStrategy_ProducesNone(t *testing.T) {
 }
 
 func TestPaperOrderEvaluator_IntentIsFinalAndValid(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, _ := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, time.Now())
 	if !intent.Final {
 		t.Fatal("expected Final=true")
@@ -87,7 +87,7 @@ func TestPaperOrderEvaluator_IntentIsFinalAndValid(t *testing.T) {
 // ---------- S265: Boundary Context Preservation ----------
 
 func TestPaperOrderEvaluator_RiskInput_PreservesStrategyTypeAndSeverity(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate(
 		"position_exposure", "approved", "0.85", "0.02",
 		"long", "0.72",
@@ -118,7 +118,7 @@ func TestPaperOrderEvaluator_RiskInput_PreservesStrategyTypeAndSeverity(t *testi
 }
 
 func TestPaperOrderEvaluator_DrawdownRisk_ProducesBuyWithExposureQuantity(t *testing.T) {
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	// S265: Drawdown risk should pass MaxExposure (e.g., "0.0500") as position constraint,
 	// not StopDistance. This test verifies the correct semantic mapping.
 	intent, ok := eval.Evaluate(
@@ -153,7 +153,7 @@ func TestPaperOrderEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) {
 
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
-			eval := appexec.NewPaperOrderEvaluator("binancef", sym, tf)
+			eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", instrumentFromVenueSymbol(t, "binancef", sym), tf)
 			intent, ok := eval.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", tf, ts)
 			if !ok {
 				t.Fatalf("evaluation failed for %s/%d", sym, tf)
@@ -203,15 +203,15 @@ func TestPaperOrderEvaluator_MultiSymbol_DifferentDispositions(t *testing.T) {
 	ts := time.Now()
 
 	// btcusdt: approved long → buy
-	evalBTC := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	evalBTC := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	btc, _ := evalBTC.Evaluate("position_exposure", "approved", "0.85", "0.02", "long", "0.72", "mean_reversion_entry", "high", 60, ts)
 
 	// ethusdt: rejected → none
-	evalETH := appexec.NewPaperOrderEvaluator("binancef", "ethusdt", 60)
+	evalETH := appexec.NewPaperOrderEvaluatorForInstrument("binancef", ethUSDTPerp(t), 60)
 	eth, _ := evalETH.Evaluate("position_exposure", "rejected", "0.30", "0.02", "long", "0.72", "mean_reversion_entry", "low", 60, ts)
 
 	// solusdt: approved short → sell
-	evalSOL := appexec.NewPaperOrderEvaluator("binancef", "solusdt", 60)
+	evalSOL := appexec.NewPaperOrderEvaluatorForInstrument("binancef", solUSDTPerp(t), 60)
 	sol, _ := evalSOL.Evaluate("position_exposure", "approved", "0.90", "0.05", "short", "0.80", "trend_following_entry", "high", 60, ts)
 
 	if btc.Side != domainexec.SideBuy {
@@ -238,7 +238,7 @@ func TestPaperOrderEvaluator_MultiSymbol_DifferentDispositions(t *testing.T) {
 
 func TestPaperOrderEvaluator_MultiSymbol_ModifiedDisposition(t *testing.T) {
 	ts := time.Now()
-	eval := appexec.NewPaperOrderEvaluator("binancef", "btcusdt", 60)
+	eval := appexec.NewPaperOrderEvaluatorForInstrument("binancef", btcUSDTPerp(t), 60)
 	intent, ok := eval.Evaluate("position_exposure", "modified", "0.60", "0.01", "long", "0.72", "mean_reversion_entry", "moderate", 60, ts)
 	if !ok {
 		t.Fatal("expected evaluation to succeed")

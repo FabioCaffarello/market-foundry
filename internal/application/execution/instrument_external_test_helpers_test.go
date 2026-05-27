@@ -77,3 +77,15 @@ func ethUSDTSpot(t *testing.T) instrument.CanonicalInstrument {
 	}
 	return inst
 }
+
+// solUSDTPerp returns the canonical SOL/USDT-perpetual instrument used by
+// multi-symbol concurrency tests (H-6.c.2 commit 1 — third base alongside
+// btcUSDTPerp/ethUSDTPerp).
+func solUSDTPerp(t *testing.T) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New("SOL", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup: %v", prob)
+	}
+	return inst
+}

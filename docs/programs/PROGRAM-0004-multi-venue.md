@@ -77,7 +77,7 @@ descobrir 15 domain types totalizando 174 test files — ver
 | **H-6.b''** ✅ fechada | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites | Pairing chain migrada. `pairing.Leg.Symbol` → `.Instrument` + `VenueSymbol()` (M1 invariant via native Go struct equality `entry.Instrument != exit.Instrument` — `CanonicalInstrument` é composto de 3 string-typed components e comparable por construção; estritamente mais forte que symbol equality, pois Contract type também discrimina). `pairing.RoundTrip.Symbol` → `.Instrument` (denormalized from Leg per Decisão #3; invariant `RoundTrip.Instrument == Entry.Instrument == Exit.Instrument` enforced by MatchFIFO construction + M1). `pairing.CrossSessionWindow.Symbol` → `VenueSymbol string` **rename only** per Decisão #2 (b): pre-flight 6 confirmed the field is query metadata, never read by matching algorithm, validated only by `!= ""` — promoting to Instrument would force regression-prone source-string reconstruction at the two construction sites (`get_cross_session_pairing.go:135` + `get_continuity_review.go:178`); same regression-shape as commit 37f8ddd in H-6.b'. New `string_filter` migration_state introduced in commit 1 (analyzer schema extension) records this architectural decision permanently. Triage population site em `triageclient/get_roundtrip_triage.go:74` adopts `.VenueSymbol()` (RoundTripTriageItem.Symbol stays string per S472-style projection) — pulled forward into commit 3 by compile pressure (anonymous embedding forces co-location). Decisão #5β/γ test canaries: new unit test `get_roundtrip_triage_test.go` (β; happy-path projection + zero-Instrument observable canary) + smoke check in `smoke-analytical-e2e.sh` Phase 5 (γ; tri-state PASS/WARN/FAIL — WARN when matched-pair data unavailable in smoke window). **8 commits delivered** (plan declared 9 — see Changelog 2026-05-26 H-6.b'' entry for the consolidation rationale). **ADR-0021 permanece `Proposed`.** |
 | **H-6.c** | Application layer + actors + samplers | Sub-dividida em **H-6.c.1** (derive scope) e **H-6.c.2** (execute scope + ClickHouse readers) post-pré-flight 5 de H-6.c (descoberta de 6 helpers `instrumentFromBinding` + 13 callers `reconstructInstrumentFromLegacy` + DTO migration cascade). **ADR-0021 permanece `Proposed`** em ambas. |
 | **H-6.c.1** ✅ fechada | Application pass-through: derive scope | `instrumentFromBinding` helper **eliminado** de 4 application packages (signal/decision/strategy/risk) — commits 7a-7d. Novo canonical boundary helper `internal/application/ingest/binding.go:BindingTarget.Instrument()` (commit 6) com signature error-returning — synthetic sources (`"binance"`, `"binance_spot"`, `"derive"`, `"clickhouse"`, `"unknown_exchange"`, `"execute.venue-adapter"`) intencionalmente ausentes do registry, surfacing o H-6.b' 37f8ddd silent-zero regression-shape rather than hiding it. Derive actors computam Instrument uma vez em `source_scope_actor.onActivateSampler` e fazem pass-through pelo cascade signal/decision/strategy/risk/execution. 14 `NewXxxForInstrument` constructors (commits 2-5); 5 derive Config structs gain canonical Instrument field; `derive_supervisor` cascades inst por 12 factory NewActor callbacks. ~250 application test sites migrados. Derive-scope canary integration tests (commit 8: 3 tests / 15 subtests). Nova `tools/raccoon-cli/policies/anti_patterns.toml` + analyzer scan extension (commit 1). **10 commits delivered**. **ADR-0021 permanece `Proposed`.** |
-| **H-6.c.2** | Application pass-through: execute scope + ClickHouse readers + DTO migration | Remaining application-layer migration sites: 3 `instrumentFromBinding` callers em `application/execution` (paper_order_evaluator + 2 testnet adapters); ClickHouse `reconstructInstrumentFromLegacy` treatment — 8 warn-and-emit-zero + 5 silent discard em `composite_reader.go` (`composite_reader.go:188/243/302/360/423`); `analyticalclient.ReviewTransform` DTO migration; DecisionTriageItem population site cascade downstream; 37f8ddd integration test (regression-shape canary). Inclui DTO migration cascade originalmente parte de H-6.c. **ADR-0021 permanece `Proposed`.** |
+| **H-6.c.2** ✅ fechada | Application pass-through: execute scope + ClickHouse composite_reader uniformization + ReviewTransform string_filter | `instrumentFromBinding` helper **eliminado** do execution package (5º de 6 — commits 4 + 5). Testnet adapters (binance_spot/futures) usam `BindingTarget.Instrument()` boundary helper com warn-and-emit-zero fallback (commit 4 — per Decisão #2 após cascade analysis revelou option (a) port-signature refactor = 12 files, excedendo o threshold da sub-onda). ClickHouse `composite_reader.go` 5 silent sites (linhas 188/243/302/360/423) convertidos para warn-and-emit-zero (commit 2), uniformizando os 13 `reconstructInstrumentFromLegacy` callers. `ReviewTransform` DTO declarado como `string_filter` em `domain_types.toml` + godoc inline em ReviewTransform.Symbol + DecisionTriageItem.Symbol (commit 3 — zero production code change; cascade já completo desde H-6.b). 37f8ddd canary explícito em execute scope: `execute_venue_adapter_canary_test.go` com 2 tests / 2 passes (commit 6). 8 cross-scope test stragglers migrated (1 derive + 2 risk + 6 integration-tagged; commit 5 — surfaced pelo explicit integration build check). anti_patterns exception list reduzida 11 → 8 (commit 7 — net -3 execution entries). **8 commits delivered**. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d** | ClickHouse migration + writer back-compat read (#4b) | Nova migration adicionando columns `base`, `quote`, `contract`. Writer dual-writes (legacy `symbol` + canonical fields). Analytical client reads canonical preferred, fallback legacy. Cutover documented em runbook. Implementa **critério #4b** do ADR-0021 erratum. **ADR-0021 permanece `Proposed`.** |
 | **H-6.e** | NATS subject composition decision (pause-and-report) | **Primeiro ato**: pause-and-report obrigatório. Decidir: (i) migrar NATS subject/key composition para canonical form (com window de dual-publish/dual-read se necessário), OU (ii) declarar deferral indefinido com **segundo erratum REAL ao critério #2 do ADR-0021** documentando "NATS subjects use Instrument.Symbol() (derived form) as canonical representation for routing; direct CanonicalInstrument fields not used in subjects per [justificativa]". Sem opção #2 sem erratum honesto. **ADR-0021 permanece `Proposed`.** |
 | **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
@@ -401,6 +401,127 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-05-27** — H-6.c.2 fechada. **Sub-onda H-6.c
+  encerrada** (H-6.c.1 + H-6.c.2 ambas mergeadas em `main`).
+  Entregas H-6.c.2: application-layer pass-through migration
+  para execute scope + uniformização da error-handling em
+  ClickHouse `reconstructInstrumentFromLegacy` callers + DTO
+  string_filter declaration. 8 commits.
+
+  Helper migration progress:
+  - `instrumentFromBinding`: 5 de 6 packages eliminated
+    (signal/decision/strategy/risk em H-6.c.1 commits 7a-7d +
+    execution em H-6.c.2 commit 5). Apenas
+    `executionclient/instrument_binding.go` remanesce para
+    H-6.f (blocked by LifecycleEntry contract migration).
+  - Testnet adapters (`binance_spot_testnet_adapter.go:391`,
+    `binance_futures_testnet_adapter.go:395`) migrados em
+    commit 4 para usar `BindingTarget.Instrument()` boundary
+    helper com warn-and-emit-zero fallback.
+
+  ClickHouse uniformization (commit 2): 5 silent error-discard
+  sites em `composite_reader.go` (linhas 188/243/302/360/423)
+  convertidos para warn-and-emit-zero pattern, matching os 8
+  existing sister sites em
+  `candle/decision/execution/risk/signal/strategy_reader.go`.
+  All 13 `reconstructInstrumentFromLegacy` callers agora
+  uniformes; helper removal scheduled para H-6.d via canonical
+  column schema migration. Partial-chain-assembly contract
+  preservado (zero Instrument continua propagando para
+  manter stage population).
+
+  Application-layer DTO declaration (commit 3): `ReviewTransform`
+  declared como `string_filter` em `policies/domain_types.toml`
+  via novo entry `[domain_types.review_transform]` com package
+  path `internal/application/analyticalclient` (schema accepts
+  arbitrary package paths beyond `internal/domain/*`). Zero
+  production code change — o cascade
+  decision.Decision.Instrument → d.VenueSymbol() →
+  ReviewTransform.Symbol → DecisionTriageItem.Symbol já estava
+  no post-canonical state desde H-6.b. Inline godoc adicionado
+  em ambos os structs documentando a string-filter semantics.
+
+  37f8ddd canary explícito (commit 6): novo arquivo
+  `internal/actors/scopes/execute/execute_venue_adapter_canary_test.go`
+  com 2 tests / 2 passes lockando o contract:
+  - `TestPaperOrderEvaluator_PreservesInstrument_WithSyntheticSource`
+    (unit shape, 0.00s).
+  - `TestStrategyConsumerActor_PreservesInstrument_WithSyntheticSource`
+    (actor shape, 0.02s).
+  Sem dependência de NATS, sem integration tag — runs em todo
+  `make verify` para fast feedback.
+
+  Cross-scope test stragglers (commit 5): 8 sites missed by
+  H-6.c.1 commit 6's Python migration script — pulled into
+  H-6.c.2 cleanup commit per the straggler-fix pattern
+  established at H-6.c.1 7b/7c/7d. Distribution:
+  - 1 derive: `s470_lineage_causality_test.go:318`.
+  - 2 risk: `risk_scaling_test.go:720, 762`.
+  - 6 integration-tagged: writerpipeline (1) +
+    natsexecution (4) + execute live_consumer_flow (1).
+  **Discovery pattern reinforced** (H-6.c.1 lesson 13):
+  make verify masks integration-tagged build failures. Without
+  explicit `go test -tags=integration -run DOES_NOT_EXIST`
+  check, the 6 integration stragglers would have shipped
+  broken to CI.
+
+  anti_patterns.toml exception list shrunk 11 → 8 entries
+  (commit 7 — net -3 execution package entries). Kept: 1
+  executionclient (H-6.f scope) + 7 ClickHouse readers (H-6.d
+  scope; composite_reader.go re-tagged from "H-6.c.2 treatment"
+  to "H-6.d helper removal").
+
+  ADR-0021 row em TRUTH-MAP atualizada: 5/6 helper-elimination
+  state + new boundary-helper wiring em execute scope + new
+  canary test anchor + uniform ClickHouse pattern. ADR-0021
+  permanece `Proposed`; promotion gated em literal critério #2
+  satisfaction, atómico em H-6.f.
+
+  ## H-6.f Architectural debt — QueryOrder port refactor candidate
+
+  Option (a) cascade analysis (recorded during H-6.c.2 Decisão
+  #2 verification):
+
+  - 5 production files (port + segment_router +
+    binance_spot_testnet_adapter + binance_futures_testnet_adapter
+    + post200_reconciler).
+  - 7 test files / ~15 sites (post200_reconciler_test +
+    s405_spot_venue_acceptance_fill + s422_futures_venue_connectivity_fill +
+    s423_futures_rejection_partial_fill +
+    s416_futures_venue_acceptance_fill + 2 lifecycle tests).
+  - Total: 12 files / >8 threshold (sub-onda H-6.c.2
+    exceeded).
+
+  Architectural rationale: `QueryOrder(ctx, clientOrderID,
+  symbol string)` takes symbol string, forcing testnet adapters
+  to reconstruct Instrument via boundary helper at adapter
+  layer. The architecturally correct shape is `QueryOrder(ctx,
+  clientOrderID string, instrument instrument.CanonicalInstrument)`
+  — caller (which holds Intent.Instrument) passes Instrument
+  directly; adapter receives canonical type and uses
+  `inst.Symbol()` for venue-side mapping. Eliminates the
+  residual reconstruction in adapter layer entirely.
+
+  Current state (post-H-6.c.2): testnet adapters use
+  `BindingTarget.Instrument()` with warn-and-emit-zero fallback.
+  Removes the `instrumentFromBinding` helper file from
+  execution package but keeps reconstruction in adapter layer.
+  Eight-or-fewer test sites would migrate cleanly per uniform
+  pattern; 12 total files exceeded the sub-onda threshold for
+  H-6.c.2 scope.
+
+  H-6.f candidate refactor: port signature migration to
+  Instrument. Cascade out of H-6.c.2 scope but tractable as
+  dedicated H-6.f sub-task alongside `executionclient` +
+  LifecycleEntry migration. Recorded here to prevent
+  "rediscover this in H-6.f" when the time comes.
+
+  **Próxima sub-onda destravada após merge**: H-6.d —
+  ClickHouse schema migration with canonical
+  `base`/`quote`/`contract` columns + back-compat read window.
+  Eliminates all 13 `reconstructInstrumentFromLegacy` callers
+  + the helper itself.
 
 - **2026-05-27** — H-6.c.1 fechada. **Sub-onda H-6.c
   introduzida** (sub-divisão de H-6.c em H-6.c.1 +
