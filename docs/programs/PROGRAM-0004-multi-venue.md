@@ -75,7 +75,9 @@ descobrir 15 domain types totalizando 174 test files — ver
 | **H-6.b** | Layer 1+2: Evidence + Signal/Decision/Strategy/Risk (7 types) | Cada domain struct (`EvidenceCandle`, `EvidenceTradeBurst`, `EvidenceVolume`, `Signal`, `Decision`, `Strategy`, `RiskAssessment`) migra `Symbol string` → `Instrument CanonicalInstrument` + `VenueSymbol() string` transitório. Os 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk/Execution) compõem chave KV via `VenueSymbol()` para back-compat com bucket layout existente. raccoon-cli `check instruments` estendido via `policies/domain_types.toml` declarando migration_state per type. **ADR-0021 permanece `Proposed`.** |
 | **H-6.b'** ✅ fechada | Layer 3+3': ExecutionIntent + Attribution + AuditLifecycleEntry (3 types) | Execution chain migrada. `ExecutionIntent.Symbol` → `.Instrument` + `VenueSymbol()`; PartitionKey/DeduplicationKey composers atualizados via VenueSymbol. `effectiveness.Attribution.Symbol` → `.Instrument` (derived from `intent.Instrument`). `execution.AuditLifecycleEntry.Symbol` → `.Instrument` (projection de partition key via novo `instrumentFromBinding` per-package em `executionclient`, sunset H-6.f). Triage drop: zero population sites required migration nesta sub-wave (ver Changelog). **ADR-0021 permanece `Proposed`.** |
 | **H-6.b''** ✅ fechada | Layer 4: Pairing.Leg/RoundTrip + CrossSessionWindow + Triage population sites | Pairing chain migrada. `pairing.Leg.Symbol` → `.Instrument` + `VenueSymbol()` (M1 invariant via native Go struct equality `entry.Instrument != exit.Instrument` — `CanonicalInstrument` é composto de 3 string-typed components e comparable por construção; estritamente mais forte que symbol equality, pois Contract type também discrimina). `pairing.RoundTrip.Symbol` → `.Instrument` (denormalized from Leg per Decisão #3; invariant `RoundTrip.Instrument == Entry.Instrument == Exit.Instrument` enforced by MatchFIFO construction + M1). `pairing.CrossSessionWindow.Symbol` → `VenueSymbol string` **rename only** per Decisão #2 (b): pre-flight 6 confirmed the field is query metadata, never read by matching algorithm, validated only by `!= ""` — promoting to Instrument would force regression-prone source-string reconstruction at the two construction sites (`get_cross_session_pairing.go:135` + `get_continuity_review.go:178`); same regression-shape as commit 37f8ddd in H-6.b'. New `string_filter` migration_state introduced in commit 1 (analyzer schema extension) records this architectural decision permanently. Triage population site em `triageclient/get_roundtrip_triage.go:74` adopts `.VenueSymbol()` (RoundTripTriageItem.Symbol stays string per S472-style projection) — pulled forward into commit 3 by compile pressure (anonymous embedding forces co-location). Decisão #5β/γ test canaries: new unit test `get_roundtrip_triage_test.go` (β; happy-path projection + zero-Instrument observable canary) + smoke check in `smoke-analytical-e2e.sh` Phase 5 (γ; tri-state PASS/WARN/FAIL — WARN when matched-pair data unavailable in smoke window). **8 commits delivered** (plan declared 9 — see Changelog 2026-05-26 H-6.b'' entry for the consolidation rationale). **ADR-0021 permanece `Proposed`.** |
-| **H-6.c** | Application layer + actors + samplers | Query types em `analyticalclient`/`triageclient` decidem caso a caso (query params vs domain values). Sampler/evaluator internal builders migram local `symbol string` → `instrument CanonicalInstrument`. Inclui DTO `analyticalclient.ReviewTransform` e DecisionTriageItem population site downstream. **ADR-0021 permanece `Proposed`.** |
+| **H-6.c** | Application layer + actors + samplers | Sub-dividida em **H-6.c.1** (derive scope) e **H-6.c.2** (execute scope + ClickHouse readers) post-pré-flight 5 de H-6.c (descoberta de 6 helpers `instrumentFromBinding` + 13 callers `reconstructInstrumentFromLegacy` + DTO migration cascade). **ADR-0021 permanece `Proposed`** em ambas. |
+| **H-6.c.1** ✅ fechada | Application pass-through: derive scope | `instrumentFromBinding` helper **eliminado** de 4 application packages (signal/decision/strategy/risk) — commits 7a-7d. Novo canonical boundary helper `internal/application/ingest/binding.go:BindingTarget.Instrument()` (commit 6) com signature error-returning — synthetic sources (`"binance"`, `"binance_spot"`, `"derive"`, `"clickhouse"`, `"unknown_exchange"`, `"execute.venue-adapter"`) intencionalmente ausentes do registry, surfacing o H-6.b' 37f8ddd silent-zero regression-shape rather than hiding it. Derive actors computam Instrument uma vez em `source_scope_actor.onActivateSampler` e fazem pass-through pelo cascade signal/decision/strategy/risk/execution. 14 `NewXxxForInstrument` constructors (commits 2-5); 5 derive Config structs gain canonical Instrument field; `derive_supervisor` cascades inst por 12 factory NewActor callbacks. ~250 application test sites migrados. Derive-scope canary integration tests (commit 8: 3 tests / 15 subtests). Nova `tools/raccoon-cli/policies/anti_patterns.toml` + analyzer scan extension (commit 1). **10 commits delivered**. **ADR-0021 permanece `Proposed`.** |
+| **H-6.c.2** | Application pass-through: execute scope + ClickHouse readers + DTO migration | Remaining application-layer migration sites: 3 `instrumentFromBinding` callers em `application/execution` (paper_order_evaluator + 2 testnet adapters); ClickHouse `reconstructInstrumentFromLegacy` treatment — 8 warn-and-emit-zero + 5 silent discard em `composite_reader.go` (`composite_reader.go:188/243/302/360/423`); `analyticalclient.ReviewTransform` DTO migration; DecisionTriageItem population site cascade downstream; 37f8ddd integration test (regression-shape canary). Inclui DTO migration cascade originalmente parte de H-6.c. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d** | ClickHouse migration + writer back-compat read (#4b) | Nova migration adicionando columns `base`, `quote`, `contract`. Writer dual-writes (legacy `symbol` + canonical fields). Analytical client reads canonical preferred, fallback legacy. Cutover documented em runbook. Implementa **critério #4b** do ADR-0021 erratum. **ADR-0021 permanece `Proposed`.** |
 | **H-6.e** | NATS subject composition decision (pause-and-report) | **Primeiro ato**: pause-and-report obrigatório. Decidir: (i) migrar NATS subject/key composition para canonical form (com window de dual-publish/dual-read se necessário), OU (ii) declarar deferral indefinido com **segundo erratum REAL ao critério #2 do ADR-0021** documentando "NATS subjects use Instrument.Symbol() (derived form) as canonical representation for routing; direct CanonicalInstrument fields not used in subjects per [justificativa]". Sem opção #2 sem erratum honesto. **ADR-0021 permanece `Proposed`.** |
 | **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
@@ -399,6 +401,123 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-05-27** — H-6.c.1 fechada. **Sub-onda H-6.c
+  introduzida** (sub-divisão de H-6.c em H-6.c.1 +
+  H-6.c.2 post-pré-flight 5 — descoberta de 6 helpers
+  `instrumentFromBinding` + 13 callers
+  `reconstructInstrumentFromLegacy` + DTO migration cascade
+  inviabilizou monolithic H-6.c). Entregas H-6.c.1:
+  **application pass-through migration para derive scope**
+  via 10 commits.
+
+  Eliminação completa: `instrumentFromBinding` helper
+  deletado de 4 application packages
+  (`internal/application/{signal,decision,strategy,risk}/instrument_binding.go`
+  + dead `symbol string` field + legacy `NewXxx` wrappers
+  removidos das 14 evaluator/sampler/resolver structs). 2
+  packages remanescentes (`application/execution`,
+  `application/executionclient`) — escopo H-6.c.2 e H-6.f
+  respectivamente.
+
+  Novo canonical boundary helper (commit 6):
+  `internal/application/ingest/binding.go:BindingTarget.Instrument()`
+  com signature `(CanonicalInstrument, error)`. Registry
+  declarativa `venueSourceContract` reconhece apenas
+  `binances`→Spot e `binancef`→Perpetual. **Synthetic
+  sources** (`"binance"`, `"binance_spot"`, `"derive"`,
+  `"clickhouse"`, `"unknown_exchange"`,
+  `"execute.venue-adapter"`) **intencionalmente ausentes** do
+  registry, surfacing o H-6.b' 37f8ddd silent-zero regression-
+  shape rather than hiding it. Callers MUST propagate the
+  error (a `Finding::with_why` em anti_patterns.toml documenta
+  o contrato).
+
+  Derive actor cascade (commit 6):
+  `source_scope_actor.onActivateSampler` computa Instrument
+  uma única vez via `msg.Target.Instrument()` no boundary;
+  skip activation com structured `Error` log on failure (não
+  silent drop). 5 derive Config structs gain
+  `Instrument CanonicalInstrument` field. 10 derive actor
+  files migram para `NewXxxForInstrument(cfg.Source,
+  cfg.Instrument, ...)`. `derive_supervisor` cascades inst
+  por 12 factory `NewActor` callbacks. **(P1) commit-as-is
+  discipline aplicada** — fragmentação em 6a-production +
+  6b-tests rejeitada porque produziria estado intermediate
+  semantically invalid (actors compilam mas instanciam
+  evaluators com zero Instrument).
+
+  14 `NewXxxForInstrument` constructors (commits 2-5):
+  signal (RSI, ATR, Bollinger, EMACrossover, MACD, VWAP =
+  6), decision (RSIOversold, EMACrossover, BollingerSqueeze
+  = 3), strategy (MeanReversion, SqueezeBreakout,
+  TrendFollowing = 3), risk (DrawdownLimit, PositionExposure
+  = 2). 4 novos `instrument_passthrough_test.go` documentam
+  o pass-through contract per package. ~250 application test
+  sites migrados via sed/Python-driven uniform pattern
+  (commits 7a-7d).
+
+  Cross-scope stragglers (~4 sites missed by commit 6
+  Python script, migrados em 7b/7c/7d como single-line fixes
+  per package): 3 em `derive/s470_lineage_causality_test.go`
+  (1 per package: RSIOversold, MeanReversion,
+  PositionExposure), 1 em `execute/s373_structural_test.go`
+  (`btcUSDTPerpExec(t)` existente), 2 em
+  `execute/e2e_derive_to_execution_test.go` +
+  `store/e2e_derive_to_store_test.go` (parameterless
+  `btcUSDTPerpDerive` IIFE fixtures adicionados — derive
+  event helpers não têm `testing.T` thread-able through 13
+  call sites).
+
+  Derive-scope canary integration tests (commit 8): novo
+  arquivo
+  `internal/actors/scopes/derive/synthetic_source_canary_integration_test.go`
+  (~287 LoC) com 3 tests / 15 subtests — rejection at
+  boundary (6 synthetic sources), full activation flow with
+  `canaryActivator` stand-in (verifica log emission +
+  rejection counters + structured fields), legitimate-
+  activation-proceeds inverse canary (binances spot + binancef
+  perpetual devem NÃO ser over-rejected). Stand-in mirrors
+  `source_scope_actor.onActivateSampler` decision shape sem
+  spawnar SourceScopeActor full (NATS publisher dependency
+  evitada); end-to-end NATS-bound coverage deferida para
+  smoke / live integration runs.
+
+  Nova policy file `tools/raccoon-cli/policies/anti_patterns.toml`
+  (commit 1) declara forbidden source-string reconstruction
+  function names (`instrumentFromBinding` +
+  `reconstructInstrumentFromLegacy`) com schema
+  `(name, function, severity, why, help, exceptions)`.
+  `check_instruments` analyzer ganha
+  `load_anti_patterns_policy` + `scan_anti_pattern` +
+  `collect_production_go_files` + 5 unit tests (~458 LoC
+  Rust). Severity `warning` durante migration window; flips
+  para `error` em H-6.f. Commit 9 atualiza `why` prose com
+  per-package migration progress (4 eliminated + 2 remaining)
+  preservando schema function-based (decisão arquitetural:
+  filesystem é source of truth para migration status; adicionar
+  `status` field duplicaria filesystem reality).
+
+  **Pattern observado — gofmt drift accumulation**: 5
+  instâncias em H-6.c.1 (commits 4, 6, 7a, 7c, 7d) — pre-
+  existing drift surfaced opportunistically pelo pre-commit
+  hook em touched files. Mitigations registered no
+  `RESUMPTION.md` retrospective section (decisão deferida —
+  candidate options: full-repo gofmt audit + cleanup,
+  pre-commit hook on whole repo, ou CI step validating zero
+  drift).
+
+  ADR-0021 row em TRUTH-MAP atualizada para refletir 4
+  helpers eliminados + new boundary helper + derive actor
+  cascade + canary tests. ADR-0021 permanece `Proposed`;
+  promotion gated em literal critério #2 satisfaction
+  (zero source-string-based instrument reconstruction em
+  production code), atómico em H-6.f.
+
+  **Próxima sub-onda destravada após merge**: H-6.c.2
+  (execute scope migration). Sub-onda sequencing policy
+  estrita: H-6.c.2 abre branch APENAS após merge desta PR
+  (H-6.c.1) em `main`.
 
 - **2026-05-26** — H-6.b'' fechada. Entregas: **pairing chain
   domain migration** — 2 domain types migrados (`pairing.Leg`,
