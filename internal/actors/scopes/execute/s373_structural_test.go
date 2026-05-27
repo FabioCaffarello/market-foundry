@@ -32,7 +32,7 @@ import (
 // actual MeanReversionEntryResolver, simulating what the derive binary produces.
 func s373DeriveEvent(t *testing.T, outcome, confidence, severity string, ts time.Time) (strategy.StrategyResolvedEvent, bool) {
 	t.Helper()
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerpExec(t), 60)
 	strat, ok := resolver.Resolve(
 		"rsi_oversold", outcome, confidence, severity,
 		"RSI below 30 — S373 structural proof", 60, ts,
@@ -105,11 +105,11 @@ func TestS373_MultiBinaryPipeline_StructuralDeriveToExecution(t *testing.T) {
 // produce correct sides without NATS.
 func TestS373_MultiBinaryPipeline_StructuralAllDirections(t *testing.T) {
 	cases := []struct {
-		name      string
-		outcome   string
-		severity  string
-		wantDir   strategy.Direction
-		wantSide  domainexec.Side
+		name     string
+		outcome  string
+		severity string
+		wantDir  strategy.Direction
+		wantSide domainexec.Side
 	}{
 		{"long→buy", "triggered", "high", strategy.DirectionLong, domainexec.SideBuy},
 		{"flat→none", "not_triggered", "", strategy.DirectionFlat, domainexec.SideNone},

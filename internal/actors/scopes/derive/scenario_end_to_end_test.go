@@ -42,6 +42,7 @@ func TestScenario_RSIOversold_MeanReversion_DualRisk(t *testing.T) {
 	decisionEvalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: decisionPubPID,
 		ScopePID:             decFanoutPID,
@@ -50,6 +51,7 @@ func TestScenario_RSIOversold_MeanReversion_DualRisk(t *testing.T) {
 	strategyResolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: strategyPubPID,
 		ScopePID:             stratFanoutPID,
@@ -58,6 +60,7 @@ func TestScenario_RSIOversold_MeanReversion_DualRisk(t *testing.T) {
 	riskExposurePID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: riskPubExposurePID,
 	}), "s1-risk-exposure")
@@ -65,6 +68,7 @@ func TestScenario_RSIOversold_MeanReversion_DualRisk(t *testing.T) {
 	riskDrawdownPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: riskPubDrawdownPID,
 	}), "s1-risk-drawdown")
@@ -202,6 +206,7 @@ func TestScenario_EMACrossover_TrendFollowing_DualRisk(t *testing.T) {
 	decisionEvalPID := e.Spawn(NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		DecisionPublisherPID: decisionPubPID,
 		ScopePID:             decFanoutPID,
@@ -210,6 +215,7 @@ func TestScenario_EMACrossover_TrendFollowing_DualRisk(t *testing.T) {
 	strategyResolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
 		Source:               "binancef",
 		Symbol:               "btcusdt",
+		Instrument:           btcUSDTPerp(),
 		Timeframe:            60 * time.Second,
 		StrategyPublisherPID: strategyPubPID,
 		ScopePID:             stratFanoutPID,
@@ -218,6 +224,7 @@ func TestScenario_EMACrossover_TrendFollowing_DualRisk(t *testing.T) {
 	riskExposurePID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: riskPubExposurePID,
 	}), "s2-risk-exposure")
@@ -225,6 +232,7 @@ func TestScenario_EMACrossover_TrendFollowing_DualRisk(t *testing.T) {
 	riskDrawdownPID := e.Spawn(NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: riskPubDrawdownPID,
 	}), "s2-risk-drawdown")
@@ -444,17 +452,17 @@ func TestScenario_NotTriggered_BothChains_FlatApproved(t *testing.T) {
 	stratFanoutPID := e.Spawn(stratFanout.producer(), "s5a-strat-fan")
 
 	decPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decPubPID, ScopePID: decFanoutPID,
 	}), "s5a-dec")
 
 	stratPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: stratPubPID, ScopePID: stratFanoutPID,
 	}), "s5a-strat")
 
 	riskPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID,
 	}), "s5a-risk")
 
@@ -512,17 +520,17 @@ func TestScenario_NotTriggered_BothChains_FlatApproved(t *testing.T) {
 	stratFanoutPID2 := e2.Spawn(stratFanout2.producer(), "s5b-strat-fan")
 
 	decPID2 := e2.Spawn(NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decPubPID2, ScopePID: decFanoutPID2,
 	}), "s5b-dec")
 
 	stratPID2 := e2.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: stratPubPID2, ScopePID: stratFanoutPID2,
 	}), "s5b-strat")
 
 	riskPID2 := e2.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID2,
 	}), "s5b-risk")
 
@@ -581,17 +589,17 @@ func TestScenario_ContextPreservation_RationaleEndToEnd(t *testing.T) {
 	stratFanoutPID := e.Spawn(stratFanout.producer(), "s6-strat-fan")
 
 	decisionEvalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decisionPubPID, ScopePID: decFanoutPID,
 	}), "s6-dec-eval")
 
 	strategyResolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: strategyPubPID, ScopePID: stratFanoutPID,
 	}), "s6-strat-resolver")
 
 	riskEvalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID,
 	}), "s6-risk-eval")
 
@@ -671,17 +679,17 @@ func runChainA(t *testing.T, rsiValue, correlationID string) riskAssessmentResul
 	stratFanoutPID := e.Spawn(stratFanout.producer(), correlationID+"-strat-fan")
 
 	decPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decPubPID, ScopePID: decFanoutPID,
 	}), correlationID+"-dec")
 
 	stratPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: stratPubPID, ScopePID: stratFanoutPID,
 	}), correlationID+"-strat")
 
 	riskPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID,
 	}), correlationID+"-risk")
 
@@ -727,17 +735,17 @@ func runChainB(t *testing.T, emaValue, correlationID string) riskAssessmentResul
 	stratFanoutPID := e.Spawn(stratFanout.producer(), correlationID+"-strat-fan")
 
 	decPID := e.Spawn(NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decPubPID, ScopePID: decFanoutPID,
 	}), correlationID+"-dec")
 
 	stratPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: stratPubPID, ScopePID: stratFanoutPID,
 	}), correlationID+"-strat")
 
 	riskPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID,
 	}), correlationID+"-risk")
 

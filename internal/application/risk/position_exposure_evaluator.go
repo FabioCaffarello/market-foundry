@@ -24,18 +24,19 @@ const (
 //   - Strategy type is recorded in metadata for observability.
 type PositionExposureEvaluator struct {
 	source                  string
-	symbol                  string
 	instrument              instrument.CanonicalInstrument
 	timeframe               int
 	maxPositionPct          float64
 	maxPortfolioExposurePct float64
 }
 
-func NewPositionExposureEvaluator(source, symbol string, timeframe int) *PositionExposureEvaluator {
+// NewPositionExposureEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly. See NewRSISamplerForInstrument
+// (signal package) for the boundary-helper rationale.
+func NewPositionExposureEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *PositionExposureEvaluator {
 	return &PositionExposureEvaluator{
 		source:                  source,
-		symbol:                  symbol,
-		instrument:              instrumentFromBinding(source, symbol),
+		instrument:              inst,
 		timeframe:               timeframe,
 		maxPositionPct:          defaultMaxPositionPct,
 		maxPortfolioExposurePct: defaultMaxPortfolioExposurePct,

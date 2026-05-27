@@ -38,7 +38,7 @@ func TestPI1_TypeAlwaysMeanReversionEntry(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "pi1-pub-"+tc.name)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "pi1-resolver-"+tc.name)
 			time.Sleep(50 * time.Millisecond)
@@ -68,9 +68,9 @@ func TestPI2_DirectionIsValid(t *testing.T) {
 	}
 
 	cases := []struct {
-		name      string
-		outcome   string
-		wantDir   domainstrategy.Direction
+		name    string
+		outcome string
+		wantDir domainstrategy.Direction
 	}{
 		{"triggered_long", "triggered", domainstrategy.DirectionLong},
 		{"not_triggered_flat", "not_triggered", domainstrategy.DirectionFlat},
@@ -83,7 +83,7 @@ func TestPI2_DirectionIsValid(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "pi2-pub-"+tc.name)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "pi2-resolver-"+tc.name)
 			time.Sleep(50 * time.Millisecond)
@@ -127,7 +127,7 @@ func TestPI3_ConfidenceIsValidDecimal(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "pi3-pub-"+tc.name)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "pi3-resolver-"+tc.name)
 			time.Sleep(50 * time.Millisecond)
@@ -153,7 +153,7 @@ func TestPI4_DecisionsHasExactlyOneEntry(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "pi4-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "pi4-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -190,7 +190,7 @@ func TestPI5_FinalAlwaysTrue(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "pi5-pub-"+outcome)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "pi5-resolver-"+outcome)
 			time.Sleep(50 * time.Millisecond)
@@ -217,7 +217,7 @@ func TestPI6_TimestampIsDecisionTimestamp(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "pi6-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "pi6-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -245,7 +245,7 @@ func TestBI1_ResolutionIsDeterministic(t *testing.T) {
 		pub := newMsgCollector()
 		pubPID := e.Spawn(pub.producer(), "bi1-pub")
 		resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+			Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 			StrategyPublisherPID: pubPID,
 		}), "bi1-resolver")
 		time.Sleep(50 * time.Millisecond)
@@ -283,7 +283,7 @@ func TestBI3_UnknownDecisionOutcome_NeverProducesEvent(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "bi3-pub-"+outcome)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "bi3-resolver-"+outcome)
 			time.Sleep(50 * time.Millisecond)
@@ -311,7 +311,7 @@ func TestBI5_FlatDirection_ZeroConfidence(t *testing.T) {
 			pub := newMsgCollector()
 			pubPID := e.Spawn(pub.producer(), "bi5-pub-"+outcome)
 			resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-				Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+				Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 				StrategyPublisherPID: pubPID,
 			}), "bi5-resolver-"+outcome)
 			time.Sleep(50 * time.Millisecond)
@@ -339,7 +339,7 @@ func TestBI6_EventMetadata_ConstructedOnceImmutable(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "bi6-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "bi6-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -375,7 +375,7 @@ func TestTI_DeduplicationKey_DeterministicFromStrategy(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "ti2-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "ti2-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -405,7 +405,7 @@ func TestTI_CorrelationIDAndCausationID_PassedToEvent(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "ti4-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "ti4-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -433,7 +433,7 @@ func TestTI_EventValidation_GatesPublish(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "ti-val-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "ti-val-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -460,7 +460,7 @@ func TestINV1_TypeIdentity(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "inv1-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "inv1-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -483,7 +483,7 @@ func TestINV3_CausationChain(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "inv3-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "inv3-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -519,7 +519,7 @@ func TestINV5_TimestampMonotonicity(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "inv5-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "inv5-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -542,7 +542,7 @@ func TestINV7_FlatMeansNoExecution(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "inv7-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "inv7-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -571,7 +571,7 @@ func TestINV11_DeduplicationKeyUniqueness(t *testing.T) {
 	pub := newMsgCollector()
 	pubPID := e.Spawn(pub.producer(), "inv11-pub")
 	resolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: pubPID,
 	}), "inv11-resolver")
 	time.Sleep(50 * time.Millisecond)
@@ -597,4 +597,3 @@ func TestINV11_DeduplicationKeyUniqueness(t *testing.T) {
 		t.Errorf("INV-11 violated: dedup keys must differ for different timestamps, both %s", k0)
 	}
 }
-

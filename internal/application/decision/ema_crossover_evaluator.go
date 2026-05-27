@@ -19,16 +19,18 @@ import (
 //	"neutral"  — EMAs equal within tolerance → not_triggered
 type EMACrossoverEvaluator struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 }
 
-func NewEMACrossoverEvaluator(source, symbol string, timeframe int) *EMACrossoverEvaluator {
+// NewEMACrossoverEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly — no source-string reconstruction.
+// See NewRSISamplerForInstrument (signal package) for the
+// boundary-helper rationale.
+func NewEMACrossoverEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *EMACrossoverEvaluator {
 	return &EMACrossoverEvaluator{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
 }

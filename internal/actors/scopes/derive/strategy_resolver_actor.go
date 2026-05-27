@@ -7,6 +7,7 @@ import (
 
 	actorcommon "internal/actors/common"
 	appstrategy "internal/application/strategy"
+	"internal/domain/instrument"
 	domainstrategy "internal/domain/strategy"
 	"internal/shared/events"
 
@@ -14,9 +15,12 @@ import (
 )
 
 // StrategyResolverConfig holds the configuration for a strategy resolver actor.
+// H-6.c.1 commit 6: see SignalSamplerConfig for the canonical-Instrument
+// pass-through rationale.
 type StrategyResolverConfig struct {
 	Source               string
 	Symbol               string
+	Instrument           instrument.CanonicalInstrument
 	Timeframe            time.Duration
 	StrategyPublisherPID *actor.PID
 	ScopePID             *actor.PID // for fan-out to risk evaluators
@@ -48,7 +52,7 @@ func (a *MeanReversionEntryResolverActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.resolver = appstrategy.NewMeanReversionEntryResolver(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.resolver = appstrategy.NewMeanReversionEntryResolverForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("mean reversion entry resolver started")
 
 	case actor.Stopped:

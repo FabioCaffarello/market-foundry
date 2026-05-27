@@ -13,7 +13,6 @@ import (
 // Pure application logic — no I/O dependencies.
 type RSISampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 	period     int
@@ -28,11 +27,14 @@ type RSISampler struct {
 	warmedUp  bool
 }
 
-func NewRSISampler(source, symbol string, timeframe int) *RSISampler {
+// NewRSISamplerForInstrument constructs an RSISampler from a canonical
+// Instrument directly — no source-string reconstruction. Callers
+// compute the canonical Instrument at the BindingTarget boundary
+// (see internal/application/ingest.BindingTarget.Instrument).
+func NewRSISamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *RSISampler {
 	return &RSISampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     14,
 	}

@@ -14,6 +14,7 @@ func TestPositionExposureEvaluatorActor_Long_Approved(t *testing.T) {
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -92,6 +93,7 @@ func TestPositionExposureEvaluatorActor_Flat_Approved(t *testing.T) {
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -128,6 +130,7 @@ func TestPositionExposureEvaluatorActor_UnknownDirection_NoPublish(t *testing.T)
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -158,6 +161,7 @@ func TestPositionExposureEvaluatorActor_SequentialStrategies_Independent(t *test
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 	}), "evaluator")
@@ -210,6 +214,7 @@ func TestPositionExposureEvaluatorActor_FanOut_IncludesDecisionSeverity(t *testi
 	evalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
 		Source:           "binancef",
 		Symbol:           "btcusdt",
+		Instrument:       btcUSDTPerp(),
 		Timeframe:        60 * time.Second,
 		RiskPublisherPID: pubPID,
 		ScopePID:         scopePID,

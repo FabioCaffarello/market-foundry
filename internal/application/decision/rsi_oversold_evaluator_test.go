@@ -11,7 +11,7 @@ import (
 )
 
 func TestRSIOversoldEvaluator_Triggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -39,7 +39,7 @@ func TestRSIOversoldEvaluator_Triggered(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_NotTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "65.00", 60, now)
@@ -52,7 +52,7 @@ func TestRSIOversoldEvaluator_NotTriggered(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_AtThreshold(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "30.00", 60, now)
@@ -66,7 +66,7 @@ func TestRSIOversoldEvaluator_AtThreshold(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_ExtremeOversold(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "5.00", 60, now)
@@ -82,7 +82,7 @@ func TestRSIOversoldEvaluator_ExtremeOversold(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_InvalidValue(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("rsi", "not-a-number", 60, now)
@@ -92,7 +92,7 @@ func TestRSIOversoldEvaluator_InvalidValue(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_Validation(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -105,7 +105,7 @@ func TestRSIOversoldEvaluator_Validation(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_MetadataContainsThreshold(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -118,7 +118,7 @@ func TestRSIOversoldEvaluator_MetadataContainsThreshold(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_EmptyValue(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	_, ok := eval.Evaluate("rsi", "", 60, time.Now().UTC())
 	if ok {
 		t.Fatal("expected failure for empty signal value")
@@ -126,7 +126,7 @@ func TestRSIOversoldEvaluator_EmptyValue(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_ConfidenceBounds(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -160,7 +160,7 @@ func TestRSIOversoldEvaluator_ConfidenceBounds(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_ConfidenceMonotonicity(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// Below threshold: lower RSI → higher confidence.
@@ -187,7 +187,7 @@ func TestRSIOversoldEvaluator_ConfidenceMonotonicity(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_NegativeRSI_CapsConfidence(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "-5.00", 60, now)
@@ -204,7 +204,7 @@ func TestRSIOversoldEvaluator_NegativeRSI_CapsConfidence(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_TimestampPreserved(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, ts)
@@ -217,7 +217,7 @@ func TestRSIOversoldEvaluator_TimestampPreserved(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_SignalInputPreserved(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 300)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 300, now)
@@ -242,7 +242,7 @@ func TestRSIOversoldEvaluator_SignalInputPreserved(t *testing.T) {
 // -- Severity tests -----------------------------------------------------------
 
 func TestRSIOversoldEvaluator_SeverityLow(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -255,7 +255,7 @@ func TestRSIOversoldEvaluator_SeverityLow(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_SeverityModerate(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "15.00", 60, now)
@@ -268,7 +268,7 @@ func TestRSIOversoldEvaluator_SeverityModerate(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_SeverityHigh(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "5.00", 60, now)
@@ -281,7 +281,7 @@ func TestRSIOversoldEvaluator_SeverityHigh(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_SeverityNone_NotTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "65.00", 60, now)
@@ -294,7 +294,7 @@ func TestRSIOversoldEvaluator_SeverityNone_NotTriggered(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_SeverityMonotonicity(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// Severity should be monotonically non-decreasing as RSI decreases below threshold.
@@ -323,7 +323,7 @@ func TestRSIOversoldEvaluator_SeverityMonotonicity(t *testing.T) {
 // -- Rationale tests ----------------------------------------------------------
 
 func TestRSIOversoldEvaluator_RationaleTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -342,7 +342,7 @@ func TestRSIOversoldEvaluator_RationaleTriggered(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_RationaleNotTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "65.00", 60, now)
@@ -360,7 +360,7 @@ func TestRSIOversoldEvaluator_RationaleNotTriggered(t *testing.T) {
 // -- Metadata enrichment tests ------------------------------------------------
 
 func TestRSIOversoldEvaluator_MetadataRSIZone(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -376,7 +376,7 @@ func TestRSIOversoldEvaluator_MetadataRSIZone(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_MetadataDistancePct(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "25.00", 60, now)
@@ -397,7 +397,7 @@ func TestRSIOversoldEvaluator_MetadataDistancePct(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_MetadataDistancePct_NotTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "65.00", 60, now)
@@ -411,7 +411,7 @@ func TestRSIOversoldEvaluator_MetadataDistancePct_NotTriggered(t *testing.T) {
 }
 
 func TestRSIOversoldEvaluator_MetadataRSIZone_NotTriggered(t *testing.T) {
-	eval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("rsi", "65.00", 60, now)

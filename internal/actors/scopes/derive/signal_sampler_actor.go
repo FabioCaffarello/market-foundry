@@ -7,6 +7,7 @@ import (
 
 	actorcommon "internal/actors/common"
 	appsignal "internal/application/signal"
+	"internal/domain/instrument"
 	domainsignal "internal/domain/signal"
 	"internal/shared/events"
 
@@ -14,9 +15,18 @@ import (
 )
 
 // SignalSamplerConfig holds the configuration for a signal sampler actor.
+//
+// H-6.c.1 commit 6: the canonical Instrument field is the
+// pass-through identity computed at the binding boundary via
+// BindingTarget.Instrument(). The legacy (Source, Symbol) string
+// pair remains in the struct for back-compat with the legacy
+// NewXxxSampler constructors during the migration window; commits
+// 7a–7d remove both the legacy fields and the wrappers once tests
+// migrate.
 type SignalSamplerConfig struct {
 	Source             string
 	Symbol             string
+	Instrument         instrument.CanonicalInstrument
 	Timeframe          time.Duration
 	SignalPublisherPID *actor.PID
 	ScopePID           *actor.PID // For fan-out to decision evaluators
@@ -48,7 +58,7 @@ func (a *RSISignalSamplerActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.sampler = appsignal.NewRSISampler(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.sampler = appsignal.NewRSISamplerForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("rsi signal sampler started")
 
 	case actor.Stopped:

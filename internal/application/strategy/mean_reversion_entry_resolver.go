@@ -50,16 +50,18 @@ var meanReversionStopMultiplier = map[string]float64{
 //	more cautious on weak signals, reflecting the decision's conviction level.
 type MeanReversionEntryResolver struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 }
 
-func NewMeanReversionEntryResolver(source, symbol string, timeframe int) *MeanReversionEntryResolver {
+// NewMeanReversionEntryResolverForInstrument constructs the resolver
+// from a canonical Instrument directly — no source-string
+// reconstruction. See NewRSISamplerForInstrument (signal package) for
+// the boundary-helper rationale.
+func NewMeanReversionEntryResolverForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *MeanReversionEntryResolver {
 	return &MeanReversionEntryResolver{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
 }

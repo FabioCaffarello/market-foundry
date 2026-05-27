@@ -10,7 +10,7 @@ import (
 )
 
 func TestVWAPSampler_WarmUp(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 300)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 19 candles (period-1) — should not produce a signal.
@@ -43,7 +43,7 @@ func TestVWAPSampler_WarmUp(t *testing.T) {
 }
 
 func TestVWAPSampler_ConstantPrices(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// With constant prices, VWAP = price → deviation = 0.
@@ -59,7 +59,7 @@ func TestVWAPSampler_ConstantPrices(t *testing.T) {
 }
 
 func TestVWAPSampler_PriceAboveVWAP(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 20 flat candles to warm up.
@@ -84,7 +84,7 @@ func TestVWAPSampler_PriceAboveVWAP(t *testing.T) {
 }
 
 func TestVWAPSampler_PriceBelowVWAP(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 20 flat candles to warm up.
@@ -109,7 +109,7 @@ func TestVWAPSampler_PriceBelowVWAP(t *testing.T) {
 }
 
 func TestVWAPSampler_VolumeWeighting(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// First 19 candles: low price with low volume.
@@ -134,7 +134,7 @@ func TestVWAPSampler_VolumeWeighting(t *testing.T) {
 }
 
 func TestVWAPSampler_ZeroVolume(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// All zero volume — VWAP = 0, deviation = 0.
@@ -150,7 +150,7 @@ func TestVWAPSampler_ZeroVolume(t *testing.T) {
 }
 
 func TestVWAPSampler_Metadata(t *testing.T) {
-	s := NewVWAPSampler("binancef", "ethusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", ethUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up + produce one signal.
@@ -177,7 +177,7 @@ func TestVWAPSampler_Metadata(t *testing.T) {
 }
 
 func TestVWAPSampler_InvalidPrice(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Now()
 	_, ok := s.AddCandle("not-a-number", "100.0000", ts)
 	if ok {
@@ -186,7 +186,7 @@ func TestVWAPSampler_InvalidPrice(t *testing.T) {
 }
 
 func TestVWAPSampler_InvalidVolume(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Now()
 	_, ok := s.AddCandle("100.0000", "bad-volume", ts)
 	if ok {
@@ -195,7 +195,7 @@ func TestVWAPSampler_InvalidVolume(t *testing.T) {
 }
 
 func TestVWAPSampler_Validate(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up.
@@ -213,8 +213,8 @@ func TestVWAPSampler_Validate(t *testing.T) {
 }
 
 func TestVWAPSampler_MultiSymbol(t *testing.T) {
-	btc := NewVWAPSampler("binancef", "btcusdt", 300)
-	eth := NewVWAPSampler("binancef", "ethusdt", 300)
+	btc := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 300)
+	eth := NewVWAPSamplerForInstrument("binancef", ethUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for i := 0; i < 21; i++ {
@@ -245,7 +245,7 @@ func TestVWAPSampler_MultiSymbol(t *testing.T) {
 }
 
 func TestVWAPSampler_ContinuousProduction(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// After warm-up, every candle must produce a signal.
@@ -267,7 +267,7 @@ func TestVWAPSampler_ContinuousProduction(t *testing.T) {
 }
 
 func TestVWAPSampler_RollingWindow(t *testing.T) {
-	s := NewVWAPSampler("binancef", "btcusdt", 60)
+	s := NewVWAPSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 20 candles at price=50, then 20 more at price=100.

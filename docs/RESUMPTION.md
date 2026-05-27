@@ -59,7 +59,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.a** | Fechada (PR #26 mergeada em `main` em `ac7fb8f`, 2026-05-26) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits incl. ADR-0021 erratum (criterion #4 split em #4a/#4b), PRD-0004, `internal/domain/instrument/` package, atomic `ObservationTrade.Symbol` → `Instrument` + `VenueSymbol()`, ambos Binance adapters com regex `_\d{6}$` para delivery futures, raccoon-cli `check instruments` analyzer (4 checks). ADR-0021 permanece `Proposed`. |
 | **H-6.b** | Fechada (PR #27 mergeada em `main` em `d7fae4c`, 2026-05-26) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure. 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
 | **H-6.b'** | Fechada (PR #28 mergeada em `main` em `6b62d89`, 2026-05-26) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits + fix(execute) pull-forward 37f8ddd (descoberto via CI Integration Tests em PR #28: silent zero Instrument por reconstrução source-string em `instrumentFromBinding`; fix via `NewPaperOrderEvaluatorForInstrument` passthrough). check-instruments analyzer 6 checks PASS. **Triage drop closure note** (zero migration sites nesta sub-wave): DecisionTriageItem buffered pelo ReviewTransform DTO; ExecutionTriageItem não existe; RoundTripTriageItem deferido para H-6.b''. ADR-0021 permanece `Proposed`. |
-| **H-6.b''** | **Atual** (esta entrega — branch `feat/h-6-b1-execution-chain` rebased em `origin/main` após merge de H-6.b' em PR #28) | Layer 4: Pairing chain migrada — 2 domain types Symbol → Instrument + VenueSymbol() (pairing.Leg + pairing.RoundTrip) + 1 rename (pairing.CrossSessionWindow.Symbol → VenueSymbol string, declarado `string_filter` per Decisão #2) + 1 triage population site (`get_roundtrip_triage.go:74` adopts `review.VenueSymbol()` por compile pressure pull-forward). 8 commits (plano declarava 9 — consolidação por compile pressure documentada em commit 3 e commit 8) + 1 follow-up commit (G6 flake registry + pre-push lesson). check-instruments analyzer estendido com 3º state `string_filter` (commit 1) e 15 unit tests (was 14). ADR-0021 permanece `Proposed`. |
+| **H-6.b''** | Fechada (PR #29 mergeada em `main` em `54a2706`, 2026-05-26) | Layer 4: Pairing chain migrada — 2 domain types Symbol → Instrument + VenueSymbol() (pairing.Leg + pairing.RoundTrip) + 1 rename (pairing.CrossSessionWindow.Symbol → VenueSymbol string, declarado `string_filter` per Decisão #2) + 1 triage population site (`get_roundtrip_triage.go:74` adopts `review.VenueSymbol()` por compile pressure pull-forward). 8 commits (plano declarava 9 — consolidação por compile pressure documentada em commit 3 e commit 8) + 1 follow-up commit (G6 flake registry + pre-push lesson). check-instruments analyzer estendido com 3º state `string_filter` (commit 1) e 15 unit tests (was 14). ADR-0021 permanece `Proposed`. |
+| **H-6.c.1** | **Atual** (esta entrega — branch `feat/h-6-c-1-application-pass-through` aberta após merge de H-6.b'' em PR #29) | Application-layer pass-through migration: derive scope. 10 commits eliminating source-string Instrument reconstruction in 4 application packages (signal/decision/strategy/risk). Commit 1 installs declarative `policies/anti_patterns.toml` + analyzer scan extension. Commits 2-5 add `NewXxxForInstrument` pass-through constructors (14 total). Commit 6 wires derive actors to compute Instrument once at the `BindingTarget.Instrument()` boundary (new helper in `internal/application/ingest/binding.go` with error-returning signature — eliminates the H-6.b' commit 37f8ddd silent-zero regression-shape at its source). Commits 7a-7d delete the legacy `NewXxx` wrappers + per-package `instrumentFromBinding` helpers + dead `symbol` struct field, migrating ~250 test sites. Commit 8 adds derive-scope canary integration tests for the 6 synthetic sources from commit 6. Commit 9 records migration progress in `anti_patterns.toml`. Commit 10 (este commit) closes docs. **H-6.c is sub-divided** into **H-6.c.1** (derive scope, esta sub-onda) and **H-6.c.2** (execute scope: 3 remaining `instrumentFromBinding` callers in `application/execution` + ClickHouse `reconstructInstrumentFromLegacy` treatment + ReviewTransform string_filter + DecisionTriageItem cascade — deferred). ADR-0021 permanece `Proposed`. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -219,7 +220,243 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.b'' (esta sessão):
+Entregas H-6.c.1 (esta sessão):
+
+- **Commit 1** (`9c14ac2`):
+  **Anti-patterns analyzer + policy installation**. New file
+  `tools/raccoon-cli/policies/anti_patterns.toml` declares the
+  forbidden source-string Instrument reconstruction functions
+  (`instrumentFromBinding` + `reconstructInstrumentFromLegacy`).
+  `check_instruments` analyzer gains
+  `load_anti_patterns_policy` + `scan_anti_pattern` +
+  `collect_production_go_files` + 5 unit tests (~458 LoC Rust).
+  Severity is `warning` during the migration window; flips to
+  `error` in H-6.f once helpers are eliminated. Rationale: the
+  pre-flight 5 of H-6.c documented that production Source values
+  include synthetic strings outside the hardcoded
+  binances/binancef mapping (`"binance"`, `"binance_spot"`,
+  `"derive"`, `"clickhouse"`, `"unknown_exchange"`,
+  `"execute.venue-adapter"`); each call site is a potential
+  silent-zero regression analogous to commit 37f8ddd in H-6.b'.
+- **Commits 2-5** (`03f32a4`, `09e0537`, `24fd400`, `d147456`):
+  **NewXxxForInstrument pass-through constructors** added across
+  4 application packages (signal/decision/strategy/risk).
+  14 constructors total: 6 in signal (RSI, ATR, Bollinger,
+  EMACrossover, MACD, VWAP), 3 in decision (RSIOversold,
+  EMACrossover, BollingerSqueeze), 3 in strategy
+  (MeanReversion, SqueezeBreakout, TrendFollowing), 2 in risk
+  (DrawdownLimit, PositionExposure). Each constructor accepts
+  `(source string, inst CanonicalInstrument, timeframe int)`
+  bypassing `instrumentFromBinding`. Legacy `NewXxx(source,
+  symbol, timeframe)` wrappers retained transitorily, delegating
+  via the existing helper. 4 new `instrument_passthrough_test.go`
+  files document the pass-through contract per package.
+- **Commit 6** (`849768b`):
+  **Boundary helper + derive actor cascade** (32 files, +490/-123).
+  New `(BindingTarget).Instrument() (CanonicalInstrument, error)`
+  method in `internal/application/ingest/binding.go` with a
+  declarative `venueSourceContract` registry (binances→Spot,
+  binancef→Perpetual). Returns explicit error for unknown
+  sources — synthetic sources are *intentionally absent* from
+  the registry, surfacing the 37f8ddd failure mode rather than
+  hiding it. 5 derive Config structs gain canonical Instrument
+  field (Signal/Decision/Strategy/Risk/Execution Evaluator
+  configs). 10 derive actor files switch the application
+  constructor call to `NewXxxForInstrument(cfg.Source,
+  cfg.Instrument, ...)`. `source_scope_actor.onActivateSampler`
+  computes Instrument once at the boundary via
+  `msg.Target.Instrument()` and skips activation with a
+  structured Error log on failure. `derive_supervisor` cascades
+  the inst parameter through 12 factory NewActor callbacks.
+  15 derive test files gain `Instrument: btcUSDTPerp()` on
+  Config literals (Python-script-driven migration). **(P1)
+  commit-as-is discipline applied**: fragmenting into
+  6a-production + 6b-tests was rejected because it would
+  produce a semantically invalid intermediate state (actors
+  compile but instantiate evaluators with zero Instrument).
+  R2 cleanup applied during landing — collateral gofmt drift
+  from a `gofmt -w internal/` overreach was soft-reset + scoped
+  re-stage to the 32 intentional files.
+- **Commit 7a** (`8fb781e`):
+  **Signal package legacy cleanup** (15 files, +108/-184).
+  Deletes `internal/application/signal/instrument_binding.go`
+  (45 LoC), removes `symbol string` field + legacy `NewXxxSampler`
+  wrapper from all 6 sampler.go files. 52 test sites migrated
+  via uniform sed pattern to `NewXxxSamplerForInstrument` with
+  `btcUSDTPerp`/`ethUSDTPerp` fixtures. New
+  `instrument_fixtures_test.go` (package signal) + extended
+  `instrument_passthrough_test.go` (package signal_test) provide
+  the fixtures.
+- **Commit 7b** (`df04a94`):
+  **Decision package legacy cleanup** (9 files, +95/-144). Same
+  pattern as 7a. Deletes `decision/instrument_binding.go` (36 LoC).
+  6 test sites migrated. Discovery: 1 legacy caller in
+  `derive/s470_lineage_causality_test.go` missed by commit 6's
+  Python script (caller is a test, not production — pulled into
+  7b as single-line fix).
+- **Commit 7c** (`aa9ce66`):
+  **Strategy package legacy cleanup** (12 files, +113/-134).
+  Same pattern. Deletes `strategy/instrument_binding.go` (34 LoC).
+  6 strategy test sites + 4 cross-scope stragglers migrated:
+  1 in `derive/s470_lineage_causality_test.go`, 1 in
+  `execute/s373_structural_test.go`
+  (using existing `btcUSDTPerpExec(t)` fixture), and 2 in
+  `execute/e2e_derive_to_execution_test.go` +
+  `store/e2e_derive_to_store_test.go` (added parameterless
+  `btcUSDTPerpDerive` IIFE fixtures since the derive event
+  helpers have no testing.T threaded through 13 call sites).
+  In-scope gofmt drift bundled in `s373_structural_test.go`
+  (~5 LoC struct field alignment, documented in commit body
+  per "honesty over convenience").
+- **Commit 7d** (`5ac42df`):
+  **Risk package legacy cleanup** (9 files, +117/-146). Same
+  pattern. Deletes `risk/instrument_binding.go` (34 LoC). ~50
+  risk test sites migrated (largest count of any 7x commit:
+  16 drawdown + 16 position + 17 risk_scaling + 8
+  multi_symbol_concurrency). Fixture file extended with
+  `btcUSDTPerp`/`ethUSDTPerp`/`solUSDTPerp` + `mustPerpOrSpot`
+  helper + `instrumentForSymbol(sym)` mapper for parameterized
+  struct cases. Final derive scope straggler in
+  `s470_lineage_causality_test.go` migrated (3 total across
+  7b/7c/7d). In-scope drift bundled in `risk_scaling_test.go`
+  (7c precedent); out-of-scope drift in `risk_scaling.go`
+  (production, 1 LoC trailing newline, untouched by migration)
+  reported but NOT bundled.
+- **Commit 8** (`cef879b`):
+  **Synthetic-source canary integration tests** (1 new file,
+  +287 LoC). New `internal/actors/scopes/derive/
+  synthetic_source_canary_integration_test.go` adds derive-scope
+  canary tests that fix the regression-shape canary established
+  by commit 6's `BindingTarget.Instrument()` at the wiring
+  level. 3 tests / 15 subtests: rejection-at-boundary
+  (6 synthetic sources), full activation flow with
+  `canaryActivator` stand-in (verifies log emission +
+  rejection counters), legitimate-activation-proceeds
+  (binances spot + binancef perpetual must NOT be
+  over-rejected). Avoids full SourceScopeActor instantiation
+  (NATS publisher dependency); end-to-end NATS-bound coverage
+  is deferred to make smoke / live integration runs.
+- **Commit 9** (`f1f961c`):
+  **Policy progress documentation**. Updates
+  `tools/raccoon-cli/policies/anti_patterns.toml`
+  `instrumentFromBinding` entry's `why` text with per-package
+  migration progress (4 eliminated + 2 remaining → H-6.c.2 / H-6.f)
+  and `help` text references commits 2-7d as the migration
+  pattern reference. **Schema unchanged** (function-based, not
+  per-package) per the architectural decision that filesystem
+  is the source of truth for migration status — adding a
+  per-package `status` field would duplicate filesystem reality
+  and create drift risk. `reconstructInstrumentFromLegacy`
+  entry unchanged (13 call sites in clickhouse, H-6.c.2 scope).
+- **Commit 10** (este commit): TRUTH-MAP / RESUMPTION /
+  PROGRAM-0004 closure + gofmt drift retrospective + per-package
+  schema consideration note.
+
+**Marco**: H-6.c.1 fecha a migração application-layer
+pass-through para derive scope — `instrumentFromBinding`
+helper **completamente eliminado** de signal/decision/strategy/
+risk (4 packages). `BindingTarget.Instrument()` (com signature
+error-returning) é estabelecido como o canonical
+reconstruction point para legítimo boundary
+(source, symbol) → CanonicalInstrument. Derive actors agora
+computam Instrument uma única vez na entrada da activação
+(`source_scope_actor.onActivateSampler`) e fazem pass-through
+em todo o cascade signal/decision/strategy/risk/execution.
+Synthetic sources (`"binance"`, `"binance_spot"`, `"derive"`,
+`"clickhouse"`, `"unknown_exchange"`,
+`"execute.venue-adapter"`) são rejeitados explicitamente com
+log estruturado — NÃO mais silent-zero.
+
+**Métricas H-6.c.1**: 10 commits, ~250 test sites migrated,
+4 helper files deleted (~150 LoC), 14 NewXxxForInstrument
+constructors added (4 packages × 2-6 constructors each),
+1 new boundary helper (`BindingTarget.Instrument()`),
+1 anti-patterns policy file + Rust analyzer extension
+(~458 LoC), 1 canary integration test suite (15 subtests).
+make verify GREEN every commit; lefthook hooks GREEN
+(pre-commit gofmt + commit-msg format + post-commit drift).
+
+**Próxima sub-onda destravada após merge**: H-6.c.2 —
+execute scope migration: 3 remaining `instrumentFromBinding`
+callers in `application/execution` (paper_order_evaluator +
+2 testnet adapters), ClickHouse `reconstructInstrumentFromLegacy`
+treatment (8 warn-and-emit-zero + 5 silent discard in
+composite_reader), ReviewTransform string_filter migration,
+DecisionTriageItem cascade, and the 37f8ddd integration test
+(now an explicit canary against the regression-shape).
+Sub-onda sequencing policy estrita: H-6.c.2 abre branch
+APENAS após merge desta PR (H-6.c.1) em `main`.
+
+**Pattern observed — gofmt drift accumulation (H-6.c.1
+retrospective)**:
+
+H-6.c.1 encountered gofmt drift in **5 instances across the
+10 commits**:
+- Commit 4 (strategy ForInstrument constructors): in-scope
+  drift detected during landing.
+- Commit 6 (boundary helper + actor cascade): scope-expansion
+  drift caught by R2 cleanup — `gofmt -w internal/`
+  inadvertently captured 48 unrelated files; soft-reset +
+  scoped re-stage applied.
+- Commit 7a (signal cleanup): in-scope drift in touched files.
+- Commit 7c (strategy cleanup): in-scope drift in
+  `s373_structural_test.go` (file touched by migration).
+- Commit 7d (risk cleanup): in-scope drift in
+  `risk_scaling_test.go` (touched) + out-of-scope drift
+  detected in `risk_scaling.go` (production, untouched by
+  migration; not bundled per scope discipline).
+
+This frequency suggests **systematic gofmt drift accumulated
+in the codebase that was previously invisible** — either not
+enforced by CI consistently, or enforced historically but
+bypassed at some point. The pre-commit hook
+(`gofmt -l {staged_files}`) only catches drift in staged
+files, so untouched files with accumulated drift remain
+hidden until an unrelated commit happens to touch them.
+
+Candidate mitigations (deferred to H-6.f or dedicated
+audit wave; **decision pending owner**):
+
+1. Add pre-commit hook that runs `gofmt -d` (detect, don't
+   modify) on full repo; fails if drift detected anywhere.
+   Forces explicit cleanup decision per commit.
+2. Dedicated commit `chore(gofmt): repository-wide drift
+   audit + cleanup` running `gofmt -w internal/` once,
+   committed as cosmetic-only with no semantic changes.
+3. CI step in `make verify` that validates zero drift in
+   entire repo, not just modified files.
+
+Recommendation order: option 2 first (one-shot cleanup),
+then option 1 or 3 to prevent recurrence.
+
+**Future consideration — anti_patterns.toml schema
+(H-6.c.1 retrospective)**:
+
+The current `anti_patterns.toml` schema is function-based
+(one entry per forbidden function name). H-6.c.1 commit 9
+documented migration progress in prose within the existing
+`why`/`help` text rather than refactoring to per-package
+status entries. The function-based schema is appropriate
+because:
+
+1. Filesystem is source of truth — helper file deletion
+   means migrated; a `status` field would duplicate
+   filesystem reality.
+2. Anti-patterns are function names that may exist in N
+   packages; per-package decomposition is unnecessary when
+   the scanner already finds zero callers in deleted-helper
+   packages.
+
+If drift ever appears between policy declaration and
+filesystem reality (e.g., helper exists but policy says
+migrated, or vice-versa), refactoring to a per-package
+schema with enforceable `status` field becomes justified.
+This is **not justified at H-6.c.1 closure**; recorded
+here to prevent the same discussion in a future onda.
+
+---
+
+Entregas H-6.b'' (sessão anterior — PR #29 mergeada em `main` em `54a2706`, 2026-05-26):
 
 - **Commit 1** (`888b162`):
   **Analyzer: `string_filter` migration_state** added to

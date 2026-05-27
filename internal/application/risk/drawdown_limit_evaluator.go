@@ -25,18 +25,19 @@ const (
 //   - Strategy type is recorded in metadata for observability.
 type DrawdownLimitEvaluator struct {
 	source          string
-	symbol          string
 	instrument      instrument.CanonicalInstrument
 	timeframe       int
 	maxDrawdownPct  float64
 	stopDistancePct float64
 }
 
-func NewDrawdownLimitEvaluator(source, symbol string, timeframe int) *DrawdownLimitEvaluator {
+// NewDrawdownLimitEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly. See NewRSISamplerForInstrument
+// (signal package) for the boundary-helper rationale.
+func NewDrawdownLimitEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *DrawdownLimitEvaluator {
 	return &DrawdownLimitEvaluator{
 		source:          source,
-		symbol:          symbol,
-		instrument:      instrumentFromBinding(source, symbol),
+		instrument:      inst,
 		timeframe:       timeframe,
 		maxDrawdownPct:  defaultMaxDrawdownPct,
 		stopDistancePct: defaultStopDistancePct,

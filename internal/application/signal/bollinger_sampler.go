@@ -15,7 +15,6 @@ import (
 // Pure application logic — no I/O dependencies.
 type BollingerSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 	period     int
@@ -25,11 +24,13 @@ type BollingerSampler struct {
 	prices []float64
 }
 
-func NewBollingerSampler(source, symbol string, timeframe int) *BollingerSampler {
+// NewBollingerSamplerForInstrument constructs a BollingerSampler from
+// a canonical Instrument directly. See NewRSISamplerForInstrument for
+// the boundary-helper rationale.
+func NewBollingerSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *BollingerSampler {
 	return &BollingerSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     20,
 		k:          2.0,

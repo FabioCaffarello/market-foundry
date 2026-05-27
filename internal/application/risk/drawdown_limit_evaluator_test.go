@@ -10,7 +10,7 @@ import (
 )
 
 func TestDrawdownLimitEvaluator_LongApproved(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI 28.50 below threshold", 60, now)
@@ -42,7 +42,7 @@ func TestDrawdownLimitEvaluator_LongApproved(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_ShortApproved(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "short", "0.7500", "moderate", "", 60, now)
@@ -62,7 +62,7 @@ func TestDrawdownLimitEvaluator_ShortApproved(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_FlatApproved(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "", 60, now)
@@ -81,7 +81,7 @@ func TestDrawdownLimitEvaluator_FlatApproved(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_UnknownDirection(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("mean_reversion_entry", "sideways", "0.5000", "", "", 60, now)
@@ -91,7 +91,7 @@ func TestDrawdownLimitEvaluator_UnknownDirection(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_InvalidConfidence(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("mean_reversion_entry", "long", "not-a-number", "", "", 60, now)
@@ -101,7 +101,7 @@ func TestDrawdownLimitEvaluator_InvalidConfidence(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_TimestampPreserved(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, ts)
@@ -114,7 +114,7 @@ func TestDrawdownLimitEvaluator_TimestampPreserved(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_Validation(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "RSI below threshold", 60, now)
@@ -127,7 +127,7 @@ func TestDrawdownLimitEvaluator_Validation(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_PartitionKey(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -140,7 +140,7 @@ func TestDrawdownLimitEvaluator_PartitionKey(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_StrategyInputPreserved(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 300)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.9000", "high", "RSI 10.00 below threshold", 300, now)
@@ -172,7 +172,7 @@ func TestDrawdownLimitEvaluator_StrategyInputPreserved(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_ParametersPresent(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -212,7 +212,7 @@ func TestDrawdownLimitEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) 
 
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", sym, tf)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", instrumentForSymbol(sym), tf)
 			r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if !ok {
 				t.Fatalf("expected evaluation to succeed for %s/%d", sym, tf)
@@ -229,7 +229,7 @@ func TestDrawdownLimitEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) 
 
 	for _, sym := range symbols {
 		for _, tf := range timeframes {
-			eval := apprisk.NewDrawdownLimitEvaluator("binancef", sym, tf)
+			eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", instrumentForSymbol(sym), tf)
 			r, _ := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "low", "", tf, now)
 			if r.VenueSymbol() != sym {
 				t.Errorf("expected symbol %s, got %s", sym, r.VenueSymbol())
@@ -247,8 +247,8 @@ func TestDrawdownLimitEvaluator_MultiSymbol_IndependentEvaluation(t *testing.T) 
 func TestDrawdownLimitEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 	now := time.Now().UTC()
 
-	evalBTC := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
-	evalETH := apprisk.NewDrawdownLimitEvaluator("binancef", "ethusdt", 60)
+	evalBTC := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
+	evalETH := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", ethUSDTPerp, 60)
 
 	rBTC, ok := evalBTC.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "BTC RSI low", 60, now)
 	if !ok {
@@ -289,7 +289,7 @@ func TestDrawdownLimitEvaluator_MultiSymbol_NoOwnershipBleed(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_DecisionSeverityInRationale(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "high", "RSI 10.00 below threshold", 60, now)
@@ -302,7 +302,7 @@ func TestDrawdownLimitEvaluator_DecisionSeverityInRationale(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_NoSeverityInRationale_WhenNone(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "none", "", 60, now)
@@ -315,7 +315,7 @@ func TestDrawdownLimitEvaluator_NoSeverityInRationale_WhenNone(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_DecisionContextInMetadata(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "moderate", "RSI 20.00 below threshold", 60, now)
@@ -335,7 +335,7 @@ func TestDrawdownLimitEvaluator_DecisionContextInMetadata(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "long", "0.8500", "", "", 60, now)
@@ -349,7 +349,7 @@ func TestDrawdownLimitEvaluator_NoMetadata_WhenNoDecisionContext(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_FlatWithDecisionContext(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	r, ok := eval.Evaluate("mean_reversion_entry", "flat", "0.0000", "none", "RSI above threshold", 60, now)
@@ -365,7 +365,7 @@ func TestDrawdownLimitEvaluator_FlatWithDecisionContext(t *testing.T) {
 }
 
 func TestDrawdownLimitEvaluator_StopDistanceFloor(t *testing.T) {
-	eval := apprisk.NewDrawdownLimitEvaluator("binancef", "btcusdt", 60)
+	eval := apprisk.NewDrawdownLimitEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// Very low confidence should hit the stop distance floor of 0.0050.

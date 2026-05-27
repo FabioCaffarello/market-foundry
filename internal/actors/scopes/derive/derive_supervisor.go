@@ -14,6 +14,7 @@ import (
 	natssignal "internal/adapters/nats/natssignal"
 	natsstrategy "internal/adapters/nats/natsstrategy"
 	"internal/application/ports"
+	"internal/domain/instrument"
 	"internal/shared/healthz"
 	"internal/shared/settings"
 
@@ -26,24 +27,24 @@ import (
 // Derive is write-only: it publishes evidence events but does not serve queries.
 // Queries are served by the store binary from a materialized read model.
 type DeriveSupervisor struct {
-	cfg                settings.AppConfig
-	gateway            ports.ConfigctlGateway
-	logger             *slog.Logger
-	evRegistry         natsevidence.Registry
-	sigRegistry        natssignal.Registry
-	decRegistry        natsdecision.Registry
-	stratRegistry      natsstrategy.Registry
-	riskRegistry       natsrisk.Registry
-	execRegistry       natsexecution.Registry
-	processors         []FamilyProcessor
-	signalProcessors   []SignalFamilyProcessor
-	decisionProcessors []DecisionFamilyProcessor
-	strategyProcessors []StrategyFamilyProcessor
-	riskProcessors     []RiskFamilyProcessor
+	cfg                 settings.AppConfig
+	gateway             ports.ConfigctlGateway
+	logger              *slog.Logger
+	evRegistry          natsevidence.Registry
+	sigRegistry         natssignal.Registry
+	decRegistry         natsdecision.Registry
+	stratRegistry       natsstrategy.Registry
+	riskRegistry        natsrisk.Registry
+	execRegistry        natsexecution.Registry
+	processors          []FamilyProcessor
+	signalProcessors    []SignalFamilyProcessor
+	decisionProcessors  []DecisionFamilyProcessor
+	strategyProcessors  []StrategyFamilyProcessor
+	riskProcessors      []RiskFamilyProcessor
 	executionProcessors []ExecutionFamilyProcessor
-	sources            map[string]*actor.PID // key: source → SourceScopeActor PID
-	timeframes         []time.Duration
-	publisherTracker   *healthz.Tracker
+	sources             map[string]*actor.PID // key: source → SourceScopeActor PID
+	timeframes          []time.Duration
+	publisherTracker    *healthz.Tracker
 }
 
 func NewDeriveSupervisor(config settings.AppConfig, gateway ports.ConfigctlGateway, publisherTracker *healthz.Tracker) actor.Producer {
@@ -141,27 +142,27 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "rsi",
 			ActorPrefix: "signal-rsi",
-			NewActor: func(source, symbol string, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
 				return NewRSISignalSamplerActor(SignalSamplerConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "ema_crossover",
 			ActorPrefix: "signal-ema-crossover",
-			NewActor: func(source, symbol string, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
 				return NewEMACrossoverSignalSamplerActor(SignalSamplerConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "bollinger",
 			ActorPrefix: "signal-bollinger",
-			NewActor: func(source, symbol string, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, sigPub, scopePID *actor.PID) actor.Producer {
 				return NewBollingerSignalSamplerActor(SignalSamplerConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, SignalPublisherPID: sigPub, ScopePID: scopePID,
 				})
 			},
 		},
@@ -173,27 +174,27 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "rsi_oversold",
 			ActorPrefix: "decision-rsi-oversold",
-			NewActor: func(source, symbol string, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
 				return NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "ema_crossover",
 			ActorPrefix: "decision-ema-crossover",
-			NewActor: func(source, symbol string, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
 				return NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "bollinger_squeeze",
 			ActorPrefix: "decision-bollinger-squeeze",
-			NewActor: func(source, symbol string, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, decPub, scopePID *actor.PID) actor.Producer {
 				return NewBollingerSqueezeEvaluatorActor(DecisionEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, DecisionPublisherPID: decPub, ScopePID: scopePID,
 				})
 			},
 		},
@@ -205,27 +206,27 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "mean_reversion_entry",
 			ActorPrefix: "strategy-mean-reversion-entry",
-			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
 				return NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "trend_following_entry",
 			ActorPrefix: "strategy-trend-following-entry",
-			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
 				return NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "squeeze_breakout_entry",
 			ActorPrefix: "strategy-squeeze-breakout-entry",
-			NewActor: func(source, symbol string, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, stratPub, scopePID *actor.PID) actor.Producer {
 				return NewSqueezeBreakoutEntryResolverActor(StrategyResolverConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, StrategyPublisherPID: stratPub, ScopePID: scopePID,
 				})
 			},
 		},
@@ -237,18 +238,18 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "position_exposure",
 			ActorPrefix: "risk-position-exposure",
-			NewActor: func(source, symbol string, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
 				return NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
 				})
 			},
 		},
 		{
 			Family:      "drawdown_limit",
 			ActorPrefix: "risk-drawdown-limit",
-			NewActor: func(source, symbol string, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, riskPub, scopePID *actor.PID) actor.Producer {
 				return NewDrawdownLimitEvaluatorActor(RiskEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, RiskPublisherPID: riskPub, ScopePID: scopePID,
 				})
 			},
 		},
@@ -260,9 +261,9 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		{
 			Family:      "paper_order",
 			ActorPrefix: "execution-paper-order",
-			NewActor: func(source, symbol string, tf time.Duration, execPub *actor.PID) actor.Producer {
+			NewActor: func(source, symbol string, inst instrument.CanonicalInstrument, tf time.Duration, execPub *actor.PID) actor.Producer {
 				return NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
-					Source: source, Symbol: symbol, Timeframe: tf, ExecutionPublisherPID: execPub,
+					Source: source, Symbol: symbol, Instrument: inst, Timeframe: tf, ExecutionPublisherPID: execPub,
 				})
 			},
 		},
@@ -320,12 +321,12 @@ func (s *DeriveSupervisor) ensureSourceScope(c *actor.Context, source string) *a
 
 	childName := "source-" + source
 	pid = c.SpawnChild(NewSourceScopeActor(SourceScopeConfig{
-		Source:             source,
-		NATSURL:            s.cfg.NATS.URL,
-		Registry:           s.evRegistry,
-		SignalRegistry:     s.sigRegistry,
-		DecisionRegistry:   s.decRegistry,
-		StrategyRegistry:   s.stratRegistry,
+		Source:              source,
+		NATSURL:             s.cfg.NATS.URL,
+		Registry:            s.evRegistry,
+		SignalRegistry:      s.sigRegistry,
+		DecisionRegistry:    s.decRegistry,
+		StrategyRegistry:    s.stratRegistry,
 		RiskRegistry:        s.riskRegistry,
 		ExecutionRegistry:   s.execRegistry,
 		Timeframes:          s.timeframes,

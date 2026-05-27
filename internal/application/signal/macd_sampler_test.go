@@ -10,7 +10,7 @@ import (
 )
 
 func TestMACDSampler_WarmUp(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 300)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 33 prices (slowPeriod + signalPeriod - 2 = 33) — should not produce a signal.
@@ -42,7 +42,7 @@ func TestMACDSampler_WarmUp(t *testing.T) {
 }
 
 func TestMACDSampler_BullishDivergence(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 34 flat prices to warm up.
@@ -67,7 +67,7 @@ func TestMACDSampler_BullishDivergence(t *testing.T) {
 }
 
 func TestMACDSampler_BearishDivergence(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 34 flat prices to warm up.
@@ -92,7 +92,7 @@ func TestMACDSampler_BearishDivergence(t *testing.T) {
 }
 
 func TestMACDSampler_ConstantPrices(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// With constant prices, both EMAs converge to the same value → MACD = 0.
@@ -108,7 +108,7 @@ func TestMACDSampler_ConstantPrices(t *testing.T) {
 }
 
 func TestMACDSampler_Metadata(t *testing.T) {
-	s := NewMACDSampler("binancef", "ethusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", ethUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up + produce one signal.
@@ -140,7 +140,7 @@ func TestMACDSampler_Metadata(t *testing.T) {
 }
 
 func TestMACDSampler_InvalidPrice(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Now()
 	_, ok := s.AddClose("not-a-number", ts)
 	if ok {
@@ -149,7 +149,7 @@ func TestMACDSampler_InvalidPrice(t *testing.T) {
 }
 
 func TestMACDSampler_Validate(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up.
@@ -167,8 +167,8 @@ func TestMACDSampler_Validate(t *testing.T) {
 }
 
 func TestMACDSampler_MultiSymbol(t *testing.T) {
-	btc := NewMACDSampler("binancef", "btcusdt", 300)
-	eth := NewMACDSampler("binancef", "ethusdt", 300)
+	btc := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 300)
+	eth := NewMACDSamplerForInstrument("binancef", ethUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for i := 0; i < 35; i++ {
@@ -197,7 +197,7 @@ func TestMACDSampler_MultiSymbol(t *testing.T) {
 }
 
 func TestMACDSampler_ContinuousProduction(t *testing.T) {
-	s := NewMACDSampler("binancef", "btcusdt", 60)
+	s := NewMACDSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// After warm-up, every candle must produce a signal.

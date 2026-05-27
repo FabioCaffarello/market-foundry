@@ -24,17 +24,19 @@ const (
 // Receives signal values as primitive data per DBI-9.
 type BollingerSqueezeEvaluator struct {
 	source           string
-	symbol           string
 	instrument       instrument.CanonicalInstrument
 	timeframe        int
 	squeezeThreshold float64
 }
 
-func NewBollingerSqueezeEvaluator(source, symbol string, timeframe int) *BollingerSqueezeEvaluator {
+// NewBollingerSqueezeEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly — no source-string reconstruction.
+// See NewRSISamplerForInstrument (signal package) for the
+// boundary-helper rationale.
+func NewBollingerSqueezeEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *BollingerSqueezeEvaluator {
 	return &BollingerSqueezeEvaluator{
 		source:           source,
-		symbol:           symbol,
-		instrument:       instrumentFromBinding(source, symbol),
+		instrument:       inst,
 		timeframe:        timeframe,
 		squeezeThreshold: defaultSqueezeThreshold,
 	}

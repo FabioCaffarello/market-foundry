@@ -9,7 +9,7 @@ import (
 )
 
 func TestTrendFollowingEntryResolver_Triggered(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "EMA crossover bullish: fast EMA above slow EMA on 60s timeframe; trend confirmation signal", 60, now)
@@ -49,7 +49,7 @@ func TestTrendFollowingEntryResolver_Triggered(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_NotTriggered(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "not_triggered", "0.7500", "none", "EMA crossover bearish", 60, now)
@@ -68,7 +68,7 @@ func TestTrendFollowingEntryResolver_NotTriggered(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_Insufficient(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "insufficient", "0.0000", "", "", 60, now)
@@ -84,7 +84,7 @@ func TestTrendFollowingEntryResolver_Insufficient(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_UnknownOutcome(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("ema_crossover", "unknown", "0.5000", "", "", 60, now)
@@ -94,7 +94,7 @@ func TestTrendFollowingEntryResolver_UnknownOutcome(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_InvalidConfidence(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("ema_crossover", "triggered", "not-a-number", "moderate", "test", 60, now)
@@ -104,7 +104,7 @@ func TestTrendFollowingEntryResolver_InvalidConfidence(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_TimestampPreserved(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "EMA bullish", 60, ts)
@@ -117,7 +117,7 @@ func TestTrendFollowingEntryResolver_TimestampPreserved(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_Validation(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "EMA bullish", 60, now)
@@ -130,7 +130,7 @@ func TestTrendFollowingEntryResolver_Validation(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_PartitionKey(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "test", 60, now)
@@ -143,7 +143,7 @@ func TestTrendFollowingEntryResolver_PartitionKey(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_DecisionInputPreserved(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 300)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "EMA crossover bullish: fast EMA above slow EMA on 300s timeframe; trend confirmation signal", 300, now)
@@ -175,7 +175,7 @@ func TestTrendFollowingEntryResolver_DecisionInputPreserved(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	rationale := "EMA crossover bullish: fast EMA above slow EMA on 60s timeframe; trend confirmation signal"
@@ -189,7 +189,7 @@ func TestTrendFollowingEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "", "", 60, now)
@@ -202,7 +202,7 @@ func TestTrendFollowingEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_SeverityPreservedForAllOutcomes(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -228,7 +228,7 @@ func TestTrendFollowingEntryResolver_SeverityPreservedForAllOutcomes(t *testing.
 // --- S250 behavioral activation tests ---
 
 func TestTrendFollowingEntryResolver_SeverityScalesConfidence(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -237,11 +237,11 @@ func TestTrendFollowingEntryResolver_SeverityScalesConfidence(t *testing.T) {
 		rawConfidence      string
 		expectedConfidence string
 	}{
-		{"high severity → full confidence", "high", "0.8000", "0.8000"},       // ×1.00
-		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},         // ×0.90
-		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                   // ×0.80
-		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"},  // default
-		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},           // default
+		{"high severity → full confidence", "high", "0.8000", "0.8000"},      // ×1.00
+		{"moderate severity → 0.90×", "moderate", "0.8000", "0.7200"},        // ×0.90
+		{"low severity → 0.80×", "low", "0.8000", "0.6400"},                  // ×0.80
+		{"unknown severity → neutral (1.0×)", "unknown", "0.8000", "0.8000"}, // default
+		{"empty severity → neutral (1.0×)", "", "0.8000", "0.8000"},          // default
 	}
 
 	for _, tt := range tests {
@@ -258,7 +258,7 @@ func TestTrendFollowingEntryResolver_SeverityScalesConfidence(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_SeverityAdjustsParameters(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -267,9 +267,9 @@ func TestTrendFollowingEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 		expectedTrailingStopPct string // base=0.03
 		expectedTakeProfitPct   string // base=0.05
 	}{
-		{"high severity → tighter trail, wider target", "high", "0.02", "0.08"},   // 0.03×0.75=0.0225→0.02, 0.05×1.50=0.075→0.08
-		{"moderate severity → default params", "moderate", "0.03", "0.05"},         // 0.03×1.00, 0.05×1.00
-		{"low severity → wider trail, smaller target", "low", "0.04", "0.04"},      // 0.03×1.50, 0.05×0.75 → 0.045→0.04, 0.0375→0.04
+		{"high severity → tighter trail, wider target", "high", "0.02", "0.08"}, // 0.03×0.75=0.0225→0.02, 0.05×1.50=0.075→0.08
+		{"moderate severity → default params", "moderate", "0.03", "0.05"},      // 0.03×1.00, 0.05×1.00
+		{"low severity → wider trail, smaller target", "low", "0.04", "0.04"},   // 0.03×1.50, 0.05×0.75 → 0.045→0.04, 0.0375→0.04
 	}
 
 	for _, tt := range tests {
@@ -289,7 +289,7 @@ func TestTrendFollowingEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_DecisionTypeInMetadata(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "moderate", "test", 60, now)
@@ -305,7 +305,7 @@ func TestTrendFollowingEntryResolver_DecisionTypeInMetadata(t *testing.T) {
 }
 
 func TestTrendFollowingEntryResolver_DecisionInputPreservesRawConfidence(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.7500", "low", "test", 60, now)
@@ -324,7 +324,7 @@ func TestTrendFollowingEntryResolver_DecisionInputPreservesRawConfidence(t *test
 }
 
 func TestTrendFollowingEntryResolver_NotTriggeredHasDecisionContext(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "not_triggered", "0.5000", "none", "EMA bearish", 60, now)
@@ -340,7 +340,7 @@ func TestTrendFollowingEntryResolver_NotTriggeredHasDecisionContext(t *testing.T
 }
 
 func TestTrendFollowingEntryResolver_HighSeverityMaxAggression(t *testing.T) {
-	resolver := appstrategy.NewTrendFollowingEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewTrendFollowingEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("ema_crossover", "triggered", "0.9000", "high", "Strong bullish crossover", 60, now)

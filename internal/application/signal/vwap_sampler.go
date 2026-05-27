@@ -27,7 +27,6 @@ import (
 // Warm-up requires `period` candles before the first signal is emitted.
 type VWAPSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -38,11 +37,13 @@ type VWAPSampler struct {
 	volumes []float64
 }
 
-func NewVWAPSampler(source, symbol string, timeframe int) *VWAPSampler {
+// NewVWAPSamplerForInstrument constructs a VWAPSampler from a canonical
+// Instrument directly. See NewRSISamplerForInstrument for the
+// boundary-helper rationale.
+func NewVWAPSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *VWAPSampler {
 	return &VWAPSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     20,
 	}

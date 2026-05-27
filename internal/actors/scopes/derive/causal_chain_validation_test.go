@@ -40,22 +40,22 @@ func TestCausalChain_MeanReversion_DAGLinkage(t *testing.T) {
 
 	// Wire: execution ← risk ← strategy ← decision.
 	execEvalPID := e.Spawn(NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		ExecutionPublisherPID: execPubPID,
 	}), "s295-mr-exec-eval")
 
 	riskEvalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID, ScopePID: execEvalPID,
 	}), "s295-mr-risk-eval")
 
 	stratResolverPID := e.Spawn(NewMeanReversionEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: strategyPubPID, ScopePID: stratFanoutPID,
 	}), "s295-mr-strat-resolver")
 
 	decEvalPID := e.Spawn(NewRSIOversoldEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decisionPubPID, ScopePID: decFanoutPID,
 	}), "s295-mr-dec-eval")
 
@@ -196,22 +196,22 @@ func TestCausalChain_TrendFollowing_DAGLinkage(t *testing.T) {
 	stratFanoutPID := e.Spawn(stratFanout.producer(), "s295-tf-strat-fan")
 
 	execEvalPID := e.Spawn(NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		ExecutionPublisherPID: execPubPID,
 	}), "s295-tf-exec-eval")
 
 	riskEvalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID, ScopePID: execEvalPID,
 	}), "s295-tf-risk-eval")
 
 	stratResolverPID := e.Spawn(NewTrendFollowingEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: strategyPubPID, ScopePID: stratFanoutPID,
 	}), "s295-tf-strat-resolver")
 
 	decEvalPID := e.Spawn(NewEMACrossoverEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decisionPubPID, ScopePID: decFanoutPID,
 	}), "s295-tf-dec-eval")
 
@@ -298,27 +298,27 @@ func TestCausalChain_SqueezeBreakout_DAGLinkage(t *testing.T) {
 	stratFanoutPID := e.Spawn(stratFanout.producer(), "s295-sq-strat-fan")
 
 	execEvalPID := e.Spawn(NewPaperOrderEvaluatorActor(ExecutionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		ExecutionPublisherPID: execPubPID,
 	}), "s295-sq-exec-eval")
 
 	riskEvalPID := e.Spawn(NewPositionExposureEvaluatorActor(RiskEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		RiskPublisherPID: riskPubPID, ScopePID: execEvalPID,
 	}), "s295-sq-risk-eval")
 
 	stratResolverPID := e.Spawn(NewSqueezeBreakoutEntryResolverActor(StrategyResolverConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		StrategyPublisherPID: strategyPubPID, ScopePID: stratFanoutPID,
 	}), "s295-sq-strat-resolver")
 
 	decEvalPID := e.Spawn(NewBollingerSqueezeEvaluatorActor(DecisionEvaluatorConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		DecisionPublisherPID: decisionPubPID, ScopePID: decFanoutPID,
 	}), "s295-sq-dec-eval")
 
 	samplerPID := e.Spawn(NewBollingerSignalSamplerActor(SignalSamplerConfig{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60 * time.Second,
+		Source: "binancef", Symbol: "btcusdt", Instrument: btcUSDTPerp(), Timeframe: 60 * time.Second,
 		SignalPublisherPID: signalPubPID, ScopePID: signalFanoutPID,
 	}), "s295-sq-boll-sampler")
 

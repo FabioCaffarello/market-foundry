@@ -39,7 +39,7 @@ func (a *EMACrossoverSignalSamplerActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.sampler = appsignal.NewEMACrossoverSampler(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.sampler = appsignal.NewEMACrossoverSamplerForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("ema crossover signal sampler started")
 
 	case actor.Stopped:

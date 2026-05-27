@@ -12,6 +12,7 @@ import (
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
 	natsstrategy "internal/adapters/nats/natsstrategy"
+	"internal/domain/instrument"
 	"internal/shared/healthz"
 
 	"github.com/anthdm/hollywood/actor"
@@ -33,42 +34,52 @@ type FamilyProcessor struct {
 
 // SignalFamilyProcessor describes one signal family's processing pipeline within derive.
 // Each signal family gets one sampler actor per symbol/timeframe combination.
+//
+// H-6.c.1 commit 6: NewActor receives the canonical Instrument
+// (resolved once at the binding boundary via BindingTarget.Instrument())
+// in addition to the legacy (source, symbol) string pair. The legacy
+// strings remain for back-compat during the migration window (commits
+// 7a–7d delete them once tests migrate).
 type SignalFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, signalPublisherPID, scopePID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, inst instrument.CanonicalInstrument, timeframe time.Duration, signalPublisherPID, scopePID *actor.PID) actor.Producer
 }
 
 // DecisionFamilyProcessor describes one decision family's processing pipeline within derive.
 // Each decision family gets one evaluator actor per symbol/timeframe combination.
+// See SignalFamilyProcessor for the canonical-Instrument pass-through rationale.
 type DecisionFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, decisionPublisherPID, scopePID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, inst instrument.CanonicalInstrument, timeframe time.Duration, decisionPublisherPID, scopePID *actor.PID) actor.Producer
 }
 
 // StrategyFamilyProcessor describes one strategy family's processing pipeline within derive.
 // Each strategy family gets one resolver actor per symbol/timeframe combination.
+// See SignalFamilyProcessor for the canonical-Instrument pass-through rationale.
 type StrategyFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, strategyPublisherPID, scopePID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, inst instrument.CanonicalInstrument, timeframe time.Duration, strategyPublisherPID, scopePID *actor.PID) actor.Producer
 }
 
 // RiskFamilyProcessor describes one risk family's processing pipeline within derive.
 // Each risk family gets one evaluator actor per symbol/timeframe combination.
+// See SignalFamilyProcessor for the canonical-Instrument pass-through rationale.
 type RiskFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, riskPublisherPID, scopePID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, inst instrument.CanonicalInstrument, timeframe time.Duration, riskPublisherPID, scopePID *actor.PID) actor.Producer
 }
 
 // ExecutionFamilyProcessor describes one execution family's processing pipeline within derive.
 // Each execution family gets one evaluator actor per symbol/timeframe combination.
+// See SignalFamilyProcessor for the canonical-Instrument pass-through rationale.
 type ExecutionFamilyProcessor struct {
 	Family      string
 	ActorPrefix string
-	NewActor    func(source, symbol string, timeframe time.Duration, executionPublisherPID *actor.PID) actor.Producer
+	NewActor    func(source, symbol string, inst instrument.CanonicalInstrument, timeframe time.Duration, executionPublisherPID *actor.PID) actor.Producer
 }
 
 // filterEnabled filters a processor slice by config enablement, logging skipped families.
@@ -291,6 +302,36 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 		return
 	}
 
+	// H-6.c.1 commit 6: canonical Instrument is computed once at the
+	// binding boundary via BindingTarget.Instrument(). The signal /
+	// decision / strategy / risk / execution actor families consume
+	// it directly instead of reconstructing from (source, symbol)
+	// strings in each application package — the H-6.b' regression
+	// shape (commit 37f8ddd) was exactly that pattern leaking a zero
+	// Instrument silently.
+	//
+	// Evidence samplers (FamilyProcessor) do NOT receive Instrument
+	// because their downstream construction site reads Instrument
+	// from incoming ObservationTrade events (already canonical via
+	// H-6.a adapter normalization). Only the 5 derivative families
+	// (signal/decision/strategy/risk/execution) require Instrument
+	// pass-through.
+	inst, instErr := msg.Target.Instrument()
+	if instErr != nil {
+		// Boundary failure: skip activation for this binding and log.
+		// Evidence samplers are also skipped — without a valid
+		// Instrument the downstream pipeline cannot produce
+		// canonical signals. The supervisor stays healthy; the
+		// next IngestionRuntimeChangedEvent with a valid binding
+		// can still activate.
+		a.logger.Error("skip sampler activation: invalid binding",
+			"source", msg.Target.Source,
+			"symbol", symbol,
+			"error", instErr,
+		)
+		return
+	}
+
 	scopePID := c.PID()
 
 	// Spawn evidence samplers.
@@ -309,7 +350,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.SignalProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.signalPublisherPID, scopePID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, inst, tf, a.signalPublisherPID, scopePID), name)
 			signalPids = append(signalPids, pid)
 		}
 	}
@@ -322,7 +363,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.DecisionProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.decisionPublisherPID, scopePID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, inst, tf, a.decisionPublisherPID, scopePID), name)
 			decisionPids = append(decisionPids, pid)
 		}
 	}
@@ -335,7 +376,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.StrategyProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.strategyPublisherPID, scopePID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, inst, tf, a.strategyPublisherPID, scopePID), name)
 			strategyPids = append(strategyPids, pid)
 		}
 	}
@@ -348,7 +389,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.RiskProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.riskPublisherPID, scopePID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, inst, tf, a.riskPublisherPID, scopePID), name)
 			riskPids = append(riskPids, pid)
 		}
 	}
@@ -361,7 +402,7 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 	for _, proc := range a.cfg.ExecutionProcessors {
 		for _, tf := range a.cfg.Timeframes {
 			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
-			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.executionPublisherPID), name)
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, inst, tf, a.executionPublisherPID), name)
 			executionPids = append(executionPids, pid)
 		}
 	}

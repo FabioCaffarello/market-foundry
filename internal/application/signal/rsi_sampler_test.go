@@ -9,7 +9,7 @@ import (
 )
 
 func TestRSISampler_WarmUp(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 300)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed 14 prices — should NOT produce a signal (need period+1 = 15).
@@ -38,7 +38,7 @@ func TestRSISampler_WarmUp(t *testing.T) {
 }
 
 func TestRSISampler_AllGains(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 60)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// 15 monotonically increasing prices → all gains, zero losses → RSI = 100.
@@ -66,7 +66,7 @@ func TestRSISampler_AllGains(t *testing.T) {
 }
 
 func TestRSISampler_AllLosses(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 60)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// 15 monotonically decreasing prices → all losses, zero gains → RSI = 0.
@@ -94,7 +94,7 @@ func TestRSISampler_AllLosses(t *testing.T) {
 }
 
 func TestRSISampler_SmoothedUpdate(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 300)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed 15 prices for warm-up.
@@ -132,7 +132,7 @@ func TestRSISampler_SmoothedUpdate(t *testing.T) {
 }
 
 func TestRSISampler_InvalidPrice(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 60)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 60)
 	_, ok := s.AddClose("not-a-number", time.Now())
 	if ok {
 		t.Fatal("expected no signal for invalid price")
@@ -140,7 +140,7 @@ func TestRSISampler_InvalidPrice(t *testing.T) {
 }
 
 func TestRSISampler_Metadata(t *testing.T) {
-	s := appsignal.NewRSISampler("binancef", "btcusdt", 300)
+	s := appsignal.NewRSISamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed period+1 prices.

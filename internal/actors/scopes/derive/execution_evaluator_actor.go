@@ -8,16 +8,23 @@ import (
 	actorcommon "internal/actors/common"
 	appexec "internal/application/execution"
 	domainexec "internal/domain/execution"
+	"internal/domain/instrument"
 	"internal/shared/events"
 
 	"github.com/anthdm/hollywood/actor"
 )
 
 // ExecutionEvaluatorConfig holds the configuration for an execution evaluator actor.
+// H-6.c.1 commit 6: see SignalSamplerConfig for the canonical-Instrument
+// pass-through rationale. PaperOrderEvaluator already has the
+// NewPaperOrderEvaluatorForInstrument constructor (added in H-6.b'
+// commit 37f8ddd as the regression fix); this commit migrates its
+// derive-scope caller to use that constructor.
 type ExecutionEvaluatorConfig struct {
-	Source               string
-	Symbol               string
-	Timeframe            time.Duration
+	Source                string
+	Symbol                string
+	Instrument            instrument.CanonicalInstrument
+	Timeframe             time.Duration
 	ExecutionPublisherPID *actor.PID
 }
 
@@ -48,7 +55,7 @@ func (a *PaperOrderEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = appexec.NewPaperOrderEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = appexec.NewPaperOrderEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.simulator = &appexec.PaperFillSimulator{}
 		a.logger.Info("paper order evaluator started")
 

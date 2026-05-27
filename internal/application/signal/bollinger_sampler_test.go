@@ -9,7 +9,7 @@ import (
 )
 
 func TestBollingerSampler_WarmUp(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 300)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed 19 prices — should NOT produce a signal (need period=20).
@@ -38,7 +38,7 @@ func TestBollingerSampler_WarmUp(t *testing.T) {
 }
 
 func TestBollingerSampler_ConstantPrices(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 60)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// All prices identical → stddev = 0 → bands collapse → %B = 0.5.
@@ -67,7 +67,7 @@ func TestBollingerSampler_ConstantPrices(t *testing.T) {
 }
 
 func TestBollingerSampler_PriceAtUpperBand(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 60)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed 19 prices around 100, then push the 20th price high.
@@ -87,7 +87,7 @@ func TestBollingerSampler_PriceAtUpperBand(t *testing.T) {
 }
 
 func TestBollingerSampler_RollingWindow(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 300)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	// Feed 21 prices — after 20th, window should drop oldest price.
@@ -114,7 +114,7 @@ func TestBollingerSampler_RollingWindow(t *testing.T) {
 }
 
 func TestBollingerSampler_Metadata(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 300)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2026, 3, 17, 12, 0, 0, 0, time.UTC)
 
 	for i := 0; i < 20; i++ {
@@ -141,7 +141,7 @@ func TestBollingerSampler_Metadata(t *testing.T) {
 }
 
 func TestBollingerSampler_InvalidPrice(t *testing.T) {
-	s := appsignal.NewBollingerSampler("binancef", "btcusdt", 60)
+	s := appsignal.NewBollingerSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	_, ok := s.AddClose("not-a-number", time.Now())
 	if ok {
 		t.Fatal("expected no signal for invalid price")

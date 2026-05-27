@@ -63,16 +63,17 @@ var squeezeBreakoutStopMultiplier = map[string]float64{
 //	"insufficient"  — insufficient signal data → flat with reason
 type SqueezeBreakoutEntryResolver struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 }
 
-func NewSqueezeBreakoutEntryResolver(source, symbol string, timeframe int) *SqueezeBreakoutEntryResolver {
+// NewSqueezeBreakoutEntryResolverForInstrument constructs the resolver
+// from a canonical Instrument directly. See NewRSISamplerForInstrument
+// for the boundary-helper rationale.
+func NewSqueezeBreakoutEntryResolverForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *SqueezeBreakoutEntryResolver {
 	return &SqueezeBreakoutEntryResolver{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
 }

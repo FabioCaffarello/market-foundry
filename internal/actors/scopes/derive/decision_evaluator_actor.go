@@ -8,15 +8,19 @@ import (
 	actorcommon "internal/actors/common"
 	appdecision "internal/application/decision"
 	domaindecision "internal/domain/decision"
+	"internal/domain/instrument"
 	"internal/shared/events"
 
 	"github.com/anthdm/hollywood/actor"
 )
 
 // DecisionEvaluatorConfig holds the configuration for a decision evaluator actor.
+// H-6.c.1 commit 6: see SignalSamplerConfig for the canonical-Instrument
+// pass-through rationale.
 type DecisionEvaluatorConfig struct {
 	Source               string
 	Symbol               string
+	Instrument           instrument.CanonicalInstrument
 	Timeframe            time.Duration
 	DecisionPublisherPID *actor.PID
 	ScopePID             *actor.PID
@@ -48,7 +52,7 @@ func (a *RSIOversoldEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = appdecision.NewRSIOversoldEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = appdecision.NewRSIOversoldEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("rsi oversold evaluator started")
 
 	case actor.Stopped:

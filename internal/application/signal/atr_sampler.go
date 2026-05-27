@@ -25,7 +25,6 @@ import (
 // with the SMA of the first `period` true ranges.
 type ATRSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -40,11 +39,13 @@ type ATRSampler struct {
 	atrReady bool
 }
 
-func NewATRSampler(source, symbol string, timeframe int) *ATRSampler {
+// NewATRSamplerForInstrument constructs an ATRSampler from a canonical
+// Instrument directly. See NewRSISamplerForInstrument for the
+// boundary-helper rationale.
+func NewATRSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *ATRSampler {
 	return &ATRSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		period:     14,
 	}

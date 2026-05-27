@@ -18,17 +18,19 @@ const (
 // Receives signal values as primitive data (not signal.Signal structs) per DBI-9.
 type RSIOversoldEvaluator struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 	threshold  float64
 }
 
-func NewRSIOversoldEvaluator(source, symbol string, timeframe int) *RSIOversoldEvaluator {
+// NewRSIOversoldEvaluatorForInstrument constructs the evaluator from
+// a canonical Instrument directly — no source-string reconstruction.
+// See NewRSISamplerForInstrument (signal package) for the
+// boundary-helper rationale.
+func NewRSIOversoldEvaluatorForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *RSIOversoldEvaluator {
 	return &RSIOversoldEvaluator{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		threshold:  defaultOversoldThreshold,
 	}

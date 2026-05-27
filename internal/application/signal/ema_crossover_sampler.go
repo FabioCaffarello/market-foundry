@@ -19,7 +19,6 @@ import (
 //   - "neutral"  — warm-up incomplete or EMAs equal within tolerance
 type EMACrossoverSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -34,11 +33,13 @@ type EMACrossoverSampler struct {
 	warmedUp bool
 }
 
-func NewEMACrossoverSampler(source, symbol string, timeframe int) *EMACrossoverSampler {
+// NewEMACrossoverSamplerForInstrument constructs an EMACrossoverSampler
+// from a canonical Instrument directly. See NewRSISamplerForInstrument
+// for the boundary-helper rationale.
+func NewEMACrossoverSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *EMACrossoverSampler {
 	return &EMACrossoverSampler{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 		fastPeriod: 9,
 		slowPeriod: 21,

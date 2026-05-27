@@ -39,7 +39,7 @@ func (a *BollingerSqueezeEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = appdecision.NewBollingerSqueezeEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = appdecision.NewBollingerSqueezeEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("bollinger squeeze evaluator started")
 
 	case actor.Stopped:

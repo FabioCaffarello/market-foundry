@@ -39,7 +39,7 @@ func (a *SqueezeBreakoutEntryResolverActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.resolver = appstrategy.NewSqueezeBreakoutEntryResolver(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.resolver = appstrategy.NewSqueezeBreakoutEntryResolverForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("squeeze breakout entry resolver started")
 
 	case actor.Stopped:

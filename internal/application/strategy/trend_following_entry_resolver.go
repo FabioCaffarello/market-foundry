@@ -60,16 +60,17 @@ var trendFollowingTakeProfitMultiplier = map[string]float64{
 //	"insufficient"  — insufficient signal data → flat with reason
 type TrendFollowingEntryResolver struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 }
 
-func NewTrendFollowingEntryResolver(source, symbol string, timeframe int) *TrendFollowingEntryResolver {
+// NewTrendFollowingEntryResolverForInstrument constructs the resolver
+// from a canonical Instrument directly. See NewRSISamplerForInstrument
+// for the boundary-helper rationale.
+func NewTrendFollowingEntryResolverForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *TrendFollowingEntryResolver {
 	return &TrendFollowingEntryResolver{
 		source:     source,
-		symbol:     symbol,
-		instrument: instrumentFromBinding(source, symbol),
+		instrument: inst,
 		timeframe:  timeframe,
 	}
 }

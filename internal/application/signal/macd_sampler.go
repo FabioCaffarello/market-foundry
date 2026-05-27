@@ -26,7 +26,6 @@ import (
 // complete signal (MACD line + signal line + histogram) is emitted.
 type MACDSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -47,11 +46,13 @@ type MACDSampler struct {
 	signalReady bool
 }
 
-func NewMACDSampler(source, symbol string, timeframe int) *MACDSampler {
+// NewMACDSamplerForInstrument constructs a MACDSampler from a canonical
+// Instrument directly. See NewRSISamplerForInstrument for the
+// boundary-helper rationale.
+func NewMACDSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *MACDSampler {
 	return &MACDSampler{
 		source:       source,
-		symbol:       symbol,
-		instrument:   instrumentFromBinding(source, symbol),
+		instrument:   inst,
 		timeframe:    timeframe,
 		fastPeriod:   12,
 		slowPeriod:   26,

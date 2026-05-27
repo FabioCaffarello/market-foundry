@@ -9,7 +9,7 @@ import (
 )
 
 func TestMeanReversionEntryResolver_Triggered(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "RSI 28.50 below oversold threshold 30.0 (distance 5.0%); severity low", 60, now)
@@ -49,7 +49,7 @@ func TestMeanReversionEntryResolver_Triggered(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_NotTriggered(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "not_triggered", "0.7500", "none", "RSI 65.00 above oversold threshold 30.0; not oversold", 60, now)
@@ -68,7 +68,7 @@ func TestMeanReversionEntryResolver_NotTriggered(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_Insufficient(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "insufficient", "0.0000", "", "", 60, now)
@@ -84,7 +84,7 @@ func TestMeanReversionEntryResolver_Insufficient(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_UnknownOutcome(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("rsi_oversold", "unknown", "0.5000", "", "", 60, now)
@@ -94,7 +94,7 @@ func TestMeanReversionEntryResolver_UnknownOutcome(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_InvalidConfidence(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("rsi_oversold", "triggered", "not-a-number", "low", "test", 60, now)
@@ -104,7 +104,7 @@ func TestMeanReversionEntryResolver_InvalidConfidence(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_TimestampPreserved(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 18, 12, 0, 0, 0, time.UTC)
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "RSI below threshold", 60, ts)
@@ -117,7 +117,7 @@ func TestMeanReversionEntryResolver_TimestampPreserved(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_Validation(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "moderate", "RSI below threshold", 60, now)
@@ -130,7 +130,7 @@ func TestMeanReversionEntryResolver_Validation(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_PartitionKey(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "low", "test", 60, now)
@@ -143,7 +143,7 @@ func TestMeanReversionEntryResolver_PartitionKey(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_DecisionInputPreserved(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 300)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.9000", "high", "RSI 5.00 below oversold threshold 30.0 (distance 83.3%); severity high", 300, now)
@@ -175,7 +175,7 @@ func TestMeanReversionEntryResolver_DecisionInputPreserved(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	rationale := "RSI 25.00 below oversold threshold 30.0 (distance 16.7%); severity low"
@@ -189,7 +189,7 @@ func TestMeanReversionEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8500", "", "", 60, now)
@@ -202,7 +202,7 @@ func TestMeanReversionEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_SeverityPreservedForAllOutcomes(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -228,7 +228,7 @@ func TestMeanReversionEntryResolver_SeverityPreservedForAllOutcomes(t *testing.T
 // --- S250 behavioral activation tests ---
 
 func TestMeanReversionEntryResolver_SeverityScalesConfidence(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -237,11 +237,11 @@ func TestMeanReversionEntryResolver_SeverityScalesConfidence(t *testing.T) {
 		rawConfidence      string
 		expectedConfidence string
 	}{
-		{"high severity → full confidence", "high", "0.9000", "0.9000"},       // ×1.00
-		{"moderate severity → 0.90×", "moderate", "0.9000", "0.8100"},         // ×0.90
-		{"low severity → 0.80×", "low", "0.9000", "0.7200"},                   // ×0.80
-		{"unknown severity → neutral (1.0×)", "unknown", "0.9000", "0.9000"},  // default
-		{"empty severity → neutral (1.0×)", "", "0.9000", "0.9000"},           // default
+		{"high severity → full confidence", "high", "0.9000", "0.9000"},      // ×1.00
+		{"moderate severity → 0.90×", "moderate", "0.9000", "0.8100"},        // ×0.90
+		{"low severity → 0.80×", "low", "0.9000", "0.7200"},                  // ×0.80
+		{"unknown severity → neutral (1.0×)", "unknown", "0.9000", "0.9000"}, // default
+		{"empty severity → neutral (1.0×)", "", "0.9000", "0.9000"},          // default
 	}
 
 	for _, tt := range tests {
@@ -258,7 +258,7 @@ func TestMeanReversionEntryResolver_SeverityScalesConfidence(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_SeverityAdjustsParameters(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -267,9 +267,9 @@ func TestMeanReversionEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 		expectedTargetOffset string // base=0.02
 		expectedStopOffset   string // base=0.01
 	}{
-		{"high severity → wider target, tighter stop", "high", "0.03", "0.01"},     // 0.02×1.50, 0.01×0.75
-		{"moderate severity → default params", "moderate", "0.02", "0.01"},          // 0.02×1.00, 0.01×1.00
-		{"low severity → smaller target, wider stop", "low", "0.01", "0.01"},        // 0.02×0.75=0.015→0.01, 0.01×1.50=0.015→0.01
+		{"high severity → wider target, tighter stop", "high", "0.03", "0.01"}, // 0.02×1.50, 0.01×0.75
+		{"moderate severity → default params", "moderate", "0.02", "0.01"},     // 0.02×1.00, 0.01×1.00
+		{"low severity → smaller target, wider stop", "low", "0.01", "0.01"},   // 0.02×0.75=0.015→0.01, 0.01×1.50=0.015→0.01
 	}
 
 	for _, tt := range tests {
@@ -289,7 +289,7 @@ func TestMeanReversionEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_DecisionTypeInMetadata(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.8000", "moderate", "test", 60, now)
@@ -305,7 +305,7 @@ func TestMeanReversionEntryResolver_DecisionTypeInMetadata(t *testing.T) {
 }
 
 func TestMeanReversionEntryResolver_DecisionInputPreservesRawConfidence(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "triggered", "0.9000", "low", "test", 60, now)
@@ -324,7 +324,7 @@ func TestMeanReversionEntryResolver_DecisionInputPreservesRawConfidence(t *testi
 }
 
 func TestMeanReversionEntryResolver_NotTriggeredHasDecisionContext(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("rsi_oversold", "not_triggered", "0.7500", "none", "RSI above threshold", 60, now)
@@ -340,7 +340,7 @@ func TestMeanReversionEntryResolver_NotTriggeredHasDecisionContext(t *testing.T)
 }
 
 func TestMeanReversionEntryResolver_HighSeverityMaxAggression(t *testing.T) {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// High severity with maximum confidence → aggressive strategy.

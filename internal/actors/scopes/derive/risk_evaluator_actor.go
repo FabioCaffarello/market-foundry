@@ -7,6 +7,7 @@ import (
 
 	actorcommon "internal/actors/common"
 	apprisk "internal/application/risk"
+	"internal/domain/instrument"
 	domainrisk "internal/domain/risk"
 	"internal/shared/events"
 
@@ -14,9 +15,12 @@ import (
 )
 
 // RiskEvaluatorConfig holds the configuration for a risk evaluator actor.
+// H-6.c.1 commit 6: see SignalSamplerConfig for the canonical-Instrument
+// pass-through rationale.
 type RiskEvaluatorConfig struct {
 	Source           string
 	Symbol           string
+	Instrument       instrument.CanonicalInstrument
 	Timeframe        time.Duration
 	RiskPublisherPID *actor.PID
 	ScopePID         *actor.PID // for downstream fan-out to execution evaluators
@@ -48,7 +52,7 @@ func (a *PositionExposureEvaluatorActor) Receive(c *actor.Context) {
 
 	switch msg := c.Message().(type) {
 	case actor.Started:
-		a.evaluator = apprisk.NewPositionExposureEvaluator(a.cfg.Source, a.cfg.Symbol, int(a.cfg.Timeframe.Seconds()))
+		a.evaluator = apprisk.NewPositionExposureEvaluatorForInstrument(a.cfg.Source, a.cfg.Instrument, int(a.cfg.Timeframe.Seconds()))
 		a.logger.Info("position exposure evaluator started")
 
 	case actor.Stopped:
