@@ -23,14 +23,26 @@ import (
 	"internal/adapters/nats/natskit"
 	appstrategy "internal/application/strategy"
 	"internal/application/strategyclient"
+	"internal/domain/instrument"
 	"internal/domain/strategy"
 	"internal/shared/events"
 	"internal/shared/healthz"
 )
 
+// btcUSDTPerpDerive is a parameterless BTC/USDT-perpetual fixture for
+// deriveEvent (which has no testing.T). IIFE+panic mirrors the pattern
+// in internal/application/{signal,decision,strategy}.
+var btcUSDTPerpDerive = func() instrument.CanonicalInstrument {
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		panic("setup: BTC/USDT-perp: " + prob.Message)
+	}
+	return inst
+}()
+
 // deriveEvent produces a real StrategyResolvedEvent using the derive resolver.
 func deriveEvent(outcome, confidence, severity string, ts time.Time) strategy.StrategyResolvedEvent {
-	resolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerpDerive, 60)
 	strat, ok := resolver.Resolve(
 		"rsi_oversold", outcome, confidence, severity,
 		"RSI below 30 on btcusdt", 60, ts,

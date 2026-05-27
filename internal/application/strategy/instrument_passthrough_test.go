@@ -8,13 +8,28 @@ import (
 	"internal/domain/instrument"
 )
 
-var btcUSDTSpot = func() instrument.CanonicalInstrument {
-	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
-	if prob != nil {
-		panic("test setup: BTC/USDT-spot: " + prob.Message)
-	}
-	return inst
-}()
+// btcUSDTSpot / btcUSDTPerp are the canonical fixtures for the H-6.c.1
+// strategy entry resolver tests after commit 7c removed the legacy
+// (source, symbol) constructors. Spot is the pass-through canary
+// contrast; Perp reflects the original ("binancef", "btcusdt") tuple
+// semantics produced by the H-6.b sunset boundary helper.
+var (
+	btcUSDTSpot = func() instrument.CanonicalInstrument {
+		inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+		if prob != nil {
+			panic("test setup: BTC/USDT-spot: " + prob.Message)
+		}
+		return inst
+	}()
+
+	btcUSDTPerp = func() instrument.CanonicalInstrument {
+		inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			panic("test setup: BTC/USDT-perp: " + prob.Message)
+		}
+		return inst
+	}()
+)
 
 // TestEntryResolvers_NewForInstrument_Passthrough exercises the H-6.c.1
 // pass-through constructors for each of the 3 strategy entry resolvers.

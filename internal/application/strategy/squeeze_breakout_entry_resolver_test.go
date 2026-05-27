@@ -9,7 +9,7 @@ import (
 )
 
 func TestSqueezeBreakoutEntryResolver_Triggered(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "Bollinger squeeze detected: bandwidth narrowing below threshold on 60s timeframe", 60, now)
@@ -49,7 +49,7 @@ func TestSqueezeBreakoutEntryResolver_Triggered(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_NotTriggered(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "not_triggered", "0.7500", "none", "Bandwidth above threshold", 60, now)
@@ -68,7 +68,7 @@ func TestSqueezeBreakoutEntryResolver_NotTriggered(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_Insufficient(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "insufficient", "0.0000", "", "", 60, now)
@@ -84,7 +84,7 @@ func TestSqueezeBreakoutEntryResolver_Insufficient(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_UnknownOutcome(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("bollinger_squeeze", "unknown", "0.5000", "", "", 60, now)
@@ -94,7 +94,7 @@ func TestSqueezeBreakoutEntryResolver_UnknownOutcome(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_InvalidConfidence(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := resolver.Resolve("bollinger_squeeze", "triggered", "not-a-number", "moderate", "test", 60, now)
@@ -104,7 +104,7 @@ func TestSqueezeBreakoutEntryResolver_InvalidConfidence(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_TimestampPreserved(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "squeeze detected", 60, ts)
@@ -117,7 +117,7 @@ func TestSqueezeBreakoutEntryResolver_TimestampPreserved(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_Validation(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "squeeze detected", 60, now)
@@ -130,7 +130,7 @@ func TestSqueezeBreakoutEntryResolver_Validation(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_PartitionKey(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "test", 60, now)
@@ -143,7 +143,7 @@ func TestSqueezeBreakoutEntryResolver_PartitionKey(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_DecisionInputPreserved(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 300)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "Bollinger squeeze detected: bandwidth narrowing below threshold on 300s timeframe", 300, now)
@@ -175,7 +175,7 @@ func TestSqueezeBreakoutEntryResolver_DecisionInputPreserved(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_DecisionRationaleInMetadata(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	rationale := "Bollinger squeeze detected: bandwidth narrowing below threshold on 60s timeframe"
@@ -189,7 +189,7 @@ func TestSqueezeBreakoutEntryResolver_DecisionRationaleInMetadata(t *testing.T) 
 }
 
 func TestSqueezeBreakoutEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "", "", 60, now)
@@ -202,7 +202,7 @@ func TestSqueezeBreakoutEntryResolver_EmptyRationaleNotInMetadata(t *testing.T) 
 }
 
 func TestSqueezeBreakoutEntryResolver_SeverityPreservedForAllOutcomes(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -228,7 +228,7 @@ func TestSqueezeBreakoutEntryResolver_SeverityPreservedForAllOutcomes(t *testing
 // --- S250 behavioral activation tests ---
 
 func TestSqueezeBreakoutEntryResolver_SeverityScalesConfidence(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -258,7 +258,7 @@ func TestSqueezeBreakoutEntryResolver_SeverityScalesConfidence(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_SeverityAdjustsParameters(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -289,7 +289,7 @@ func TestSqueezeBreakoutEntryResolver_SeverityAdjustsParameters(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_DecisionTypeInMetadata(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "moderate", "test", 60, now)
@@ -305,7 +305,7 @@ func TestSqueezeBreakoutEntryResolver_DecisionTypeInMetadata(t *testing.T) {
 }
 
 func TestSqueezeBreakoutEntryResolver_DecisionInputPreservesRawConfidence(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.7500", "low", "test", 60, now)
@@ -324,7 +324,7 @@ func TestSqueezeBreakoutEntryResolver_DecisionInputPreservesRawConfidence(t *tes
 }
 
 func TestSqueezeBreakoutEntryResolver_NotTriggeredHasDecisionContext(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "not_triggered", "0.5000", "none", "Bandwidth above threshold", 60, now)
@@ -340,7 +340,7 @@ func TestSqueezeBreakoutEntryResolver_NotTriggeredHasDecisionContext(t *testing.
 }
 
 func TestSqueezeBreakoutEntryResolver_HighSeverityMaxAggression(t *testing.T) {
-	resolver := appstrategy.NewSqueezeBreakoutEntryResolver("binancef", "btcusdt", 60)
+	resolver := appstrategy.NewSqueezeBreakoutEntryResolverForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	s, ok := resolver.Resolve("bollinger_squeeze", "triggered", "0.9000", "high", "Strong squeeze detected", 60, now)

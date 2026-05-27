@@ -277,7 +277,7 @@ func TestS470_FullChainLineagePreservation(t *testing.T) {
 	}
 
 	// Stage 3: Strategy resolution (consumes decision).
-	stratResolver := appstrategy.NewMeanReversionEntryResolver("binancef", "btcusdt", 60)
+	stratResolver := appstrategy.NewMeanReversionEntryResolverForInstrument("binancef", btcUSDTPerp(), 60)
 	strat, ok := stratResolver.Resolve(dec.Type, string(dec.Outcome), dec.Confidence, string(dec.Severity), dec.Rationale, dec.Timeframe, ts)
 	if !ok {
 		t.Fatal("strategy resolution should succeed")
