@@ -174,7 +174,7 @@ func insertCompositeFixtureForSymbol(t *testing.T, client *clickhouse.Client, co
 	t.Helper()
 	ctx := context.Background()
 
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binance", symbol, uint32(60),
 		42.5, `{"period":"14"}`, true, ts,
@@ -182,7 +182,7 @@ func insertCompositeFixtureForSymbol(t *testing.T, client *clickhouse.Client, co
 	if err != nil {
 		t.Fatalf("insert signal (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binance", symbol, uint32(60),
 		"triggered", 0.85, "high", "RSI below 30",
@@ -191,7 +191,7 @@ func insertCompositeFixtureForSymbol(t *testing.T, client *clickhouse.Client, co
 	if err != nil {
 		t.Fatalf("insert decision (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binance", symbol, uint32(60),
 		"long", 0.80,
@@ -200,7 +200,7 @@ func insertCompositeFixtureForSymbol(t *testing.T, client *clickhouse.Client, co
 	if err != nil {
 		t.Fatalf("insert strategy (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binance", symbol, uint32(60),
 		"approved", 0.75,
@@ -212,7 +212,7 @@ func insertCompositeFixtureForSymbol(t *testing.T, client *clickhouse.Client, co
 	if err != nil {
 		t.Fatalf("insert risk (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-" + corrID, ts.Add(4 * time.Millisecond), corrID, "rsk-" + corrID,
 		"paper_order", "binance", symbol, uint32(60),
 		"buy", 0.1, 0.0, "submitted",
@@ -231,7 +231,7 @@ func insertCompositeFixture(t *testing.T, client *clickhouse.Client, corrID stri
 	ctx := context.Background()
 
 	// Signal
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binance", "btcusdt", uint32(60),
 		42.5, `{"period":"14"}`, true, ts,
@@ -241,7 +241,7 @@ func insertCompositeFixture(t *testing.T, client *clickhouse.Client, corrID stri
 	}
 
 	// Decision
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binance", "btcusdt", uint32(60),
 		"triggered", 0.85, "high", "RSI below 30",
@@ -252,7 +252,7 @@ func insertCompositeFixture(t *testing.T, client *clickhouse.Client, corrID stri
 	}
 
 	// Strategy
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binance", "btcusdt", uint32(60),
 		"long", 0.80,
@@ -263,7 +263,7 @@ func insertCompositeFixture(t *testing.T, client *clickhouse.Client, corrID stri
 	}
 
 	// Risk
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binance", "btcusdt", uint32(60),
 		"approved", 0.75,
@@ -277,7 +277,7 @@ func insertCompositeFixture(t *testing.T, client *clickhouse.Client, corrID stri
 	}
 
 	// Execution
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-" + corrID, ts.Add(4 * time.Millisecond), corrID, "rsk-" + corrID,
 		"paper_order", "binance", "btcusdt", uint32(60),
 		"buy", 0.1, 0.0, "submitted",
@@ -296,7 +296,7 @@ func insertPartialFixture(t *testing.T, client *clickhouse.Client, corrID string
 	ctx := context.Background()
 
 	// Signal + Decision + Strategy + Risk (rejected) — no Execution.
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binance", "btcusdt", uint32(60),
 		28.0, `{"period":"14"}`, true, ts,
@@ -305,7 +305,7 @@ func insertPartialFixture(t *testing.T, client *clickhouse.Client, corrID string
 		t.Fatalf("insert signal: %v", err)
 	}
 
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binance", "btcusdt", uint32(60),
 		"triggered", 0.90, "high", "RSI deeply oversold",
@@ -315,7 +315,7 @@ func insertPartialFixture(t *testing.T, client *clickhouse.Client, corrID string
 		t.Fatalf("insert decision: %v", err)
 	}
 
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binance", "btcusdt", uint32(60),
 		"long", 0.85,
@@ -325,7 +325,7 @@ func insertPartialFixture(t *testing.T, client *clickhouse.Client, corrID string
 		t.Fatalf("insert strategy: %v", err)
 	}
 
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binance", "btcusdt", uint32(60),
 		"rejected", 0.10,
@@ -521,20 +521,20 @@ func TestCompositeReader_SymbolIsolation_SingleChain(t *testing.T) {
 		if chain.StageCount != 5 {
 			t.Errorf("[%s] expected stage_count=5, got %d", sym, chain.StageCount)
 		}
-		if chain.Signal.Symbol != sym {
-			t.Errorf("[%s] signal.symbol=%q, want %q", sym, chain.Signal.Symbol, sym)
+		if chain.Signal.VenueSymbol() != sym {
+			t.Errorf("[%s] signal.symbol=%q, want %q", sym, chain.Signal.VenueSymbol(), sym)
 		}
-		if chain.Decision.Symbol != sym {
-			t.Errorf("[%s] decision.symbol=%q, want %q", sym, chain.Decision.Symbol, sym)
+		if chain.Decision.VenueSymbol() != sym {
+			t.Errorf("[%s] decision.symbol=%q, want %q", sym, chain.Decision.VenueSymbol(), sym)
 		}
-		if chain.Strategy.Symbol != sym {
-			t.Errorf("[%s] strategy.symbol=%q, want %q", sym, chain.Strategy.Symbol, sym)
+		if chain.Strategy.VenueSymbol() != sym {
+			t.Errorf("[%s] strategy.symbol=%q, want %q", sym, chain.Strategy.VenueSymbol(), sym)
 		}
-		if chain.Risk.Symbol != sym {
-			t.Errorf("[%s] risk.symbol=%q, want %q", sym, chain.Risk.Symbol, sym)
+		if chain.Risk.VenueSymbol() != sym {
+			t.Errorf("[%s] risk.symbol=%q, want %q", sym, chain.Risk.VenueSymbol(), sym)
 		}
-		if chain.Execution.Symbol != sym {
-			t.Errorf("[%s] execution.symbol=%q, want %q", sym, chain.Execution.Symbol, sym)
+		if chain.Execution.VenueSymbol() != sym {
+			t.Errorf("[%s] execution.symbol=%q, want %q", sym, chain.Execution.VenueSymbol(), sym)
 		}
 	}
 }
@@ -595,11 +595,11 @@ func TestCompositeReader_SymbolIsolation_BatchScoping(t *testing.T) {
 		t.Fatalf("expected 2 btcusdt chains, got %d", len(chains))
 	}
 	for i, ch := range chains {
-		if ch.Signal != nil && ch.Signal.Symbol != "btcusdt" {
-			t.Errorf("chain[%d] signal.symbol=%q, expected btcusdt", i, ch.Signal.Symbol)
+		if ch.Signal != nil && ch.Signal.VenueSymbol() != "btcusdt" {
+			t.Errorf("chain[%d] signal.symbol=%q, expected btcusdt", i, ch.Signal.VenueSymbol())
 		}
-		if ch.Execution != nil && ch.Execution.Symbol != "btcusdt" {
-			t.Errorf("chain[%d] execution.symbol=%q, expected btcusdt", i, ch.Execution.Symbol)
+		if ch.Execution != nil && ch.Execution.VenueSymbol() != "btcusdt" {
+			t.Errorf("chain[%d] execution.symbol=%q, expected btcusdt", i, ch.Execution.VenueSymbol())
 		}
 	}
 
@@ -707,7 +707,7 @@ func insertPartialFixtureForSymbol(t *testing.T, client *clickhouse.Client, corr
 	t.Helper()
 	ctx := context.Background()
 
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binance", symbol, uint32(60),
 		28.0, `{"period":"14"}`, true, ts,
@@ -715,7 +715,7 @@ func insertPartialFixtureForSymbol(t *testing.T, client *clickhouse.Client, corr
 	if err != nil {
 		t.Fatalf("insert signal (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binance", symbol, uint32(60),
 		"triggered", 0.90, "high", "RSI deeply oversold",
@@ -724,7 +724,7 @@ func insertPartialFixtureForSymbol(t *testing.T, client *clickhouse.Client, corr
 	if err != nil {
 		t.Fatalf("insert decision (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binance", symbol, uint32(60),
 		"long", 0.85,
@@ -733,7 +733,7 @@ func insertPartialFixtureForSymbol(t *testing.T, client *clickhouse.Client, corr
 	if err != nil {
 		t.Fatalf("insert strategy (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binance", symbol, uint32(60),
 		"rejected", 0.10,
@@ -752,7 +752,7 @@ func insertModifiedFixtureForSymbol(t *testing.T, client *clickhouse.Client, cor
 	t.Helper()
 	ctx := context.Background()
 
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"bollinger", "binance", symbol, uint32(60),
 		1.95, `{"period":"20"}`, true, ts,
@@ -760,7 +760,7 @@ func insertModifiedFixtureForSymbol(t *testing.T, client *clickhouse.Client, cor
 	if err != nil {
 		t.Fatalf("insert signal (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"squeeze_breakout", "binance", symbol, uint32(60),
 		"triggered", 0.70, "low", "Squeeze detected",
@@ -769,7 +769,7 @@ func insertModifiedFixtureForSymbol(t *testing.T, client *clickhouse.Client, cor
 	if err != nil {
 		t.Fatalf("insert decision (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"squeeze_breakout_entry", "binance", symbol, uint32(60),
 		"short", 0.65,
@@ -778,7 +778,7 @@ func insertModifiedFixtureForSymbol(t *testing.T, client *clickhouse.Client, cor
 	if err != nil {
 		t.Fatalf("insert strategy (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binance", symbol, uint32(60),
 		"modified", 0.60,
@@ -790,7 +790,7 @@ func insertModifiedFixtureForSymbol(t *testing.T, client *clickhouse.Client, cor
 	if err != nil {
 		t.Fatalf("insert risk (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-" + corrID, ts.Add(4 * time.Millisecond), corrID, "rsk-" + corrID,
 		"paper_order", "binance", symbol, uint32(60),
 		"sell", 5.0, 0.0, "submitted",
@@ -831,11 +831,11 @@ func TestCompositeReader_S302_SC1_SimultaneousApproved(t *testing.T) {
 				t.Errorf("[%s] expected chain_complete=true", sym)
 			}
 			// Verify all stages belong to this symbol.
-			if chain.Signal.Symbol != sym {
-				t.Errorf("[%s] signal.symbol=%q", sym, chain.Signal.Symbol)
+			if chain.Signal.VenueSymbol() != sym {
+				t.Errorf("[%s] signal.symbol=%q", sym, chain.Signal.VenueSymbol())
 			}
-			if chain.Execution.Symbol != sym {
-				t.Errorf("[%s] execution.symbol=%q", sym, chain.Execution.Symbol)
+			if chain.Execution.VenueSymbol() != sym {
+				t.Errorf("[%s] execution.symbol=%q", sym, chain.Execution.VenueSymbol())
 			}
 			// Verify causal chain integrity.
 			if chain.Decision.CausationID != "sig-s302-sc1-"+sym {
@@ -1078,8 +1078,8 @@ func TestCompositeReader_S302_SC4_BatchCountPerSymbol(t *testing.T) {
 			}
 			// All chains belong to the queried symbol.
 			for i, ch := range chains {
-				if ch.Signal != nil && ch.Signal.Symbol != sym {
-					t.Errorf("[%s] chain[%d].signal.symbol=%q", sym, i, ch.Signal.Symbol)
+				if ch.Signal != nil && ch.Signal.VenueSymbol() != sym {
+					t.Errorf("[%s] chain[%d].signal.symbol=%q", sym, i, ch.Signal.VenueSymbol())
 				}
 			}
 		})
@@ -1096,7 +1096,7 @@ func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, sym
 	t.Helper()
 	ctx := context.Background()
 
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binancef", symbol, uint32(60),
 		42.5, `{"period":"14"}`, true, ts,
@@ -1104,7 +1104,7 @@ func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, sym
 	if err != nil {
 		t.Fatalf("insert signal (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binancef", symbol, uint32(60),
 		"triggered", 0.85, "high", "RSI below 30",
@@ -1113,7 +1113,7 @@ func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, sym
 	if err != nil {
 		t.Fatalf("insert decision (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binancef", symbol, uint32(60),
 		"long", 0.80,
@@ -1122,7 +1122,7 @@ func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, sym
 	if err != nil {
 		t.Fatalf("insert strategy (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binancef", symbol, uint32(60),
 		"approved", 0.75,
@@ -1135,7 +1135,7 @@ func insertVenueFillFixture(t *testing.T, client *clickhouse.Client, corrID, sym
 		t.Fatalf("insert risk (%s): %v", symbol, err)
 	}
 	// Venue fill: status=filled, real fill data with simulated=false.
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-" + corrID, ts.Add(5 * time.Millisecond), corrID, "rsk-" + corrID,
 		"venue_market_order", "binancef", symbol, uint32(60),
 		"buy", 0.001, 0.001, "filled",
@@ -1157,7 +1157,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 	t.Helper()
 	ctx := context.Background()
 
-	err := client.InsertBatch(ctx, "INSERT INTO signals", [][]any{{
+	err := client.InsertBatch(ctx, "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)", [][]any{{
 		"sig-" + corrID, ts, corrID, "",
 		"rsi", "binancef", symbol, uint32(60),
 		42.5, `{"period":"14"}`, true, ts,
@@ -1165,7 +1165,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 	if err != nil {
 		t.Fatalf("insert signal (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO decisions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO decisions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp)", [][]any{{
 		"dec-" + corrID, ts.Add(time.Millisecond), corrID, "sig-" + corrID,
 		"rsi_oversold", "binancef", symbol, uint32(60),
 		"triggered", 0.85, "high", "RSI below 30",
@@ -1174,7 +1174,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 	if err != nil {
 		t.Fatalf("insert decision (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO strategies", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)", [][]any{{
 		"str-" + corrID, ts.Add(2 * time.Millisecond), corrID, "dec-" + corrID,
 		"mean_reversion_entry", "binancef", symbol, uint32(60),
 		"long", 0.80,
@@ -1183,7 +1183,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 	if err != nil {
 		t.Fatalf("insert strategy (%s): %v", symbol, err)
 	}
-	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO risk_assessments (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp)", [][]any{{
 		"rsk-" + corrID, ts.Add(3 * time.Millisecond), corrID, "str-" + corrID,
 		"position_exposure", "binancef", symbol, uint32(60),
 		"approved", 0.75,
@@ -1196,7 +1196,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 		t.Fatalf("insert risk (%s): %v", symbol, err)
 	}
 	// Paper order (submitted, earlier timestamp).
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-paper-" + corrID, ts.Add(4 * time.Millisecond), corrID, "rsk-" + corrID,
 		"paper_order", "binancef", symbol, uint32(60),
 		"buy", 0.001, 0.0, "submitted",
@@ -1209,7 +1209,7 @@ func insertDualExecutionFixture(t *testing.T, client *clickhouse.Client, corrID,
 		t.Fatalf("insert paper execution (%s): %v", symbol, err)
 	}
 	// Venue fill (filled, later timestamp).
-	err = client.InsertBatch(ctx, "INSERT INTO executions", [][]any{{
+	err = client.InsertBatch(ctx, "INSERT INTO executions (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp)", [][]any{{
 		"exc-fill-" + corrID, ts.Add(6 * time.Millisecond), corrID, "rsk-" + corrID,
 		"venue_market_order", "binancef", symbol, uint32(60),
 		"buy", 0.001, 0.001, "filled",
