@@ -22,6 +22,19 @@ import (
 // No ClickHouse JOINs, no materialized views, no CDC. Each query hits one table
 // filtered by correlation_id (which is indexed via the MergeTree order key prefix
 // in combination with source/symbol/timeframe).
+//
+// H-6.c.2 commit 2: the 5 per-stage queries below (signal/decision/strategy/
+// risk/execution) emit a structured Warn log on Instrument reconstruction
+// failure, matching the warn-and-emit-zero pattern already used by the 8
+// non-composite reader sites. The partial-chain-assembly contract is
+// preserved: a failed reconstruction yields a zero Instrument and the chain
+// is still returned with that stage populated. Pre-fix, these sites silently
+// discarded the error with `_`, leaving zero-Instrument leakage invisible
+// to operators.
+//
+// TODO(H-6.d): Add log-emission unit canary for the 5 sites post-treatment.
+// Symmetric with the 8 existing sites which also lack such canaries.
+// Decision deferred to H-6.d scope or dedicated test hardening wave.
 type CompositeReader struct {
 	client *Client
 	logger *slog.Logger
@@ -185,7 +198,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan signal: %w", err)
 	}
 
-	sigInst, _ := reconstructInstrumentFromLegacy(src, sym)
+	sigInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	if instErr != nil {
+		r.logger.Warn("signal instrument reconstruction failed; emitting zero instrument",
+			"source", src, "symbol", sym, "error", instErr,
+		)
+	}
 	return &analyticalclient.SignalWithTrace{
 		Signal: signal.Signal{
 			Type:       typ,
@@ -240,7 +258,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan decision: %w", err)
 	}
 
-	decInst, _ := reconstructInstrumentFromLegacy(src, sym)
+	decInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	if instErr != nil {
+		r.logger.Warn("decision instrument reconstruction failed; emitting zero instrument",
+			"source", src, "symbol", sym, "error", instErr,
+		)
+	}
 	return &analyticalclient.DecisionWithTrace{
 		Decision: decision.Decision{
 			Type:       typ,
@@ -299,7 +322,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan strategy: %w", err)
 	}
 
-	stratInst, _ := reconstructInstrumentFromLegacy(src, sym)
+	stratInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	if instErr != nil {
+		r.logger.Warn("strategy instrument reconstruction failed; emitting zero instrument",
+			"source", src, "symbol", sym, "error", instErr,
+		)
+	}
 	return &analyticalclient.StrategyWithTrace{
 		Strategy: strategy.Strategy{
 			Type:       typ,
@@ -357,7 +385,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan risk: %w", err)
 	}
 
-	riskInst, _ := reconstructInstrumentFromLegacy(src, sym)
+	riskInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	if instErr != nil {
+		r.logger.Warn("risk instrument reconstruction failed; emitting zero instrument",
+			"source", src, "symbol", sym, "error", instErr,
+		)
+	}
 	return &analyticalclient.RiskWithTrace{
 		RiskAssessment: risk.RiskAssessment{
 			Type:        typ,
@@ -420,7 +453,12 @@ ORDER BY timestamp DESC LIMIT 1`
 		return nil, fmt.Errorf("scan execution: %w", err)
 	}
 
-	execInst, _ := reconstructInstrumentFromLegacy(src, sym)
+	execInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	if instErr != nil {
+		r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
+			"source", src, "symbol", sym, "error", instErr,
+		)
+	}
 	return &analyticalclient.ExecutionWithTrace{
 		ExecutionIntent: execution.ExecutionIntent{
 			Type:           typ,
