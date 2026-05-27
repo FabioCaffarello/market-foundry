@@ -27,27 +27,42 @@ func severityRank(s TriageSeverity) int {
 
 // Finding is a single triage observation associated with an item.
 type Finding struct {
-	Domain  string         `json:"domain"`  // session, decision, roundtrip
-	Signal  string         `json:"signal"`  // e.g. "check_failed", "consistency_violation", "flagged_roundtrip"
-	Detail  string         `json:"detail"`  // human-readable explanation
+	Domain   string         `json:"domain"` // session, decision, roundtrip
+	Signal   string         `json:"signal"` // e.g. "check_failed", "consistency_violation", "flagged_roundtrip"
+	Detail   string         `json:"detail"` // human-readable explanation
 	Severity TriageSeverity `json:"severity"`
 }
 
 // SessionTriageItem is a session ranked by how much attention it needs.
 type SessionTriageItem struct {
-	SessionID  string         `json:"session_id"`
-	Status     string         `json:"status"`
-	Verdict    string         `json:"verdict"` // consistent, degraded, inconsistent, errored
-	Severity   TriageSeverity `json:"severity"`
-	FailedChecks []string     `json:"failed_checks,omitempty"`
-	Warnings     []string     `json:"warnings,omitempty"`
-	Findings     []Finding    `json:"findings"`
-	AnomalyCount int          `json:"anomaly_count"`
+	SessionID    string         `json:"session_id"`
+	Status       string         `json:"status"`
+	Verdict      string         `json:"verdict"` // consistent, degraded, inconsistent, errored
+	Severity     TriageSeverity `json:"severity"`
+	FailedChecks []string       `json:"failed_checks,omitempty"`
+	Warnings     []string       `json:"warnings,omitempty"`
+	Findings     []Finding      `json:"findings"`
+	AnomalyCount int            `json:"anomaly_count"`
 }
 
 // DecisionTriageItem is a decision chain ranked by consistency/effectiveness issues.
+//
+// String-filter semantics (H-6.c.2 commit 3, parallel to
+// ReviewTransform.Symbol): the Symbol field is a venue-native
+// lowercase passthrough from the upstream ReviewTransform.Symbol,
+// which is itself canonical-derived via d.VenueSymbol() in the
+// review projection chain. The triage item is the operator-facing
+// surface for the decision triage UI — venue-native display is the
+// canonical wire shape here. No Instrument upgrade applied: the
+// canonical Instrument lives upstream in the domain types
+// (decision.Decision, etc.); this DTO is the projection terminal.
+// See ReviewTransform godoc for the full string-filter rationale.
 type DecisionTriageItem struct {
-	CorrelationID string         `json:"correlation_id"`
+	CorrelationID string `json:"correlation_id"`
+	// Symbol is the venue-native lowercase symbol form
+	// (e.g. "btcusdt"), passed through from
+	// ReviewTransform.Symbol at get_decision_triage.go:99.
+	// String-filter by design — see struct godoc.
 	Symbol        string         `json:"symbol"`
 	DecisionType  string         `json:"decision_type"`
 	Outcome       string         `json:"outcome"`
@@ -73,11 +88,11 @@ type RoundTripTriageItem struct {
 
 // TriageOverview is a cross-domain triage summary answering "what needs attention?"
 type TriageOverview struct {
-	SessionSummary    TriageDomainSummary `json:"sessions"`
-	DecisionSummary   TriageDomainSummary `json:"decisions"`
-	RoundTripSummary  TriageDomainSummary `json:"roundtrips"`
-	TopFindings       []Finding           `json:"top_findings"`
-	TotalAnomalies    int                 `json:"total_anomalies"`
+	SessionSummary   TriageDomainSummary `json:"sessions"`
+	DecisionSummary  TriageDomainSummary `json:"decisions"`
+	RoundTripSummary TriageDomainSummary `json:"roundtrips"`
+	TopFindings      []Finding           `json:"top_findings"`
+	TotalAnomalies   int                 `json:"total_anomalies"`
 }
 
 // TriageDomainSummary captures per-domain triage counts.

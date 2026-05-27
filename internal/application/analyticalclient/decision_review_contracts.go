@@ -94,14 +94,32 @@ type DecisionReviewBundle struct {
 // ReviewInputs describes the signal evidence that contributed to a decision.
 type ReviewInputs struct {
 	Signals []decision.SignalInput `json:"signals"`
-	EventID string                `json:"event_id,omitempty"`
-	At      time.Time             `json:"at"`
+	EventID string                 `json:"event_id,omitempty"`
+	At      time.Time              `json:"at"`
 }
 
 // ReviewTransform describes the decision evaluation itself.
+//
+// String-filter semantics (H-6.c.2 commit 3, Decisão Q2 of H-6.c.1):
+// the Symbol field is venue-native lowercase (e.g. "btcusdt") populated
+// from the upstream domain type via d.VenueSymbol() at
+// get_decision_review.go:188 — the canonical-derived display string
+// projected from decision.Decision.Instrument (migrated in H-6.b).
+// This DTO does NOT carry CanonicalInstrument by design: it is a
+// query-result projection consumed by HTTP handlers + the decision
+// triage downstream surface, where venue-native display is the
+// canonical wire shape. Promoting to Instrument would force
+// source-string reconstruction at the DTO boundary — the same
+// regression-shape as commit 37f8ddd. The architectural decision
+// is recorded in tools/raccoon-cli/policies/domain_types.toml under
+// [domain_types.review_transform] with migration_state =
+// "string_filter".
 type ReviewTransform struct {
-	Type       string `json:"type"`
-	Source     string `json:"source"`
+	Type   string `json:"type"`
+	Source string `json:"source"`
+	// Symbol is the venue-native lowercase symbol form (e.g.
+	// "btcusdt"), populated from the upstream decision.Decision via
+	// d.VenueSymbol(). String-filter by design — see struct godoc.
 	Symbol     string `json:"symbol"`
 	Timeframe  int    `json:"timeframe"`
 	Outcome    string `json:"outcome"`
@@ -110,8 +128,8 @@ type ReviewTransform struct {
 	Rationale  string `json:"rationale"`
 	Final      bool   `json:"final"`
 
-	EventID string            `json:"event_id,omitempty"`
-	At      time.Time         `json:"at"`
+	EventID  string            `json:"event_id,omitempty"`
+	At       time.Time         `json:"at"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
