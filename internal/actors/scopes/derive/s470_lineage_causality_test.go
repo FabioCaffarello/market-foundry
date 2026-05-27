@@ -257,7 +257,7 @@ func TestS470_FullChainLineagePreservation(t *testing.T) {
 	signalEventID := signalMeta.ID
 
 	// Stage 2: Decision evaluation (consumes signal).
-	decEval := appdecision.NewRSIOversoldEvaluator("binancef", "btcusdt", 60)
+	decEval := appdecision.NewRSIOversoldEvaluatorForInstrument("binancef", btcUSDTPerp(), 60)
 	dec, ok := decEval.Evaluate("rsi", "15.0000", 60, ts)
 	if !ok {
 		t.Fatal("decision evaluation should succeed")

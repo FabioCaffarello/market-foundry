@@ -11,7 +11,7 @@ import (
 )
 
 func TestEMACrossoverEvaluator_Bullish_Triggered(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 60, now)
@@ -39,7 +39,7 @@ func TestEMACrossoverEvaluator_Bullish_Triggered(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Bearish_NotTriggered(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bearish", 60, now)
@@ -52,7 +52,7 @@ func TestEMACrossoverEvaluator_Bearish_NotTriggered(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Neutral_NotTriggered(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "neutral", 60, now)
@@ -65,7 +65,7 @@ func TestEMACrossoverEvaluator_Neutral_NotTriggered(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_InvalidValue(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("ema_crossover", "sideways", 60, now)
@@ -75,7 +75,7 @@ func TestEMACrossoverEvaluator_InvalidValue(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_EmptyValue(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	_, ok := eval.Evaluate("ema_crossover", "", 60, time.Now().UTC())
 	if ok {
 		t.Fatal("expected failure for empty signal value")
@@ -83,7 +83,7 @@ func TestEMACrossoverEvaluator_EmptyValue(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Validation(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 60, now)
@@ -96,7 +96,7 @@ func TestEMACrossoverEvaluator_Validation(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_ConfidenceBounds(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -126,7 +126,7 @@ func TestEMACrossoverEvaluator_ConfidenceBounds(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Severity_Bullish(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 60, now)
@@ -139,7 +139,7 @@ func TestEMACrossoverEvaluator_Severity_Bullish(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Severity_Bearish(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bearish", 60, now)
@@ -152,7 +152,7 @@ func TestEMACrossoverEvaluator_Severity_Bearish(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Severity_Neutral(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "neutral", 60, now)
@@ -165,7 +165,7 @@ func TestEMACrossoverEvaluator_Severity_Neutral(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Rationale_Bullish(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 60, now)
@@ -184,7 +184,7 @@ func TestEMACrossoverEvaluator_Rationale_Bullish(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Rationale_Bearish(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bearish", 60, now)
@@ -200,7 +200,7 @@ func TestEMACrossoverEvaluator_Rationale_Bearish(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_Metadata_CrossoverDirection(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	for _, dir := range []string{"bullish", "bearish", "neutral"} {
@@ -217,7 +217,7 @@ func TestEMACrossoverEvaluator_Metadata_CrossoverDirection(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_TimestampPreserved(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 60, ts)
@@ -230,7 +230,7 @@ func TestEMACrossoverEvaluator_TimestampPreserved(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_SignalInputPreserved(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 300)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	d, ok := eval.Evaluate("ema_crossover", "bullish", 300, now)
@@ -253,7 +253,7 @@ func TestEMACrossoverEvaluator_SignalInputPreserved(t *testing.T) {
 }
 
 func TestEMACrossoverEvaluator_BullishConfidence_HigherThanNeutral(t *testing.T) {
-	eval := appdecision.NewEMACrossoverEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewEMACrossoverEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	dBullish, _ := eval.Evaluate("ema_crossover", "bullish", 60, now)

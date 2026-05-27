@@ -13,7 +13,7 @@ import (
 // -- Triggered tests ----------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_Triggered(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{
@@ -46,7 +46,7 @@ func TestBollingerSqueezeEvaluator_Triggered(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_NotTriggered(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{
@@ -64,7 +64,7 @@ func TestBollingerSqueezeEvaluator_NotTriggered(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_AtThreshold(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{
@@ -82,7 +82,7 @@ func TestBollingerSqueezeEvaluator_AtThreshold(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_ExtremeSqueeze(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{
@@ -105,7 +105,7 @@ func TestBollingerSqueezeEvaluator_ExtremeSqueeze(t *testing.T) {
 // -- Invalid input tests -------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_InvalidValue(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -116,7 +116,7 @@ func TestBollingerSqueezeEvaluator_InvalidValue(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_MissingBandwidth(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"sma": "50000.0000"}
@@ -127,7 +127,7 @@ func TestBollingerSqueezeEvaluator_MissingBandwidth(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_MissingSMA(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000"}
@@ -138,7 +138,7 @@ func TestBollingerSqueezeEvaluator_MissingSMA(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_NilMetadata(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	_, ok := eval.Evaluate("bollinger", "0.5000", 60, now, nil)
@@ -148,7 +148,7 @@ func TestBollingerSqueezeEvaluator_NilMetadata(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_ZeroSMA(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "0.0000"}
@@ -159,7 +159,7 @@ func TestBollingerSqueezeEvaluator_ZeroSMA(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_EmptyValue(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	_, ok := eval.Evaluate("bollinger", "", 60, time.Now().UTC(), map[string]string{
 		"bandwidth": "200.0000", "sma": "50000.0000",
 	})
@@ -171,7 +171,7 @@ func TestBollingerSqueezeEvaluator_EmptyValue(t *testing.T) {
 // -- Validation tests ----------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_Validation(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -187,7 +187,7 @@ func TestBollingerSqueezeEvaluator_Validation(t *testing.T) {
 // -- Confidence tests ----------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_ConfidenceBounds(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	tests := []struct {
@@ -221,7 +221,7 @@ func TestBollingerSqueezeEvaluator_ConfidenceBounds(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_ConfidenceMonotonicity(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 	sma := "50000.0000"
 
@@ -259,7 +259,7 @@ func TestBollingerSqueezeEvaluator_ConfidenceMonotonicity(t *testing.T) {
 // -- Severity tests ------------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_SeverityLow(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// relativeBW = 4000/50000 = 0.08 → ratio = 0.08/0.10 = 0.80 > 0.50 → Low
@@ -274,7 +274,7 @@ func TestBollingerSqueezeEvaluator_SeverityLow(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_SeverityModerate(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// relativeBW = 1500/50000 = 0.03 → ratio = 0.03/0.10 = 0.30 → 0.25 < 0.30 ≤ 0.50 → Moderate
@@ -289,7 +289,7 @@ func TestBollingerSqueezeEvaluator_SeverityModerate(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_SeverityHigh(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	// relativeBW = 100/50000 = 0.002 → ratio = 0.002/0.10 = 0.02 ≤ 0.25 → High
@@ -304,7 +304,7 @@ func TestBollingerSqueezeEvaluator_SeverityHigh(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_SeverityNone_NotTriggered(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "10000.0000", "sma": "50000.0000"}
@@ -318,7 +318,7 @@ func TestBollingerSqueezeEvaluator_SeverityNone_NotTriggered(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_SeverityMonotonicity(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	severityOrder := map[domaindecision.Severity]int{
@@ -348,7 +348,7 @@ func TestBollingerSqueezeEvaluator_SeverityMonotonicity(t *testing.T) {
 // -- Rationale tests -----------------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_RationaleTriggered(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -368,7 +368,7 @@ func TestBollingerSqueezeEvaluator_RationaleTriggered(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_RationaleNotTriggered(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "10000.0000", "sma": "50000.0000"}
@@ -384,7 +384,7 @@ func TestBollingerSqueezeEvaluator_RationaleNotTriggered(t *testing.T) {
 // -- Metadata enrichment tests -------------------------------------------------
 
 func TestBollingerSqueezeEvaluator_MetadataContainsFields(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -402,7 +402,7 @@ func TestBollingerSqueezeEvaluator_MetadataContainsFields(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_MetadataPctBZone_Lower(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -416,7 +416,7 @@ func TestBollingerSqueezeEvaluator_MetadataPctBZone_Lower(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_MetadataPctBZone_Middle(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -430,7 +430,7 @@ func TestBollingerSqueezeEvaluator_MetadataPctBZone_Middle(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_MetadataPctBZone_Upper(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -446,7 +446,7 @@ func TestBollingerSqueezeEvaluator_MetadataPctBZone_Upper(t *testing.T) {
 // -- Timestamp & signal input preservation ------------------------------------
 
 func TestBollingerSqueezeEvaluator_TimestampPreserved(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 60)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
@@ -460,7 +460,7 @@ func TestBollingerSqueezeEvaluator_TimestampPreserved(t *testing.T) {
 }
 
 func TestBollingerSqueezeEvaluator_SignalInputPreserved(t *testing.T) {
-	eval := appdecision.NewBollingerSqueezeEvaluator("binancef", "btcusdt", 300)
+	eval := appdecision.NewBollingerSqueezeEvaluatorForInstrument("binancef", btcUSDTPerp, 300)
 	now := time.Now().UTC()
 
 	meta := map[string]string{"bandwidth": "200.0000", "sma": "50000.0000"}
