@@ -133,10 +133,21 @@ fn extract_durables(content: &str, topo: &mut SourceTopology) {
         if trimmed.contains("Durable") && !trimmed.starts_with("//") {
             for val in extract_all_quoted(trimmed) {
                 if val.contains('-') && val.chars().all(|c| c.is_alphanumeric() || c == '-') {
-                    // Find stream name nearby (15 lines), fall back to whole file
-                    let stream = find_stream_name_near(&lines, i, 15)
-                        .or_else(|| find_stream_name_near(&lines, lines.len() / 2, lines.len()));
-                    if let Some(stream_name) = stream {
+                    // Stream name must appear within radius 15 of the
+                    // Durable. The previous whole-file fallback was
+                    // fragile: in test files mixing the Durable string
+                    // with unrelated SCREAMING_SNAKE_CASE constants
+                    // (e.g., problem-code values like SYS_UNAVAILABLE),
+                    // the fallback picked whichever string was nearest
+                    // the file's midpoint — Linux iteration order vs
+                    // macOS surfaced as a CI-only false positive. If
+                    // no stream appears within the radius, the durable
+                    // is skipped here; production ConsumerSpec sites
+                    // colocate Durable + Stream, and test files that
+                    // assert on Durable strings without a nearby
+                    // Stream are explicitly out of scope for topology
+                    // mapping. See H-6.c.1 commit 12 retrospective.
+                    if let Some(stream_name) = find_stream_name_near(&lines, i, 15) {
                         topo.durables.insert(val, stream_name);
                     }
                 }
@@ -411,6 +422,72 @@ func DefaultDataPlaneRegistry() DataPlaneRegistry {
         assert_eq!(
             topo.durables.get("validator-dataplane-v1"),
             Some(&"DATA_PLANE_INGESTION".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_durables_skips_durable_with_no_stream_within_radius() {
+        // H-6.c.1 commit 12 regression test. Reproduces the
+        // CI false positive: a test file mixes a Durable
+        // string with unrelated SCREAMING_SNAKE_CASE constants
+        // (problem-code values, error codes) and the actual
+        // Stream name lives far away. The previous whole-file
+        // fallback picked whichever string was nearest the
+        // file's midpoint — on Linux iteration order this
+        // surfaced as `Durable → SYS_UNAVAILABLE`, breaking
+        // topology+drift checks. After the fix, no Stream
+        // within radius 15 means the durable is skipped (no
+        // misleading mapping inserted).
+        let mut padding = String::new();
+        for _ in 0..30 {
+            padding.push_str("    // filler line to push STRATEGY_EVENTS outside radius\n");
+        }
+        let source = format!(
+            r#"
+    want := "STRATEGY_EVENTS"
+{padding}
+    if prob.Code != "SYS_UNAVAILABLE" {{
+        t.Errorf("error code: want SYS_UNAVAILABLE, got %s", prob.Code)
+    }}
+{padding}
+    if consumer.Durable != "execute-strategy-mean-reversion-entry" {{
+        t.Errorf("execute consumer durable: %s", consumer.Durable)
+    }}
+"#,
+            padding = padding
+        );
+        let mut topo = SourceTopology::default();
+        extract_durables(&source, &mut topo);
+        assert!(
+            !topo
+                .durables
+                .contains_key("execute-strategy-mean-reversion-entry"),
+            "durable with no Stream within radius 15 must be skipped, not mapped to an unrelated SCREAMING_SNAKE_CASE constant; got: {:?}",
+            topo.durables.get("execute-strategy-mean-reversion-entry")
+        );
+    }
+
+    #[test]
+    fn extract_durables_keeps_durable_with_stream_within_radius() {
+        // H-6.c.1 commit 12 — happy-path companion to the
+        // regression test above. When the Stream colocates
+        // with the Durable (production ConsumerSpec shape),
+        // the mapping is preserved.
+        let source = r#"
+    if spec.Durable != "execute-strategy-mean-reversion-entry" {
+        t.Errorf("durable: %s", spec.Durable)
+    }
+    if spec.Event.Stream.Name != "STRATEGY_EVENTS" {
+        t.Errorf("stream: %s", spec.Event.Stream.Name)
+    }
+"#;
+        let mut topo = SourceTopology::default();
+        extract_durables(source, &mut topo);
+        assert_eq!(
+            topo.durables
+                .get("execute-strategy-mean-reversion-entry"),
+            Some(&"STRATEGY_EVENTS".to_string()),
+            "durable with Stream within radius 15 must be mapped"
         );
     }
 
