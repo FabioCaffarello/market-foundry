@@ -7,7 +7,7 @@ import (
 )
 
 func TestEMACrossoverSampler_WarmUp(t *testing.T) {
-	s := NewEMACrossoverSampler("binancef", "btcusdt", 300)
+	s := NewEMACrossoverSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed slowPeriod-1 prices — should not produce a signal.
@@ -48,7 +48,7 @@ func TestEMACrossoverSampler_WarmUp(t *testing.T) {
 }
 
 func TestEMACrossoverSampler_BullishCrossover(t *testing.T) {
-	s := NewEMACrossoverSampler("binancef", "btcusdt", 60)
+	s := NewEMACrossoverSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 21 flat prices to warm up.
@@ -72,7 +72,7 @@ func TestEMACrossoverSampler_BullishCrossover(t *testing.T) {
 }
 
 func TestEMACrossoverSampler_BearishCrossover(t *testing.T) {
-	s := NewEMACrossoverSampler("binancef", "btcusdt", 60)
+	s := NewEMACrossoverSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 21 flat prices to warm up.
@@ -96,7 +96,7 @@ func TestEMACrossoverSampler_BearishCrossover(t *testing.T) {
 }
 
 func TestEMACrossoverSampler_InvalidPrice(t *testing.T) {
-	s := NewEMACrossoverSampler("binancef", "btcusdt", 60)
+	s := NewEMACrossoverSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Now()
 	_, ok := s.AddClose("not-a-number", ts)
 	if ok {
@@ -105,7 +105,7 @@ func TestEMACrossoverSampler_InvalidPrice(t *testing.T) {
 }
 
 func TestEMACrossoverSampler_Validate(t *testing.T) {
-	s := NewEMACrossoverSampler("binancef", "btcusdt", 60)
+	s := NewEMACrossoverSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up.

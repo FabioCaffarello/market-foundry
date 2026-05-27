@@ -10,17 +10,28 @@ import (
 	domainsignal "internal/domain/signal"
 )
 
-// btcUSDTSpot is the canonical fixture used across the H-6.c.1
-// passthrough tests. Constructed once at init via IIFE; panic on
-// invalid setup mirrors the precedent in
-// internal/application/analyticalclient/get_composite_chain_test.go.
-var btcUSDTSpot = func() instrument.CanonicalInstrument {
-	inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
-	if prob != nil {
-		panic("test setup: BTC/USDT-spot: " + prob.Message)
-	}
-	return inst
-}()
+// btcUSDTSpot / btcUSDTPerp / ethUSDTPerp are the canonical fixtures
+// used across the H-6.c.1 external-package sampler tests after commit
+// 7a removed the legacy (source, symbol) constructors. Spot is the
+// pass-through canary contrast; Perp reflects the original "binancef"
+// tuple semantics.
+var (
+	btcUSDTSpot = func() instrument.CanonicalInstrument {
+		inst, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+		if prob != nil {
+			panic("test setup: BTC/USDT-spot: " + prob.Message)
+		}
+		return inst
+	}()
+
+	btcUSDTPerp = func() instrument.CanonicalInstrument {
+		inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			panic("test setup: BTC/USDT-perp: " + prob.Message)
+		}
+		return inst
+	}()
+)
 
 // TestSamplers_NewForInstrument_Passthrough exercises the H-6.c.1
 // pass-through constructors for each of the 6 signal samplers.

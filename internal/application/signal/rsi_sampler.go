@@ -13,7 +13,6 @@ import (
 // Pure application logic — no I/O dependencies.
 type RSISampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 	period     int
@@ -29,19 +28,9 @@ type RSISampler struct {
 }
 
 // NewRSISamplerForInstrument constructs an RSISampler from a canonical
-// Instrument directly — no source-string reconstruction.
-//
-// Pre-flight 5 of H-6.c documented the silent-zero regression-shape
-// from H-6.b' commit 37f8ddd: when the upstream caller passes a Source
-// string outside the hardcoded binances/binancef mapping (synthetic
-// labels, configctl variations), instrumentFromBinding returns a zero
-// CanonicalInstrument silently. This constructor is the canonical
-// pass-through path that the migrated derive actors will call after
-// commit 6 of H-6.c.1.
-//
-// The `symbol` struct field is left as zero value — it is unused by
-// the sampler body and only persists in the struct for legacy
-// back-compat with NewRSISampler.
+// Instrument directly — no source-string reconstruction. Callers
+// compute the canonical Instrument at the BindingTarget boundary
+// (see internal/application/ingest.BindingTarget.Instrument).
 func NewRSISamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *RSISampler {
 	return &RSISampler{
 		source:     source,
@@ -49,18 +38,6 @@ func NewRSISamplerForInstrument(source string, inst instrument.CanonicalInstrume
 		timeframe:  timeframe,
 		period:     14,
 	}
-}
-
-// NewRSISampler is the legacy constructor that reconstructs Instrument
-// from a (source, symbol) string pair via instrumentFromBinding.
-//
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewRSISamplerForInstrument
-// when the caller already holds a canonical Instrument (e.g., derive
-// actors after they consume BindingTarget). See ADR-0021.
-func NewRSISampler(source, symbol string, timeframe int) *RSISampler {
-	s := NewRSISamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddClose processes a finalized candle close price.

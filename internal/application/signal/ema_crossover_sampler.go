@@ -19,7 +19,6 @@ import (
 //   - "neutral"  — warm-up incomplete or EMAs equal within tolerance
 type EMACrossoverSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -36,7 +35,7 @@ type EMACrossoverSampler struct {
 
 // NewEMACrossoverSamplerForInstrument constructs an EMACrossoverSampler
 // from a canonical Instrument directly. See NewRSISamplerForInstrument
-// for the rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+// for the boundary-helper rationale.
 func NewEMACrossoverSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *EMACrossoverSampler {
 	return &EMACrossoverSampler{
 		source:     source,
@@ -45,14 +44,6 @@ func NewEMACrossoverSamplerForInstrument(source string, inst instrument.Canonica
 		fastPeriod: 9,
 		slowPeriod: 21,
 	}
-}
-
-// NewEMACrossoverSampler is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewEMACrossoverSamplerForInstrument.
-func NewEMACrossoverSampler(source, symbol string, timeframe int) *EMACrossoverSampler {
-	s := NewEMACrossoverSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddClose processes a finalized candle close price.

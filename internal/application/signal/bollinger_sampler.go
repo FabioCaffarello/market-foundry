@@ -15,7 +15,6 @@ import (
 // Pure application logic — no I/O dependencies.
 type BollingerSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 	period     int
@@ -27,7 +26,7 @@ type BollingerSampler struct {
 
 // NewBollingerSamplerForInstrument constructs a BollingerSampler from
 // a canonical Instrument directly. See NewRSISamplerForInstrument for
-// the rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+// the boundary-helper rationale.
 func NewBollingerSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *BollingerSampler {
 	return &BollingerSampler{
 		source:     source,
@@ -36,14 +35,6 @@ func NewBollingerSamplerForInstrument(source string, inst instrument.CanonicalIn
 		period:     20,
 		k:          2.0,
 	}
-}
-
-// NewBollingerSampler is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewBollingerSamplerForInstrument.
-func NewBollingerSampler(source, symbol string, timeframe int) *BollingerSampler {
-	s := NewBollingerSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddClose processes a finalized candle close price.

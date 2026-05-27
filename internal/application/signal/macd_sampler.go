@@ -26,7 +26,6 @@ import (
 // complete signal (MACD line + signal line + histogram) is emitted.
 type MACDSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -49,7 +48,7 @@ type MACDSampler struct {
 
 // NewMACDSamplerForInstrument constructs a MACDSampler from a canonical
 // Instrument directly. See NewRSISamplerForInstrument for the
-// rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+// boundary-helper rationale.
 func NewMACDSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *MACDSampler {
 	return &MACDSampler{
 		source:       source,
@@ -59,14 +58,6 @@ func NewMACDSamplerForInstrument(source string, inst instrument.CanonicalInstrum
 		slowPeriod:   26,
 		signalPeriod: 9,
 	}
-}
-
-// NewMACDSampler is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewMACDSamplerForInstrument.
-func NewMACDSampler(source, symbol string, timeframe int) *MACDSampler {
-	s := NewMACDSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddClose processes a finalized candle close price.

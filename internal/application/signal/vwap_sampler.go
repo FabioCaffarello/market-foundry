@@ -27,7 +27,6 @@ import (
 // Warm-up requires `period` candles before the first signal is emitted.
 type VWAPSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -40,7 +39,7 @@ type VWAPSampler struct {
 
 // NewVWAPSamplerForInstrument constructs a VWAPSampler from a canonical
 // Instrument directly. See NewRSISamplerForInstrument for the
-// rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+// boundary-helper rationale.
 func NewVWAPSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *VWAPSampler {
 	return &VWAPSampler{
 		source:     source,
@@ -48,14 +47,6 @@ func NewVWAPSamplerForInstrument(source string, inst instrument.CanonicalInstrum
 		timeframe:  timeframe,
 		period:     20,
 	}
-}
-
-// NewVWAPSampler is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewVWAPSamplerForInstrument.
-func NewVWAPSampler(source, symbol string, timeframe int) *VWAPSampler {
-	s := NewVWAPSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddCandle processes a finalized candle with close price and volume.

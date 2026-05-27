@@ -10,7 +10,7 @@ import (
 )
 
 func TestATRSampler_WarmUp(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 300)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Feed 14 candles (period + 1 - 1 = 14) — should not produce a signal.
@@ -45,7 +45,7 @@ func TestATRSampler_WarmUp(t *testing.T) {
 }
 
 func TestATRSampler_HighVolatility(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up with stable candles (TR = 2.0 each).
@@ -73,7 +73,7 @@ func TestATRSampler_HighVolatility(t *testing.T) {
 }
 
 func TestATRSampler_LowVolatility(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up with moderate candles (TR = 4.0).
@@ -98,7 +98,7 @@ func TestATRSampler_LowVolatility(t *testing.T) {
 }
 
 func TestATRSampler_ConstantPrices(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// With constant high=low=close, true range is always 0 → ATR = 0.
@@ -114,7 +114,7 @@ func TestATRSampler_ConstantPrices(t *testing.T) {
 }
 
 func TestATRSampler_GapUp(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up with stable candles.
@@ -136,7 +136,7 @@ func TestATRSampler_GapUp(t *testing.T) {
 }
 
 func TestATRSampler_Metadata(t *testing.T) {
-	s := NewATRSampler("binancef", "ethusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", ethUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	var sig domsignal.Signal
@@ -163,7 +163,7 @@ func TestATRSampler_Metadata(t *testing.T) {
 }
 
 func TestATRSampler_InvalidPrice(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Now()
 
 	_, ok := s.AddCandle("not-a-number", "99.0000", "100.0000", ts)
@@ -183,7 +183,7 @@ func TestATRSampler_InvalidPrice(t *testing.T) {
 }
 
 func TestATRSampler_Validate(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// Warm up.
@@ -201,8 +201,8 @@ func TestATRSampler_Validate(t *testing.T) {
 }
 
 func TestATRSampler_MultiSymbol(t *testing.T) {
-	btc := NewATRSampler("binancef", "btcusdt", 300)
-	eth := NewATRSampler("binancef", "ethusdt", 300)
+	btc := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 300)
+	eth := NewATRSamplerForInstrument("binancef", ethUSDTPerp, 300)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for i := 0; i < 20; i++ {
@@ -234,7 +234,7 @@ func TestATRSampler_MultiSymbol(t *testing.T) {
 }
 
 func TestATRSampler_ContinuousProduction(t *testing.T) {
-	s := NewATRSampler("binancef", "btcusdt", 60)
+	s := NewATRSamplerForInstrument("binancef", btcUSDTPerp, 60)
 	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	// After warm-up, every candle must produce a signal.

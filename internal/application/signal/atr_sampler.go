@@ -25,7 +25,6 @@ import (
 // with the SMA of the first `period` true ranges.
 type ATRSampler struct {
 	source     string
-	symbol     string
 	instrument instrument.CanonicalInstrument
 	timeframe  int
 
@@ -42,7 +41,7 @@ type ATRSampler struct {
 
 // NewATRSamplerForInstrument constructs an ATRSampler from a canonical
 // Instrument directly. See NewRSISamplerForInstrument for the
-// rationale (H-6.c.1; pre-flight 5 regression-shape avoidance).
+// boundary-helper rationale.
 func NewATRSamplerForInstrument(source string, inst instrument.CanonicalInstrument, timeframe int) *ATRSampler {
 	return &ATRSampler{
 		source:     source,
@@ -50,14 +49,6 @@ func NewATRSamplerForInstrument(source string, inst instrument.CanonicalInstrume
 		timeframe:  timeframe,
 		period:     14,
 	}
-}
-
-// NewATRSampler is the legacy (source, symbol) constructor.
-// DEPRECATED (H-6.c.1 → sunset H-6.f). Use NewATRSamplerForInstrument.
-func NewATRSampler(source, symbol string, timeframe int) *ATRSampler {
-	s := NewATRSamplerForInstrument(source, instrumentFromBinding(source, symbol), timeframe)
-	s.symbol = symbol
-	return s
 }
 
 // AddCandle processes a finalized candle with high, low, and close prices.
