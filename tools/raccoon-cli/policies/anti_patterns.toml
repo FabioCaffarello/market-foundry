@@ -58,12 +58,12 @@ severity = "warning"
 why = """
 Reconstructs CanonicalInstrument from a (source, venueNative) string pair via a hardcoded source-to-Contract mapping (binances→Spot, binancef→Perpetual, default→zero). Production Source values include strings outside this mapping ('binance', 'binance_spot', 'derive', 'clickhouse', 'unknown_exchange', 'execute.venue-adapter'); each call site is a potential silent-zero regression analogous to commit 37f8ddd in H-6.b'.
 
-Migration progress (H-6.c.1 closure, 2026-05-27):
-- application/signal: helper deleted, 0 callers (commit 7a).
-- application/decision: helper deleted, 0 callers (commit 7b).
-- application/strategy: helper deleted, 0 callers (commit 7c).
-- application/risk: helper deleted, 0 callers (commit 7d).
-- application/execution: 3 callers remaining (paper_order_evaluator + 2 testnet adapters) — H-6.c.2 scope.
+Migration progress (H-6.c.2 closure, 2026-05-27):
+- application/signal: helper deleted, 0 callers (H-6.c.1 commit 7a).
+- application/decision: helper deleted, 0 callers (H-6.c.1 commit 7b).
+- application/strategy: helper deleted, 0 callers (H-6.c.1 commit 7c).
+- application/risk: helper deleted, 0 callers (H-6.c.1 commit 7d).
+- application/execution: helper deleted, 0 callers (H-6.c.2 commit 5). Testnet adapters now use BindingTarget.Instrument() boundary helper with warn-and-emit-zero fallback (H-6.c.2 commit 4).
 - application/executionclient: 1 caller remaining (audit_session) — H-6.f scope, blocked by LifecycleEntry contract migration.
 
 Total expected after H-6.f closure: 0 callers, helper deleted entirely from codebase. ADR-0021 promotion to Accepted is gated on this state. The boundary-helper replacement is internal/application/ingest.BindingTarget.Instrument() (added in H-6.c.1 commit 6) with explicit error-returning signature — the canonical reconstruction point for legitimate (source, symbol) → Instrument boundaries.
@@ -71,7 +71,7 @@ Total expected after H-6.f closure: 0 callers, helper deleted entirely from code
 help = """
 Pass CanonicalInstrument directly from upstream type that already carries it (pattern: NewPaperOrderEvaluatorForInstrument in internal/application/execution/paper_order_evaluator.go). Use BindingTarget.Instrument() (in internal/application/ingest/binding.go) for legitimate boundary reconstruction with error-returning signature — no silent zero.
 
-H-6.c.1 commits 2-7d are the migration pattern reference: commits 2-5 added NewXxxForInstrument pass-through constructors per application package, commit 6 wired derive actors to compute Instrument once at the BindingTarget boundary, commits 7a-7d deleted the legacy wrappers + helper + dead `symbol` struct field.
+H-6.c.1 commits 2-7d + H-6.c.2 commits 1-6 are the migration pattern reference: ForInstrument pass-through constructors per application package, derive + execute actors compute Instrument once at the BindingTarget boundary, legacy wrappers + helper + dead `symbol` struct field deleted. Testnet adapters in execution package use BindingTarget.Instrument() with warn-and-emit-zero fallback per the composite_reader treatment shape.
 """
 # Exceptions are the remaining production caller files deferred to
 # later sub-ondas. Each entry carries an inline sub-onda scope tag;
@@ -81,10 +81,6 @@ H-6.c.1 commits 2-7d are the migration pattern reference: commits 2-5 added NewX
 # non-listed file surfaces as a warning/error per the CI profile,
 # acting as the canary against regression-shape reintroduction.
 exceptions = [
-    # H-6.c.2 scope — application/execution package migration
-    "internal/application/execution/paper_order_evaluator.go",
-    "internal/application/execution/binance_spot_testnet_adapter.go",
-    "internal/application/execution/binance_futures_testnet_adapter.go",
     # H-6.f scope — executionclient (blocked by LifecycleEntry contract migration)
     "internal/application/executionclient/audit_session.go",
 ]
@@ -93,13 +89,12 @@ exceptions = [
 name = "source-string-instrument-reconstructor-clickhouse"
 function = "reconstructInstrumentFromLegacy"
 severity = "warning"
-why = "ClickHouse-side reconstruction of CanonicalInstrument from legacy (source, venue_native_symbol) row columns. The 13 call sites split into two patterns: 8 warn-and-emit-zero (documented degradation per H-6.b–H-6.d back-compat read window) and 5 silent discard (composite_reader.go: 188/243/302/360/423). The silent discards are the genuine concern — they propagate zero Instruments without operator visibility."
-help = "For the 8 warn-and-emit-zero sites: tolerable until H-6.d (ClickHouse schema migration with canonical columns) eliminates the need. For the 5 silent composite_reader sites: either propagate the error like the other 8, or fold the propagation into a higher-level scan loop that returns ProblemDetail. H-6.c.2 covers the composite_reader treatment per the H-6.c fragmentation."
+why = "ClickHouse-side reconstruction of CanonicalInstrument from legacy (source, venue_native_symbol) row columns. After H-6.c.2 commit 2, all 13 call sites uniformly use the warn-and-emit-zero pattern (the 5 silent-discard sites in composite_reader.go were converted to match the existing 8 sister sites; the 8/5 split is now history). The pattern documents a back-compat degradation per the H-6.b–H-6.d read window — operator-visible warn logs surface every reconstruction failure for monitoring."
+help = "All 13 callers are tolerable until H-6.d (ClickHouse schema migration adds canonical `base`/`quote`/`contract` columns, eliminating the need for source-string reconstruction entirely). The helper itself is removed in H-6.d; this entry is retired then. No further action needed in H-6.c.2 or H-6.f scopes."
 exceptions = [
-    # H-6.c.2 scope — silent-discard treatment (5 sites at 188/243/302/360/423)
-    "internal/adapters/clickhouse/composite_reader.go",
-    # H-6.d scope — warn-and-emit-zero sites eliminated by ClickHouse schema migration with canonical columns
+    # H-6.d scope — all 7 clickhouse reader files. Helper eliminated by ClickHouse schema migration with canonical columns.
     "internal/adapters/clickhouse/candle_reader.go",
+    "internal/adapters/clickhouse/composite_reader.go",
     "internal/adapters/clickhouse/decision_reader.go",
     "internal/adapters/clickhouse/execution_reader.go",
     "internal/adapters/clickhouse/risk_reader.go",
