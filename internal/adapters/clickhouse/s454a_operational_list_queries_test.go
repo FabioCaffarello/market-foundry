@@ -88,7 +88,9 @@ func TestBuildExecutionListQuery_SelectColumns(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"side", "quantity", "filled_quantity", "status",
 		"risk", "fills", "parameters", "metadata",
 		"exec_correlation_id", "exec_causation_id", "final", "timestamp",

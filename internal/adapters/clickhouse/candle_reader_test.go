@@ -111,9 +111,12 @@ func TestBuildCandleQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildCandleQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildCandleQuery("binancef", "btcusdt", 60, 0, 0, 50)
 
-	// Verify the 12 columns in the SELECT match the DDL read path.
+	// Verify the 15 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"source", "symbol", "timeframe",
+		"source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"open", "high", "low", "close",
 		"volume", "trade_count",
 		"open_time", "close_time", "final",

@@ -121,9 +121,12 @@ func TestBuildRiskQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildRiskQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildRiskQuery("position_exposure", "binancef", "btcusdt", 60, "", 0, 0, 50)
 
-	// Verify the 13 columns in the SELECT match the DDL read path.
+	// Verify the 16 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"disposition", "confidence", "strategies", "constraints", "rationale",
 		"parameters", "metadata", "final", "timestamp",
 	}

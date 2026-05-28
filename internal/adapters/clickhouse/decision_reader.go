@@ -53,6 +53,9 @@ func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType,
 			typ        string
 			src        string
 			sym        string
+			base       string
+			quote      string
+			contract   string
 			tf         uint32
 			out        string
 			confidence float64
@@ -64,18 +67,23 @@ func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType,
 			timestamp  time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &out, &confidence, &sev, &rationale, &signals, &metadata, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &out, &confidence, &sev, &rationale, &signals, &metadata, &final, &timestamp); err != nil {
 			r.logger.Error("scan failed",
 				"decision_type", decisionType, "source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
 			return nil, fmt.Errorf("scan decision row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("decision instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("decision instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		decisions = append(decisions, decision.Decision{
@@ -114,7 +122,7 @@ func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType,
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildDecisionQuery(decisionType, source, symbol string, timeframe int, outcome string, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp",
+		"type, source, symbol, base, quote, contract, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp",
 		"decisions",
 		"type = ? AND source = ? AND symbol = ? AND timeframe = ?",
 		[]any{decisionType, source, symbol, uint32(timeframe)},

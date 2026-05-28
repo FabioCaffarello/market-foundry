@@ -153,9 +153,12 @@ func TestBuildExecutionQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildExecutionQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildExecutionQuery("paper_order", "derive", "btcusdt", 60, "", "", 0, 0, 50)
 
-	// Verify the 16 columns in the SELECT match the DDL read path.
+	// Verify the 19 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"side", "quantity", "filled_quantity", "status",
 		"risk", "fills", "parameters", "metadata",
 		"exec_correlation_id", "exec_causation_id", "final", "timestamp",
