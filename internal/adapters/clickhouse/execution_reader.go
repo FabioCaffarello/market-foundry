@@ -54,6 +54,9 @@ func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, s
 			typ            string
 			src            string
 			sym            string
+			base           string
+			quote          string
+			contract       string
 			tf             uint32
 			sd             string
 			quantity       float64
@@ -69,18 +72,23 @@ func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, s
 			timestamp      time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
 			r.logger.Error("scan failed",
 				"exec_type", execType, "source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
 			return nil, fmt.Errorf("scan execution row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("execution instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		executions = append(executions, execution.ExecutionIntent{
@@ -123,7 +131,7 @@ func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, s
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildExecutionQuery(execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
+		"type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
 		"executions",
 		"type = ? AND source = ? AND symbol = ? AND timeframe = ?",
 		[]any{execType, source, symbol, uint32(timeframe)},
@@ -163,6 +171,9 @@ func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source, sym
 			typ            string
 			src            string
 			sym            string
+			base           string
+			quote          string
+			contract       string
 			tf             uint32
 			sd             string
 			quantity       float64
@@ -178,18 +189,23 @@ func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source, sym
 			timestamp      time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
 			r.logger.Error("lifecycle history scan failed",
 				"source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
 			return nil, fmt.Errorf("scan lifecycle history row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("execution instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		executions = append(executions, execution.ExecutionIntent{
@@ -234,7 +250,7 @@ func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source, sym
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildLifecycleHistoryQuery(source, symbol string, timeframe int, side, status string, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
+		"type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
 		"executions",
 		"source = ? AND symbol = ? AND timeframe = ?",
 		[]any{source, symbol, uint32(timeframe)},
@@ -277,6 +293,9 @@ func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, sour
 			typ            string
 			src            string
 			sym            string
+			base           string
+			quote          string
+			contract       string
 			tf             uint32
 			sd             string
 			quantity       float64
@@ -292,16 +311,21 @@ func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, sour
 			timestamp      time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
 			r.logger.Error("execution list scan failed", "error", err)
 			return nil, fmt.Errorf("scan execution list row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("execution instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		executions = append(executions, execution.ExecutionIntent{
@@ -343,7 +367,7 @@ func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, sour
 // status, or a time range) must be provided.
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildExecutionListQuery(execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) (string, []any, error) {
-	selectCols := "type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp"
+	selectCols := "type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp"
 	q := "SELECT " + selectCols + "\nFROM executions\nWHERE 1=1"
 	var args []any
 	hasFilter := false

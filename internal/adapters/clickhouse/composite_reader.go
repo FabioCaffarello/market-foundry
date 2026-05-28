@@ -165,7 +165,7 @@ func (r *CompositeReader) queryExecutionCorrelationIDs(ctx context.Context, sour
 
 // querySignalByCorrelation queries signals table for the most recent signal with the given correlation_id and symbol.
 func (r *CompositeReader) querySignalByCorrelation(ctx context.Context, correlationID, symbol string) (*analyticalclient.SignalWithTrace, error) {
-	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp
+	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp
 FROM signals
 WHERE correlation_id = ? AND symbol = ?
 ORDER BY timestamp DESC LIMIT 1`
@@ -187,6 +187,7 @@ ORDER BY timestamp DESC LIMIT 1`
 		eventID, corrID, causID string
 		occurredAt              time.Time
 		typ, src, sym           string
+		base, quote, contract   string
 		tf                      uint32
 		value                   float64
 		metadata                string
@@ -194,15 +195,20 @@ ORDER BY timestamp DESC LIMIT 1`
 		timestamp               time.Time
 	)
 
-	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &value, &metadata, &final, &timestamp); err != nil {
+	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &base, &quote, &contract, &tf, &value, &metadata, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan signal: %w", err)
 	}
 
-	sigInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	sigInst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 	if instErr != nil {
-		r.logger.Warn("signal instrument reconstruction failed; emitting zero instrument",
-			"source", src, "symbol", sym, "error", instErr,
-		)
+		sigInst, instErr = reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("signal instrument resolution failed; emitting zero instrument",
+				"source", src, "symbol", sym,
+				"base", base, "quote", quote, "contract", contract,
+				"error", instErr,
+			)
+		}
 	}
 	return &analyticalclient.SignalWithTrace{
 		Signal: signal.Signal{
@@ -224,7 +230,7 @@ ORDER BY timestamp DESC LIMIT 1`
 
 // queryDecisionByCorrelation queries decisions table for the most recent decision with the given correlation_id and symbol.
 func (r *CompositeReader) queryDecisionByCorrelation(ctx context.Context, correlationID, symbol string) (*analyticalclient.DecisionWithTrace, error) {
-	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp
+	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp
 FROM decisions
 WHERE correlation_id = ? AND symbol = ?
 ORDER BY timestamp DESC LIMIT 1`
@@ -246,6 +252,7 @@ ORDER BY timestamp DESC LIMIT 1`
 		eventID, corrID, causID       string
 		occurredAt                    time.Time
 		typ, src, sym                 string
+		base, quote, contract         string
 		tf                            uint32
 		out                           string
 		confidence                    float64
@@ -254,15 +261,20 @@ ORDER BY timestamp DESC LIMIT 1`
 		timestamp                     time.Time
 	)
 
-	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &out, &confidence, &sev, &rationale, &signals, &meta, &final, &timestamp); err != nil {
+	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &base, &quote, &contract, &tf, &out, &confidence, &sev, &rationale, &signals, &meta, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan decision: %w", err)
 	}
 
-	decInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	decInst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 	if instErr != nil {
-		r.logger.Warn("decision instrument reconstruction failed; emitting zero instrument",
-			"source", src, "symbol", sym, "error", instErr,
-		)
+		decInst, instErr = reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("decision instrument resolution failed; emitting zero instrument",
+				"source", src, "symbol", sym,
+				"base", base, "quote", quote, "contract", contract,
+				"error", instErr,
+			)
+		}
 	}
 	return &analyticalclient.DecisionWithTrace{
 		Decision: decision.Decision{
@@ -288,7 +300,7 @@ ORDER BY timestamp DESC LIMIT 1`
 
 // queryStrategyByCorrelation queries strategies table for the most recent strategy with the given correlation_id and symbol.
 func (r *CompositeReader) queryStrategyByCorrelation(ctx context.Context, correlationID, symbol string) (*analyticalclient.StrategyWithTrace, error) {
-	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp
+	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp
 FROM strategies
 WHERE correlation_id = ? AND symbol = ?
 ORDER BY timestamp DESC LIMIT 1`
@@ -310,6 +322,7 @@ ORDER BY timestamp DESC LIMIT 1`
 		eventID, corrID, causID         string
 		occurredAt                      time.Time
 		typ, src, sym                   string
+		base, quote, contract           string
 		tf                              uint32
 		dir                             string
 		confidence                      float64
@@ -318,15 +331,20 @@ ORDER BY timestamp DESC LIMIT 1`
 		timestamp                       time.Time
 	)
 
-	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &dir, &confidence, &decisions, &parameters, &metadata, &final, &timestamp); err != nil {
+	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &base, &quote, &contract, &tf, &dir, &confidence, &decisions, &parameters, &metadata, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan strategy: %w", err)
 	}
 
-	stratInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	stratInst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 	if instErr != nil {
-		r.logger.Warn("strategy instrument reconstruction failed; emitting zero instrument",
-			"source", src, "symbol", sym, "error", instErr,
-		)
+		stratInst, instErr = reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("strategy instrument resolution failed; emitting zero instrument",
+				"source", src, "symbol", sym,
+				"base", base, "quote", quote, "contract", contract,
+				"error", instErr,
+			)
+		}
 	}
 	return &analyticalclient.StrategyWithTrace{
 		Strategy: strategy.Strategy{
@@ -351,7 +369,7 @@ ORDER BY timestamp DESC LIMIT 1`
 
 // queryRiskByCorrelation queries risk_assessments table for the most recent risk assessment with the given correlation_id and symbol.
 func (r *CompositeReader) queryRiskByCorrelation(ctx context.Context, correlationID, symbol string) (*analyticalclient.RiskWithTrace, error) {
-	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp
+	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp
 FROM risk_assessments
 WHERE correlation_id = ? AND symbol = ?
 ORDER BY timestamp DESC LIMIT 1`
@@ -373,6 +391,7 @@ ORDER BY timestamp DESC LIMIT 1`
 		eventID, corrID, causID                              string
 		occurredAt                                           time.Time
 		typ, src, sym                                        string
+		base, quote, contract                                string
 		tf                                                   uint32
 		disp                                                 string
 		confidence                                           float64
@@ -381,15 +400,20 @@ ORDER BY timestamp DESC LIMIT 1`
 		timestamp                                            time.Time
 	)
 
-	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &disp, &confidence, &strategies, &constraints, &rationale, &parameters, &meta, &final, &timestamp); err != nil {
+	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &base, &quote, &contract, &tf, &disp, &confidence, &strategies, &constraints, &rationale, &parameters, &meta, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan risk: %w", err)
 	}
 
-	riskInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	riskInst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 	if instErr != nil {
-		r.logger.Warn("risk instrument reconstruction failed; emitting zero instrument",
-			"source", src, "symbol", sym, "error", instErr,
-		)
+		riskInst, instErr = reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("risk instrument resolution failed; emitting zero instrument",
+				"source", src, "symbol", sym,
+				"base", base, "quote", quote, "contract", contract,
+				"error", instErr,
+			)
+		}
 	}
 	return &analyticalclient.RiskWithTrace{
 		RiskAssessment: risk.RiskAssessment{
@@ -416,7 +440,7 @@ ORDER BY timestamp DESC LIMIT 1`
 
 // queryExecutionByCorrelation queries executions table for the most recent execution with the given correlation_id and symbol.
 func (r *CompositeReader) queryExecutionByCorrelation(ctx context.Context, correlationID, symbol string) (*analyticalclient.ExecutionWithTrace, error) {
-	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp
+	q := `SELECT event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp
 FROM executions
 WHERE correlation_id = ? AND symbol = ?
 ORDER BY timestamp DESC LIMIT 1`
@@ -438,6 +462,7 @@ ORDER BY timestamp DESC LIMIT 1`
 		eventID, corrID, causID  string
 		occurredAt               time.Time
 		typ, src, sym            string
+		base, quote, contract    string
 		tf                       uint32
 		sd                       string
 		quantity, filledQuantity float64
@@ -449,15 +474,20 @@ ORDER BY timestamp DESC LIMIT 1`
 		timestamp                time.Time
 	)
 
-	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
+	if err := rows.Scan(&eventID, &occurredAt, &corrID, &causID, &typ, &src, &sym, &base, &quote, &contract, &tf, &sd, &quantity, &filledQuantity, &st, &riskJSON, &fillsJSON, &parameters, &metadata, &execCorrID, &execCausID, &final, &timestamp); err != nil {
 		return nil, fmt.Errorf("scan execution: %w", err)
 	}
 
-	execInst, instErr := reconstructInstrumentFromLegacy(src, sym)
+	execInst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 	if instErr != nil {
-		r.logger.Warn("execution instrument reconstruction failed; emitting zero instrument",
-			"source", src, "symbol", sym, "error", instErr,
-		)
+		execInst, instErr = reconstructInstrumentFromLegacy(src, sym)
+		if instErr != nil {
+			r.logger.Warn("execution instrument resolution failed; emitting zero instrument",
+				"source", src, "symbol", sym,
+				"base", base, "quote", quote, "contract", contract,
+				"error", instErr,
+			)
+		}
 	}
 	return &analyticalclient.ExecutionWithTrace{
 		ExecutionIntent: execution.ExecutionIntent{

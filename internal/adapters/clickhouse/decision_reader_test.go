@@ -142,9 +142,12 @@ func TestBuildDecisionQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildDecisionQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildDecisionQuery("rsi_oversold", "binancef", "btcusdt", 60, "", 0, 0, 50)
 
-	// Verify the 12 columns in the SELECT match the DDL read path.
+	// Verify the 15 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"outcome", "confidence", "severity", "rationale",
 		"signals", "metadata", "final", "timestamp",
 	}

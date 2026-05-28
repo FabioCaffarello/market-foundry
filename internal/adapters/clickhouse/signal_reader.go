@@ -53,6 +53,9 @@ func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, sourc
 			typ       string
 			src       string
 			sym       string
+			base      string
+			quote     string
+			contract  string
 			tf        uint32
 			value     float64
 			metadata  string
@@ -60,7 +63,7 @@ func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, sourc
 			timestamp time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &value, &metadata, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &value, &metadata, &final, &timestamp); err != nil {
 			r.logger.Error("scan failed",
 				"signal_type", signalType, "source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
@@ -68,11 +71,16 @@ func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, sourc
 		}
 
 		meta := ParseMetadataJSON(metadata)
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("signal instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("signal instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		signals = append(signals, signal.Signal{
@@ -107,7 +115,7 @@ func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, sourc
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildSignalQuery(signalType, source, symbol string, timeframe int, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"type, source, symbol, timeframe, value, metadata, final, timestamp",
+		"type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp",
 		"signals",
 		"type = ? AND source = ? AND symbol = ? AND timeframe = ?",
 		[]any{signalType, source, symbol, uint32(timeframe)},

@@ -53,6 +53,9 @@ func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source, sym
 			typ         string
 			src         string
 			sym         string
+			base        string
+			quote       string
+			contract    string
 			tf          uint32
 			disp        string
 			confidence  float64
@@ -65,18 +68,23 @@ func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source, sym
 			timestamp   time.Time
 		)
 
-		if err := rows.Scan(&typ, &src, &sym, &tf, &disp, &confidence, &strategies, &constraints, &rationale, &parameters, &metadata, &final, &timestamp); err != nil {
+		if err := rows.Scan(&typ, &src, &sym, &base, &quote, &contract, &tf, &disp, &confidence, &strategies, &constraints, &rationale, &parameters, &metadata, &final, &timestamp); err != nil {
 			r.logger.Error("scan failed",
 				"risk_type", riskType, "source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
 			return nil, fmt.Errorf("scan risk row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("risk instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("risk instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 
 		assessments = append(assessments, risk.RiskAssessment{
@@ -116,7 +124,7 @@ func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source, sym
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildRiskQuery(riskType, source, symbol string, timeframe int, disposition string, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp",
+		"type, source, symbol, base, quote, contract, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp",
 		"risk_assessments",
 		"type = ? AND source = ? AND symbol = ? AND timeframe = ?",
 		[]any{riskType, source, symbol, uint32(timeframe)},

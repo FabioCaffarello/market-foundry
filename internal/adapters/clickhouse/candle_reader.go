@@ -54,6 +54,9 @@ func (r *CandleReader) QueryCandleHistory(ctx context.Context, source, symbol st
 		var (
 			src       string
 			sym       string
+			base      string
+			quote     string
+			contract  string
 			tf        uint32
 			open      float64
 			high      float64
@@ -66,18 +69,23 @@ func (r *CandleReader) QueryCandleHistory(ctx context.Context, source, symbol st
 			final     bool
 		)
 
-		if err := rows.Scan(&src, &sym, &tf, &open, &high, &low, &close, &volume, &tradeCnt, &openTime, &closeTime, &final); err != nil {
+		if err := rows.Scan(&src, &sym, &base, &quote, &contract, &tf, &open, &high, &low, &close, &volume, &tradeCnt, &openTime, &closeTime, &final); err != nil {
 			r.logger.Error("scan failed",
 				"source", source, "symbol", symbol, "timeframe", timeframe, "error", err,
 			)
 			return nil, fmt.Errorf("scan candle row: %w", err)
 		}
 
-		inst, instErr := reconstructInstrumentFromLegacy(src, sym)
+		inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
 		if instErr != nil {
-			r.logger.Warn("instrument reconstruction failed; emitting zero instrument",
-				"source", src, "symbol", sym, "error", instErr,
-			)
+			inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+			if instErr != nil {
+				r.logger.Warn("instrument resolution failed; emitting zero instrument",
+					"source", src, "symbol", sym,
+					"base", base, "quote", quote, "contract", contract,
+					"error", instErr,
+				)
+			}
 		}
 		candles = append(candles, evidence.EvidenceCandle{
 			Source:     src,
@@ -115,7 +123,7 @@ func (r *CandleReader) QueryCandleHistory(ctx context.Context, source, symbol st
 // Exported for testing without requiring a live ClickHouse connection.
 func BuildCandleQuery(source, symbol string, timeframe int, since, until int64, limit int) (string, []any) {
 	return BuildQuery(
-		"source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final",
+		"source, symbol, base, quote, contract, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final",
 		"evidence_candles",
 		"source = ? AND symbol = ? AND timeframe = ?",
 		[]any{source, symbol, uint32(timeframe)},
