@@ -1,10 +1,10 @@
-// ── Signal: rsi → signals ───────────────────────────────
+// ── Signal: rsi → signals ──
 {
 	family:        "rsi",
 	consumerName:  "writer-signal-rsi-consumer",
 	inserterName:  "writer-signal-rsi-inserter",
 	table:         "signals",
-	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO signals (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp)",
 	consumerSpec:  natssignal.WriterRSISignalConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsSignalFamilyEnabled("rsi") },
 	startConsumer: writerpipeline.NewSignalStarter(reg.signal),

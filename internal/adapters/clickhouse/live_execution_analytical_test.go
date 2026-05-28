@@ -254,7 +254,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 		assertField(t, "results[1].Side", string(results[1].Side), "buy")
 		assertField(t, "results[1].Type", results[1].Type, "paper_order")
 		assertField(t, "results[1].Source", results[1].Source, "binancef")
-		assertField(t, "results[1].Symbol", results[1].Symbol, "btcusdt")
+		assertField(t, "results[1].VenueSymbol()", results[1].VenueSymbol(), "btcusdt")
 		if results[1].Timeframe != 60 {
 			t.Errorf("timeframe: got %d, want 60", results[1].Timeframe)
 		}
@@ -381,7 +381,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 		if len(results) != 1 {
 			t.Fatalf("expected 1 ethusdt result, got %d", len(results))
 		}
-		assertField(t, "symbol", results[0].Symbol, "ethusdt")
+		assertField(t, "symbol", results[0].VenueSymbol(), "ethusdt")
 		if results[0].Timeframe != 300 {
 			t.Errorf("timeframe: got %d, want 300", results[0].Timeframe)
 		}
@@ -414,7 +414,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 		assertField(t, "type", r.Type, f.typ)
 		assertField(t, "source", r.Source, f.source)
-		assertField(t, "symbol", r.Symbol, f.symbol)
+		assertField(t, "symbol", r.VenueSymbol(), f.symbol)
 		if r.Timeframe != int(f.timeframe) {
 			t.Errorf("timeframe: got %d, want %d", r.Timeframe, f.timeframe)
 		}

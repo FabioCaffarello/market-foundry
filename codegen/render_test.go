@@ -298,7 +298,7 @@ func rsiSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "signals",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, value, metadata, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, value, metadata, final, timestamp",
 			Mapper:            "mapSignalRow",
 			PipelineFamilyKey: "rsi",
 			ConfigArray:       "signal_families",
@@ -321,7 +321,7 @@ func paperOrderSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "executions",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp",
 			Mapper:            "mapExecutionRow",
 			PipelineFamilyKey: "paper_order",
 			ConfigArray:       "execution_families",
@@ -344,7 +344,7 @@ func candleSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "evidence_candles",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, source, symbol, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, source, symbol, base, quote, contract, timeframe, open, high, low, close, volume, trade_count, open_time, close_time, final",
 			Mapper:            "mapCandleRow",
 			PipelineFamilyKey: "candle",
 			ConfigArray:       "families",
@@ -367,7 +367,7 @@ func rsiOversoldSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "decisions",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, outcome, confidence, severity, rationale, signals, metadata, final, timestamp",
 			Mapper:            "mapDecisionRow",
 			PipelineFamilyKey: "rsi_oversold",
 			ConfigArray:       "decision_families",
@@ -390,7 +390,7 @@ func meanReversionEntrySpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "strategies",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp",
 			Mapper:            "mapStrategyRow",
 			PipelineFamilyKey: "mean_reversion_entry",
 			ConfigArray:       "strategy_families",
@@ -413,7 +413,7 @@ func positionExposureSpec() *FamilySpec {
 		},
 		Writer: WriterSpec{
 			Table:             "risk_assessments",
-			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp",
+			Columns:           "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp",
 			Mapper:            "mapRiskRow",
 			PipelineFamilyKey: "position_exposure",
 			ConfigArray:       "risk_families",

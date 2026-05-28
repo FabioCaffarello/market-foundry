@@ -60,11 +60,11 @@ func TestBehavioralRoundTrip_DecisionSeverity_High(t *testing.T) {
 	// Row layout: [0]event_id [1]occurred_at [2]correlation_id [3]causation_id
 	//   [4]type [5]source [6]symbol [7]timeframe [8]outcome [9]confidence
 	//   [10]severity [11]rationale [12]signals [13]metadata [14]final [15]timestamp
-	severity := row[10].(string)
-	confidence := ch.FormatFloat(row[9].(float64))
-	rationale := row[11].(string)
-	signals := ch.ParseSignalInputsJSON(row[12].(string))
-	metadata := ch.ParseMetadataJSON(row[13].(string))
+	severity := row[13].(string)
+	confidence := ch.FormatFloat(row[12].(float64))
+	rationale := row[14].(string)
+	signals := ch.ParseSignalInputsJSON(row[15].(string))
+	metadata := ch.ParseMetadataJSON(row[16].(string))
 
 	if severity != "high" {
 		t.Errorf("severity: got %q, want %q", severity, "high")
@@ -99,8 +99,8 @@ func TestBehavioralRoundTrip_DecisionSeverity_Low(t *testing.T) {
 
 	row := mapDecisionRow(event)
 
-	severity := row[10].(string)
-	confidence := ch.FormatFloat(row[9].(float64))
+	severity := row[13].(string)
+	confidence := ch.FormatFloat(row[12].(float64))
 
 	if severity != "low" {
 		t.Errorf("severity: got %q, want %q", severity, "low")
@@ -130,7 +130,7 @@ func TestBehavioralRoundTrip_DecisionSeverity_AllEnumValues(t *testing.T) {
 				},
 			}
 			row := mapDecisionRow(event)
-			got := row[10].(string)
+			got := row[13].(string)
 			if got != expected[i] {
 				t.Errorf("severity round-trip: got %q, want %q", got, expected[i])
 			}
@@ -167,10 +167,10 @@ func TestBehavioralRoundTrip_Strategy_SeverityScaledConfidence(t *testing.T) {
 
 	// Row layout: [0]event_id .. [4]type [5]source [6]symbol [7]timeframe
 	//   [8]direction [9]confidence [10]decisions [11]parameters [12]metadata [13]final [14]timestamp
-	confidence := ch.FormatFloat(row[9].(float64))
-	decisions := ch.ParseDecisionInputsJSON(row[10].(string))
-	params := ch.ParseMetadataJSON(row[11].(string))
-	metadata := ch.ParseMetadataJSON(row[12].(string))
+	confidence := ch.FormatFloat(row[12].(float64))
+	decisions := ch.ParseDecisionInputsJSON(row[13].(string))
+	params := ch.ParseMetadataJSON(row[14].(string))
+	metadata := ch.ParseMetadataJSON(row[15].(string))
 
 	if confidence != "0.8333" {
 		t.Errorf("strategy confidence: got %q, want %q", confidence, "0.8333")
@@ -225,11 +225,11 @@ func TestBehavioralRoundTrip_Strategy_LowSeverity_ReducedConfidence(t *testing.T
 
 	row := mapStrategyRow(event)
 
-	confidence := ch.FormatFloat(row[9].(float64))
-	decisions := ch.ParseDecisionInputsJSON(row[10].(string))
+	confidence := ch.FormatFloat(row[12].(float64))
+	decisions := ch.ParseDecisionInputsJSON(row[13].(string))
 
 	// Low severity produces lower strategy confidence than the original decision confidence.
-	stratConf := row[9].(float64)
+	stratConf := row[12].(float64)
 	decConf := parseFloat(decisions[0].Confidence)
 	if stratConf >= decConf {
 		t.Errorf("low severity should reduce strategy confidence (%f) below decision confidence (%f)", stratConf, decConf)
@@ -280,12 +280,12 @@ func TestBehavioralRoundTrip_Risk_PositionExposure_CounterTrend(t *testing.T) {
 	// Row layout: [0]event_id .. [4]type [5]source [6]symbol [7]timeframe
 	//   [8]disposition [9]confidence [10]strategies [11]constraints [12]rationale
 	//   [13]parameters [14]metadata [15]final [16]timestamp
-	disposition := row[8].(string)
-	confidence := ch.FormatFloat(row[9].(float64))
-	strategies := ch.ParseStrategyInputsJSON(row[10].(string))
-	constraints := ch.ParseConstraintsJSON(row[11].(string))
-	params := ch.ParseMetadataJSON(row[13].(string))
-	metadata := ch.ParseMetadataJSON(row[14].(string))
+	disposition := row[11].(string)
+	confidence := ch.FormatFloat(row[12].(float64))
+	strategies := ch.ParseStrategyInputsJSON(row[13].(string))
+	constraints := ch.ParseConstraintsJSON(row[14].(string))
+	params := ch.ParseMetadataJSON(row[16].(string))
+	metadata := ch.ParseMetadataJSON(row[17].(string))
 
 	if disposition != "approved" {
 		t.Errorf("disposition: got %q, want %q", disposition, "approved")
@@ -369,9 +369,9 @@ func TestBehavioralRoundTrip_Risk_DrawdownLimit_ProTrend(t *testing.T) {
 
 	row := mapRiskRow(event)
 
-	strategies := ch.ParseStrategyInputsJSON(row[10].(string))
-	constraints := ch.ParseConstraintsJSON(row[11].(string))
-	metadata := ch.ParseMetadataJSON(row[14].(string))
+	strategies := ch.ParseStrategyInputsJSON(row[13].(string))
+	constraints := ch.ParseConstraintsJSON(row[14].(string))
+	metadata := ch.ParseMetadataJSON(row[17].(string))
 
 	// Strategy-type-aware risk treatment survives round-trip.
 	if strategies[0].Type != "trend_following_entry" {
@@ -422,15 +422,15 @@ func TestBehavioralRoundTrip_SeverityContrast_HighVsLow(t *testing.T) {
 	highRow := mapRiskRow(highEvent)
 	lowRow := mapRiskRow(lowEvent)
 
-	highConf := highRow[9].(float64)
-	lowConf := lowRow[9].(float64)
+	highConf := highRow[12].(float64)
+	lowConf := lowRow[12].(float64)
 
 	if highConf <= lowConf {
 		t.Errorf("high severity confidence (%f) should exceed low severity confidence (%f)", highConf, lowConf)
 	}
 
-	highConstraints := ch.ParseConstraintsJSON(highRow[11].(string))
-	lowConstraints := ch.ParseConstraintsJSON(lowRow[11].(string))
+	highConstraints := ch.ParseConstraintsJSON(highRow[14].(string))
+	lowConstraints := ch.ParseConstraintsJSON(lowRow[14].(string))
 
 	highPos := parseFloat(highConstraints.MaxPositionSize)
 	lowPos := parseFloat(lowConstraints.MaxPositionSize)
@@ -440,8 +440,8 @@ func TestBehavioralRoundTrip_SeverityContrast_HighVsLow(t *testing.T) {
 	}
 
 	// Verify the severity enum itself survives.
-	highMeta := ch.ParseMetadataJSON(highRow[14].(string))
-	lowMeta := ch.ParseMetadataJSON(lowRow[14].(string))
+	highMeta := ch.ParseMetadataJSON(highRow[17].(string))
+	lowMeta := ch.ParseMetadataJSON(lowRow[17].(string))
 	if highMeta["decision_severity"] != "high" {
 		t.Errorf("high event severity metadata: got %q", highMeta["decision_severity"])
 	}
@@ -481,8 +481,8 @@ func TestBehavioralRoundTrip_CrossChain_RiskProfileDivergence(t *testing.T) {
 	ctRow := mapRiskRow(counterTrend)
 	ptRow := mapRiskRow(proTrend)
 
-	ctMeta := ch.ParseMetadataJSON(ctRow[14].(string))
-	ptMeta := ch.ParseMetadataJSON(ptRow[14].(string))
+	ctMeta := ch.ParseMetadataJSON(ctRow[17].(string))
+	ptMeta := ch.ParseMetadataJSON(ptRow[17].(string))
 
 	if ctMeta["strategy_type"] != "mean_reversion_entry" {
 		t.Errorf("counter-trend strategy_type: got %q", ctMeta["strategy_type"])
@@ -498,8 +498,8 @@ func TestBehavioralRoundTrip_CrossChain_RiskProfileDivergence(t *testing.T) {
 	}
 
 	// Pro-trend should have higher risk confidence than counter-trend.
-	ctConf := ctRow[9].(float64)
-	ptConf := ptRow[9].(float64)
+	ctConf := ctRow[12].(float64)
+	ptConf := ptRow[12].(float64)
 	if ptConf <= ctConf {
 		t.Errorf("pro-trend confidence (%f) should exceed counter-trend confidence (%f)", ptConf, ctConf)
 	}
@@ -521,8 +521,8 @@ func TestBehavioralRoundTrip_NotTriggered_CleanFlow(t *testing.T) {
 	}
 
 	decRow := mapDecisionRow(decEvent)
-	severity := decRow[10].(string)
-	confidence := decRow[9].(float64)
+	severity := decRow[13].(string)
+	confidence := decRow[12].(float64)
 
 	if severity != "none" {
 		t.Errorf("not-triggered severity: got %q, want %q", severity, "none")
@@ -546,9 +546,9 @@ func TestBehavioralRoundTrip_NotTriggered_CleanFlow(t *testing.T) {
 	}
 
 	stratRow := mapStrategyRow(stratEvent)
-	direction := stratRow[8].(string)
-	stratConf := stratRow[9].(float64)
-	decisions := ch.ParseDecisionInputsJSON(stratRow[10].(string))
+	direction := stratRow[11].(string)
+	stratConf := stratRow[12].(float64)
+	decisions := ch.ParseDecisionInputsJSON(stratRow[13].(string))
 
 	if direction != "flat" {
 		t.Errorf("not-triggered direction: got %q, want %q", direction, "flat")
@@ -577,7 +577,7 @@ func TestBehavioralRoundTrip_ConfidencePrecision(t *testing.T) {
 				},
 			}
 			row := mapDecisionRow(event)
-			roundTripped := ch.FormatFloat(row[9].(float64))
+			roundTripped := ch.FormatFloat(row[12].(float64))
 
 			// FormatFloat uses -1 precision (natural), parseFloat uses strconv.ParseFloat.
 			// Verify the values are within floating-point tolerance.
@@ -585,7 +585,7 @@ func TestBehavioralRoundTrip_ConfidencePrecision(t *testing.T) {
 			recovered := parseFloat(roundTripped)
 			if math.Abs(original-recovered) > 1e-10 {
 				t.Errorf("confidence precision lost: original=%q → float64=%f → recovered=%q (delta=%e)",
-					v, row[9].(float64), roundTripped, math.Abs(original-recovered))
+					v, row[12].(float64), roundTripped, math.Abs(original-recovered))
 			}
 		})
 	}
@@ -672,8 +672,8 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	}
 
 	// 3. Decision severity propagates through strategy decisions[] to risk strategies[].
-	stratDecisions := ch.ParseDecisionInputsJSON(stratRow[10].(string))
-	riskStrategies := ch.ParseStrategyInputsJSON(riskRow[10].(string))
+	stratDecisions := ch.ParseDecisionInputsJSON(stratRow[13].(string))
+	riskStrategies := ch.ParseStrategyInputsJSON(riskRow[13].(string))
 
 	if stratDecisions[0].Severity != "high" {
 		t.Errorf("strategy→decision severity: got %q", stratDecisions[0].Severity)
@@ -683,7 +683,7 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	}
 
 	// 4. Decision rationale survives all three stages.
-	decRationale := decRow[11].(string)
+	decRationale := decRow[14].(string)
 	stratDecRationale := stratDecisions[0].Rationale
 	riskDecRationale := riskStrategies[0].DecisionRationale
 
@@ -698,9 +698,9 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	}
 
 	// 5. Confidence ordering: risk ≤ strategy ≤ decision.
-	decConf := decRow[9].(float64)
-	stratConf := stratRow[9].(float64)
-	riskConf := riskRow[9].(float64)
+	decConf := decRow[12].(float64)
+	stratConf := stratRow[12].(float64)
+	riskConf := riskRow[12].(float64)
 
 	if stratConf > decConf+1e-10 {
 		t.Errorf("strategy confidence (%f) should not exceed decision confidence (%f)", stratConf, decConf)
@@ -710,7 +710,7 @@ func TestBehavioralRoundTrip_FullChain_HighSeverity_MeanReversion(t *testing.T) 
 	}
 
 	// 6. Constraints are non-zero for an approved assessment.
-	riskConstraints := ch.ParseConstraintsJSON(riskRow[11].(string))
+	riskConstraints := ch.ParseConstraintsJSON(riskRow[14].(string))
 	if riskConstraints.MaxPositionSize == "" || riskConstraints.MaxPositionSize == "0" {
 		t.Error("approved risk should have non-zero max_position_size")
 	}
@@ -792,21 +792,21 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	if row[6].(string) != "btcusdt" {
 		t.Errorf("symbol: got %q", row[6])
 	}
-	if row[7].(uint32) != 60 {
-		t.Errorf("timeframe: got %d", row[7])
+	if row[10].(uint32) != 60 {
+		t.Errorf("timeframe: got %d", row[10])
 	}
 
 	// Side and status enums.
-	if row[8].(string) != "buy" {
-		t.Errorf("side: got %q, want %q", row[8], "buy")
+	if row[11].(string) != "buy" {
+		t.Errorf("side: got %q, want %q", row[11], "buy")
 	}
-	if row[11].(string) != "filled" {
-		t.Errorf("status: got %q, want %q", row[11], "filled")
+	if row[14].(string) != "filled" {
+		t.Errorf("status: got %q, want %q", row[14], "filled")
 	}
 
 	// Quantity round-trip via FormatFloat.
-	quantity := ch.FormatFloat(row[9].(float64))
-	filledQty := ch.FormatFloat(row[10].(float64))
+	quantity := ch.FormatFloat(row[12].(float64))
+	filledQty := ch.FormatFloat(row[13].(float64))
 	if quantity != "0.0192" {
 		t.Errorf("quantity: got %q, want %q", quantity, "0.0192")
 	}
@@ -815,7 +815,7 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	}
 
 	// Risk causal context round-trip.
-	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	riskInput := ch.ParseRiskInputJSON(row[15].(string))
 	if riskInput.Type != "position_exposure" {
 		t.Errorf("risk.type: got %q", riskInput.Type)
 	}
@@ -833,7 +833,7 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	}
 
 	// Fills round-trip.
-	fills := ch.ParseFillsJSON(row[13].(string))
+	fills := ch.ParseFillsJSON(row[16].(string))
 	if len(fills) != 1 {
 		t.Fatalf("fills: expected 1, got %d", len(fills))
 	}
@@ -851,8 +851,8 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	}
 
 	// Parameters and metadata round-trip.
-	params := ch.ParseMetadataJSON(row[14].(string))
-	metadata := ch.ParseMetadataJSON(row[15].(string))
+	params := ch.ParseMetadataJSON(row[17].(string))
+	metadata := ch.ParseMetadataJSON(row[18].(string))
 	if params["target_offset"] != "0.03" {
 		t.Errorf("params target_offset: got %q", params["target_offset"])
 	}
@@ -867,15 +867,15 @@ func TestBehavioralRoundTrip_Execution_BasicPaperOrder(t *testing.T) {
 	}
 
 	// Exec-specific correlation/causation IDs (distinct from envelope).
-	if row[16].(string) != "chain-exec-001" {
-		t.Errorf("exec_correlation_id: got %q, want %q", row[16], "chain-exec-001")
+	if row[19].(string) != "chain-exec-001" {
+		t.Errorf("exec_correlation_id: got %q, want %q", row[19], "chain-exec-001")
 	}
-	if row[17].(string) != "risk-001" {
-		t.Errorf("exec_causation_id: got %q, want %q", row[17], "risk-001")
+	if row[20].(string) != "risk-001" {
+		t.Errorf("exec_causation_id: got %q, want %q", row[20], "risk-001")
 	}
 
 	// Final flag.
-	if row[18].(bool) != true {
+	if row[21].(bool) != true {
 		t.Error("final should be true")
 	}
 }
@@ -902,7 +902,7 @@ func TestBehavioralRoundTrip_Execution_SideEnumValues(t *testing.T) {
 				},
 			}
 			row := mapExecutionRow(event)
-			got := row[8].(string)
+			got := row[11].(string)
 			if got != expected[i] {
 				t.Errorf("side: got %q, want %q", got, expected[i])
 			}
@@ -936,7 +936,7 @@ func TestBehavioralRoundTrip_Execution_StatusEnumValues(t *testing.T) {
 				},
 			}
 			row := mapExecutionRow(event)
-			got := row[11].(string)
+			got := row[14].(string)
 			if got != expected[i] {
 				t.Errorf("status: got %q, want %q", got, expected[i])
 			}
@@ -964,7 +964,7 @@ func TestBehavioralRoundTrip_Execution_RiskCausalContext_CounterTrend(t *testing
 	}
 
 	row := mapExecutionRow(event)
-	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	riskInput := ch.ParseRiskInputJSON(row[15].(string))
 
 	if riskInput.StrategyType != "mean_reversion_entry" {
 		t.Errorf("risk.strategy_type: got %q, want %q", riskInput.StrategyType, "mean_reversion_entry")
@@ -995,7 +995,7 @@ func TestBehavioralRoundTrip_Execution_RiskCausalContext_ProTrend(t *testing.T) 
 	}
 
 	row := mapExecutionRow(event)
-	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	riskInput := ch.ParseRiskInputJSON(row[15].(string))
 
 	if riskInput.StrategyType != "trend_following_entry" {
 		t.Errorf("risk.strategy_type: got %q, want %q", riskInput.StrategyType, "trend_following_entry")
@@ -1031,7 +1031,7 @@ func TestBehavioralRoundTrip_Execution_MultipleFills(t *testing.T) {
 	}
 
 	row := mapExecutionRow(event)
-	fills := ch.ParseFillsJSON(row[13].(string))
+	fills := ch.ParseFillsJSON(row[16].(string))
 
 	if len(fills) != 2 {
 		t.Fatalf("expected 2 fills, got %d", len(fills))
@@ -1080,16 +1080,16 @@ func TestBehavioralRoundTrip_Execution_EmptyFills(t *testing.T) {
 	}
 
 	row := mapExecutionRow(event)
-	fills := ch.ParseFillsJSON(row[13].(string))
+	fills := ch.ParseFillsJSON(row[16].(string))
 
 	if len(fills) != 0 {
 		t.Errorf("expected 0 fills for submitted order, got %d", len(fills))
 	}
-	if row[18].(bool) != false {
+	if row[21].(bool) != false {
 		t.Error("submitted order should have final=false")
 	}
-	if ch.FormatFloat(row[10].(float64)) != "0" {
-		t.Errorf("filled_quantity should be 0 for submitted order, got %q", ch.FormatFloat(row[10].(float64)))
+	if ch.FormatFloat(row[13].(float64)) != "0" {
+		t.Errorf("filled_quantity should be 0 for submitted order, got %q", ch.FormatFloat(row[13].(float64)))
 	}
 }
 
@@ -1115,7 +1115,7 @@ func TestBehavioralRoundTrip_Execution_QuantityPrecision(t *testing.T) {
 			}
 			row := mapExecutionRow(event)
 			original := parseFloat(v)
-			recovered := row[9].(float64)
+			recovered := row[12].(float64)
 			if math.Abs(original-recovered) > 1e-10 {
 				t.Errorf("quantity precision lost: %q → %f (delta=%e)", v, recovered, math.Abs(original-recovered))
 			}
@@ -1231,15 +1231,15 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	}
 
 	// 3. Execution-specific correlation/causation IDs carry the domain chain.
-	if execRow[16].(string) != "full-chain-001" {
-		t.Errorf("exec_correlation_id: got %q, want full-chain-001", execRow[16])
+	if execRow[19].(string) != "full-chain-001" {
+		t.Errorf("exec_correlation_id: got %q, want full-chain-001", execRow[19])
 	}
-	if execRow[17].(string) != "risk-chain-001" {
-		t.Errorf("exec_causation_id: got %q, want risk-chain-001", execRow[17])
+	if execRow[20].(string) != "risk-chain-001" {
+		t.Errorf("exec_causation_id: got %q, want risk-chain-001", execRow[20])
 	}
 
 	// 4. Risk causal context in execution preserves decision severity from the chain.
-	execRisk := ch.ParseRiskInputJSON(execRow[12].(string))
+	execRisk := ch.ParseRiskInputJSON(execRow[15].(string))
 	if execRisk.DecisionSeverity != "high" {
 		t.Errorf("execution risk.decision_severity: got %q, want %q", execRisk.DecisionSeverity, "high")
 	}
@@ -1248,9 +1248,9 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	}
 
 	// 5. Confidence ordering: risk ≤ strategy ≤ decision (execution inherits risk confidence via RiskInput).
-	decConf := decRow[9].(float64)
-	stratConf := stratRow[9].(float64)
-	riskConf := riskRow[9].(float64)
+	decConf := decRow[12].(float64)
+	stratConf := stratRow[12].(float64)
+	riskConf := riskRow[12].(float64)
 	execRiskConf := parseFloat(execRisk.Confidence)
 
 	if stratConf > decConf+1e-10 {
@@ -1264,15 +1264,15 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	}
 
 	// 6. Execution quantity matches risk constraints max_position_size.
-	riskConstraints := ch.ParseConstraintsJSON(riskRow[11].(string))
-	execQuantity := ch.FormatFloat(execRow[9].(float64))
+	riskConstraints := ch.ParseConstraintsJSON(riskRow[14].(string))
+	execQuantity := ch.FormatFloat(execRow[12].(float64))
 	if execQuantity != riskConstraints.MaxPositionSize {
 		t.Errorf("execution quantity (%q) should match risk max_position_size (%q)", execQuantity, riskConstraints.MaxPositionSize)
 	}
 
 	// 7. Parameters propagate from strategy through execution.
-	execParams := ch.ParseMetadataJSON(execRow[14].(string))
-	stratParams := ch.ParseMetadataJSON(stratRow[11].(string))
+	execParams := ch.ParseMetadataJSON(execRow[17].(string))
+	stratParams := ch.ParseMetadataJSON(stratRow[14].(string))
 	if execParams["target_offset"] != stratParams["target_offset"] {
 		t.Errorf("target_offset diverged: strategy=%q, execution=%q", stratParams["target_offset"], execParams["target_offset"])
 	}
@@ -1281,7 +1281,7 @@ func TestBehavioralRoundTrip_FullChain_DecisionToExecution(t *testing.T) {
 	}
 
 	// 8. Execution metadata carries decision severity from the chain.
-	execMeta := ch.ParseMetadataJSON(execRow[15].(string))
+	execMeta := ch.ParseMetadataJSON(execRow[18].(string))
 	if execMeta["decision_severity"] != "high" {
 		t.Errorf("execution metadata decision_severity: got %q", execMeta["decision_severity"])
 	}
@@ -1313,14 +1313,14 @@ func TestBehavioralRoundTrip_Execution_RejectedOrder(t *testing.T) {
 
 	row := mapExecutionRow(event)
 
-	if row[8].(string) != "none" {
-		t.Errorf("rejected side: got %q, want %q", row[8], "none")
+	if row[11].(string) != "none" {
+		t.Errorf("rejected side: got %q, want %q", row[11], "none")
 	}
-	if row[11].(string) != "rejected" {
-		t.Errorf("rejected status: got %q, want %q", row[11], "rejected")
+	if row[14].(string) != "rejected" {
+		t.Errorf("rejected status: got %q, want %q", row[14], "rejected")
 	}
 
-	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	riskInput := ch.ParseRiskInputJSON(row[15].(string))
 	if riskInput.Disposition != "rejected" {
 		t.Errorf("risk.disposition: got %q, want %q", riskInput.Disposition, "rejected")
 	}
@@ -1328,7 +1328,7 @@ func TestBehavioralRoundTrip_Execution_RejectedOrder(t *testing.T) {
 		t.Errorf("risk.decision_severity: got %q, want %q", riskInput.DecisionSeverity, "low")
 	}
 
-	fills := ch.ParseFillsJSON(row[13].(string))
+	fills := ch.ParseFillsJSON(row[16].(string))
 	if len(fills) != 0 {
 		t.Errorf("rejected order should have 0 fills, got %d", len(fills))
 	}
@@ -1374,8 +1374,8 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 	//   [11]status [12]risk [13]fills [14]parameters [15]metadata
 	//   [16]exec_correlation_id [17]exec_causation_id [18]final [19]timestamp
 
-	if len(row) != 20 {
-		t.Fatalf("venue fill row: got %d columns, want 20", len(row))
+	if len(row) != 23 {
+		t.Fatalf("venue fill row: got %d columns, want 23", len(row))
 	}
 
 	// Event metadata preservation.
@@ -1395,13 +1395,13 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 	}
 
 	// Status is filled.
-	if row[11].(string) != "filled" {
-		t.Errorf("status: got %q, want filled", row[11])
+	if row[14].(string) != "filled" {
+		t.Errorf("status: got %q, want filled", row[14])
 	}
 
 	// Filled quantity matches quantity (full fill).
-	qty := row[9].(float64)
-	filledQty := row[10].(float64)
+	qty := row[12].(float64)
+	filledQty := row[13].(float64)
 	if qty != 0.001 {
 		t.Errorf("quantity: got %f, want 0.001", qty)
 	}
@@ -1410,7 +1410,7 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 	}
 
 	// Fills JSON round-trip: real fill data with simulated=false.
-	fills := ch.ParseFillsJSON(row[13].(string))
+	fills := ch.ParseFillsJSON(row[16].(string))
 	if len(fills) != 1 {
 		t.Fatalf("fills count: got %d, want 1", len(fills))
 	}
@@ -1428,7 +1428,7 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 	}
 
 	// Risk input preservation with strategy context.
-	riskInput := ch.ParseRiskInputJSON(row[12].(string))
+	riskInput := ch.ParseRiskInputJSON(row[15].(string))
 	if riskInput.Disposition != "approved" {
 		t.Errorf("risk.disposition: got %q, want approved", riskInput.Disposition)
 	}
@@ -1440,15 +1440,15 @@ func TestBehavioralRoundTrip_VenueFill_RealFillData(t *testing.T) {
 	}
 
 	// Exec-level correlation preserved.
-	if row[16].(string) != "corr-s334-fill" {
-		t.Errorf("exec_correlation_id: got %q", row[16])
+	if row[19].(string) != "corr-s334-fill" {
+		t.Errorf("exec_correlation_id: got %q", row[19])
 	}
-	if row[17].(string) != "caus-s334-risk" {
-		t.Errorf("exec_causation_id: got %q", row[17])
+	if row[20].(string) != "caus-s334-risk" {
+		t.Errorf("exec_causation_id: got %q", row[20])
 	}
 
 	// Final flag.
-	if row[18].(bool) != true {
+	if row[21].(bool) != true {
 		t.Error("final: got false, want true")
 	}
 }
@@ -1514,15 +1514,15 @@ func TestBehavioralRoundTrip_VenueFill_PaperOrderColumnAlignment(t *testing.T) {
 	}
 
 	// Status column differs (submitted vs filled).
-	if paperRow[11].(string) != "submitted" {
-		t.Errorf("paper status: got %q", paperRow[11])
+	if paperRow[14].(string) != "submitted" {
+		t.Errorf("paper status: got %q", paperRow[14])
 	}
-	if fillRow[11].(string) != "filled" {
-		t.Errorf("fill status: got %q", fillRow[11])
+	if fillRow[14].(string) != "filled" {
+		t.Errorf("fill status: got %q", fillRow[14])
 	}
 
 	// Both share the same correlation_id at exec level.
-	if paperRow[16].(string) != fillRow[16].(string) {
-		t.Errorf("exec_correlation_id diverged: paper=%q, fill=%q", paperRow[16], fillRow[16])
+	if paperRow[19].(string) != fillRow[19].(string) {
+		t.Errorf("exec_correlation_id diverged: paper=%q, fill=%q", paperRow[19], fillRow[19])
 	}
 }

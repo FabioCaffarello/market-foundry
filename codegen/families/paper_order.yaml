@@ -11,7 +11,7 @@ nats:
 
 writer:
   table: executions
-  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp"
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, side, quantity, filled_quantity, status, risk, fills, parameters, metadata, exec_correlation_id, exec_causation_id, final, timestamp"
   mapper: mapExecutionRow
   pipeline_family_key: paper_order
   config_array: execution_families

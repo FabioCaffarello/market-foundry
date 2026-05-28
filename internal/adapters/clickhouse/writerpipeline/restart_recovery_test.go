@@ -259,14 +259,16 @@ func TestWriterRestart_RowMapping_ConsistentAcrossRestart(t *testing.T) {
 	}
 	closer1.Close()
 
-	// Verify row structure: mapExecutionRow produces 20 columns.
+	// Verify row structure: mapExecutionRow produces 23 columns
+	// (post-H-6.d.1: +base/quote/contract canonical columns).
 	mu.Lock()
-	if len(row1) != 20 {
-		t.Fatalf("expected 20 columns in execution row, got %d", len(row1))
+	if len(row1) != 23 {
+		t.Fatalf("expected 23 columns in execution row, got %d", len(row1))
 	}
 
 	// Verify key fields survived mapping.
-	// Column 4 = type, Column 5 = source, Column 6 = symbol, Column 7 = timeframe
+	// Column 4 = type, Column 5 = source, Column 6 = symbol, Column 10 = timeframe
+	// (positions 7/8/9 are base/quote/contract canonical columns, H-6.d.1).
 	if row1[4] != "paper_order" {
 		t.Errorf("type: expected paper_order, got %v", row1[4])
 	}
@@ -276,12 +278,12 @@ func TestWriterRestart_RowMapping_ConsistentAcrossRestart(t *testing.T) {
 	if row1[6] != "btcusdt" {
 		t.Errorf("symbol: expected btcusdt, got %v", row1[6])
 	}
-	if row1[7] != uint32(60) {
-		t.Errorf("timeframe: expected 60, got %v", row1[7])
+	if row1[10] != uint32(60) {
+		t.Errorf("timeframe: expected 60, got %v", row1[10])
 	}
-	// Column 16 = exec_correlation_id
-	if row1[16] != "wr2-consistency" {
-		t.Errorf("exec_correlation_id: expected wr2-consistency, got %v", row1[16])
+	// Column 19 = exec_correlation_id (shifted from 16 post-H-6.d.1).
+	if row1[19] != "wr2-consistency" {
+		t.Errorf("exec_correlation_id: expected wr2-consistency, got %v", row1[19])
 	}
 	mu.Unlock()
 }

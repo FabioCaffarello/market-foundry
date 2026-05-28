@@ -4,7 +4,7 @@
 	consumerName:  "writer-strategy-mean-reversion-entry-consumer",
 	inserterName:  "writer-strategy-mean-reversion-entry-inserter",
 	table:         "strategies",
-	insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
+	insertSQL:     "INSERT INTO strategies (event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, direction, confidence, decisions, parameters, metadata, final, timestamp)",
 	consumerSpec:  natsstrategy.WriterMeanReversionEntryStrategyConsumer(),
 	isEnabled:     func(p settings.PipelineConfig) bool { return p.IsStrategyFamilyEnabled("mean_reversion_entry") },
 	startConsumer: writerpipeline.NewStrategyStarter(reg.strategy),

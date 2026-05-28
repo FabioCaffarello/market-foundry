@@ -61,7 +61,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.b'** | Fechada (PR #28 mergeada em `main` em `6b62d89`, 2026-05-26) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits + fix(execute) pull-forward 37f8ddd (descoberto via CI Integration Tests em PR #28: silent zero Instrument por reconstrução source-string em `instrumentFromBinding`; fix via `NewPaperOrderEvaluatorForInstrument` passthrough). check-instruments analyzer 6 checks PASS. **Triage drop closure note** (zero migration sites nesta sub-wave): DecisionTriageItem buffered pelo ReviewTransform DTO; ExecutionTriageItem não existe; RoundTripTriageItem deferido para H-6.b''. ADR-0021 permanece `Proposed`. |
 | **H-6.b''** | Fechada (PR #29 mergeada em `main` em `54a2706`, 2026-05-26) | Layer 4: Pairing chain migrada — 2 domain types Symbol → Instrument + VenueSymbol() (pairing.Leg + pairing.RoundTrip) + 1 rename (pairing.CrossSessionWindow.Symbol → VenueSymbol string, declarado `string_filter` per Decisão #2) + 1 triage population site (`get_roundtrip_triage.go:74` adopts `review.VenueSymbol()` por compile pressure pull-forward). 8 commits (plano declarava 9 — consolidação por compile pressure documentada em commit 3 e commit 8) + 1 follow-up commit (G6 flake registry + pre-push lesson). check-instruments analyzer estendido com 3º state `string_filter` (commit 1) e 15 unit tests (was 14). ADR-0021 permanece `Proposed`. |
 | **H-6.c.1** | Fechada (PR #30 mergeada em `main` em `8125e6c`, 2026-05-27) | Application-layer pass-through migration: derive scope. 13 commits eliminating source-string Instrument reconstruction in 4 application packages (signal/decision/strategy/risk). Commit 1 installs declarative `policies/anti_patterns.toml` + analyzer scan extension. Commits 2-5 add `NewXxxForInstrument` pass-through constructors (14 total). Commit 6 wires derive actors to compute Instrument once at the `BindingTarget.Instrument()` boundary (new helper in `internal/application/ingest/binding.go` with error-returning signature — eliminates the H-6.b' commit 37f8ddd silent-zero regression-shape at its source). Commits 7a-7d delete the legacy `NewXxx` wrappers + per-package `instrumentFromBinding` helpers + dead `symbol` struct field, migrating ~250 test sites. Commit 8 adds derive-scope canary integration tests for the 6 synthetic sources from commit 6. Commit 9 records migration progress in `anti_patterns.toml`. Commit 10 closes docs. **CI fixup (commits 11-13)**: commit 11 populates anti_patterns exception list with all 11 deferred call sites (the `--profile ci` gate promotes warning→error; the policy installed with severity=warning was incompatible until exceptions covered all remaining callers); commit 12 fixes a pre-existing topology analyzer fragility (whole-file fallback in `find_stream_name_near` picked unrelated SCREAMING_SNAKE_CASE constants on Linux file iteration); commit 13 records the `--profile ci` pre-push validation requirement permanently in CONTRIBUTING.md. ADR-0021 permanece `Proposed`. |
-| **H-6.c.2** | **Atual** (esta entrega — branch `feat/h-6-c-2-execute-clickhouse` aberta após merge de H-6.c.1 em PR #30) | Application-layer pass-through migration: execute scope + ClickHouse composite_reader treatment. 8 commits eliminating the last source-string reconstruction sites in the execution package + uniformizing the ClickHouse `reconstructInstrumentFromLegacy` error-handling pattern. Commit 1 migrates ~28 paper_order_evaluator test sites to ForInstrument constructor. Commit 2 converts the 5 silent error-discard sites in `composite_reader.go` to warn-and-emit-zero (matches the 8 existing sister sites' pattern; all 13 ClickHouse readers now uniform). Commit 3 declares `ReviewTransform` as `string_filter` per Decisão Q2 of H-6.c.1 + adds inline godoc to ReviewTransform.Symbol + DecisionTriageItem.Symbol fields. Commit 4 migrates the 2 testnet adapters (`binance_spot/futures_testnet_adapter.go`) to use `BindingTarget.Instrument()` boundary helper with warn-and-emit-zero fallback per Decisão #2 — option (b) confirmed after option (a) port-signature refactor cascade analysis revealed 12 files exceeding the sub-onda threshold (a) recorded as H-6.f candidate. Commit 5 deletes the legacy `NewPaperOrderEvaluator` ctor + `instrumentFromBinding` helper file + dead `symbol` field + migrates 8 cross-scope stragglers (1 derive test + 2 risk_scaling test + 6 integration-tagged: 1 writerpipeline + 4 natsexecution + 1 live_consumer_flow). Commit 6 adds the explicit 37f8ddd canary in execute scope (`execute_venue_adapter_canary_test.go` — 2 tests / 2 passes locking the contract that "execute.venue-adapter" synthetic source preserves canonical Instrument through PaperOrderEvaluator + strategy_consumer_actor). Commit 7 shrinks `anti_patterns.toml` exception list 11→8 + uniformizes prose. Commit 8 (este commit) closes docs. ADR-0021 permanece `Proposed`; **execução agora 5 dos 6 helpers eliminados (signal/decision/strategy/risk/execution); apenas executionclient remanesce para H-6.f**. |
+| **H-6.c.2** | Fechada (PR #31 mergeada em `main` em `0bce6f6`, 2026-05-27) | Application-layer pass-through migration: execute scope + ClickHouse composite_reader treatment. 8 commits eliminating the last source-string reconstruction sites in the execution package + uniformizing the ClickHouse `reconstructInstrumentFromLegacy` error-handling pattern. Commit 1 migrates ~28 paper_order_evaluator test sites to ForInstrument constructor. Commit 2 converts the 5 silent error-discard sites in `composite_reader.go` to warn-and-emit-zero (matches the 8 existing sister sites' pattern; all 13 ClickHouse readers now uniform). Commit 3 declares `ReviewTransform` as `string_filter` + adds inline godoc to ReviewTransform.Symbol + DecisionTriageItem.Symbol fields. Commit 4 migrates the 2 testnet adapters to use `BindingTarget.Instrument()` boundary helper per Decisão #2 (b). Commit 5 deletes the legacy `NewPaperOrderEvaluator` ctor + `instrumentFromBinding` helper file + dead `symbol` field + migrates 8 cross-scope stragglers. Commit 6 adds the explicit 37f8ddd canary in execute scope (2 tests / 2 passes). Commit 7 shrinks `anti_patterns.toml` exception list 11→8. Commit 8 closes docs. ADR-0021 permanece `Proposed`; **5 dos 6 helpers eliminados; apenas executionclient remanesce para H-6.f**. |
+| **H-6.d.1** | **Atual** (esta entrega — branch `feat/h-6-d-1-schema-and-writer` aberta após merge de H-6.c.2 em PR #31) | ClickHouse schema migration + writer canonical column population end-to-end. 4 commits: (1) 6 migrations `008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql` adicionam `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (split per-table após Decisão #1 (A) — ClickHouse Go driver multi-statement constraint; runner enhancement deferred para H-6.f). (2) Codegen self-consistency atomic bundle — 14 YAML specs + 14 golden snapshots + 17 INSERT SQL strings + 8 mappers em `writerpipeline/support.go` + ~120 test row position shifts (`support_test.go` + `behavioral_roundtrip_test.go`). (3a) Integration fixture migration — 34 positional INSERTs em `composite_reader_integration_test.go` para explicit column lists + 20 pre-H-6.b drift fixes (`.Symbol` → `.VenueSymbol()` em composite_reader_integration_test.go + live_execution_analytical_test.go). (3b) Writer canary — `Client.Exec()` adicionado para DDL via native protocol + novo `canonical_columns_integration_test.go` (~527 LoC, 6 tests / 1 per table). **Resolução 1 declarada**: 5 composite_reader callers + 8 sister-site readers de `reconstructInstrumentFromLegacy` MANTÊM warn-and-emit-zero fallback até H-6.f post-90-day-TTL operational verification. **2 lessons registered**: positional INSERT pre-flight discipline + tagged-build drift detection (3 months undetected). ADR-0021 permanece `Proposed`; promoção atómica em H-6.f post-reader-cutover + helper deletion + TTL verification. |
+| **H-6.d.2** | Não iniciada (destrava após merge de H-6.d.1) | Reader canonical-preferred cutover com fallback through 90-day TTL window. composite_reader.go + 8 sister readers migram para `base`/`quote`/`contract` column reads. Helper retention preserved (`reconstructInstrumentFromLegacy` continua disponível para legacy rows during TTL). Cutover runbook em `docs/operations/runbooks/clickhouse-canonical-migration.md` (criação prevista). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -221,7 +223,173 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.c.2 (esta sessão):
+Entregas H-6.d.1 (esta sessão):
+
+- **Commit 1** (`ca0536f`): **6 migrations canonical columns**
+  (6 files added). `008_add_canonical_columns_evidence_candles.sql`
+  → `013_add_canonical_columns_executions.sql`. Cada migration:
+  `ALTER TABLE <table> ADD COLUMN IF NOT EXISTS base LowCardinality(String) DEFAULT '' AFTER symbol, ADD COLUMN IF NOT EXISTS quote LowCardinality(String) DEFAULT '' AFTER base, ADD COLUMN IF NOT EXISTS contract LowCardinality(String) DEFAULT '' AFTER quote`.
+  Idempotent (IF NOT EXISTS) + reversible (DROP COLUMN documented
+  per header). **Decisão #1 (A)** — split per-table after initial
+  `008_add_canonical_columns.sql` multi-statement file FAILED contra
+  ClickHouse com "code 62, Multi-statements are not allowed".
+  Opção (B) (migration runner enhancement) declared scope creep e
+  **deferred para H-6.f scope expansion**.
+
+- **Commit 2** (`f1ee882`): **codegen self-consistency atomic
+  bundle** (writer canonical column population end-to-end). 14 YAML
+  family specs (`codegen/families/*.yaml`) extended `writer.columns`
+  string com "base, quote, contract" pós-symbol (sed-driven uniform
+  update). 14 golden snapshots regenerados via
+  `codegen generate <spec> pipeline_entry`. `codegen/render_test.go`
+  6 inline `Columns:` strings updated. `cmd/writer/pipeline.go` 17
+  INSERT SQL strings updated (14 codegen + 3 manual:
+  squeeze_breakout_entry, venue_fill, venue_rejection).
+  `writerpipeline/support.go` 8 mappers (mapCandleRow / mapSignalRow
+  / mapDecisionRow / mapStrategyRow / mapRiskRow / mapExecutionRow
+  / mapVenueFillRow / mapVenueRejectionRow) each appends
+  `string(x.Instrument.Base), string(x.Instrument.Quote),
+  string(x.Instrument.Contract)` after `VenueSymbol()`. Test row
+  position shift cascade: ~41 row[N] + 6 column count updates em
+  `support_test.go`, 70 bare row[N] + 43 multi-letter Row variable
+  shifts em `behavioral_roundtrip_test.go`
+  (highRow/lowRow/ctRow/ptRow/decRow/stratRow/riskRow regex pass).
+  **Atomic bundle invariant**: codegen YAML + golden + pipeline.go
+  + mappers + tests **must move together** by self-consistency
+  invariant (golden snapshot regen would FAIL if any diverged).
+  Precedent: H-6.c.1 commit 6 actor-cascade atomic bundle.
+
+- **Commit 3a** (`06e0b43`): **Integration fixture migration**
+  (positional INSERTs + pre-H-6.b drift). 34 positional INSERTs em
+  `composite_reader_integration_test.go` convertidos para explicit
+  column lists (5 unique templates per table:
+  candle/signal/decision/strategy/risk/execution). Sem explicit
+  columns, schema migration teria quebrado fixture inserts
+  silenciosamente (writer canonical population vs. fixture
+  schemaless positional insert mismatch). 20 pre-H-6.b drift fixes:
+  `.Symbol` → `.VenueSymbol()` em
+  `composite_reader_integration_test.go` (Signal/Decision/Strategy/
+  Risk/Execution accesses) + 3 em `live_execution_analytical_test.go`
+  (results[i].Symbol + r.Symbol). **Tagged-build drift discovery**:
+  files com `//go:build requireclickhouse` são invisíveis ao
+  default `make verify` — pre-H-6.b drift survived 3 months
+  undetected. Decisão #2 split: 3a (test-only, schema-compat pre-
+  flight) + 3b (writer canary com Client.Exec extension).
+
+- **Commit 3b** (`bf90d2d`): **Writer canonical population canary**.
+  `internal/adapters/clickhouse/client.go`: novo método
+  `Client.Exec(ctx, query, args)` adicionado para DDL via native
+  protocol (clickhouse-go/v2 `Query` returns EOF on DDL como
+  CREATE/DROP/ALTER; native protocol's `conn.Exec` é o entry point
+  correto). Novo
+  `internal/adapters/clickhouse/writerpipeline/canonical_columns_integration_test.go`
+  (~527 LoC, `//go:build requireclickhouse`, package writerpipeline)
+  com 6 tests / 1 per table:
+  `TestWriter_PopulatesCanonicalColumns_EvidenceCandles` /
+  `Signals` / `Decisions` / `Strategies` / `RiskAssessments` /
+  `Executions`. Cada test: (i) reseta tabela (DROP + CREATE com
+  schema post-H-6.d.1 inline as per-table constants); (ii) insere
+  1 row via writer mapper apropriado; (iii) queries
+  `SELECT base, quote, contract FROM <table>`; (iv) asserts
+  canonical values populated não-vazios. Helpers:
+  `skipUnlessClickHouseCanonical` + `resetTable` +
+  `queryCanonicalColumns` + `assertCanonicalColumns`. Sister-table
+  schema constants inline (mirror migrations 008-013 com base/quote/
+  contract columns).
+
+**Resolução 1 — Helper retention through 90-day TTL**:
+`composite_reader.go` 5 callers + 8 sister-site readers de
+`reconstructInstrumentFromLegacy` MANTÊM warn-and-emit-zero
+fallback até H-6.f. Razões:
+
+1. **MergeTree TTL de 90 dias** retire legacy rows (rows
+   pre-H-6.d.1 com canonical columns default-empty) gradualmente;
+   durante TTL window readers DEVEM aceitar both shapes
+   (canonical-populated AND legacy-only via reconstruction).
+2. **H-6.d.2 reader cutover é canonical-preferred-with-fallback**,
+   não helper removal. Reader migra para
+   `SELECT base, quote, contract` preferred + fallback para
+   `reconstructInstrumentFromLegacy(symbol)` quando canonical
+   columns retornam empty strings.
+3. **H-6.f consolidates** helper deletion + exception list
+   shrinking (7 ClickHouse entries em `anti_patterns.toml`) +
+   operational verification (legacy-only rows expired,
+   canonical-only reads PASS sem fallback).
+
+Helper retention é **correctness-driven, não convenience**:
+deletion durante TTL window quebraria reads de legacy rows.
+
+**Lessons registered (H-6.d.1)**:
+
+1. **Positional INSERT pre-flight discipline**: schema migrations
+   must scan for positional INSERTs em integration fixtures
+   BEFORE migration commits. Standard pre-flights (production
+   code grep, .Symbol audit) miss tagged-build test files.
+   Pré-flight checklist for schema changes future-onward:
+   `grep -r "INSERT INTO <table> VALUES" --include="*_test.go"`
+   + `grep -r "//go:build requireclickhouse"` enumeration. Sem
+   esse pré-flight, commit 3a teria sido descoberto mid-commit-2
+   por test break, forçando retry cycle.
+
+2. **Tagged-build drift detection**: files com
+   `//go:build requireclickhouse` (e similar tags) são invisíveis
+   ao default `make verify`. Pre-H-6.b drift (`.Symbol` em vez de
+   `.VenueSymbol()`) survived 3 months undetected. Mitigation
+   candidates (registered as H-6.f deferral candidate):
+   - (a) `make verify-tagged` step explicitly building each tag
+     enumeração;
+   - (b) CI matrix expansion para incluir tagged builds;
+   - (c) raccoon-cli analyzer scanning tagged files against
+     domain types policy.
+
+3. **Codegen self-consistency atomic bundle**: YAML specs + golden
+   snapshots + stamped artifacts em pipeline.go + mappers + tests
+   **must move atomically**. Splitting commit 2 into "codegen-only"
+   + "writer-only" produziria intermediate state where regen would
+   FAIL (golden snapshot diff vs. pipeline.go INSERT shape).
+   Bundle pattern reaffirmed; precedent: H-6.c.1 commit 6 atomic
+   actor-cascade bundle.
+
+**H-6.f scope expansion** (registered durante H-6.d.1 closure):
+
+1. **Helper deletion**: `executionclient/instrument_binding.go`
+   + `reconstructInstrumentFromLegacy` (post 90-day TTL window
+   ensures all legacy rows expired).
+2. **Migration runner multi-statement support**: deferred from
+   H-6.d.1 Decisão #1 — parse-and-execute statement-by-statement
+   em `cmd/migrate` para support multi-statement migrations sem
+   per-table split overhead.
+3. **Exception list shrinking**: 7 ClickHouse entries em
+   `anti_patterns.toml` (currently tagged "H-6.d helper removal")
+   removed após cutover + TTL window passar.
+4. **Operational verification post-TTL**: confirm legacy-only
+   rows expired; canonical-only reads PASS sem fallback; promote
+   ADR-0021 → `Accepted` per critério #2 + #4b literal
+   satisfaction.
+
+**Marco**: H-6.d.1 fecha **critério #4b writer-side** do ADR-0021
+erratum — writer populates canonical columns end-to-end através
+de 8 mapper functions + 17 INSERT statements + 6 ClickHouse
+tables. Reader-side cutover (H-6.d.2) + helper deletion +
+operational verification (H-6.f) restam. ADR-0021 critério #2
+**ainda não literalmente satisfeito** (executionclient helper
+ainda existe). ADR-0021 **permanece `Proposed`**; promoção
+atómica em H-6.f.
+
+**Métricas H-6.d.1**: 4 commits, 6 migrations + 14 codegen
+artifacts + ~120 test row position shifts + 34 positional INSERTs
++ 23 .Symbol drift fixes + 527 LoC canary test + 1 client method
+(`Client.Exec`). Pre-push validation: `make verify` GREEN +
+`raccoon-cli --profile ci` GREEN + `make test-integration` PASS.
+
+**Próxima sub-onda destravada após merge**: H-6.d.2 — reader
+canonical-preferred cutover com fallback window through 90-day
+TTL. Sub-onda sequencing policy estrita: H-6.d.2 abre branch
+APENAS após merge desta PR (H-6.d.1) em `main`.
+
+---
+
+Entregas H-6.c.2 (sessão anterior — PR #31 mergeada em `main` em `0bce6f6`, 2026-05-27):
 
 - **Commit 1** (`df5ea36`):
   **paper_order_evaluator test migration** (5 files, +40/-28).
@@ -1460,6 +1628,73 @@ H-6.b''.
 hardening sub-wave. Workaround: re-run the failing test
 isolated via `go test -count=3 -run TestS460_…` to confirm
 flake before treating as a regression.
+
+### G7 — `TestS380_LiveListenDryRun_*` compose-interference flake
+
+Tests:
+- `TestS380_LiveListenDryRun_FullPipeline`
+- `TestS380_LiveListenDryRun_ControlGateStillBlocks`
+
+File: `internal/actors/scopes/execute/s380_live_listen_dry_run_test.go`
+
+**Symptom:** Tests fail on local pre-push validation with
+`received=0` on test-spawned strategy consumer tracker, even
+though the fill IS produced (the assertion at line 160
+confirming `venue_order_id=dryrun-…` prefix passes; the failure
+is at line 189 / 304 where `s341WaitCounter` for the
+`strategy-consumer` tracker `received` counter trips at 0).
+
+**Root cause hypothesis:** compose-execute container interferes
+with the test-spawned supervisor. The test publishes a strategy
+event onto the shared local NATS; the compose-execute container
+(running on the same JetStream durable consumer name as the
+test's spawned `execute-strategy-mean_reversion_entry`
+consumer) processes the event and produces the fill —
+`venue_order_id=dryrun-…` prefix confirmed in logs — but the
+test's own `strategy-consumer` tracker stays at `received=0`
+because the message was consumed by the compose container's
+actor, not the test's freshly spawned one. The fill is visible
+to the test's fill subscriber (which listens on subjects, not
+durables) but the tracker is only wired into the test's
+spawned actor.
+
+**Reproducibility:** Confirmed on `main` (no diff between
+`feat/h-6-d-1-schema-and-writer` and `main` for the test
+file). Zero overlap between H-6.d.1 changes (ClickHouse
+schema/codegen/writer mappers) and the failing test path
+(NATS strategy consumer chain), so this is a pre-existing
+flake surfaced during H-6.d.1 pre-push validation, not a
+regression.
+
+**Mitigation candidates** (any of):
+
+1. **Test isolation from compose-execute**: have the test
+   spawn against a dedicated NATS subject hierarchy or a
+   dedicated embedded NATS server, not the shared compose
+   instance — eliminates the dual-consumer race entirely.
+2. **Workaround for local runs**: tear compose-execute down
+   before running these tests, e.g.
+   `docker compose -f deploy/compose/docker-compose.yaml stop execute`
+   prior to `make test-integration`, then `start execute`
+   after.
+3. **CI verification**: confirm whether CI exhibits the same
+   flake — CI runs without compose-execute up at the same
+   time, so this should pass clean in CI; if CI is also red,
+   the hypothesis is wrong and root-cause is elsewhere.
+
+**Pattern alignment:** Consistent with G6
+(`TestS460_SessionLifecycleTransitions` time-resolution flake)
+in being a pre-existing flake that surfaces under batch
+`make test-integration` loads, with zero overlap to the
+in-flight onda's changes.
+
+**Status:** Deferred to H-6.f cleanup wave or a dedicated
+test-hardening sub-wave (same disposition as G6). Workaround:
+either rerun the suite isolated (`go test -count=1 -run
+TestS380_LiveListenDryRun_FullPipeline` after stopping
+compose-execute) or trust CI to confirm green.
+
+**First observed:** H-6.d.1 pre-push validation (2026-05-27).
 
 ---
 

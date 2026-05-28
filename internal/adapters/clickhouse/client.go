@@ -46,6 +46,17 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// Exec runs a non-row-returning statement (DDL like CREATE/DROP/ALTER, or
+// DML like INSERT VALUES). Use Query for SELECT or InsertBatch for the
+// efficient ClickHouse batch protocol; Exec is the right entry point for
+// schema management and one-off statements where the native-protocol
+// driver expects no row stream back (Query returns EOF on DDL in
+// clickhouse-go/v2). Added in H-6.d.1 commit 3b for the canonical-columns
+// integration tests' table reset path.
+func (c *Client) Exec(ctx context.Context, query string, args ...any) error {
+	return c.conn.Exec(ctx, query, args...)
+}
+
 // InsertBatch inserts multiple rows using the ClickHouse batch protocol.
 // insertSQL must be an INSERT INTO statement (e.g., "INSERT INTO evidence_candles").
 // Each row is a slice of column values in DDL column order.

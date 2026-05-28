@@ -83,8 +83,8 @@ func TestMapCandleRow_ColumnCount(t *testing.T) {
 
 	row := mapCandleRow(e)
 
-	if len(row) != 16 {
-		t.Fatalf("expected 16 columns, got %d", len(row))
+	if len(row) != 19 {
+		t.Fatalf("expected 19 columns, got %d", len(row))
 	}
 }
 
@@ -120,16 +120,16 @@ func TestMapCandleRow_DomainFields(t *testing.T) {
 
 	assertEq(t, "source", row[4], "binancef")
 	assertEq(t, "symbol", row[5], "btcusdt")
-	assertEq(t, "timeframe", row[6], uint32(300))
-	assertEq(t, "open", row[7], 100.5)
-	assertEq(t, "high", row[8], 101.0)
-	assertEq(t, "low", row[9], 99.0)
-	assertEq(t, "close", row[10], 100.0)
-	assertEq(t, "volume", row[11], 5000.123)
-	assertEq(t, "trade_count", row[12], int64(42))
-	assertEq(t, "open_time", row[13], fixedTime)
-	assertEq(t, "close_time", row[14], fixedTime.Add(5*time.Minute))
-	assertEq(t, "final", row[15], true)
+	assertEq(t, "timeframe", row[9], uint32(300))
+	assertEq(t, "open", row[10], 100.5)
+	assertEq(t, "high", row[11], 101.0)
+	assertEq(t, "low", row[12], 99.0)
+	assertEq(t, "close", row[13], 100.0)
+	assertEq(t, "volume", row[14], 5000.123)
+	assertEq(t, "trade_count", row[15], int64(42))
+	assertEq(t, "open_time", row[16], fixedTime)
+	assertEq(t, "close_time", row[17], fixedTime.Add(5*time.Minute))
+	assertEq(t, "final", row[18], true)
 }
 
 func TestMapCandleRow_EmptyDecimalStrings(t *testing.T) {
@@ -143,7 +143,7 @@ func TestMapCandleRow_EmptyDecimalStrings(t *testing.T) {
 	}
 	row := mapCandleRow(e)
 
-	for _, idx := range []int{7, 8, 9, 10, 11} {
+	for _, idx := range []int{10, 11, 12, 13, 14} {
 		if row[idx].(float64) != 0 {
 			t.Errorf("column %d: expected 0.0 for empty string, got %v", idx, row[idx])
 		}
@@ -161,8 +161,8 @@ func TestMapSignalRow_ColumnCount(t *testing.T) {
 	}
 	row := mapSignalRow(e)
 
-	if len(row) != 12 {
-		t.Fatalf("expected 12 columns, got %d", len(row))
+	if len(row) != 15 {
+		t.Fatalf("expected 15 columns, got %d", len(row))
 	}
 }
 
@@ -181,12 +181,12 @@ func TestMapSignalRow_DomainFields(t *testing.T) {
 	assertEq(t, "type", row[4], "rsi")
 	assertEq(t, "source", row[5], "binancef")
 	assertEq(t, "symbol", row[6], "ethusdt")
-	assertEq(t, "timeframe", row[7], uint32(300))
-	assertEq(t, "value", row[8], 72.5)
-	assertEq(t, "final", row[10], true)
-	assertEq(t, "timestamp", row[11], fixedTime)
+	assertEq(t, "timeframe", row[10], uint32(300))
+	assertEq(t, "value", row[11], 72.5)
+	assertEq(t, "final", row[13], true)
+	assertEq(t, "timestamp", row[14], fixedTime)
 
-	metaJSON := row[9].(string)
+	metaJSON := row[12].(string)
 	var parsed map[string]string
 	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
 		t.Fatalf("metadata is not valid JSON: %v", err)
@@ -207,7 +207,7 @@ func TestMapSignalRow_NilMetadata(t *testing.T) {
 	}
 	row := mapSignalRow(e)
 
-	metaJSON := row[9].(string)
+	metaJSON := row[12].(string)
 	if metaJSON != "null" {
 		t.Errorf("expected null for nil metadata, got %q", metaJSON)
 	}
@@ -226,8 +226,8 @@ func TestMapDecisionRow_ColumnCount(t *testing.T) {
 	}
 	row := mapDecisionRow(e)
 
-	if len(row) != 16 {
-		t.Fatalf("expected 16 columns, got %d", len(row))
+	if len(row) != 19 {
+		t.Fatalf("expected 19 columns, got %d", len(row))
 	}
 }
 
@@ -249,14 +249,14 @@ func TestMapDecisionRow_DomainFields(t *testing.T) {
 	row := mapDecisionRow(e)
 
 	assertEq(t, "type", row[4], "rsi_oversold")
-	assertEq(t, "outcome", row[8], "triggered")
-	assertEq(t, "confidence", row[9], 0.85)
-	assertEq(t, "severity", row[10], "low")
-	assertEq(t, "rationale", row[11], "RSI 28.5 below threshold")
-	assertEq(t, "final", row[14], true)
+	assertEq(t, "outcome", row[11], "triggered")
+	assertEq(t, "confidence", row[12], 0.85)
+	assertEq(t, "severity", row[13], "low")
+	assertEq(t, "rationale", row[14], "RSI 28.5 below threshold")
+	assertEq(t, "final", row[17], true)
 
 	var parsedSignals []decision.SignalInput
-	if err := json.Unmarshal([]byte(row[12].(string)), &parsedSignals); err != nil {
+	if err := json.Unmarshal([]byte(row[15].(string)), &parsedSignals); err != nil {
 		t.Fatalf("signals is not valid JSON: %v", err)
 	}
 	if len(parsedSignals) != 2 {
@@ -276,8 +276,8 @@ func TestMapStrategyRow_ColumnCount(t *testing.T) {
 	}
 	row := mapStrategyRow(e)
 
-	if len(row) != 15 {
-		t.Fatalf("expected 15 columns, got %d", len(row))
+	if len(row) != 18 {
+		t.Fatalf("expected 18 columns, got %d", len(row))
 	}
 }
 
@@ -296,12 +296,12 @@ func TestMapStrategyRow_DomainFields(t *testing.T) {
 	row := mapStrategyRow(e)
 
 	assertEq(t, "type", row[4], "mean_reversion_entry")
-	assertEq(t, "direction", row[8], "short")
-	assertEq(t, "confidence", row[9], 0.65)
-	assertEq(t, "final", row[13], true)
+	assertEq(t, "direction", row[11], "short")
+	assertEq(t, "confidence", row[12], 0.65)
+	assertEq(t, "final", row[16], true)
 
 	var parsedDec []strategy.DecisionInput
-	if err := json.Unmarshal([]byte(row[10].(string)), &parsedDec); err != nil {
+	if err := json.Unmarshal([]byte(row[13].(string)), &parsedDec); err != nil {
 		t.Fatalf("decisions is not valid JSON: %v", err)
 	}
 	if parsedDec[0].Type != "rsi_oversold" {
@@ -329,8 +329,8 @@ func TestMapRiskRow_ColumnCount(t *testing.T) {
 	}
 	row := mapRiskRow(e)
 
-	if len(row) != 17 {
-		t.Fatalf("expected 17 columns, got %d", len(row))
+	if len(row) != 20 {
+		t.Fatalf("expected 20 columns, got %d", len(row))
 	}
 }
 
@@ -350,13 +350,13 @@ func TestMapRiskRow_DomainFields(t *testing.T) {
 	}
 	row := mapRiskRow(e)
 
-	assertEq(t, "disposition", row[8], "modified")
-	assertEq(t, "confidence", row[9], 0.7)
-	assertEq(t, "rationale", row[12], "position too large, modified")
-	assertEq(t, "final", row[15], true)
+	assertEq(t, "disposition", row[11], "modified")
+	assertEq(t, "confidence", row[12], 0.7)
+	assertEq(t, "rationale", row[15], "position too large, modified")
+	assertEq(t, "final", row[18], true)
 
 	var parsedConstraints risk.Constraints
-	if err := json.Unmarshal([]byte(row[11].(string)), &parsedConstraints); err != nil {
+	if err := json.Unmarshal([]byte(row[14].(string)), &parsedConstraints); err != nil {
 		t.Fatalf("constraints is not valid JSON: %v", err)
 	}
 	if parsedConstraints.MaxPositionSize != "0.05" {
@@ -380,7 +380,7 @@ func TestMapRiskRow_StrategyInputDecisionContext(t *testing.T) {
 
 	// Verify strategies JSON preserves decision context.
 	var parsedStrategies []risk.StrategyInput
-	if err := json.Unmarshal([]byte(row[10].(string)), &parsedStrategies); err != nil {
+	if err := json.Unmarshal([]byte(row[13].(string)), &parsedStrategies); err != nil {
 		t.Fatalf("strategies is not valid JSON: %v", err)
 	}
 	if len(parsedStrategies) != 1 {
@@ -408,8 +408,8 @@ func TestMapExecutionRow_ColumnCount(t *testing.T) {
 	}
 	row := mapExecutionRow(e)
 
-	if len(row) != 20 {
-		t.Fatalf("expected 20 columns, got %d", len(row))
+	if len(row) != 23 {
+		t.Fatalf("expected 23 columns, got %d", len(row))
 	}
 }
 
@@ -434,16 +434,16 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 	}
 	row := mapExecutionRow(e)
 
-	assertEq(t, "side", row[8], "sell")
-	assertEq(t, "quantity", row[9], 1.5)
-	assertEq(t, "filled_quantity", row[10], 1.0)
-	assertEq(t, "status", row[11], "partially_filled")
-	assertEq(t, "exec_correlation_id", row[16], "exec-corr-1")
-	assertEq(t, "exec_causation_id", row[17], "exec-caus-1")
-	assertEq(t, "final", row[18], false)
+	assertEq(t, "side", row[11], "sell")
+	assertEq(t, "quantity", row[12], 1.5)
+	assertEq(t, "filled_quantity", row[13], 1.0)
+	assertEq(t, "status", row[14], "partially_filled")
+	assertEq(t, "exec_correlation_id", row[19], "exec-corr-1")
+	assertEq(t, "exec_causation_id", row[20], "exec-caus-1")
+	assertEq(t, "final", row[21], false)
 
 	var parsedFills []execution.FillRecord
-	if err := json.Unmarshal([]byte(row[13].(string)), &parsedFills); err != nil {
+	if err := json.Unmarshal([]byte(row[16].(string)), &parsedFills); err != nil {
 		t.Fatalf("fills is not valid JSON: %v", err)
 	}
 	if len(parsedFills) != 2 {
@@ -451,7 +451,7 @@ func TestMapExecutionRow_DomainFields(t *testing.T) {
 	}
 
 	var parsedRisk execution.RiskInput
-	if err := json.Unmarshal([]byte(row[12].(string)), &parsedRisk); err != nil {
+	if err := json.Unmarshal([]byte(row[15].(string)), &parsedRisk); err != nil {
 		t.Fatalf("risk is not valid JSON: %v", err)
 	}
 	if parsedRisk.Type != "position_exposure" {
@@ -561,8 +561,8 @@ func TestMapVenueRejectionRow_ColumnCount(t *testing.T) {
 	}
 	row := mapVenueRejectionRow(e)
 
-	if len(row) != 20 {
-		t.Fatalf("expected 20 columns (same as fill/paper), got %d", len(row))
+	if len(row) != 23 {
+		t.Fatalf("expected 23 columns (same as fill/paper), got %d", len(row))
 	}
 }
 
@@ -579,7 +579,7 @@ func TestMapVenueRejectionRow_StatusIsRejected(t *testing.T) {
 	}
 	row := mapVenueRejectionRow(e)
 
-	assertEq(t, "status", row[11], "rejected")
+	assertEq(t, "status", row[14], "rejected")
 }
 
 func TestMapVenueRejectionRow_MetadataContainsRejectionFields(t *testing.T) {
@@ -600,7 +600,7 @@ func TestMapVenueRejectionRow_MetadataContainsRejectionFields(t *testing.T) {
 	row := mapVenueRejectionRow(e)
 
 	// Metadata column is index 15.
-	metaJSON := row[15].(string)
+	metaJSON := row[18].(string)
 	var parsed map[string]string
 	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
 		t.Fatalf("metadata is not valid JSON: %v", err)
@@ -626,8 +626,8 @@ func TestMapVenueRejectionRow_MetadataContainsRejectionFields(t *testing.T) {
 	}
 
 	// Correlation chain preserved.
-	assertEq(t, "exec_correlation_id", row[16], "exec-corr-rej")
-	assertEq(t, "exec_causation_id", row[17], "exec-caus-rej")
+	assertEq(t, "exec_correlation_id", row[19], "exec-corr-rej")
+	assertEq(t, "exec_causation_id", row[20], "exec-caus-rej")
 }
 
 func TestMapVenueRejectionRow_NilMetadataCreatesNew(t *testing.T) {
@@ -644,7 +644,7 @@ func TestMapVenueRejectionRow_NilMetadataCreatesNew(t *testing.T) {
 	}
 	row := mapVenueRejectionRow(e)
 
-	metaJSON := row[15].(string)
+	metaJSON := row[18].(string)
 	var parsed map[string]string
 	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
 		t.Fatalf("metadata is not valid JSON: %v", err)
@@ -667,7 +667,7 @@ func TestMapVenueRejectionRow_EmptyRejectionFieldsNotEmbedded(t *testing.T) {
 	}
 	row := mapVenueRejectionRow(e)
 
-	metaJSON := row[15].(string)
+	metaJSON := row[18].(string)
 	var parsed map[string]string
 	if err := json.Unmarshal([]byte(metaJSON), &parsed); err != nil {
 		t.Fatalf("metadata is not valid JSON: %v", err)

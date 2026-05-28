@@ -11,7 +11,7 @@ nats:
 
 writer:
   table: risk_assessments
-  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp"
+  columns: "event_id, occurred_at, correlation_id, causation_id, type, source, symbol, base, quote, contract, timeframe, disposition, confidence, strategies, constraints, rationale, parameters, metadata, final, timestamp"
   mapper: mapRiskRow
   pipeline_family_key: drawdown_limit
   config_array: risk_families
