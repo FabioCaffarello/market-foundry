@@ -1629,6 +1629,73 @@ hardening sub-wave. Workaround: re-run the failing test
 isolated via `go test -count=3 -run TestS460_…` to confirm
 flake before treating as a regression.
 
+### G7 — `TestS380_LiveListenDryRun_*` compose-interference flake
+
+Tests:
+- `TestS380_LiveListenDryRun_FullPipeline`
+- `TestS380_LiveListenDryRun_ControlGateStillBlocks`
+
+File: `internal/actors/scopes/execute/s380_live_listen_dry_run_test.go`
+
+**Symptom:** Tests fail on local pre-push validation with
+`received=0` on test-spawned strategy consumer tracker, even
+though the fill IS produced (the assertion at line 160
+confirming `venue_order_id=dryrun-…` prefix passes; the failure
+is at line 189 / 304 where `s341WaitCounter` for the
+`strategy-consumer` tracker `received` counter trips at 0).
+
+**Root cause hypothesis:** compose-execute container interferes
+with the test-spawned supervisor. The test publishes a strategy
+event onto the shared local NATS; the compose-execute container
+(running on the same JetStream durable consumer name as the
+test's spawned `execute-strategy-mean_reversion_entry`
+consumer) processes the event and produces the fill —
+`venue_order_id=dryrun-…` prefix confirmed in logs — but the
+test's own `strategy-consumer` tracker stays at `received=0`
+because the message was consumed by the compose container's
+actor, not the test's freshly spawned one. The fill is visible
+to the test's fill subscriber (which listens on subjects, not
+durables) but the tracker is only wired into the test's
+spawned actor.
+
+**Reproducibility:** Confirmed on `main` (no diff between
+`feat/h-6-d-1-schema-and-writer` and `main` for the test
+file). Zero overlap between H-6.d.1 changes (ClickHouse
+schema/codegen/writer mappers) and the failing test path
+(NATS strategy consumer chain), so this is a pre-existing
+flake surfaced during H-6.d.1 pre-push validation, not a
+regression.
+
+**Mitigation candidates** (any of):
+
+1. **Test isolation from compose-execute**: have the test
+   spawn against a dedicated NATS subject hierarchy or a
+   dedicated embedded NATS server, not the shared compose
+   instance — eliminates the dual-consumer race entirely.
+2. **Workaround for local runs**: tear compose-execute down
+   before running these tests, e.g.
+   `docker compose -f deploy/compose/docker-compose.yaml stop execute`
+   prior to `make test-integration`, then `start execute`
+   after.
+3. **CI verification**: confirm whether CI exhibits the same
+   flake — CI runs without compose-execute up at the same
+   time, so this should pass clean in CI; if CI is also red,
+   the hypothesis is wrong and root-cause is elsewhere.
+
+**Pattern alignment:** Consistent with G6
+(`TestS460_SessionLifecycleTransitions` time-resolution flake)
+in being a pre-existing flake that surfaces under batch
+`make test-integration` loads, with zero overlap to the
+in-flight onda's changes.
+
+**Status:** Deferred to H-6.f cleanup wave or a dedicated
+test-hardening sub-wave (same disposition as G6). Workaround:
+either rerun the suite isolated (`go test -count=1 -run
+TestS380_LiveListenDryRun_FullPipeline` after stopping
+compose-execute) or trust CI to confirm green.
+
+**First observed:** H-6.d.1 pre-push validation (2026-05-27).
+
 ---
 
 ## Known surface debt
