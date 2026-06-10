@@ -96,11 +96,21 @@ acceptance later — is the P7 mechanism for "no aspirational claims"
 | [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Proposed | Onda H-7 |
 | [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
 
+### Fase Harvest — Observability decisions (Onda H-5)
+
+Delivered and promoted to `Accepted` within Onda H-5
+(PROGRAM-0003 Observability, PR #25, 2026-05-25).
+
+| # | Title | Status |
+|---|---|---|
+| [0024](0024-metrics-policy.md) | Metrics policy | Accepted |
+| [0025](0025-alerting-strategy.md) | Alerting strategy | Accepted |
+
 ## Adding new ADRs
 
 When you make a structural decision worth documenting:
 
-1. Pick the next sequential number (`0012`, `0013`, ...).
+1. Pick the next sequential number (`0026`, `0027`, ...).
 2. Use the template format above.
 3. Cross-reference relevant code and other docs.
 4. Reference the ADR from affected docs (e.g., from ARCHITECTURE.md

@@ -160,6 +160,19 @@ After EVERY modification batch:
 If any breaks, **revert and pause**. Do not paper over with
 workarounds.
 
+Before any `git push`, run the canonical pre-push sequence from
+`docs/CONTRIBUTING.md` → "Pre-push validation":
+
+- `make verify` — always.
+- `raccoon-cli quality-gate --profile ci` — when the change
+  touches `tools/raccoon-cli/policies/*.toml` or analyzer
+  source. The CI profile promotes warnings to errors;
+  `make verify` alone passes while CI fails (PR #30 lesson,
+  H-6.c.1 commit 13).
+- `make test-integration` — when the change touches actors,
+  adapters, or the end-to-end execution path (requires a local
+  NATS; see CONTRIBUTING for the container command).
+
 ## Commit message discipline
 
 Detailed messages explain:
@@ -203,10 +216,10 @@ when an issue resurfaces.
   knowledge base.
 - `docs/CONTRIBUTING.md` → "Pause-and-report protocol" —
   canonical 5-step procedure.
-- `docs/decisions/0013-pause-and-report-protocol.md` (P5.5) —
+- `docs/decisions/0013-pause-and-report-protocol.md` (Accepted) —
   institutional commitment.
-- `docs/decisions/0014-defensive-scan-discipline.md` (P5.5) —
+- `docs/decisions/0014-defensive-scan-discipline.md` (Accepted) —
   institutional commitment for the discipline described above.
-- `docs/decisions/0015-wave-closure-discipline.md` (P5.5) —
+- `docs/decisions/0015-wave-closure-discipline.md` (Accepted) —
   closure-decision criteria the architect applies; the executor
   surfaces wave-depth signals.

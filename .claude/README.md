@@ -13,7 +13,7 @@ For the primary instructions that Claude reads automatically, see
 |---|---|
 | `settings.json` | Default settings for Claude sessions in this repo |
 | `commands/` | Custom slash commands (5 commands; codifying Phase 1+2 patterns — see below) |
-| `agents/` | Sub-agent definitions for specialized tasks (2 templates) |
+| `agents/` | Sub-agent definitions for specialized tasks (3 templates) |
 | `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (2 skills; codifying Phase 4 patterns — see below) |
 | `hooks/` | Workflow hooks for pre-commit, post-build, etc. (currently empty; see `../lefthook.yml` for active git hooks) |
 

@@ -94,8 +94,20 @@ Step-by-step. Phase 4 evolved this canonical pattern:
 4. **Verify** — run `make verify` (or scoped subset), build,
    lint.
 5. **Commit** — structured commit message (see §7).
-6. **Push** — to `origin/main` (or PR branch if PR workflow).
-7. **Monitor** — watch CI for green; rerun or annotate
+6. **Pre-push validation** — follow the canonical sequence in
+   `docs/CONTRIBUTING.md` → "Pre-push validation":
+   `make verify` always; `raccoon-cli quality-gate --profile ci`
+   when analyzer policy files or analyzer source changed;
+   `make test-integration` when actors, adapters, or the
+   execution path changed. `make verify` GREEN alone does not
+   imply CI green (H-6.c.1 lesson: PR #30 failed CI with 17+2
+   errors despite local verify GREEN on every commit).
+7. **Push** — to the dedicated feature branch
+   (`feat/h-N-<slug>` or equivalent), **never** directly to
+   `main`. Merge into `main` happens only via PR reviewed and
+   merged by the human maintainer — P9, see `CLAUDE.md` →
+   "Fase Harvest". Agents do not self-merge.
+8. **Monitor** — watch CI for green; rerun or annotate
    intermittent flakes per documented posture.
 
 ### 7. Commit message conventions

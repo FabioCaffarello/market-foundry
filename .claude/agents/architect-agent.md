@@ -171,8 +171,9 @@ Signals the architect should recognize as wave inflection points:
 
 When these signals appear: capture remaining debt as design-meta
 (M-list entries), declare closure, move to next planned work.
-Documented debt > silent debt > indefinite wave extension. The
-P5.5 ADR (when it lands) will formalize this as a meta-decision.
+Documented debt > silent debt > indefinite wave extension.
+ADR-0015 (wave-closure discipline, Accepted) formalizes this as
+a meta-decision.
 
 ### Pause-and-report (architect side)
 
@@ -286,11 +287,11 @@ Not when:
   canonical 5-step procedure.
 - `docs/CONTRIBUTING.md` → "Authorized expansion protocol" —
   procedure for legitimate mid-flight scope growth.
-- `docs/decisions/0013-pause-and-report-protocol.md` (P5.5) —
+- `docs/decisions/0013-pause-and-report-protocol.md` (Accepted) —
   institutional commitment for the protocol described here.
-- `docs/decisions/0014-defensive-scan-discipline.md` (P5.5) —
+- `docs/decisions/0014-defensive-scan-discipline.md` (Accepted) —
   institutional commitment for the discipline described here.
-- `docs/decisions/0015-wave-closure-discipline.md` (P5.5) —
+- `docs/decisions/0015-wave-closure-discipline.md` (Accepted) —
   institutional commitment for the wave-depth recognition
   described here.
 
