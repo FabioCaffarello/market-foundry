@@ -422,10 +422,13 @@ sessions, codifying patterns proven repetitive across Phase 1+2 work.
   - `/audit <area>` — read-only investigation skeleton.
   - `/version-check` — version consistency across canonical files.
 - `.claude/agents/`: agent role templates.
-  - `investigation-agent` — read-only investigator with structured
-    output.
+  - `architect-agent` — scoping, framing, and decision discipline;
+    the architect side of the two-agent collaboration model
+    (added P5.2).
   - `execution-agent` — scoped executor with explicit pause-and-report
     protocol.
+  - `investigation-agent` — legacy read-only investigator role,
+    largely superseded by `investigation-skill`.
 - `.claude/skills/`: procedural-knowledge skills (SKILL.md format)
   auto-loaded by Claude Code when semantically relevant to the task.
   - `investigation-skill` — read-only investigation pattern

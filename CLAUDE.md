@@ -32,9 +32,11 @@ When starting work on this repository, read in this order:
 2. **[docs/RESUMPTION.md](docs/RESUMPTION.md)** — current state, known
    gaps, next concrete step. Always start here.
 3. **The active PROGRAM** if one is in flight — see
-   [docs/programs/](docs/programs/README.md) for the convention.
-   Currently active:
-   [PROGRAM-0001 — Harvest Foundation](docs/programs/PROGRAM-0001-foundation.md).
+   [docs/programs/](docs/programs/README.md) for the convention
+   and its Index for current statuses. The wave in flight and its
+   program are named in [docs/RESUMPTION.md](docs/RESUMPTION.md) →
+   "Fase Harvest" — follow that pointer rather than assuming a
+   hardcoded program here.
 4. **[docs/AUTHORITY.md](docs/AUTHORITY.md)** — document hierarchy
    T1–T4. Tells you which doc to trust when two disagree.
 5. **[docs/TRUTH-MAP.md](docs/TRUTH-MAP.md)** — capability × ADR ×
@@ -143,8 +145,12 @@ program that consults the sibling `market-raccoon` repository
 `.claude/settings.json`) as a **read-only reference** while
 re-implementing selected capabilities natively inside the foundry.
 
-Phase tracker:
+Umbrella program:
 [PROGRAM-0001 — Harvest Foundation](docs/programs/PROGRAM-0001-foundation.md).
+The wave in flight and the program it belongs to are named in
+[docs/RESUMPTION.md](docs/RESUMPTION.md) → "Fase Harvest" (waves
+beyond H-2 live in later programs — see the
+[programs Index](docs/programs/README.md)).
 Decision of record:
 [ADR-0016 — Harvest from market-raccoon](docs/decisions/0016-harvest-from-market-raccoon.md).
 Convention for PRDs:
