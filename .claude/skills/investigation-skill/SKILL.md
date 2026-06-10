@@ -167,8 +167,9 @@ substantial complexity worth surfacing before continuing.
 
 - `.claude/commands/audit.md` — slash-command skeleton for
   invoking the same pattern interactively.
-- `.claude/agents/investigation-agent.md` — agent role
-  definition (descriptive companion).
+- `.claude/agents/architect-agent.md` — role-side framing
+  (investigate before prescribe; understand and report, never
+  modify; owner decides what becomes execution).
 - `docs/CONTRIBUTING.md` → "Audit and investigation patterns"
   — five Phase 4.1-derived patterns (deletions-in-disguise,
   analyzer logic vs output, static-enforcement vs intent,

@@ -131,23 +131,16 @@ get substantive messages.
 ### 8. Defensive scan discipline
 
 After applying the primary fix, scan defensively for missed
-sites. Phase 4 caught additional sites in:
-
-- **P4.1.10**: 3 sibling types (`ExecutionIntent`, `Decision`,
-  `RiskAssessment`, `Signal`) had the same Unix→UnixNano dedup
-  bug as `Strategy`. Primary fix covered one; defensive scan
-  found four more.
-- **P4.1.11.a**: 9 sites where 4 were expected by the prompt.
-- **P4.5.c.ii**: clippy + drift-detect test pre-existing
-  failures surfaced during the ureq 2→3 migration's defensive
-  pass.
+sites. The canonical Phase 4 evidence table (defensive scan
+caught additional sites in every inventory-grounded fix) lives in
+`docs/decisions/0014-defensive-scan-discipline.md`.
 
 **Default expectation**: defensive scan finds 1-3 additional
 items. Surprise if scan finds 0 (may indicate the scan was too
-narrow). The "prime convention" naming pattern
-(`p4.1.6.a` → `p4.1.6.a'` → `p4.1.6.a''` → `p4.1.6.a.ii`)
-signals that an architect-prescription error was caught and a
-recovery sub-prompt followed.
+narrow). The prime convention naming pattern (`a` → `a'`,
+canonical notation in `.claude/agents/architect-agent.md` →
+"Prime convention") signals that an architect-prescription error
+was caught and a recovery sub-prompt followed.
 
 ### 9. Critérios de aceitação
 
@@ -216,10 +209,11 @@ Structured report. Phase 4 evolved these canonical sections:
 
 ## Cross-references
 
-- `.claude/agents/execution-agent.md` — agent role definition
-  with the canonical pause-and-report 5-step protocol.
+- `.claude/agents/execution-agent.md` — executor role definition
+  (scope discipline, validation, anti-patterns).
 - `docs/CONTRIBUTING.md` → "Pause-and-report protocol" —
-  authoritative procedure with Phase 1-3 catches table.
+  canonical 5-step procedure with Phase 1-3 catches table
+  (institutional commitment: ADR-0013).
 - `docs/CONTRIBUTING.md` → "Authorized expansion protocol" —
   procedure for legitimate mid-flight scope growth.
 - `.claude/commands/check-clean.md` — pre-action working-tree

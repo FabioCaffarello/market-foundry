@@ -30,16 +30,9 @@ This is the skeleton used for areas like:
 
 ## Time cap
 
-Every investigation declares an explicit wall-clock cap. The
-canonical convention (codified in
-`.claude/skills/investigation-skill/SKILL.md`):
-
-| Scope | Cap |
-|---|---|
-| Abbreviated (binary categorization) | 20 min |
-| Standard (broader survey) | 30 min |
-| Wide (multi-axis with design framework) | 45 min |
-| Comprehensive (environment-level) | 60 min |
+Every investigation declares an explicit wall-clock cap —
+20/30/45/60 min by scope. The canonical table lives in
+`.claude/skills/investigation-skill/SKILL.md` → "Time cap".
 
 Cap exceedance is itself a finding — produce a report with what
 was collected and surface gaps. Phase 4-5 investigations

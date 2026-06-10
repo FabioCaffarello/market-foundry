@@ -13,7 +13,7 @@ For the primary instructions that Claude reads automatically, see
 |---|---|
 | `settings.json` | Default settings for Claude sessions in this repo |
 | `commands/` | Custom slash commands (5 commands; codifying Phase 1+2 patterns — see below) |
-| `agents/` | Sub-agent definitions for specialized tasks (3 templates) |
+| `agents/` | Sub-agent definitions for specialized tasks (2 templates) |
 | `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (2 skills; codifying Phase 4 patterns — see below) |
 | `hooks/` | Workflow hooks for pre-commit, post-build, etc. (currently empty; see `../lefthook.yml` for active git hooks) |
 
@@ -51,7 +51,12 @@ collaboration model.
 |---|---|
 | `architect-agent` | Scoping, framing, decision discipline. Codifies the Phase 4 "investigate before prescribe, defer mechanism to executor" pattern. |
 | `execution-agent` | Scoped executor following pause-and-report protocol; defensive-scan-after-fix discipline. |
-| `investigation-agent` | Legacy read-only investigator role (largely superseded by `investigation-skill`; preserved for orientation). |
+
+> The legacy `investigation-agent` template was removed in the
+> harness FASE 2 B2 PR. Its role framing ("understand and report,
+> never modify; owner decides what becomes execution") lives on as
+> the investigation posture of `architect-agent`; the procedure is
+> `investigation-skill`.
 
 These are templates documenting how Phase 1-4 evolved the role split.
 They are descriptive, not enforced — but useful as orientation when
