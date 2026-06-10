@@ -155,15 +155,21 @@ func TestSubjectConstruction_MeanReversionEntry(t *testing.T) {
 	reg := DefaultRegistry()
 	spec := reg.MeanReversionEntryResolved
 
-	// Simulate subject construction as publisher does it.
+	// Simulate subject construction as publisher does it — the
+	// {symbol} token comes from the single canonical derivation
+	// (H-6.e, ADR-0009 erratum 2026-06-10), not hand-formatting.
+	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("instrument.New: %v", prob)
+	}
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		"binancef",
-		"btcusdt",
+		inst.SubjectToken(),
 		60,
 	)
 
-	want := "strategy.events.mean_reversion_entry.resolved.binancef.btcusdt.60"
+	want := "strategy.events.mean_reversion_entry.resolved.binancef.btc_usdt_perpetual.60"
 	if subject != want {
 		t.Errorf("subject: want %s, got %s", want, subject)
 	}
@@ -174,7 +180,7 @@ func TestSubjectConstruction_MatchesConsumerFilter(t *testing.T) {
 	// Publisher produces: strategy.events.mean_reversion_entry.resolved.{source}.{symbol}.{timeframe}
 	// The > wildcard matches one or more tokens after the prefix.
 	consumerFilter := "strategy.events.mean_reversion_entry.resolved.>"
-	publisherSubject := "strategy.events.mean_reversion_entry.resolved.binancef.btcusdt.60"
+	publisherSubject := "strategy.events.mean_reversion_entry.resolved.binancef.btc_usdt_perpetual.60"
 
 	// Verify prefix match (the > wildcard part).
 	prefix := "strategy.events.mean_reversion_entry.resolved."

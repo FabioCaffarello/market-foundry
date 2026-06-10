@@ -69,7 +69,7 @@ func (p *Publisher) PublishRisk(ctx context.Context, event risk.RiskAssessedEven
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.RiskAssessment.Source,
-		event.RiskAssessment.VenueSymbol(),
+		event.RiskAssessment.Instrument.SubjectToken(),
 		event.RiskAssessment.Timeframe,
 	)
 

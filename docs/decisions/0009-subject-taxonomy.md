@@ -47,6 +47,32 @@ Planes are: `events`, `event` (configctl singular legacy), `control`,
 `command`, `reply`, `query`, `projection`, plus execution-specific
 `fill`, `rejection`, `session`, `activation`.
 
+> **Erratum (2026-06-10 — Onda H-6.e, Decisões #1/#3).** The
+> `{symbol}` token is the **canonical subject token**, derived from
+> `CanonicalInstrument` exclusively via the single helper
+> `SubjectToken()` in `internal/domain/instrument`:
+> `{base}_{quote}_{contract}` lowercase (e.g. `btc_usdt_spot`,
+> `btc_usdt_perpetual`, `btc_usd_coinfutures`) — subject-safe (no
+> `.`, `/`, or uppercase) and carrying a **dormant `[_expiry]`
+> slot**: expiry is not yet a field of the canonical model, so
+> delivery-futures contracts with different expiries collide in
+> canonical identity itself — a registered modeling debt (see
+> PROGRAM-0004 → H-6.e.2 scope and RESUMPTION known-gaps), not a
+> token-formatting concern. Subject builders MUST NOT format the
+> token themselves (enforced by raccoon-cli `check subjects`).
+>
+> Before H-6.e the token was the venue-native lowercase form
+> (e.g. `btcusdt`) derived via the transitory `VenueSymbol()`
+> helper — VenueSymbol-derived, **not** `CanonicalInstrument.Symbol()`-
+> derived as PROGRAM-0004's H-6.e row originally described
+> (imprecision corrected by this erratum). Messages published
+> before the cutover keep the legacy token until stream TTL (72h)
+> retires them — mixed-state by design, precedent H-6.d. Stream
+> subject patterns and consumer filters (wildcard `>`) are
+> unaffected. KV partition keys intentionally keep the legacy
+> composition until **H-6.e.2** (see ADR-0021 criterion #2
+> erratum of the same date).
+
 ## Consequences
 
 ### Positive

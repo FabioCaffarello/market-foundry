@@ -70,7 +70,7 @@ func (p *Publisher) PublishStrategy(ctx context.Context, event strategy.Strategy
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Strategy.Source,
-		event.Strategy.VenueSymbol(),
+		event.Strategy.Instrument.SubjectToken(),
 		event.Strategy.Timeframe,
 	)
 

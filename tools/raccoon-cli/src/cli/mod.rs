@@ -390,6 +390,24 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-instruments"
     )]
     Instruments,
+    /// Enforce ADR-0009 erratum / H-6.e canonical subject-token invariant
+    #[command(
+        name = "subjects",
+        visible_alias = "check-subjects",
+        long_about = "Statically enforce the ADR-0009 erratum (2026-06-10, \
+            Onda H-6.e): the {symbol} token of every published NATS subject \
+            is derived exclusively via CanonicalInstrument.SubjectToken() — \
+            never via the transitory VenueSymbol() helper.\n\n\
+            Declarative algorithm: reads tools/raccoon-cli/policies/subjects.toml \
+            and scans production publisher files under the declared scan_root. \
+            The scan is BLOCK-scoped to `subject := fmt.Sprintf(` calls: KV \
+            partition keys, dedup keys, and log labels legitimately use \
+            VenueSymbol() until sub-onda H-6.e.2 and are not flagged.",
+        after_help = "Examples:\n  \
+            raccoon-cli check subjects\n  \
+            raccoon-cli check-subjects"
+    )]
+    Subjects,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",
