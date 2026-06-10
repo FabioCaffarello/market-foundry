@@ -1863,6 +1863,12 @@ localmente, rerun isolado do teste. **Deferred to:** mesma
 disposição de G7/G8 — H-6.f cleanup ou sub-wave de
 test-hardening.
 
+**Primeira ocorrência pós-registro:**
+`TestRealVenueActivation_FullLifecycle` no CI do PR #41 (wiring da
+FASE 3.2, 2026-06-10) — FAIL → PASS no rerun, diff sem nenhum
+arquivo Go (ci.yml + lefthook.yml apenas). O diagnóstico usou esta
+entrada ainda em branch, antes do próprio merge.
+
 Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
 G6→G8.
 
