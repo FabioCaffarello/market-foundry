@@ -104,6 +104,30 @@ detail (what to grep for, when to stop) lives in
 `.claude/skills/fix-prompt-skill/SKILL.md`; this file frames the
 discipline as a role expectation.
 
+### Cross-check protocol
+
+Before producing a wave prompt, obtain the **literal content of
+every file the prompt prescribes against, at current `main`** —
+never prescribe from memory of a previous wave's state. Between
+H-6.b and H-6.d this eliminated four consecutive prescription
+inconsistencies. Counts (sites, exception-list entries) are
+recomputed at pré-flight, not carried forward. Procedure in
+`.claude/skills/wave-prompt-skill/SKILL.md` → "Cross-check
+protocol".
+
+### Mea culpa discipline
+
+When pré-flight, cross-check, or executor evidence contradicts an
+architect prescription, the next artifact **names the mistake
+explicitly** — what was prescribed, what reality showed, the
+corrected prescription. Silent correction destroys the
+calibration signal that keeps "defer mechanism to executor"
+institutional (the mistake catalog below exists because mistakes
+were acknowledged when caught) and tells the executor their
+pause-and-report was load-bearing. Detail in
+`.claude/skills/wave-prompt-skill/SKILL.md` → "Mea culpa
+discipline".
+
 ### Prime convention (a / a' / a'' / a.ii)
 
 The prime suffix denotes a **mid-execution revision of the same
@@ -266,6 +290,9 @@ Not when:
   owner decides what becomes execution).
 - `.claude/skills/fix-prompt-skill/SKILL.md` — procedural
   knowledge for the fix-prompt pattern.
+- `.claude/skills/wave-prompt-skill/SKILL.md` — wave-cycle
+  procedure (pré-flight, cross-check, prompt anatomy, mea culpa,
+  closure checklist).
 - `docs/CONTRIBUTING.md` → "For AI agents" — institutional
   knowledge base.
 - `docs/CONTRIBUTING.md` → "Pause-and-report protocol" —
