@@ -1,0 +1,16 @@
+# Subject composition policy — consumed by `raccoon-cli check subjects`.
+#
+# Enforces the ADR-0009 erratum (2026-06-10, Onda H-6.e): the {symbol}
+# token of every published NATS subject is derived exclusively via
+# CanonicalInstrument.SubjectToken(). The scan is BLOCK-scoped (only
+# inside `subject := fmt.Sprintf(` calls in production publisher
+# files): KV partition keys, JetStream dedup keys, and log labels
+# legitimately use VenueSymbol() until sub-onda H-6.e.2 and must not
+# be flagged (H-6.e Decisão #4). The keys invariant lands in H-6.e.2
+# together with this policy's extension.
+
+[subjects]
+scan_root = "internal/adapters/nats"
+file_suffix = "publisher.go"
+subject_marker = "subject := fmt.Sprintf("
+forbidden_call = "VenueSymbol()"

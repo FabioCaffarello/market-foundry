@@ -257,14 +257,21 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 10: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 10: check-subjects (static — NATS subject {symbol} token via SubjectToken() per ADR-0009 erratum, H-6.e)
+    {
+        gate_step!("check-subjects", || {
+            analyzers::check_subjects::analyze(&config.project_root)
+        });
+    }
+
+    // Step 11: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)
         });
     }
 
-    // Step 11: runtime-smoke (only in Deep profile)
+    // Step 12: runtime-smoke (only in Deep profile)
     if let Some(ref failed_name) = blocker {
         steps.push(make_skip(
             "runtime-smoke",
