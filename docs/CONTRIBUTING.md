@@ -917,4 +917,4 @@ P4.1.3 sub-prompts focused on the right kind of intervention.
 | Architecture decision records | [`decisions/`](decisions/README.md) |
 | Domain deep dives | [`domain/`](domain/README.md) |
 | Terminology | [`GLOSSARY.md`](GLOSSARY.md) |
-| Historical material | [`legacy/`](legacy/README.md) |
+| Historical material | git history (`docs/legacy/` retired in P2.Y) |

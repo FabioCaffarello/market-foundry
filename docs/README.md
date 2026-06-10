@@ -40,14 +40,15 @@ For terminology, see [`GLOSSARY.md`](GLOSSARY.md).
 - **Code is the source of truth.** Docs explain intent, structure, and
   context. For exact behavior, read the code.
 - **History lives in git.** Decisions live in `decisions/`. The
-  `legacy/` directory holds the pre-2026-05 documentation set
-  (preserved for archaeology, not navigation).
+  pre-2026-05 documentation set is preserved in git history only
+  (the `docs/legacy/` tree was retired in P2.Y).
 
 ## Historical material
 
 Everything that used to live under `docs/architecture/`, `docs/stages/`,
 `docs/archive/`, `docs/operations/`, `docs/tooling/`, `docs/product/`,
-and `docs/development/` is now under [`legacy/`](legacy/README.md). It
-remains accessible but is no longer authoritative. See
-[`legacy/README.md`](legacy/README.md) for navigation hints if you need
-to consult it.
+and `docs/development/` was moved to `docs/legacy/` during the
+Phase 1A reset, and the legacy tree itself was retired in P2.Y.
+That material is accessible through git history (e.g.,
+`git log --diff-filter=D -- docs/legacy/`) and was never
+authoritative post-reset.

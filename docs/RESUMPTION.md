@@ -3268,5 +3268,5 @@ If you find yourself wondering whether this doc reflects reality,
 | Domain deep dives | [`domain/`](domain/README.md) |
 | Operational procedures | [`operations/`](operations/README.md) |
 | Architecture decision records | [`decisions/`](decisions/README.md) |
-| Historical material | [`legacy/`](legacy/README.md) |
+| Historical material | git history (`docs/legacy/` retired in P2.Y) |
 | Terminology | [`GLOSSARY.md`](GLOSSARY.md) |
