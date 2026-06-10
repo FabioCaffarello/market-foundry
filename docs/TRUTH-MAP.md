@@ -59,7 +59,7 @@ says *where* you can verify it in the code.
 
 | Capability | ADR / PRD | Code anchor | Test anchor | Status | Notes |
 |---|---|---|---|---|---|
-| Configctl lifecycle (Draft→Validated→Compiled→Active→Deactivated→Archived) | [ADR-0006](decisions/0006-configctl-lifecycle-authority.md) | `internal/domain/configctl/lifecycle.go:VersionLifecycle`; `internal/domain/configctl/config_set.go:ConfigSet` | `internal/domain/configctl/document_test.go:TestConfigSetLifecycleTransitions`; `…:TestConfigSetRejectsInvalidLifecycleTransitions` | Implemented | All seven states declared; transitions enforced. |
+| Configctl lifecycle (Draft→Validated→Compiled→Active→Deactivated→Archived) | [ADR-0006](decisions/0006-configctl-lifecycle-authority.md) | `internal/domain/configctl/lifecycle.go:VersionLifecycle`; `internal/domain/configctl/config_set.go:ConfigSet` | `internal/domain/configctl/config_set_test.go:TestConfigSetLifecycleTransitions`; `…:TestConfigSetRejectsInvalidLifecycleTransitions` | Implemented | All seven states declared; transitions enforced. |
 | Observation domain (Trade) | [ADR-0009](decisions/0009-subject-taxonomy.md) (subject), [ADR-0008](decisions/0008-single-writer-invariant.md) (writer), [ADR-0021](decisions/0021-canonical-instrument-and-venue-model.md) (identity, partial) | `internal/domain/observation/trade.go:ObservationTrade` (now carries `Instrument CanonicalInstrument` + transitory `VenueSymbol()` method); `internal/adapters/nats/natsobservation/registry.go:DefaultRegistry` | `internal/domain/observation/trade_test.go:TestObservationTrade_VenueSymbol`, `…:TestObservationTrade_Validate` | Implemented | Single writer = `ingest`. H-6.a migrated the `Symbol string` field to `Instrument CanonicalInstrument`; `VenueSymbol()` is transitory (sunset H-6.f). |
 | Evidence domain (Candle, Volume, TradeBurst) | [ADR-0008](decisions/0008-single-writer-invariant.md), [ADR-0009](decisions/0009-subject-taxonomy.md) | `internal/domain/evidence/`; `internal/adapters/nats/natsevidence/registry.go` | (per-type evidence tests under `internal/domain/evidence/`) | Implemented | Single writer = `derive`. |
 | Signal domain (RSI, EMA crossover, MACD, Bollinger, VWAP, ATR) | [ADR-0008](decisions/0008-single-writer-invariant.md), [ADR-0009](decisions/0009-subject-taxonomy.md) | `internal/domain/signal/`; `internal/adapters/nats/natssignal/registry.go` | `internal/actors/scopes/derive/signal_sampler_actor_test.go:TestRSISignalSamplerActor_WarmupPeriod_NoSignal` | Partially Implemented | Only 2 of 6 signal types have a KV bucket (G2 in RESUMPTION). |
@@ -269,13 +269,17 @@ a TRUTH-MAP row either.
 - NATS adapter registry files: **8** (one per writer family).
 - NATS KV buckets: **17** (16 read-model + `SEQUENCER_STATE_LATEST`
   added in Onda H-4).
-- Go test files under `internal/` and `cmd/`: **~295** (+1 H-6.d.1 writer canary, +1 H-6.d.2 reader canary, +1 H-6.d.2 helper unit tests).
+- Go test files under `internal/` and `cmd/`: **~317** (recounted
+  2026-06-10 via `find`; the previous ~295 was maintained by manual
+  increments and had drifted).
 - ClickHouse migrations: **13** (007 + 008-013 H-6.d.1 canonical column splits).
-- ADRs published: **25** (0001–0020 `Accepted` + 0024–0025
+- ADRs published: **26** (0001–0020 `Accepted` + 0024–0026
   `Accepted`; 0021–0023 `Proposed`). 0017+0018 promoted by Onda
   H-3.b; 0019+0020 promoted by Onda H-4; 0024+0025 promoted by
   Onda H-5 (dual promotion in PROGRAM-0003); 0021 carries an
-  erratum landed in H-6.a (criterion #4 split into #4a/#4b).
+  erratum landed in H-6.a (criterion #4 split into #4a/#4b);
+  0026 (Claude Code hooks enforcement, harness/process scope like
+  0013–0015) accepted with its implementation in P5.6.
 - PRDs published: **4** (PROGRAM-0001 `Active`; PROGRAM-0002
   `Closed` by Onda H-4; PROGRAM-0003 `Active` opened by Onda H-5;
   PROGRAM-0004 `Active` opened by Onda H-6.a).
