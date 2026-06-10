@@ -236,3 +236,35 @@ jobs:
 
       - name: Run lint-go (iterates workspace modules)
         run: ./scripts/lint-go.sh
+
+  # Guard decision matrix for the ADR-0026 Claude Code enforcement
+  # hooks. Diff-aware: runs the 13-scenario matrix only when a file
+  # under .claude/hooks/ changed; exits 0 (skip) otherwise — costs
+  # seconds and fires rarely. Local mirror: lefthook pre-commit
+  # hook-guards (glob .claude/hooks/*.sh). Adopted in harness
+  # FASE 3.2 (audit finding P2-2, owner decision 2026-06-10).
+  hook-guards:
+    name: Hook Guards Matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Run guard matrix when .claude/hooks changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --quiet
+            RANGE="origin/${{ github.base_ref }}...HEAD"
+          else
+            RANGE="HEAD^...HEAD"
+          fi
+          CHANGED=$(git diff --name-only "$RANGE" -- '.claude/hooks/' | grep '\.sh$' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No .claude/hooks/*.sh changes in $RANGE — skipping guard matrix."
+            exit 0
+          fi
+          echo "Changed hook scripts:"
+          echo "$CHANGED"
+          ./.claude/hooks/test-guards.sh

@@ -72,6 +72,15 @@ pre-commit:
           }
         done
 
+    # Guard decision matrix — runs ONLY when a Claude Code enforcement
+    # hook is staged (rare). Keeps the ADR-0026 guards regression-proof
+    # locally; the CI hook-guards job mirrors this at the remote gate.
+    # Adopted in harness FASE 3.2 (audit finding P2-2, owner decision
+    # 2026-06-10: wiring (a)+(c)).
+    hook-guards:
+      glob: ".claude/hooks/*.sh"
+      run: .claude/hooks/test-guards.sh
+
 # Stage: commit-msg (runs on `git commit` after message is composed)
 # Validates conventional commit format without requiring Node.js.
 commit-msg:
