@@ -89,14 +89,14 @@ post-commit:
 
 # Stage: pre-push (runs on `git push`)
 # Heavier validation. Catch issues before remote.
-# DISABLED by default (skip: true) — enable when ready for strict workflow.
+# `verify` enabled in the harness FASE 2 B2 PR (P5.8 minimal posture,
+# owner decision 2026-06-09): make verify always runs on push. The
+# conditional steps (quality-gate --profile ci, test-integration)
+# stay diff-aware — see docs/CONTRIBUTING.md → "Pre-push validation"
+# and the /pre-push command. lint-go is not a separate step here:
+# it already runs inside make verify.
 pre-push:
   parallel: false
   commands:
-    lint-go:
-      skip: true   # enable by removing this line when ready
-      run: make lint-go
-
     verify:
-      skip: true   # enable by removing this line when ready (~1 min)
       run: make verify

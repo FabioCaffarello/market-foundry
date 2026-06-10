@@ -67,6 +67,7 @@ typo fixes and broken-link corrections are fine.)
 | [0013](0013-pause-and-report-protocol.md) | Pause-and-report protocol | Accepted |
 | [0014](0014-defensive-scan-discipline.md) | Defensive-scan discipline | Accepted |
 | [0015](0015-wave-closure-discipline.md) | Wave-closure discipline | Accepted |
+| [0026](0026-claude-code-hooks-enforcement.md) | Claude Code hooks as enforcement layer for P2/P9 | Accepted |
 
 ### Fase Harvest decisions
 
@@ -110,7 +111,7 @@ Delivered and promoted to `Accepted` within Onda H-5
 
 When you make a structural decision worth documenting:
 
-1. Pick the next sequential number (`0026`, `0027`, ...).
+1. Pick the next sequential number (`0027`, `0028`, ...).
 2. Use the template format above.
 3. Cross-reference relevant code and other docs.
 4. Reference the ADR from affected docs (e.g., from ARCHITECTURE.md

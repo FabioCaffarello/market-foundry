@@ -1,8 +1,47 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "comment": "Claude settings for market-foundry. RACCOON_REFERENCE_PATH points at the read-only market-raccoon checkout consulted during the Harvest phase (see CLAUDE.md → Fase Harvest, ADR-0016).",
+  "comment": "Claude settings for market-foundry. RACCOON_REFERENCE_PATH points at the read-only market-raccoon checkout consulted during the Harvest phase (see CLAUDE.md → Fase Harvest, ADR-0016). permissions + hooks form the mechanical enforcement layer for P2 (raccoon read-only) and P9 (no agent push to main, no hook bypass, maintainer merges) — see ADR-0026.",
   "version": 1,
   "env": {
     "RACCOON_REFERENCE_PATH": "/Volumes/OWC Express 1M2/Develop/market-raccoon"
+  },
+  "permissions": {
+    "deny": [
+      "Write(//Volumes/OWC Express 1M2/Develop/market-raccoon/**)",
+      "Edit(//Volumes/OWC Express 1M2/Develop/market-raccoon/**)",
+      "NotebookEdit(//Volumes/OWC Express 1M2/Develop/market-raccoon/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/raccoon-readonly-guard.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/p9-branch-guard.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start-reminder.sh"
+          }
+        ]
+      }
+    ]
   }
 }
