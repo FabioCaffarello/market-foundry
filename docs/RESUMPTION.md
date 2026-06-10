@@ -7,13 +7,16 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Phase 4 CLOSED (2026-05-23)** —
-P0 backlog FULLY CLOSED (5/5 items: CI restoration via the P4.1
-wave, `rate_limiter` + `Close` lifecycle, `context.Background()`
-bounding, ControlGate fail-open posture formalized as ADR-0012,
-and the Dependabot triage wave). 12 ADRs total; 20 design-meta
-candidates queued (M1–M20, M19 closed during P4.5.c verification);
-~9 errata observations accumulated.
+Last meaningful state change: **H-6.d.2 fechada (2026-06-10)** —
+ClickHouse reader canonical-column cutover mergeado (PR #33,
+`51bc76e`); critério #4b do ADR-0021 fechado end-to-end
+(writer H-6.d.1 + reader H-6.d.2). Em paralelo, **P5.6 (harness
+FASE 2)** entregue via PRs #37/#38 no mesmo dia: enforcement
+mecânico de P2/P9 via Claude Code hooks (ADR-0026), dedup de
+protocolos para fontes canônicas, wave-prompt-skill. **26 ADRs
+total (0001–0026)**. Próxima onda destravada: **H-6.e** (NATS
+subject composition decision; primeiro ato é pause-and-report
+obrigatório) — ver a wave table abaixo.
 
 `make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
 since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
@@ -22,12 +25,12 @@ merges show the documented `TestControlledActivation_FullLifecycle`
 flake; these are non-required and non-blocking per branch protection
 (see Phase 4.5 narrative for full posture).
 
-Phase 5 OPENED (2026-05-23) — environment work, distinct from
-Phase 4's code/CI delivery. P5.0 audit (read-only, ~7 min wall-clock)
-categorized 12 findings across `.claude/`, prompt templates,
-operational tooling, and process debt; produced an 8-slot P5.x
-candidate roadmap pending owner direction. See "Phase 4 outlook"
-below for retrospective detail; Phase 5 narrative pending P5.1+.
+Phase 4 CLOSED (2026-05-23) — P0 backlog 5/5; detail in "Phase 4
+outlook" below. Phase 5 OPENED (2026-05-23) — environment work,
+distinct from feature delivery; P5.0 audit → P5.1–P5.5 delivered
+2026-05-24, P5.6 (harness audit FASE 1–2) delivered 2026-06-09/10.
+Current Phase 5 state lives in the cycle table at the end of this
+document ("Where we are in the resumption cycle").
 
 ---
 
@@ -63,7 +66,7 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.c.1** | Fechada (PR #30 mergeada em `main` em `8125e6c`, 2026-05-27) | Application-layer pass-through migration: derive scope. 13 commits eliminating source-string Instrument reconstruction in 4 application packages (signal/decision/strategy/risk). Commit 1 installs declarative `policies/anti_patterns.toml` + analyzer scan extension. Commits 2-5 add `NewXxxForInstrument` pass-through constructors (14 total). Commit 6 wires derive actors to compute Instrument once at the `BindingTarget.Instrument()` boundary (new helper in `internal/application/ingest/binding.go` with error-returning signature — eliminates the H-6.b' commit 37f8ddd silent-zero regression-shape at its source). Commits 7a-7d delete the legacy `NewXxx` wrappers + per-package `instrumentFromBinding` helpers + dead `symbol` struct field, migrating ~250 test sites. Commit 8 adds derive-scope canary integration tests for the 6 synthetic sources from commit 6. Commit 9 records migration progress in `anti_patterns.toml`. Commit 10 closes docs. **CI fixup (commits 11-13)**: commit 11 populates anti_patterns exception list with all 11 deferred call sites (the `--profile ci` gate promotes warning→error; the policy installed with severity=warning was incompatible until exceptions covered all remaining callers); commit 12 fixes a pre-existing topology analyzer fragility (whole-file fallback in `find_stream_name_near` picked unrelated SCREAMING_SNAKE_CASE constants on Linux file iteration); commit 13 records the `--profile ci` pre-push validation requirement permanently in CONTRIBUTING.md. ADR-0021 permanece `Proposed`. |
 | **H-6.c.2** | Fechada (PR #31 mergeada em `main` em `0bce6f6`, 2026-05-27) | Application-layer pass-through migration: execute scope + ClickHouse composite_reader treatment. 8 commits eliminating the last source-string reconstruction sites in the execution package + uniformizing the ClickHouse `reconstructInstrumentFromLegacy` error-handling pattern. Commit 1 migrates ~28 paper_order_evaluator test sites to ForInstrument constructor. Commit 2 converts the 5 silent error-discard sites in `composite_reader.go` to warn-and-emit-zero (matches the 8 existing sister sites' pattern; all 13 ClickHouse readers now uniform). Commit 3 declares `ReviewTransform` as `string_filter` + adds inline godoc to ReviewTransform.Symbol + DecisionTriageItem.Symbol fields. Commit 4 migrates the 2 testnet adapters to use `BindingTarget.Instrument()` boundary helper per Decisão #2 (b). Commit 5 deletes the legacy `NewPaperOrderEvaluator` ctor + `instrumentFromBinding` helper file + dead `symbol` field + migrates 8 cross-scope stragglers. Commit 6 adds the explicit 37f8ddd canary in execute scope (2 tests / 2 passes). Commit 7 shrinks `anti_patterns.toml` exception list 11→8. Commit 8 closes docs. ADR-0021 permanece `Proposed`; **5 dos 6 helpers eliminados; apenas executionclient remanesce para H-6.f**. |
 | **H-6.d.1** | Fechada (PR #32 mergeada em `main` em `fac12ac`, 2026-05-28) | ClickHouse schema migration + writer canonical column population end-to-end. 5 commits + 1 fix: (1) 6 migrations `008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql` adicionam `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (split per-table após Decisão #1 (A)). (2) Codegen self-consistency atomic bundle — 14 YAML specs + 14 golden snapshots + 17 INSERT SQL strings + 8 mappers + ~120 test row position shifts. (3a) Integration fixture migration — 34 positional INSERTs para explicit column lists + 20 pre-H-6.b drift fixes (3-month-undetected tagged-build invisibility lesson). (3b) Writer canary — `Client.Exec()` para DDL via native protocol + novo `canonical_columns_integration_test.go` (6 tests / 1 per table). (4) Docs closure. (5) G7 flake registry (TestS380 compose-execute interference, pre-existing). CI-fix commit (3d53e32): `restart_recovery_test.go` execution row column count 20→23 — caught by CI integration tests, reinforced lesson #1 (scan ALL files for positional row access on schema change). ADR-0021 permaneceu `Proposed`. |
-| **H-6.d.2** | **Atual** (esta entrega — branch `feat/h-6-d-2-reader-migration` aberta após merge de H-6.d.1 em PR #32) | ClickHouse reader-side cutover para canonical columns com legacy fallback. 4 commits: (1) Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada + `instrumentFromCanonicalColumns(base, quote, contract)` — sentinel pattern per Decisão #3, validation delegada a `instrument.New`. 4 unit tests / 9 sub-cases lock-in o contrato. (2) Reader dual-path migration — 7 reader files / 13 instrument-resolution sites / 13 SELECT column lists atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme validado em pré-flight 3. Per-reader test files atualizados (expectedCols + column counts). (3) Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1. (4) Docs closure. `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1 (correctness-driven through 90-day TTL window; deletion deferida para H-6.f post-operational-verification). **Critério #4b end-to-end LANDED** (writer em H-6.d.1 + reader em H-6.d.2). ADR-0021 permanece `Proposed`; promoção atómica em H-6.f post-TTL + helper deletion. |
+| **H-6.d.2** | Fechada (PR #33 mergeada em `main` em `51bc76e`, 2026-06-10) | ClickHouse reader-side cutover para canonical columns com legacy fallback. 4 commits: (1) Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada + `instrumentFromCanonicalColumns(base, quote, contract)` — sentinel pattern per Decisão #3, validation delegada a `instrument.New`. 4 unit tests / 9 sub-cases lock-in o contrato. (2) Reader dual-path migration — 7 reader files / 13 instrument-resolution sites / 13 SELECT column lists atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme validado em pré-flight 3. Per-reader test files atualizados (expectedCols + column counts). (3) Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1. (4) Docs closure. `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1 (correctness-driven through 90-day TTL window; deletion deferida para H-6.f post-operational-verification). **Critério #4b end-to-end LANDED** (writer em H-6.d.1 + reader em H-6.d.2). ADR-0021 permanece `Proposed`; promoção atómica em H-6.f post-TTL + helper deletion. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
