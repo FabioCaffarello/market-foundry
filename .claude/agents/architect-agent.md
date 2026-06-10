@@ -94,23 +94,39 @@ another.
 Pre-fix inventories are frequently incomplete. Architect codifies
 **defensive scan obrigatório** in the prompt's protocol section.
 
-Phase 4 evidence (defensive scan caught additional sites in
-every fix it ran on):
-
-| Sub-prompt | Inventory | After scan |
-|---|---|---|
-| P4.1.10 (dedup precision) | 1 type (`Strategy`) | 4 types (added `ExecutionIntent`, `Decision`, `RiskAssessment`, `Signal`) |
-| P4.1.11.a (subject filter) | 4 writerpipeline sites | 9 sites (5 in `natsexecution/restart_recovery_test.go` also affected) |
-| P4.2 (`rate_limiter.Close`) | 2 production sites | 7 total (5 test sites already had proper `defer Close`) |
-| P4.3.a (context bounding) | 14 sites + lint | 18 total (1 genuine `retry_submitter.isHalted` improvement + 3 `//nolint` rationales) |
-| P4.5.c.ii (ureq 2→3) | 6 call sites | 6 confirmed accurate (rare) + 2 pre-existing pre-Phase-5 issues flagged out-of-scope |
-| P5.0 / Pre-P5 | 3 staleness items in RESUMPTION header | 5 (2 additional in cycle table) |
-
 Default expectation: defensive scan finds 1-3 additional items.
 Surprise if scan finds 0 — may indicate the scan is too narrow.
-Procedural detail lives in
+
+The Phase 4 evidence table (six sub-prompts where the scan caught
+sites beyond the inventory) lives canonically in
+`docs/decisions/0014-defensive-scan-discipline.md`. Procedural
+detail (what to grep for, when to stop) lives in
 `.claude/skills/fix-prompt-skill/SKILL.md`; this file frames the
 discipline as a role expectation.
+
+### Cross-check protocol
+
+Before producing a wave prompt, obtain the **literal content of
+every file the prompt prescribes against, at current `main`** —
+never prescribe from memory of a previous wave's state. Between
+H-6.b and H-6.d this eliminated four consecutive prescription
+inconsistencies. Counts (sites, exception-list entries) are
+recomputed at pré-flight, not carried forward. Procedure in
+`.claude/skills/wave-prompt-skill/SKILL.md` → "Cross-check
+protocol".
+
+### Mea culpa discipline
+
+When pré-flight, cross-check, or executor evidence contradicts an
+architect prescription, the next artifact **names the mistake
+explicitly** — what was prescribed, what reality showed, the
+corrected prescription. Silent correction destroys the
+calibration signal that keeps "defer mechanism to executor"
+institutional (the mistake catalog below exists because mistakes
+were acknowledged when caught) and tells the executor their
+pause-and-report was load-bearing. Detail in
+`.claude/skills/wave-prompt-skill/SKILL.md` → "Mea culpa
+discipline".
 
 ### Prime convention (a / a' / a'' / a.ii)
 
@@ -136,21 +152,14 @@ Use prime suffixes when:
 
 ### Time-cap discipline
 
-Investigations have explicit wall-clock caps. Phase 4 evolved
-the convention:
-
-| Scope | Cap |
-|---|---|
-| Abbreviated (binary categorization) | 20 min |
-| Standard (broader survey) | 30 min |
-| Wide (multi-axis with design framework) | 45 min |
-| Comprehensive (environment-level) | 60 min |
+Investigations have explicit wall-clock caps — 20/30/45/60 min by
+scope. The canonical table lives in
+`.claude/skills/investigation-skill/SKILL.md` → "Time cap".
 
 Cap exceedance is a finding in itself — surface what was
 collected, surface gaps. Investigations typically use 10-30% of
 the cap when scope is cleanly bounded; cap exceedance signals
-genuine complexity worth surfacing before continuing. Detail in
-`.claude/skills/investigation-skill/SKILL.md`.
+genuine complexity worth surfacing before continuing.
 
 ### Wave-depth recognition
 
@@ -275,12 +284,15 @@ Not when:
 ## See also
 
 - `.claude/agents/execution-agent.md` — executor role description.
-- `.claude/agents/investigation-agent.md` — legacy investigation
-  role (largely superseded by `investigation-skill`).
 - `.claude/skills/investigation-skill/SKILL.md` — procedural
-  knowledge for the investigation pattern.
+  knowledge for the investigation pattern (the architect's
+  investigation posture: understand and report, never modify;
+  owner decides what becomes execution).
 - `.claude/skills/fix-prompt-skill/SKILL.md` — procedural
   knowledge for the fix-prompt pattern.
+- `.claude/skills/wave-prompt-skill/SKILL.md` — wave-cycle
+  procedure (pré-flight, cross-check, prompt anatomy, mea culpa,
+  closure checklist).
 - `docs/CONTRIBUTING.md` → "For AI agents" — institutional
   knowledge base.
 - `docs/CONTRIBUTING.md` → "Pause-and-report protocol" —

@@ -332,8 +332,8 @@ If asked to use any of these, clarify with the user before proceeding.
 Unless a prompt explicitly authorizes otherwise, do not modify:
 
 - `internal/`, `cmd/`, `tools/`, `deploy/` — code, configs, tooling.
-- `docs/` already-written files (Phase 1A is closed; changes go in
-  follow-up prompts).
+- `docs/` files outside the scope your prompt declares —
+  documentation changes ride the wave or prompt that owns them.
 - `Makefile`, `.gitignore`, `go.work`, `go.mod` — repository
   infrastructure.
 

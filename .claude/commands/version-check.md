@@ -21,13 +21,16 @@ echo "=== Version manifest cross-check ==="
 echo ""
 
 GO_WORK=$(grep "^go " go.work | awk '{print $2}')
-GO_MOD=$(grep "^go " cmd/ingest/go.mod 2>/dev/null | awk '{print $2}')
+# Sample module derived from go.work (first use ./... entry), not
+# hardcoded — survives module topology changes.
+SAMPLE_MOD=$(awk '/^use \(/{f=1;next} /^\)/{f=0} f&&/\.\//{gsub(/[\t ]/,"");print $0"/go.mod";exit}' go.work)
+GO_MOD=$(grep "^go " "$SAMPLE_MOD" 2>/dev/null | awk '{print $2}')
 GO_TOOL_VERSIONS=$(grep "^golang " .tool-versions 2>/dev/null | awk '{print $2}')
 GO_CI=$(grep -E "go-version" .github/workflows/ci.yml 2>/dev/null | head -1 | sed 's/.*: *//;s/"//g')
 
 echo "Go versions:"
 echo "  go.work:                $GO_WORK"
-echo "  cmd/ingest/go.mod:      $GO_MOD"
+echo "  $SAMPLE_MOD (sample):   $GO_MOD"
 echo "  .tool-versions:         $GO_TOOL_VERSIONS"
 echo "  .github/workflows/ci:   ${GO_CI:-(not pinned)}"
 echo ""

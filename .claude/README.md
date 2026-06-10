@@ -11,11 +11,11 @@ For the primary instructions that Claude reads automatically, see
 
 | Path | Purpose |
 |---|---|
-| `settings.json` | Default settings for Claude sessions in this repo |
-| `commands/` | Custom slash commands (5 commands; codifying Phase 1+2 patterns — see below) |
-| `agents/` | Sub-agent definitions for specialized tasks (3 templates) |
-| `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (2 skills; codifying Phase 4 patterns — see below) |
-| `hooks/` | Workflow hooks for pre-commit, post-build, etc. (currently empty; see `../lefthook.yml` for active git hooks) |
+| `settings.json` | Session settings: `RACCOON_REFERENCE_PATH` env, `permissions.deny` for raccoon writes, hooks wiring (ADR-0026) |
+| `commands/` | Custom slash commands (6 commands; codifying Phase 1+2 and Harvest patterns — see below) |
+| `agents/` | Sub-agent definitions for specialized tasks (2 templates) |
+| `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (3 skills; codifying Phase 4 + Harvest patterns — see below) |
+| `hooks/` | Claude Code enforcement hooks for P2 (raccoon read-only) and P9 (no push to main, no hook bypass) + session-start orientation, with `test-guards.sh` (13-scenario matrix; run after any guard change). See [ADR-0026](../docs/decisions/0026-claude-code-hooks-enforcement.md). |
 
 > **Adjacent**: git-side automation lives in `../lefthook.yml` (not
 > in `.claude/hooks/`). P5.3 added a `post-commit` warn-only check
@@ -23,7 +23,9 @@ For the primary instructions that Claude reads automatically, see
 > commit references new M-N design-meta identifiers but doesn't
 > update `docs/RESUMPTION.md` in the same commit. Codifies P5.0
 > audit finding F4 (M13/M14/M15 surfaced in P4.3.a but persisted
-> to RESUMPTION only at P4.5.a — 2 sub-prompt latency).
+> to RESUMPTION only at P4.5.a — 2 sub-prompt latency). The
+> harness FASE 2 B2 PR enabled the lefthook `pre-push` stage with
+> `make verify` (P5.8 minimal posture).
 
 ## Available commands
 
@@ -36,6 +38,7 @@ Slash commands invocable as `/<name>` in Claude Code sessions:
 | `/inventory <area>` | Produce structured inventory of an area before making changes |
 | `/audit <area>` | Skeleton for read-only investigation of an area |
 | `/version-check` | Verify version consistency across `go.work`, `rust-toolchain.toml`, `.tool-versions`, CI |
+| `/pre-push` | Run the canonical pre-push validation sequence with diff-aware conditionals (CONTRIBUTING → "Pre-push validation") |
 
 These codify patterns that recurred across Phase 1+2 work (working-
 tree verification, cross-ref search, inventory production, audit
@@ -51,7 +54,12 @@ collaboration model.
 |---|---|
 | `architect-agent` | Scoping, framing, decision discipline. Codifies the Phase 4 "investigate before prescribe, defer mechanism to executor" pattern. |
 | `execution-agent` | Scoped executor following pause-and-report protocol; defensive-scan-after-fix discipline. |
-| `investigation-agent` | Legacy read-only investigator role (largely superseded by `investigation-skill`; preserved for orientation). |
+
+> The legacy `investigation-agent` template was removed in the
+> harness FASE 2 B2 PR. Its role framing ("understand and report,
+> never modify; owner decides what becomes execution") lives on as
+> the investigation posture of `architect-agent`; the procedure is
+> `investigation-skill`.
 
 These are templates documenting how Phase 1-4 evolved the role split.
 They are descriptive, not enforced — but useful as orientation when
@@ -69,6 +77,7 @@ by Claude Code when a task description matches the skill's
 |---|---|
 | `investigation-skill` | Read-only investigation pattern (Phase 4 "investigate before prescribe" codified). Time-cap convention, `/tmp/` audit-file artifact, categorization framework, A/B/C/D recommended-next-step. |
 | `fix-prompt-skill` | Change-applying prompt pattern. Bundle-vs-split decision, defensive scan after primary fix, structured commit message, post-push CI monitoring. |
+| `wave-prompt-skill` | Harvest wave-cycle pattern (added harness FASE 2 B2). Pré-flight, cross-check protocol, wave-prompt anatomy, mea culpa discipline, merge-gated closure checklist. |
 
 These complement (do not replace) the slash commands above.
 Slash commands are explicit invocations; Skills are passive
@@ -100,8 +109,10 @@ This `.claude/` layer is deliberately **minimal**. Commands, agents,
 and hooks are added only when there is a concrete repeated need that
 benefits from automation. The current population came from P3.8,
 which codified patterns proven repetitive across Phase 1+2 work.
-The empty `hooks/` subdirectory is intentional — Claude Code hooks
-remain exploratory; populated only when concrete needs surface.
+`hooks/` stayed intentionally empty until a concrete need surfaced —
+the 2026-06-09 harness audit (findings P0-2/P0-4: P2 and P9 had zero
+mechanical enforcement) was that need; see
+[ADR-0026](../docs/decisions/0026-claude-code-hooks-enforcement.md).
 
 When adding a command, agent, or hook:
 
