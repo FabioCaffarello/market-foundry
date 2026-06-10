@@ -63,7 +63,7 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Candle.Source,
-		event.Candle.VenueSymbol(),
+		event.Candle.Instrument.SubjectToken(),
 		event.Candle.Timeframe,
 	)
 
@@ -93,7 +93,7 @@ func (p *Publisher) PublishTradeBurst(ctx context.Context, event evidence.TradeB
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.TradeBurst.Source,
-		event.TradeBurst.VenueSymbol(),
+		event.TradeBurst.Instrument.SubjectToken(),
 		event.TradeBurst.Timeframe,
 	)
 
@@ -123,7 +123,7 @@ func (p *Publisher) PublishVolume(ctx context.Context, event evidence.VolumeSamp
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Volume.Source,
-		event.Volume.VenueSymbol(),
+		event.Volume.Instrument.SubjectToken(),
 		event.Volume.Timeframe,
 	)
 

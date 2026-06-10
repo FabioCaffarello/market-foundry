@@ -87,7 +87,7 @@ func (p *Publisher) PublishExecution(ctx context.Context, event execution.PaperO
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.ExecutionIntent.Source,
-		event.ExecutionIntent.VenueSymbol(),
+		event.ExecutionIntent.Instrument.SubjectToken(),
 		event.ExecutionIntent.Timeframe,
 	)
 
@@ -127,7 +127,7 @@ func (p *Publisher) PublishFill(ctx context.Context, event execution.VenueOrderF
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.ExecutionIntent.Source,
-		event.ExecutionIntent.VenueSymbol(),
+		event.ExecutionIntent.Instrument.SubjectToken(),
 		event.ExecutionIntent.Timeframe,
 	)
 
@@ -158,7 +158,7 @@ func (p *Publisher) PublishRejection(ctx context.Context, event execution.VenueO
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.ExecutionIntent.Source,
-		event.ExecutionIntent.VenueSymbol(),
+		event.ExecutionIntent.Instrument.SubjectToken(),
 		event.ExecutionIntent.Timeframe,
 	)
 

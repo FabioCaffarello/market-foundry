@@ -69,7 +69,7 @@ func (p *Publisher) PublishSignal(ctx context.Context, event signal.SignalGenera
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Signal.Source,
-		event.Signal.VenueSymbol(),
+		event.Signal.Instrument.SubjectToken(),
 		event.Signal.Timeframe,
 	)
 

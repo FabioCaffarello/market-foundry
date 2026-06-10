@@ -69,7 +69,7 @@ func (p *Publisher) PublishDecision(ctx context.Context, event decision.Decision
 	subject := fmt.Sprintf("%s.%s.%s.%d",
 		spec.Subject,
 		event.Decision.Source,
-		event.Decision.VenueSymbol(),
+		event.Decision.Instrument.SubjectToken(),
 		event.Decision.Timeframe,
 	)
 
