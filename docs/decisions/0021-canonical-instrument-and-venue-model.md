@@ -278,11 +278,25 @@ Acceptance criteria:
 2. Existing `binances/` and `binancef/` adapters refactored to
    implement `ToCanonical` / `FromCanonical`; all domain-layer call
    sites migrated from `string` to `CanonicalInstrument`.
-   *(Deliverable across H-6.a–H-6.e: H-6.a migrates `ObservationTrade`;
+   *(Deliverable across H-6.a–H-6.e.2: H-6.a migrates `ObservationTrade`;
    H-6.b migrates Evidence/Signal/Decision/Strategy/Risk types; H-6.c
    migrates application-layer callers + samplers + evaluators; H-6.e
-   addresses NATS subject composition. Criterion is satisfied
-   literally only after H-6.e.)*
+   addresses NATS subject composition.)*
+
+   **(Erratum 2026-06-10 — H-6.e Decisão #2.)** KV partition-key
+   composition + the HTTP read contract split into sub-onda
+   **H-6.e.2**: the keys are parser-free (constructed on both write
+   and read paths, never parsed), but the read path constructs them
+   from the HTTP `(source, symbol, timeframe)` query contract
+   (`parseQueryKeyParams`, `handlers/common.go`) — migrating them in
+   H-6.e would require either changing that contract or reintroducing
+   venue→canonical string inference at the boundary, the exact
+   anti-pattern eliminated in H-6.c (`anti_patterns.toml`).
+   **Criterion #2 is satisfied literally only after H-6.e.2.**
+   Promotion chain: H-6.e → H-6.e.2 → H-6.f; H-6.f additionally
+   blocks on H-6.e.2 because `PartitionKey()` legitimately consumes
+   the transitory `VenueSymbol()` until the keys migrate, and the
+   helper's deletion is an H-6.f deliverable.
 3. Envelope `instrument` field (ADR-0017) carrying canonical form
    for at least the `OBSERVATION_EVENTS` stream. *(Deliverable in
    H-6.a: writers emit `CanonicalInstrument.Symbol()` as the
