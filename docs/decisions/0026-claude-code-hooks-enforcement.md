@@ -113,6 +113,9 @@ drift check shipped warn-only before any hardening was considered):
   `.claude/hooks/p9-branch-guard.sh`,
   `.claude/hooks/session-start-reminder.sh`,
   `.claude/settings.json` — the implementation.
+- `.claude/hooks/test-guards.sh` — the 13-scenario decision matrix
+  (11 regression + 2 heredoc false-positive shapes), committed so
+  the validation is reproducible; run it after any guard change.
 - `lefthook.yml` — git-side hooks (pre-push `make verify` enabled in
   the same PR, absorbing the P5.8 minimal posture).
 - Harness audit FASE 1 (2026-06-09) — findings P0-1, P0-2, P0-4.

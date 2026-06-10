@@ -15,7 +15,7 @@ For the primary instructions that Claude reads automatically, see
 | `commands/` | Custom slash commands (6 commands; codifying Phase 1+2 and Harvest patterns — see below) |
 | `agents/` | Sub-agent definitions for specialized tasks (2 templates) |
 | `skills/` | Procedural-knowledge skills auto-loaded by semantic relevance (3 skills; codifying Phase 4 + Harvest patterns — see below) |
-| `hooks/` | Claude Code enforcement hooks for P2 (raccoon read-only) and P9 (no push to main, no hook bypass) + session-start orientation. See [ADR-0026](../docs/decisions/0026-claude-code-hooks-enforcement.md). |
+| `hooks/` | Claude Code enforcement hooks for P2 (raccoon read-only) and P9 (no push to main, no hook bypass) + session-start orientation, with `test-guards.sh` (13-scenario matrix; run after any guard change). See [ADR-0026](../docs/decisions/0026-claude-code-hooks-enforcement.md). |
 
 > **Adjacent**: git-side automation lives in `../lefthook.yml` (not
 > in `.claude/hooks/`). P5.3 added a `post-commit` warn-only check
