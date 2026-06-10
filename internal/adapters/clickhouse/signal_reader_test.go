@@ -113,9 +113,12 @@ func TestBuildSignalQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildSignalQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildSignalQuery("rsi", "binancef", "btcusdt", 60, 0, 0, 50)
 
-	// Verify the 8 columns in the SELECT match the DDL read path.
+	// Verify the 11 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"value", "metadata", "final", "timestamp",
 	}
 	for _, col := range expectedCols {

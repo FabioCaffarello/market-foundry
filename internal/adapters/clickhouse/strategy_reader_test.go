@@ -121,9 +121,12 @@ func TestBuildStrategyQuery_TimeframeAsUint32(t *testing.T) {
 func TestBuildStrategyQuery_SelectColumns(t *testing.T) {
 	q, _ := clickhouse.BuildStrategyQuery("mean_reversion_entry", "binancef", "btcusdt", 60, "", 0, 0, 50)
 
-	// Verify the 11 columns in the SELECT match the DDL read path.
+	// Verify the 14 columns in the SELECT match the DDL read path
+	// (H-6.d.2: +base/quote/contract canonical columns).
 	expectedCols := []string{
-		"type", "source", "symbol", "timeframe",
+		"type", "source", "symbol",
+		"base", "quote", "contract",
+		"timeframe",
 		"direction", "confidence", "decisions", "parameters", "metadata",
 		"final", "timestamp",
 	}

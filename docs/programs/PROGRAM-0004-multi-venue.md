@@ -80,7 +80,7 @@ descobrir 15 domain types totalizando 174 test files — ver
 | **H-6.c.2** ✅ fechada | Application pass-through: execute scope + ClickHouse composite_reader uniformization + ReviewTransform string_filter | `instrumentFromBinding` helper **eliminado** do execution package (5º de 6 — commits 4 + 5). Testnet adapters (binance_spot/futures) usam `BindingTarget.Instrument()` boundary helper com warn-and-emit-zero fallback (commit 4 — per Decisão #2 após cascade analysis revelou option (a) port-signature refactor = 12 files, excedendo o threshold da sub-onda). ClickHouse `composite_reader.go` 5 silent sites (linhas 188/243/302/360/423) convertidos para warn-and-emit-zero (commit 2), uniformizando os 13 `reconstructInstrumentFromLegacy` callers. `ReviewTransform` DTO declarado como `string_filter` em `domain_types.toml` + godoc inline em ReviewTransform.Symbol + DecisionTriageItem.Symbol (commit 3 — zero production code change; cascade já completo desde H-6.b). 37f8ddd canary explícito em execute scope: `execute_venue_adapter_canary_test.go` com 2 tests / 2 passes (commit 6). 8 cross-scope test stragglers migrated (1 derive + 2 risk + 6 integration-tagged; commit 5 — surfaced pelo explicit integration build check). anti_patterns exception list reduzida 11 → 8 (commit 7 — net -3 execution entries). **8 commits delivered**. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d** | ClickHouse migration + writer canonical population + reader cutover (#4b) | Sub-dividida em **H-6.d.1** (schema migration + writer canonical-column population) e **H-6.d.2** (reader cutover canonical-preferred) post-pré-flight (descoberta de positional-INSERT cascade em integration tests + tagged-build drift de 3 meses). **ADR-0021 permanece `Proposed`** em ambas. |
 | **H-6.d.1** ✅ fechada | ClickHouse schema migration + writer canonical column population | 6 migrations adicionadas (`008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql`) — split per-table after ClickHouse Go driver multi-statement constraint surfaced (Decisão #1 (A); runner enhancement deferred to H-6.f scope expansion). Cada migration adiciona `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (`ADD COLUMN IF NOT EXISTS`). Writer population end-to-end: 14 YAML specs + 14 golden snapshots regenerados via codegen, 17 INSERT SQL strings em `cmd/writer/pipeline.go`, 8 mappers em `writerpipeline/support.go` (cada um appends 3 canonical values após `VenueSymbol()`), ~120 test row position shifts em `support_test.go` + `behavioral_roundtrip_test.go` (codegen self-consistency invariant — bundle atômico). Integration fixture migration (commit 3a): 34 positional INSERTs em `composite_reader_integration_test.go` convertidos para explicit column lists (5 unique templates per table) + 20 pre-H-6.b `.Symbol` references migrados para `.VenueSymbol()` em `composite_reader_integration_test.go` + `live_execution_analytical_test.go` — descoberta de drift de 3 meses não capturada pelo default `make verify` (tagged-build invisibility lesson). Writer canary (commit 3b): `Client.Exec()` adicionado para DDL via native protocol (clickhouse-go/v2 Query returns EOF on DDL), novo `canonical_columns_integration_test.go` com 6 tests / 1 per table verificando population end-to-end. Helper retention strategy (Resolução 1): 5 `composite_reader.go` callers + 8 sister-site readers de `reconstructInstrumentFromLegacy` MANTÊM warn-and-emit-zero fallback até H-6.f (TTL window 90 dias retire legacy rows; H-6.d.2 reader cutover preferred-canonical-with-fallback). **4 commits delivered**. **ADR-0021 permanece `Proposed`.** |
-| **H-6.d.2** | Reader canonical-preferred cutover | Analytical client readers (`composite_reader.go` + 8 sister readers) migram para `base`/`quote`/`contract` column reads preferred + fallback para `reconstructInstrumentFromLegacy` quando canonical values empty. Cutover runbook em `docs/operations/runbooks/clickhouse-canonical-migration.md`. Implementa critério #4b reader-side. **ADR-0021 permanece `Proposed`.** |
+| **H-6.d.2** ✅ fechada | Reader canonical-preferred cutover | Analytical client readers migram para dual-path: `instrumentFromCanonicalColumns(base, quote, contract)` primary com sentinel `ErrLegacyRow`, fallback para `reconstructInstrumentFromLegacy(src, sym)` quando canonical columns empty, warn-and-emit-zero quando ambos falham. **7 reader files / 13 instrument-resolution sites / 13 SELECT column lists** atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme através dos 13 sites validado em pré-flight 3. Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada — discriminates "expected legacy row → fallback" from "validation regression → propagate". 4 unit tests / 9 sub-cases lock-in o contrato do helper. Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1 (ambas shapes coexistem durante 90-day TTL window). Per-reader test files (candle/signal/decision/strategy/risk/execution + s453a + s454a) atualizados: expectedCols slices estendidas com `base/quote/contract`, comentários column counts bumped (e.g. candle 12→15, execution 16→19). `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1; deletion deferida para H-6.f post-TTL operational verification. **Critério #4b reader-side LANDED** — completa ADR-0021 erratum #4b end-to-end (writer-side H-6.d.1 + reader-side H-6.d.2). **4 commits delivered**. **ADR-0021 permanece `Proposed`** (promotion gated em literal critério #2 satisfaction — executionclient helper deletion + operational verification em H-6.f). |
 | **H-6.e** | NATS subject composition decision (pause-and-report) | **Primeiro ato**: pause-and-report obrigatório. Decidir: (i) migrar NATS subject/key composition para canonical form (com window de dual-publish/dual-read se necessário), OU (ii) declarar deferral indefinido com **segundo erratum REAL ao critério #2 do ADR-0021** documentando "NATS subjects use Instrument.Symbol() (derived form) as canonical representation for routing; direct CanonicalInstrument fields not used in subjects per [justificativa]". Sem opção #2 sem erratum honesto. **ADR-0021 permanece `Proposed`.** |
 | **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
 
@@ -403,6 +403,126 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-05-28** — H-6.d.2 fechada. **Sub-onda H-6.d encerrada**
+  (H-6.d.1 + H-6.d.2 ambas mergeadas em `main`). Entregas H-6.d.2:
+  **ClickHouse reader-side cutover para canonical columns com
+  legacy fallback** via 4 commits. Critério #4b do ADR-0021
+  erratum agora completo end-to-end (writer-side em H-6.d.1 +
+  reader-side em H-6.d.2).
+
+  **Commit 1** — Novo helper
+  `internal/adapters/clickhouse/canonical_instrument_columns.go`
+  com `ErrLegacyRow` sentinel exportada +
+  `instrumentFromCanonicalColumns(base, quote, contract) →
+  (CanonicalInstrument, error)`. Sentinel pattern (`errors.Is`)
+  per Decisão #3: idiomatic Go discrimination entre
+  expected-legacy-row case e validation regressions em rows
+  com canonical populados mas inválidos (e.g. unknown contract
+  type — devem propagar, não cair silentemente em fallback).
+  Validação delegada a `instrument.New` (gate autoritativa
+  per ADR-0021). 4 unit tests / 9 sub-cases:
+  - All-empty triple → ErrLegacyRow.
+  - Cada single empty field → ErrLegacyRow.
+  - Valid (spot / perpetual / usdtfutures) → CanonicalInstrument
+    com matching Contract e identity round-trip.
+  - Invalid contract type em populated row → non-ErrLegacyRow
+    error (regression-shape guard).
+
+  **Commit 2** — Reader dual-path migration. 7 reader files / 13
+  instrument-resolution sites / 13 SELECT column lists
+  atualizados uniformemente. Pattern uniform através dos 13
+  sites (validated em pré-flight 3):
+  ```go
+  inst, instErr := instrumentFromCanonicalColumns(base, quote, contract)
+  if instErr != nil {
+      inst, instErr = reconstructInstrumentFromLegacy(src, sym)
+      if instErr != nil {
+          r.logger.Warn(...)
+      }
+  }
+  ```
+  Per-table query builders (8 builders): BuildCandleQuery /
+  BuildSignalQuery / BuildDecisionQuery / BuildStrategyQuery /
+  BuildRiskQuery (1 cada) + BuildExecutionQuery /
+  BuildLifecycleHistoryQuery / BuildExecutionListQuery (3 em
+  execution_reader.go). Composite reader inline SELECTs (5):
+  querySignalByCorrelation / queryDecisionByCorrelation /
+  queryStrategyByCorrelation / queryRiskByCorrelation /
+  queryExecutionByCorrelation. Cada SELECT insere `base, quote,
+  contract` após `symbol`, alinhando com o column ordering
+  emitido pelos H-6.d.1 writer mappers. Scan signatures ganham
+  &base, &quote, &contract pointers. 8 test files atualizados:
+  expectedCols slices estendidas, column counts bumped (candle
+  12→15, signal 8→11, decision 12→15, strategy 11→14, risk
+  13→16, execution 16→19) + s453a_lifecycle_history_test +
+  s454a_operational_list_queries_test.
+
+  **Commit 3** — Reader canary integration test
+  `canonical_columns_reader_integration_test.go` (~714 LoC,
+  `//go:build requireclickhouse`, package `clickhouse_test`).
+  6 tests / 18 subtests (canonical_path / fallback_path /
+  mixed_state per table). Per-table DDL constants
+  duplicated from writerpipeline canary (Go _test packages não
+  podem cross-import). Helper `skipUnlessClickHouseReader`
+  mirrors `skipUnlessClickHouseCanonical`. **mixed_state subtest
+  é a prova literal da Resolução 1**: insere uma row canonical-
+  populada (ETH/USDT/spot) + uma legacy-shape (`binances ethusdt`,
+  canonical columns vazias) na mesma tabela, query única retorna
+  ambas, cada uma resolve via path próprio, ambas produzem
+  CanonicalInstrument equivalente (ETH/USDT/spot). Fixture
+  ETH/USDT/spot vs. binances→BTC/USDT/spot default disambiguates
+  o canonical path do fallback (silent regression em
+  instrumentFromCanonicalColumns surge como canonical row
+  voltando BTC/USDT em vez de ETH/USDT).
+
+  **Resolução 1 — Helper retention through 90-day TTL preserved**:
+  `reconstructInstrumentFromLegacy` permanece em
+  `candle_reader.go:150` per Resolução 1 documentada em H-6.d.1
+  Changelog. **NÃO** é deletado em H-6.d.2 — deletion deferida
+  para H-6.f post-TTL operational verification.
+  Correctness-driven: legacy rows persistem até MergeTree TTL
+  expirar (~90 dias post-2026-05-27 H-6.d.1 merge → ~2026-08-25);
+  reader DEVE reconstructar Instrument durante esse window. O
+  mixed_state subtest é a prova permanente de que durante o
+  window ambas shapes coexistem corretamente.
+
+  **H-6.f scope expansion preserved** (registered durante
+  H-6.d.1 closure, atualizado para refletir H-6.d.2 progress):
+  1. **Helper deletion**: `reconstructInstrumentFromLegacy`
+     + `executionclient/instrument_binding.go` (post 90-day TTL
+     window).
+  2. Migration runner multi-statement support (deferred from
+     H-6.d.1 Decisão #1).
+  3. Exception list shrinking: 7 ClickHouse entries em
+     `anti_patterns.toml` (currently tagged "H-6.d helper
+     removal") removed após cutover + TTL window passar.
+  4. Operational verification post-TTL: confirmar legacy-only
+     rows expired; canonical-only reads PASS sem fallback;
+     promover ADR-0021 → `Accepted` per critério #2 + #4b
+     literal satisfaction.
+
+  **Métricas H-6.d.2**: 4 commits, 1 new helper + 1 sentinel
+  error + 7 readers migrated + 13 SELECTs + 13 Scan sites + 1
+  new test file (714 LoC, 6/18 subtests) + 8 test files
+  updated. Pre-push validation: `make verify` GREEN +
+  `raccoon-cli --profile ci` GREEN + reader canary 18/18 PASS
+  contra live ClickHouse.
+
+  **Marco**: H-6.d.2 fecha **critério #4b end-to-end do
+  ADR-0021 erratum** — writer populates canonical columns
+  (H-6.d.1) + reader prefers canonical com legacy fallback
+  (H-6.d.2). ADR-0021 critério #2 (zero source-string-based
+  reconstruction em production) **ainda não literalmente
+  satisfeito** — `reconstructInstrumentFromLegacy` retained
+  através do TTL window, `executionclient/instrument_binding.go`
+  remanesce. Helper deletion + ADR-0021 promotion atómicos em
+  H-6.f post-TTL.
+
+  **Próxima sub-onda destravada após merge**: H-6.e — NATS
+  subject composition decision (primeiro ato: pause-and-report
+  obrigatório). Sub-onda sequencing policy estrita: H-6.e abre
+  branch APENAS após merge desta PR (H-6.d.2) em `main`.
 
 - **2026-05-27** — H-6.d.1 fechada. **Sub-onda H-6.d introduzida**
   (sub-divisão de H-6.d em H-6.d.1 + H-6.d.2 post-pré-flight —
