@@ -51,12 +51,17 @@ Required for `make proto-gen`. Install via:
 go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.8
 ```
 
-Versão pinada (v1.36.8) corresponde ao runtime
-`google.golang.org/protobuf` declarado em
-`internal/shared/go.mod`. Bumps são deliberados, sincronizados com
-runtime bumps. Pin exato é validado por `make bootstrap` (qualquer
-divergência de versão é fail) — reprodutibilidade dos `*.pb.go`
-gerados exige plugin idêntico em todas as máquinas e em CI.
+Versão pinada (v1.36.8) garante reprodutibilidade byte-stable dos
+`*.pb.go` gerados — os golden snapshots dependem de output idêntico
+do plugin em todas as máquinas e em CI. O runtime
+`google.golang.org/protobuf` declarado em `internal/shared/go.mod`
+pode divergir do plugin dentro de série compatível (runtime em
+v1.36.11 desde o Dependabot PR #34, 2026-06-10, com Codegen Golden
+Equivalence GREEN). Bump do plugin é deliberado e exige
+`make proto-gen` + golden regen no mesmo PR — candidato nomeado,
+idealmente alinhado ao próximo runtime bump para fechar plugin e
+runtime juntos. Pin exato é validado por `make bootstrap` (qualquer
+divergência de versão é fail).
 
 `make proto-gen` prepends `$(go env GOPATH)/bin` to PATH internally,
 so the plugin works as long as `go install` placed it under

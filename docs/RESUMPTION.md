@@ -23,7 +23,7 @@ since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
 merges show the documented `TestControlledActivation_FullLifecycle`
 / `TestRealVenueActivation_FullLifecycle` Integration Tests timing
 flake; these are non-required and non-blocking per branch protection
-(see Phase 4.5 narrative for full posture).
+(registry entry **G9**; see Phase 4.5 narrative for full posture).
 
 Phase 4 CLOSED (2026-05-23) — P0 backlog 5/5; detail in "Phase 4
 outlook" below. Phase 5 OPENED (2026-05-23) — environment work,
@@ -1732,7 +1732,14 @@ dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
 
-### G6 — `TestS460_SessionLifecycleTransitions` time-resolution flake
+### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake
+
+> **Remissão:** anteriormente registrado como **G6** (H-6.b'',
+> 2026-05-26); renomeado para G8 na FASE 3.2 (2026-06-10) por
+> colisão com o G6 histórico de `drift_detect` (Phase 1D.4, ver
+> "Recently resolved"). Referências a "G6 flake" em narrativa
+> histórica (wave table H-6.b'', mensagens de commit) apontam para
+> esta entrada.
 
 `internal/application/execution/s460_session_metadata_test.go:104`
 asserts `Session.Duration() != 0` after `Session.Close()`.
@@ -1818,19 +1825,46 @@ regression.
    time, so this should pass clean in CI; if CI is also red,
    the hypothesis is wrong and root-cause is elsewhere.
 
-**Pattern alignment:** Consistent with G6
+**Pattern alignment:** Consistent with G8
 (`TestS460_SessionLifecycleTransitions` time-resolution flake)
 in being a pre-existing flake that surfaces under batch
 `make test-integration` loads, with zero overlap to the
 in-flight onda's changes.
 
 **Status:** Deferred to H-6.f cleanup wave or a dedicated
-test-hardening sub-wave (same disposition as G6). Workaround:
+test-hardening sub-wave (same disposition as G8). Workaround:
 either rerun the suite isolated (`go test -count=1 -run
 TestS380_LiveListenDryRun_FullPipeline` after stopping
 compose-execute) or trust CI to confirm green.
 
 **First observed:** H-6.d.1 pre-push validation (2026-05-27).
+
+### G9 — família ControlledActivation/RealVenue Integration-Tests timing flakes
+
+Família registrada como **uma** entrada por ser um único fenômeno
+(timing sob carga de Integration Tests em
+`internal/actors/scopes/execute`); três testes exibem a shape:
+
+- `TestControlledActivation_FullLifecycle`
+- `TestRealVenueActivation_FullLifecycle`
+- `TestControlledActivation_GateHaltBlocksAfterEnable`
+
+Os dois primeiros estão documentados desde a Phase 4.5 como
+non-required e non-blocking per branch protection (ver header
+deste documento e "Phase 4 outlook") — mas até esta entrada
+viviam apenas em prosa, sem registro no registry (achado P1-6
+da auditoria FASE 3). O terceiro foi observado no CI do PR #38
+(2026-06-10): FAIL na run, PASS no rerun do job, com **zero**
+arquivos `.go` no diff (PR docs/harness-only) — flake confirmado
+empiricamente.
+
+**Workaround:** rerun do job falho (`gh run rerun <id> --failed`);
+localmente, rerun isolado do teste. **Deferred to:** mesma
+disposição de G7/G8 — H-6.f cleanup ou sub-wave de
+test-hardening.
+
+Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
+G6→G8.
 
 ---
 

@@ -130,6 +130,7 @@ the test is human discipline backed by `make verify` gates.
 | Defensive-scan discipline | [ADR-0014](decisions/0014-defensive-scan-discipline.md) | — | — | Documentation | Post-fix scan recipe; captured in `.claude/skills/fix-prompt-skill/SKILL.md`. |
 | Wave-closure discipline | [ADR-0015](decisions/0015-wave-closure-discipline.md) | — | — | Documentation | Closure-signal recognition; M-list captures deferred debt. |
 | Fase Harvest under P1–P9 | [ADR-0016](decisions/0016-harvest-from-market-raccoon.md), [PROGRAM-0001](programs/PROGRAM-0001-foundation.md) | [`../CLAUDE.md`](../CLAUDE.md) → "Fase Harvest" (canonical P1–P9) | — | Documentation | Wave protocol; enforced by maintainer + branch protection (P9). |
+| Claude Code hooks enforcement de P2/P9 | [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) | `../.claude/hooks/raccoon-readonly-guard.sh`; `../.claude/hooks/p9-branch-guard.sh`; `../.claude/settings.json` (permissions + wiring) | `../.claude/hooks/test-guards.sh` (13-scenario deny/allow/ask matrix) | Implemented | Primeiro ADR de processo com code+test anchors reais. Posture: deny (P2, push-main, --no-verify) / ask (gh pr merge), owner decision 2026-06-09. |
 
 ### Foundation ADRs — delivery state (mixed)
 
@@ -297,6 +298,12 @@ a TRUTH-MAP row either.
 
 ## Changelog
 
+- **2026-06-10** — FASE 3.2 (harness/docs evolution): ADR-0026 row
+  added to "Process / protocol" with real code+test anchors
+  (`.claude/hooks/*` + `test-guards.sh`) — the first process ADR
+  with a test anchor; Status `Implemented` rather than
+  `Documentation` because the enforcement is mechanical
+  (PreToolUse hooks + permissions), not human discipline.
 - **2026-05-28** — Onda H-6.d.2 closure: **ClickHouse reader-side
   cutover para canonical columns com legacy fallback**. 4 commits.
   **Critério #4b reader-side LANDED** — completa ADR-0021 erratum
