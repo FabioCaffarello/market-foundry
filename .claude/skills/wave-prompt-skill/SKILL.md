@@ -60,7 +60,7 @@ prompt is finalized:
 - Scan for the known blind spots: tagged-build test files
   (`//go:build requireclickhouse`, `integration`) and positional
   INSERTs/rows (H-6.d.1 lessons #1 and #2).
-- Check the flake registry (RESUMPTION → G6, G7, ...) so known
+- Check the flake registry (RESUMPTION → G7, G8, G9, ...) so known
   flakes are pre-declared rather than rediscovered mid-wave.
 
 Cascade discovery at pré-flight (scope materially larger than the

@@ -59,10 +59,14 @@ if [[ "$BUF_LOWER" != "$BUF_MIN_VERSION" ]]; then
 fi
 pass "buf version $BUF_CURRENT_VERSION >= $BUF_MIN_VERSION"
 
-# protoc-gen-go version gate — pinned at v1.36.8 to match the
-# google.golang.org/protobuf runtime declared in internal/shared/go.mod.
-# Plugin-to-runtime version pairing eliminates wire-format compatibility
-# bugs. See docs/DEVELOPMENT.md → "External tooling" → "protoc-gen-go".
+# protoc-gen-go version gate — pinned at v1.36.8 for byte-stable,
+# reproducible *.pb.go generation across machines and CI (golden
+# snapshots depend on identical plugin output). The runtime
+# google.golang.org/protobuf in internal/shared/go.mod may diverge
+# within a compatible series (runtime at v1.36.11 since Dependabot
+# PR #34, 2026-06-10, with Codegen Golden Equivalence GREEN); plugin
+# bumps are deliberate and require `make proto-gen` + golden regen in
+# the same PR. See docs/DEVELOPMENT.md → "External tooling" → "protoc-gen-go".
 PROTOC_GEN_GO_REQUIRED_VERSION="v1.36.8"
 PROTOC_GEN_GO_BIN="$(go env GOPATH)/bin/protoc-gen-go"
 if [[ ! -x "${PROTOC_GEN_GO_BIN}" ]]; then

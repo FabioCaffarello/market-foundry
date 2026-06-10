@@ -92,6 +92,17 @@ place.
   code has not yet shipped (per CLAUDE.md → Fase Harvest → P7). Use
   "Planned" for forward-looking entries; "Implemented" only when the
   code ships.
+- **Wave-row update convention**: a wave's docs-closure commit
+  cannot know its own merge SHA — the commit ships inside the PR.
+  The RESUMPTION wave-table row for wave N is therefore flipped to
+  `Fechada (PR #X mergeada em main em <sha>, <date>)` by wave N+1
+  **as its first opening act** (or by the next docs PR touching
+  RESUMPTION, whichever lands first). The staleness window between
+  the merge of wave N and the next opening is **by design and
+  declared here** — not sentinel drift. A post-merge doc-only
+  commit per wave was considered and rejected (recurring PR
+  overhead against P9). Formalized in FASE 3.2 (2026-06-10,
+  audit finding P1-3 / Question 7).
 
 ---
 

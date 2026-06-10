@@ -28,7 +28,7 @@ This command exists so the full sequence is one invocation away.
    ```
 
 2. **Always** — `make verify`. Must be GREEN. If a test fails,
-   check `docs/RESUMPTION.md` → flake registry (G6, G7, ...) and
+   check `docs/RESUMPTION.md` → flake registry (G7, G8, G9, ...) and
    apply the registered isolated re-run procedure before treating
    it as a regression.
 
