@@ -54,8 +54,8 @@ question categorically and saves the negotiation.
 │  T4 — Historical     past records (never govern)         │
 │  ────────────────                                        │
 │  PRDs (Closed), ADRs (Superseded), RESUMPTION             │
-│  sections marked as past phases, .claude/skills/         │
-│  invocation-tracking, prior RESUMPTION snapshots in git  │
+│  sections marked as past phases, prior                    │
+│  RESUMPTION snapshots in git                              │
 └──────────────────────────────────────────────────────────┘
 ```
 

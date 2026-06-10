@@ -421,6 +421,8 @@ sessions, codifying patterns proven repetitive across Phase 1+2 work.
   - `/inventory <area>` — structured inventory production.
   - `/audit <area>` — read-only investigation skeleton.
   - `/version-check` — version consistency across canonical files.
+  - `/pre-push` — canonical pre-push validation sequence with
+    diff-aware conditionals (see "Pre-push validation" above).
 - `.claude/agents/`: agent role templates.
   - `architect-agent` — scoping, framing, and decision discipline;
     the architect side of the two-agent collaboration model
@@ -436,8 +438,15 @@ sessions, codifying patterns proven repetitive across Phase 1+2 work.
   - `fix-prompt-skill` — change-applying prompt pattern
     (bundle/split decision, defensive scan, structured commit
     message, CI monitoring).
-- `.claude/settings.json`: session-level config (currently minimal).
-- `.claude/hooks/`: empty (Claude Code hooks remain exploratory).
+  - `wave-prompt-skill` — Harvest wave-cycle pattern (pré-flight,
+    cross-check protocol, prompt anatomy, mea culpa discipline,
+    merge-gated closure).
+- `.claude/settings.json`: session-level config —
+  `RACCOON_REFERENCE_PATH` env, `permissions.deny` for raccoon
+  writes, hooks wiring (ADR-0026).
+- `.claude/hooks/`: enforcement hooks for P2 (raccoon read-only)
+  and P9 (no agent push to `main`, no `--no-verify`; `gh pr merge`
+  asks) + session-start orientation. See ADR-0026.
 
 See `.claude/README.md` for the full index and philosophy. These
 surfaces are descriptive helpers — `CLAUDE.md` (repo root) remains

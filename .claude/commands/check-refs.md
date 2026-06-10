@@ -50,7 +50,7 @@ echo ""
 echo "## In docs"
 grep -rln "$PATH_TO_CHECK" \
     --include="*.md" \
-    docs/ README.md AGENTS.md CLAUDE.md CONTRIBUTING.md 2>/dev/null | head -20
+    docs/ README.md AGENTS.md CLAUDE.md 2>/dev/null | head -20
 echo ""
 
 echo "## In Makefile"
