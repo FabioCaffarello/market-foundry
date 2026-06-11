@@ -93,7 +93,7 @@ func TestSignal_DeduplicationKey(t *testing.T) {
 	s.Timestamp = ts
 	got := s.DeduplicationKey()
 	// P4.1.11.a: dedup key precision raised to UnixNano (see signal.go doc).
-	want := fmt.Sprintf("sig:rsi:binancef:btcusdt:300:%d", ts.UnixNano())
+	want := fmt.Sprintf("sig:rsi:binancef:btc_usdt_perpetual:300:%d", ts.UnixNano())
 	if got != want {
 		t.Fatalf("DeduplicationKey() = %q, want %q", got, want)
 	}

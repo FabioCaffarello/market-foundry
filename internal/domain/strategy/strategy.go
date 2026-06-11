@@ -113,6 +113,7 @@ func (s Strategy) PartitionKey() string {
 // silently dropped same-second siblings — diagnosed in P4.1.9.
 // Production kline cadence is ≥1s so the bug was latent, but rapid-publish
 // integration tests and any future sub-second producers depend on this.
+// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 func (s Strategy) DeduplicationKey() string {
-	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.VenueSymbol(), s.Timeframe, s.Timestamp.UnixNano())
+	return fmt.Sprintf("strat:%s:%s:%s:%d:%d", s.Type, s.Source, s.Instrument.SubjectToken(), s.Timeframe, s.Timestamp.UnixNano())
 }

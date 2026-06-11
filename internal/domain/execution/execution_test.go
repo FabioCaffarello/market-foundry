@@ -204,7 +204,7 @@ func TestExecutionIntent_DeduplicationKey(t *testing.T) {
 		Timestamp:  ts,
 	}
 	got := ei.DeduplicationKey()
-	prefix := "exec:paper_order:binancef:btcusdt:60:"
+	prefix := "exec:paper_order:binancef:btc_usdt_perpetual:60:"
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}
