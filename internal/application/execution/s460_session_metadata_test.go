@@ -83,11 +83,14 @@ func TestS460_SessionLifecycleTransitions(t *testing.T) {
 		t.Fatal("open session should not be terminal")
 	}
 
-	// Close with counters.
+	// Close with counters. FixedClock with an explicit +1s delta over
+	// StartedAt: with SystemClock both timestamps occasionally landed
+	// on the same nanosecond under batch test load and the Duration
+	// assertion below tripped (flake registry G8, fixed in H-6.f.1).
 	counters := []domainexec.SessionSegmentCounters{
 		{Segment: "spot", Processed: 42, Filled: 38, Rejected: 4},
 	}
-	if prob := s.Close(clock.SystemClock{}, counters); prob != nil {
+	if prob := s.Close(clock.FixedClock{Instant: now.Add(time.Second)}, counters); prob != nil {
 		t.Fatalf("Close() returned unexpected problem: %v", prob)
 	}
 
@@ -100,8 +103,8 @@ func TestS460_SessionLifecycleTransitions(t *testing.T) {
 	if s.ClosedAt == nil {
 		t.Error("closed_at must be set after Close()")
 	}
-	if s.Duration() == 0 {
-		t.Error("duration should be positive after close")
+	if s.Duration() != time.Second {
+		t.Errorf("duration = %v, want exactly 1s (FixedClock delta)", s.Duration())
 	}
 	if prob := s.Validate(); prob != nil {
 		t.Errorf("closed session failed validation: %v", prob)
