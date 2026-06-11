@@ -165,9 +165,15 @@ func (uc *AuditSessionUseCase) computeFeeSummary(ctx context.Context, session ex
 func convertLifecycleEntries(entries []LifecycleEntry) []execution.AuditLifecycleEntry {
 	result := make([]execution.AuditLifecycleEntry, 0, len(entries))
 	for _, e := range entries {
+		// e.Symbol carries the canonical subject token
+		// ("{base}_{quote}_{contract}") since the H-6.e.2 KV key
+		// cutover. Pre-cutover orphan keys fail the parse and yield
+		// a zero Instrument until purged (mixed-state window per the
+		// H-6.e.2 closure note).
+		inst, _ := instrument.FromSubjectToken(e.Symbol)
 		ale := execution.AuditLifecycleEntry{
 			Source:          e.Source,
-			Instrument:      instrumentFromBinding(e.Source, e.Symbol),
+			Instrument:      inst,
 			Timeframe:       e.Timeframe,
 			IntentStatus:    e.IntentStatus,
 			FillStatus:      e.FillStatus,
