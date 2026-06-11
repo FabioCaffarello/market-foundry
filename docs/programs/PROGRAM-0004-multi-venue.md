@@ -52,8 +52,11 @@ ADR-0022.
 | **H-7** | Bybit adapter + multi-venue parity policy | Adapter Bybit (3º venue), implementando `ToCanonical`/`FromCanonical` per ADR-0021. Promove **ADR-0022** (multi-venue normalization policy) — primeira prova real de paridade cross-venue. raccoon-cli `check venue-parity` analyzer (P5). |
 
 H-6 e H-7 são **sequenciais e estritas** — H-7 só abre após
-**H-6.f mergeada em main** (P9 + sub-onda sequencing policy
-abaixo).
+**H-6.f.1 mergeada em main** (P9 + sub-onda sequencing policy
+abaixo). Erratum 2026-06-11: o texto original dizia "após H-6.f";
+com o split f.1/f.2 (Decisão #1 da abertura de H-6.f.1), H-7
+destrava em f.1 e **H-6.f.2 fecha a promoção do ADR-0021** — ver
+"Erratum de sequenciamento" na sequencing policy abaixo.
 
 ---
 
@@ -82,8 +85,9 @@ descobrir 15 domain types totalizando 174 test files — ver
 | **H-6.d.1** ✅ fechada | ClickHouse schema migration + writer canonical column population | 6 migrations adicionadas (`008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql`) — split per-table after ClickHouse Go driver multi-statement constraint surfaced (Decisão #1 (A); runner enhancement deferred to H-6.f scope expansion). Cada migration adiciona `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (`ADD COLUMN IF NOT EXISTS`). Writer population end-to-end: 14 YAML specs + 14 golden snapshots regenerados via codegen, 17 INSERT SQL strings em `cmd/writer/pipeline.go`, 8 mappers em `writerpipeline/support.go` (cada um appends 3 canonical values após `VenueSymbol()`), ~120 test row position shifts em `support_test.go` + `behavioral_roundtrip_test.go` (codegen self-consistency invariant — bundle atômico). Integration fixture migration (commit 3a): 34 positional INSERTs em `composite_reader_integration_test.go` convertidos para explicit column lists (5 unique templates per table) + 20 pre-H-6.b `.Symbol` references migrados para `.VenueSymbol()` em `composite_reader_integration_test.go` + `live_execution_analytical_test.go` — descoberta de drift de 3 meses não capturada pelo default `make verify` (tagged-build invisibility lesson). Writer canary (commit 3b): `Client.Exec()` adicionado para DDL via native protocol (clickhouse-go/v2 Query returns EOF on DDL), novo `canonical_columns_integration_test.go` com 6 tests / 1 per table verificando population end-to-end. Helper retention strategy (Resolução 1): 5 `composite_reader.go` callers + 8 sister-site readers de `reconstructInstrumentFromLegacy` MANTÊM warn-and-emit-zero fallback até H-6.f (TTL window 90 dias retire legacy rows; H-6.d.2 reader cutover preferred-canonical-with-fallback). **4 commits delivered**. **ADR-0021 permanece `Proposed`.** |
 | **H-6.d.2** ✅ fechada | Reader canonical-preferred cutover | Analytical client readers migram para dual-path: `instrumentFromCanonicalColumns(base, quote, contract)` primary com sentinel `ErrLegacyRow`, fallback para `reconstructInstrumentFromLegacy(src, sym)` quando canonical columns empty, warn-and-emit-zero quando ambos falham. **7 reader files / 13 instrument-resolution sites / 13 SELECT column lists** atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme através dos 13 sites validado em pré-flight 3. Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada — discriminates "expected legacy row → fallback" from "validation regression → propagate". 4 unit tests / 9 sub-cases lock-in o contrato do helper. Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1 (ambas shapes coexistem durante 90-day TTL window). Per-reader test files (candle/signal/decision/strategy/risk/execution + s453a + s454a) atualizados: expectedCols slices estendidas com `base/quote/contract`, comentários column counts bumped (e.g. candle 12→15, execution 16→19). `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1; deletion deferida para H-6.f post-TTL operational verification. **Critério #4b reader-side LANDED** — completa ADR-0021 erratum #4b end-to-end (writer-side H-6.d.1 + reader-side H-6.d.2). **4 commits delivered**. **ADR-0021 permanece `Proposed`** (promotion gated em literal critério #2 satisfaction — executionclient helper deletion + operational verification em H-6.f). |
 | **H-6.e** ✅ fechada | NATS subject canonical cutover (subjects only) | Pause-and-report executado como primeiro ato (2026-06-10). **Decisão do owner: (i)** — migrar subjects para forma canônica; (ii) descartada (o "deferral indefinido" apoiaria subjects num helper com sunset planejado em H-6.f e a lossiness de delivery futures colide token+PartitionKey exatamente na superfície que H-7 expande). Enumeração D (cap 30 min): **zero parsers do token de symbol** em qualquer superfície (consumers logam `msg.Subject()` apenas; fixtures de replay embedam `instrument` canônico, não subjects; Prometheus/Grafana omitem instrument per ADR-0024 MP-2) → **cutover atômico**, sem dual-publish; mixed-state nos streams até TTL 72h (precedente H-6.d). Token canônico `{base}_{quote}_{contract}` com slot `[_expiry]` dormente via helper único `SubjectToken()` (Decisão #1; débito de modelagem do expiry registrado — ver H-6.e.2). 10 builder sites com symbol migram (11º é session-lifecycle, sem symbol). Analyzer `check subjects` no mesmo PR, **escopo subjects-only** (Decisão #4 — `PartitionKey()` consome `VenueSymbol()` legitimamente até e.2). Errata: ADR-0009 (gramática) + ADR-0021 critério #2 (fechamento literal desloca para e.2). Nota: o texto original desta linha descrevia o estado como "Instrument.Symbol() (derived form)" — impreciso; era VenueSymbol-derived (corrigido no erratum ao ADR-0009). **ADR-0021 permanece `Proposed`.** |
-| **H-6.e.2** | KV partition keys + contrato HTTP de leitura (split da Decisão #2 de H-6.e) | Migra os 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk/Execution) e o contrato HTTP `(source, symbol, timeframe)` (`parseQueryKeyParams`) para forma canônica, coerentemente — as chaves são parser-free, mas o read path as constrói a partir do contrato HTTP: migrá-las sem mudar o contrato exigiria inferência venue→canonical no boundary, o anti-pattern eliminado em H-6.c. **Decisões da abertura (owner, 2026-06-11 — pacote B)**: (a) contrato → trio explícito `base/quote/contract` validado por `instrument.New` (sem dual-accept — exigiria a inferência banida; sem versionamento — zero consumidores externos, loopback/sem auth, Odin é H-12+ via WS+proto); (b) KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` no mesmo commit (órfãos inertes com purge manual opcional; janela de miss por tipo até a primeira escrita pós-deploy — documentado); (c) ClickHouse `WHERE … symbol = ?` **inalterado**, valor derivado via helper transitório único `LegacyFilterValue()` = `lower(base+quote)` (direção legítima canonical→venue; a coluna legacy armazena exatamente esse valor) — **flip do WHERE para colunas canônicas em H-6.f pós-TTL** (~2026-08-26), atômico com as deleções de helper; (d) extensão do `check subjects` com seção `[keys]` (PartitionKey deve usar SubjectToken, proibido VenueSymbol) no mesmo PR per P5; (e) **expiry (G10) deferido a H-7** — e.2 não modela; G10 segue bloqueando delivery futures no ingest. **Dependências escritas**: e.2 abre APENAS após merge de H-6.e; **H-6.f abre APENAS após merge de H-6.e.2** (o sunset do `VenueSymbol()` em f bloqueia em e.2 — `PartitionKey()` o consome até lá). Critério #2 do ADR-0021 fecha literalmente aqui (erratum 2026-06-10). **ADR-0021 permanece `Proposed`.** |
-| **H-6.f** | Final cleanup + ADR promotion | Remove deprecated fields/types remanescentes (incl. sunset do `VenueSymbol()` — **bloqueia em H-6.e.2**) **+ flip do ClickHouse WHERE para colunas canônicas pós-TTL (~2026-08-26) + deleção do `LegacyFilterValue()` transitório (introduzido em H-6.e.2)**. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
+| **H-6.e.2** ✅ fechada | KV partition keys + contrato HTTP de leitura (split da Decisão #2 de H-6.e) | Migra os 5 `PartitionKey()` composers (Signal/Decision/Strategy/Risk/Execution) e o contrato HTTP `(source, symbol, timeframe)` (`parseQueryKeyParams`) para forma canônica, coerentemente — as chaves são parser-free, mas o read path as constrói a partir do contrato HTTP: migrá-las sem mudar o contrato exigiria inferência venue→canonical no boundary, o anti-pattern eliminado em H-6.c. **Decisões da abertura (owner, 2026-06-11 — pacote B)**: (a) contrato → trio explícito `base/quote/contract` validado por `instrument.New` (sem dual-accept — exigiria a inferência banida; sem versionamento — zero consumidores externos, loopback/sem auth, Odin é H-12+ via WS+proto); (b) KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` no mesmo commit (órfãos inertes com purge manual opcional; janela de miss por tipo até a primeira escrita pós-deploy — documentado); (c) ClickHouse `WHERE … symbol = ?` **inalterado**, valor derivado via helper transitório único `LegacyFilterValue()` = `lower(base+quote)` (direção legítima canonical→venue; a coluna legacy armazena exatamente esse valor) — **flip do WHERE para colunas canônicas em H-6.f pós-TTL** (~2026-08-26), atômico com as deleções de helper; (d) extensão do `check subjects` com seção `[keys]` (PartitionKey deve usar SubjectToken, proibido VenueSymbol) no mesmo PR per P5; (e) **expiry (G10) deferido a H-7** — e.2 não modela; G10 segue bloqueando delivery futures no ingest. **Dependências escritas**: e.2 abre APENAS após merge de H-6.e; **H-6.f abre APENAS após merge de H-6.e.2** (o sunset do `VenueSymbol()` em f bloqueia em e.2 — `PartitionKey()` o consome até lá). Critério #2 do ADR-0021 fecha literalmente aqui (erratum 2026-06-10). **ADR-0021 permanece `Proposed`.** |
+| **H-6.f.1** | Cleanup não-TTL-gated + fix da regressão de auditoria (split da Decisão #1 da abertura de H-6.f, owner 2026-06-11, opção A) | Fix da **regressão silent-zero da auditoria** descoberta na abertura (audit bundles com `Instrument` zerado desde o merge de H-6.e.2: `audit_session.go` reconstrói via `instrumentFromBinding(e.Source, e.Symbol)`, que exige sufixo `USDT` venue-native — o token canônico `base_quote_contract` que `e.Symbol` passou a carregar não casa → `CanonicalInstrument{}`). Fix via novo parser `instrument.FromSubjectToken(token)` (direção legítima canonical→canonical; premissa "contract types não contêm underscore" com lock-in test); **deleção do 6º e último `instrumentFromBinding`** (`executionclient/instrument_binding.go`) + exception retirada de `anti_patterns.toml` + canário unit `AuditLifecycleEntry.Instrument` não-zero (a ausência desse canário foi o que deixou a regressão passar). Dedup keys canonicalizam (Decisão #4): 7 `DeduplicationKey()` de domínio + 4 builders inline nos publishers migram `VenueSymbol()` → `SubjectToken()`; analyzer `check subjects` estendido com seção `[dedup]` (P5); janela de dedup JetStream quebrada na transição — documentada, risco aceito single-operator. Migration runner multi-statement (deferral da H-6.d.1). Test-hardening: G8 fix obrigatório (FixedClock no TestS460); G7/G9 só se mecânico. **ADR-0021 permanece `Proposed`.** |
+| **H-6.f.2** | Cleanup TTL-gated + ADR promotion — **abre SOMENTE pós-TTL (~2026-08-26)**, com verificação operacional como pré-condição da promoção | Flip do ClickHouse `WHERE` para colunas canônicas; deleções de `reconstructInstrumentFromLegacy`, `LegacyFilterValue()` (introduzido em H-6.e.2) e `VenueSymbol()` (133 sites); postura da coluna legacy `symbol` nos writers; exception list ClickHouse (7 entries) do `anti_patterns.toml`; verificação operacional pós-TTL. Atualiza TRUTH-MAP, RESUMPTION, GLOSSARY com state final. **Promove ADR-0021 → `Accepted`** apenas se TODOS os critérios (1, 2, 3, 4a, 4b, 5) estão literalmente satisfeitos. P7 absoluto. |
 
 ### Refinamento H-6.b (introduzido em H-6.b, pós-pré-flight)
 
@@ -165,8 +169,9 @@ Por que **`VenueSymbol`** e não `Symbol()`:
 Atributos da disciplina:
 
 1. **Sunset declarado no docstring**: cada método transitório lista
-   a sub-onda que o remove. `VenueSymbol()` é removida em H-6.f
-   quando o último reader venue-native sai do código.
+   a sub-onda que o remove. `VenueSymbol()` é removida em H-6.f.2
+   (pós-split 2026-06-11; originalmente "H-6.f") quando o último
+   reader venue-native sai do código.
 2. **Limitações documentadas**: `VenueSymbol()` é lossy para
    delivery futures (`BTCUSDT_240329` colapsa para `"btcusdt"`).
    Aceitável em H-6.a porque nenhum contrato delivery rida o
@@ -176,17 +181,36 @@ Atributos da disciplina:
 
 Sub-ondas H-6.b–H-6.e podem reusar o pattern conforme novos
 domain types migram — cada um define seu próprio `VenueSymbol()`
-ou equivalente, todos com sunset documentado para H-6.f.
+ou equivalente, todos com sunset documentado para H-6.f.2
+(pós-split 2026-06-11; docstrings escritos antes do split dizem
+"H-6.f").
 
 ---
 
 ## Sub-onda sequencing policy
 
 Sub-ondas H-6.a → H-6.b → H-6.b' → H-6.b'' → H-6.c → H-6.d →
-H-6.e → **H-6.e.2** → H-6.f → H-7 executam **estritamente
-serial**. Próxima sub-onda abre branch APENAS após merge da
-anterior em `main`. (H-6.e.2 inserida 2026-06-10 pelo split da
-Decisão #2 de H-6.e; H-6.f bloqueia explicitamente em H-6.e.2.)
+H-6.e → **H-6.e.2** → **H-6.f.1** → **{H-7 ∥ H-6.f.2}** executam
+serial até f.1. Próxima sub-onda abre branch APENAS após merge da
+anterior em `main`. Após o merge de f.1: H-7 destrava
+imediatamente; H-6.f.2 aguarda adicionalmente o **gate temporal
+pós-TTL (~2026-08-26)** e abre com verificação operacional como
+pré-condição da promoção. (H-6.e.2 inserida 2026-06-10 pelo split
+da Decisão #2 de H-6.e; H-6.f dividida em f.1/f.2 em 2026-06-11
+pela Decisão #1 da abertura de H-6.f.1.)
+
+### Erratum de sequenciamento (2026-06-11, Decisão #2 da abertura de H-6.f.1)
+
+O texto original desta policy — e o gate "H-7 só abre após H-6.f
+mergeada" acima — declarava a cadeia **estritamente serial** até
+H-7. O split de H-6.f em f.1 (cleanup não-TTL-gated, agora) e f.2
+(TTL-gated, ~2026-08-26) muda isso honestamente: a cadeia vira
+`e → e.2 → f.1 → {H-7 ∥ f.2}`, com **f.2 fechando a promoção do
+ADR-0021**. Rationale: o modelo canônico está entregue e provado
+end-to-end; a promoção é formalização gated em **verificação
+operacional pós-TTL**, não pré-requisito técnico do adapter Bybit
+(H-7). P7 permanece intacto: ADR-0021 segue `Proposed` até f.2
+cumprir os critérios literais — nenhuma claim antecipada.
 
 ### Sub-wave naming convention
 
@@ -282,10 +306,10 @@ relevantes para PROGRAM-0004:
 A Fase Multi-venue fecha quando **todos** os critérios abaixo são
 verdadeiros simultaneamente:
 
-- [ ] Sub-ondas H-6.a, H-6.b, H-6.c, H-6.d, H-6.e, H-6.e.2, H-6.f,
-  e Onda H-7 fechadas. Cada uma registrou fechamento explícito com
-  `make verify` GREEN e RESUMPTION atualizado no commit de
-  fechamento.
+- [ ] Sub-ondas H-6.a, H-6.b, H-6.c, H-6.d, H-6.e, H-6.e.2,
+  H-6.f.1, H-6.f.2, e Onda H-7 fechadas. Cada uma registrou
+  fechamento explícito com `make verify` GREEN e RESUMPTION
+  atualizado no commit de fechamento.
 - [ ] `internal/domain/instrument/` package compliant com
   ADR-0021 spec (Venue, BaseAsset, QuoteAsset, ContractType,
   CanonicalInstrument, validation, `Symbol()` method).
@@ -314,8 +338,9 @@ verdadeiros simultaneamente:
   per erratum 2026-06-10).
 - [ ] raccoon-cli `check instruments` (H-6.a) e `check venue-parity`
   (H-7) integrados em `make verify`.
-- [ ] ADR-0021 promovido a `Accepted` no commit final de H-6.f
-  (todos critérios literais satisfeitos).
+- [ ] ADR-0021 promovido a `Accepted` no commit final de H-6.f.2
+  (todos critérios literais satisfeitos; gate temporal pós-TTL
+  ~2026-08-26 + verificação operacional — erratum 2026-06-11).
 - [ ] ADR-0022 promovido a `Accepted` no commit final de H-7
   (cross-venue parity provada com Binance + Bybit).
 - [ ] PROGRAM-0004 transita para `Closed` na entrega final de
@@ -327,7 +352,7 @@ verdadeiros simultaneamente:
 
 | ADR | Escopo | Status no início da Fase | Promovido por |
 |-----|--------|--------------------------|----------------|
-| 0021 | Canonical instrument & venue model | Proposed (entregue em H-2) | H-6.f (após todos critérios literais) |
+| 0021 | Canonical instrument & venue model | Proposed (entregue em H-2) | H-6.f.2 (após todos critérios literais; gate pós-TTL ~2026-08-26) |
 | 0022 | Multi-venue normalization policy | Proposed (entregue em H-2) | H-7 |
 
 Nenhuma ADR nova esperada nesta Fase. Se durante as sub-ondas
@@ -409,6 +434,28 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-06-11 (abertura H-6.f.1)** — Pause-and-report da abertura
+  de H-6.f revelou **regressão silent-zero na auditoria**: audit
+  bundles com `Instrument` zerado desde o merge de H-6.e.2 —
+  `audit_session.go:170` reconstrói via
+  `instrumentFromBinding(e.Source, e.Symbol)`, que exige sufixo
+  `USDT` venue-native, mas `e.Symbol` passou a carregar o token
+  canônico `base_quote_contract` pós-cutover das KV keys.
+  **Decisão #1 (owner, opção A)**: H-6.f dividida em **f.1**
+  (agora — fix da regressão + deferrals não-TTL-gated: dedup keys,
+  migration runner multi-statement, test-hardening G8) e **f.2**
+  (TTL-gated ~2026-08-26 — flip do WHERE, deleções de
+  helpers/VenueSymbol, postura da coluna legacy, verificação
+  operacional, **promoção ADR-0021**). **Decisão #2**: erratum de
+  sequenciamento — H-7 destrava após merge de f.1, cadeia
+  `e → e.2 → f.1 → {H-7 ∥ f.2}` (ver "Erratum de sequenciamento"
+  na sequencing policy). Decisões #3–#7 da abertura registradas no
+  wave prompt: fix via `instrument.FromSubjectToken` + deleção do
+  último `instrumentFromBinding`; dedup keys canonicalizam na f.1
+  com analyzer `[dedup]` (P5); migration runner statement-split;
+  G8 fix obrigatório via FixedClock; convenção wave-row (commit 0
+  fecha a linha anterior). **ADR-0021 permanece `Proposed`.**
 
 - **2026-06-11 (closure H-6.e.2)** — Entrega completa do pacote B em
   6 commits (bundle atômico de 231 arquivos no commit 2). **Critério
