@@ -190,4 +190,3 @@ func TestS436_IsDryRun_FailClosed(t *testing.T) {
 		})
 	}
 }
-

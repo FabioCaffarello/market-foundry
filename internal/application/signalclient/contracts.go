@@ -1,13 +1,17 @@
 package signalclient
 
-import "internal/domain/signal"
+import (
+	"internal/domain/instrument"
+
+	"internal/domain/signal"
+)
 
 // SignalLatestQuery is the request contract for querying the latest signal of a given type.
 type SignalLatestQuery struct {
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Symbol   string `json:"symbol"`
-	Timeframe int   `json:"timeframe"`
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 }
 
 // SignalLatestReply is the response contract for the latest signal query.

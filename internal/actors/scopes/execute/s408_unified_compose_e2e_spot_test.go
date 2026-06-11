@@ -91,8 +91,8 @@ func TestS408_ComposeE2E_SpotFill_ThroughUnifiedRuntime(t *testing.T) {
 	if receipt.Intent.Source != "binances" {
 		t.Errorf("source: expected binances, got %s", receipt.Intent.Source)
 	}
-	if key := receipt.Intent.PartitionKey(); key != "binances.btcusdt.60" {
-		t.Errorf("partition_key: expected binances.btcusdt.60, got %s", key)
+	if key := receipt.Intent.PartitionKey(); key != "binances.btc_usdt_spot.60" {
+		t.Errorf("partition_key: expected binances.btc_usdt_spot.60, got %s", key)
 	}
 
 	// Segment isolation
@@ -227,8 +227,8 @@ func TestS408_ComposeE2E_RejectionMetadata_KVRoundTrip(t *testing.T) {
 	if recovered.Source != "binances" {
 		t.Errorf("source lost: expected binances, got %s", recovered.Source)
 	}
-	if key := recovered.PartitionKey(); key != "binances.btcusdt.60" {
-		t.Errorf("partition_key lost: expected binances.btcusdt.60, got %s", key)
+	if key := recovered.PartitionKey(); key != "binances.btc_usdt_spot.60" {
+		t.Errorf("partition_key lost: expected binances.btc_usdt_spot.60, got %s", key)
 	}
 }
 

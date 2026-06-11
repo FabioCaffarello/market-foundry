@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -16,8 +18,8 @@ const (
 // CompositeReader is the local interface for reading composite execution chains
 // from the analytical store. Implemented by clickhouse.CompositeReader.
 type CompositeReader interface {
-	QueryChainByCorrelationID(ctx context.Context, correlationID, symbol string) (*CompositeExecutionChain, error)
-	QueryChainsBatch(ctx context.Context, source, symbol string, timeframe int, since, until int64, limit int) ([]CompositeExecutionChain, error)
+	QueryChainByCorrelationID(ctx context.Context, correlationID string, inst instrument.CanonicalInstrument) (*CompositeExecutionChain, error)
+	QueryChainsBatch(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]CompositeExecutionChain, error)
 }
 
 // GetCompositeChainUseCase queries the analytical store for composite execution chains.
@@ -44,22 +46,22 @@ func (uc *GetCompositeChainUseCase) Execute(ctx context.Context, query Composite
 
 	// Determine mode: single vs batch.
 	if query.CorrelationID != "" {
-		if query.Symbol == "" {
+		if query.Instrument.IsZero() {
 			return CompositeChainReply{}, problem.New(problem.InvalidArgument, "symbol is required for single-chain lookup (S301 isolation)")
 		}
-		return uc.executeSingle(ctx, query.CorrelationID, query.Symbol, start)
+		return uc.executeSingle(ctx, query.CorrelationID, query.Instrument, start)
 	}
 
 	return uc.executeBatch(ctx, query, start)
 }
 
-func (uc *GetCompositeChainUseCase) executeSingle(ctx context.Context, correlationID, symbol string, start time.Time) (CompositeChainReply, *problem.Problem) {
-	chain, err := uc.reader.QueryChainByCorrelationID(ctx, correlationID, symbol)
+func (uc *GetCompositeChainUseCase) executeSingle(ctx context.Context, correlationID string, inst instrument.CanonicalInstrument, start time.Time) (CompositeChainReply, *problem.Problem) {
+	chain, err := uc.reader.QueryChainByCorrelationID(ctx, correlationID, inst)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("composite chain query failed",
-			"correlation_id", correlationID, "symbol", symbol, "elapsed_ms", elapsed.Milliseconds(), "error", err,
+			"correlation_id", correlationID, "instrument", inst.Symbol(), "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return CompositeChainReply{}, problem.Wrap(err, problem.Unavailable, "composite chain query failed")
 	}
@@ -71,7 +73,7 @@ func (uc *GetCompositeChainUseCase) executeSingle(ctx context.Context, correlati
 	}
 
 	uc.logger.Info("composite chain query completed",
-		"correlation_id", correlationID, "symbol", symbol, "chains", len(chains), "total_ms", elapsed.Milliseconds(),
+		"correlation_id", correlationID, "instrument", inst.Symbol(), "chains", len(chains), "total_ms", elapsed.Milliseconds(),
 	)
 
 	return CompositeChainReply{
@@ -88,7 +90,7 @@ func (uc *GetCompositeChainUseCase) executeBatch(ctx context.Context, query Comp
 	if query.Source == "" {
 		return CompositeChainReply{}, problem.New(problem.InvalidArgument, "source is required for batch lookup")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return CompositeChainReply{}, problem.New(problem.InvalidArgument, "symbol is required for batch lookup")
 	}
 	if query.Timeframe <= 0 {
@@ -111,12 +113,12 @@ func (uc *GetCompositeChainUseCase) executeBatch(ctx context.Context, query Comp
 		query.Limit = compositeMaxLimit
 	}
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("composite batch query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return CompositeChainReply{}, problem.Wrap(err, problem.Unavailable, "composite batch query failed")
@@ -130,7 +132,7 @@ func (uc *GetCompositeChainUseCase) executeBatch(ctx context.Context, query Comp
 	}
 
 	uc.logger.Info("composite batch query completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"chains", len(chains), "total_ms", elapsed.Milliseconds(),
 	)
 

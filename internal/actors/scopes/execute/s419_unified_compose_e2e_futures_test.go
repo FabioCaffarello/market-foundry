@@ -100,8 +100,8 @@ func TestS419_ComposeE2E_FuturesFill_ThroughUnifiedRuntime(t *testing.T) {
 	if receipt.Intent.Source != "binancef" {
 		t.Errorf("source: expected binancef, got %s", receipt.Intent.Source)
 	}
-	if key := receipt.Intent.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key: expected binancef.btcusdt.60, got %s", key)
+	if key := receipt.Intent.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 
 	// Segment isolation
@@ -235,8 +235,8 @@ func TestS419_ComposeE2E_RejectionMetadata_FuturesKVRoundTrip(t *testing.T) {
 	if recovered.Source != "binancef" {
 		t.Errorf("source lost: expected binancef, got %s", recovered.Source)
 	}
-	if key := recovered.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key lost: expected binancef.btcusdt.60, got %s", key)
+	if key := recovered.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key lost: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 }
 
@@ -345,8 +345,8 @@ func TestS419_ComposeE2E_FillEventConstruction_FuturesSegment(t *testing.T) {
 	}
 
 	// Partition key carries Futures segment identity
-	if key := fillEvent.ExecutionIntent.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key: expected binancef.btcusdt.60, got %s", key)
+	if key := fillEvent.ExecutionIntent.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 }
 

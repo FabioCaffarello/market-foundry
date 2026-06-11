@@ -249,7 +249,7 @@ func TestS316_VQ4_ReceiptPersistenceCompatibility(t *testing.T) {
 	if pk == "" {
 		t.Fatal("VQ4: PartitionKey must not be empty")
 	}
-	if pk != "binancef.btcusdt.60" {
+	if pk != "binancef.btc_usdt_perpetual.60" {
 		t.Fatalf("VQ4: unexpected partition key %q", pk)
 	}
 

@@ -1,6 +1,8 @@
 package executionclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -54,7 +56,7 @@ type stubFillReader struct {
 	prob *problem.Problem
 }
 
-func (s *stubFillReader) List(_ context.Context, _, _, _ string, _ int, _, _ int64) ([]VerifyCHListResult, *problem.Problem) {
+func (s *stubFillReader) List(_ context.Context, _ instrument.CanonicalInstrument, _, _ string, _ int, _, _ int64) ([]VerifyCHListResult, *problem.Problem) {
 	if s.prob != nil {
 		return nil, s.prob
 	}

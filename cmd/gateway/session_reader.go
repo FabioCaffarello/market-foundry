@@ -1,6 +1,8 @@
 package main
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 
@@ -23,10 +25,10 @@ func newSessionCHSummaryAdapter(reader *clickhouse.ExecutionReader, logger *slog
 
 // Summary queries ClickHouse for execution records within the given time bounds.
 // S485: Replaces Summary24h — accepts session-derived since/until.
-func (a *sessionCHSummaryAdapter) Summary(ctx context.Context, symbol string, since, until int64) (int64, *problem.Problem) {
-	rows, err := a.reader.QueryExecutionList(ctx, "", "", symbol, 0, "", "", since, until, 1000)
+func (a *sessionCHSummaryAdapter) Summary(ctx context.Context, inst instrument.CanonicalInstrument, since, until int64) (int64, *problem.Problem) {
+	rows, err := a.reader.QueryExecutionList(ctx, "", "", inst, 0, "", "", since, until, 1000)
 	if err != nil {
-		a.logger.Warn("ch summary failed", "symbol", symbol, "since", since, "until", until, "error", err)
+		a.logger.Warn("ch summary failed", "instrument", inst.Symbol(), "since", since, "until", until, "error", err)
 		return 0, problem.New(problem.Internal, "clickhouse summary query failed: "+err.Error())
 	}
 	return int64(len(rows)), nil
@@ -47,14 +49,14 @@ func newSessionCHListerAdapter(reader *clickhouse.ExecutionReader, logger *slog.
 
 // List queries ClickHouse for execution records within the given time bounds.
 // S485: Replaces List24h — accepts session-derived since/until.
-func (a *sessionCHListerAdapter) List(ctx context.Context, symbol, execType, status string, limit int, since, until int64) ([]executionclient.VerifyCHListResult, *problem.Problem) {
+func (a *sessionCHListerAdapter) List(ctx context.Context, inst instrument.CanonicalInstrument, execType, status string, limit int, since, until int64) ([]executionclient.VerifyCHListResult, *problem.Problem) {
 	if limit <= 0 {
 		limit = 100
 	}
 
-	intents, err := a.reader.QueryExecutionList(ctx, execType, "", symbol, 0, "", status, since, until, limit)
+	intents, err := a.reader.QueryExecutionList(ctx, execType, "", inst, 0, "", status, since, until, limit)
 	if err != nil {
-		a.logger.Warn("ch list failed", "symbol", symbol, "exec_type", execType, "status", status, "since", since, "until", until, "error", err)
+		a.logger.Warn("ch list failed", "instrument", inst.Symbol(), "exec_type", execType, "status", status, "since", since, "until", until, "error", err)
 		return nil, problem.New(problem.Internal, "clickhouse list query failed: "+err.Error())
 	}
 

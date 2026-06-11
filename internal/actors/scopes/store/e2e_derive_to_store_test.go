@@ -76,7 +76,7 @@ func TestE2E_Store_DeriveTriggered_Materializes(t *testing.T) {
 		t.Fatalf("expected materialized=1, got %d", a.stats.materialized.Load())
 	}
 
-	strat, ok := store.stored["binancef.btcusdt.60"]
+	strat, ok := store.stored["binancef.btc_usdt_perpetual.60"]
 	if !ok {
 		t.Fatal("strategy not found in store")
 	}
@@ -145,7 +145,7 @@ func TestE2E_Store_DeriveFlat_Materializes(t *testing.T) {
 		t.Fatalf("flat strategy should materialize, got %d", a.stats.materialized.Load())
 	}
 
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Direction != strategy.DirectionFlat {
 		t.Errorf("direction: want flat, got %s", strat.Direction)
 	}
@@ -167,10 +167,10 @@ func TestE2E_Store_MaterializedStrategyQueryable(t *testing.T) {
 	uc := strategyclient.NewGetLatestStrategyUseCase(gateway)
 
 	reply, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("query failed: %s", prob.Message)
@@ -232,7 +232,7 @@ func TestE2E_Store_NewerDeriveEventOverwrites(t *testing.T) {
 	}
 
 	// Latest value should be flat.
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Direction != strategy.DirectionFlat {
 		t.Errorf("latest should be flat, got %s", strat.Direction)
 	}
@@ -255,7 +255,7 @@ func TestE2E_Store_EventMetadataNotPersisted(t *testing.T) {
 
 	// Strategy is stored, but Strategy struct has no correlation_id field.
 	// This is the documented gap L1 from S367.
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Type == "" {
 		t.Fatal("strategy should be stored")
 	}

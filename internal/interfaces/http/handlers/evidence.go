@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"net/http"
 	"strconv"
@@ -45,22 +47,26 @@ func NewEvidenceWebHandler(getLatestCandle getLatestCandleUseCase, getCandleHist
 
 // queryKeyParams holds the common query parameters shared by all handler families
 // (evidence, signal, decision, strategy, risk, execution, analytical).
+// Since H-6.e.2 the instrument arrives as the canonical trio
+// (base, quote, contract) — the venue-native `symbol` parameter was
+// retired (zero external consumers; ADR-0021 criterion #2 erratum).
 type queryKeyParams struct {
-	Source    string
-	Symbol    string
-	Timeframe int
+	Source     string
+	Instrument instrument.CanonicalInstrument
+	Timeframe  int
 }
 
-// parseQueryKeyParams extracts source, symbol, timeframe from query string.
-// All three parameters are required — returns a descriptive problem for each missing field.
+// parseQueryKeyParams extracts source, the canonical instrument trio,
+// and timeframe from the query string. All are required — returns a
+// descriptive problem for each missing field.
 func parseQueryKeyParams(r *http.Request) (queryKeyParams, *problem.Problem) {
 	source := r.URL.Query().Get("source")
 	if source == "" {
 		return queryKeyParams{}, problem.New(problem.InvalidArgument, "source query parameter is required")
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		return queryKeyParams{}, problem.New(problem.InvalidArgument, "symbol query parameter is required")
+	inst, prob := parseRequiredInstrumentParams(r)
+	if prob != nil {
+		return queryKeyParams{}, prob
 	}
 	timeframeStr := r.URL.Query().Get("timeframe")
 	if timeframeStr == "" {
@@ -71,7 +77,36 @@ func parseQueryKeyParams(r *http.Request) (queryKeyParams, *problem.Problem) {
 		return queryKeyParams{}, problem.New(problem.InvalidArgument, "timeframe must be a valid integer")
 	}
 
-	return queryKeyParams{Source: source, Symbol: symbol, Timeframe: timeframe}, nil
+	return queryKeyParams{Source: source, Instrument: inst, Timeframe: timeframe}, nil
+}
+
+// parseRequiredInstrumentParams parses the mandatory canonical trio.
+func parseRequiredInstrumentParams(r *http.Request) (instrument.CanonicalInstrument, *problem.Problem) {
+	base := r.URL.Query().Get("base")
+	quote := r.URL.Query().Get("quote")
+	contract := r.URL.Query().Get("contract")
+	if base == "" || quote == "" || contract == "" {
+		return instrument.CanonicalInstrument{}, problem.New(problem.InvalidArgument,
+			"base, quote and contract query parameters are required (canonical instrument; the legacy symbol parameter was retired in H-6.e.2)")
+	}
+	return instrument.New(base, quote, instrument.ContractType(contract))
+}
+
+// parseOptionalInstrumentParams parses the trio when it is an optional
+// filter: all-absent means "no instrument filter"; a partial trio is
+// an error (all-or-none).
+func parseOptionalInstrumentParams(r *http.Request) (instrument.CanonicalInstrument, *problem.Problem) {
+	base := r.URL.Query().Get("base")
+	quote := r.URL.Query().Get("quote")
+	contract := r.URL.Query().Get("contract")
+	if base == "" && quote == "" && contract == "" {
+		return instrument.CanonicalInstrument{}, nil
+	}
+	if base == "" || quote == "" || contract == "" {
+		return instrument.CanonicalInstrument{}, problem.New(problem.InvalidArgument,
+			"base, quote and contract must be provided together (all-or-none canonical instrument filter)")
+	}
+	return instrument.New(base, quote, instrument.ContractType(contract))
 }
 
 type latestCandleResponse struct {
@@ -92,9 +127,9 @@ func (h *EvidenceWebHandler) GetLatestCandle(w http.ResponseWriter, r *http.Requ
 	}
 
 	result, prob := h.getLatestCandle.Execute(r.Context(), evidenceclient.CandleLatestQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)
@@ -154,12 +189,12 @@ func (h *EvidenceWebHandler) GetCandleHistory(w http.ResponseWriter, r *http.Req
 	}
 
 	result, prob := h.getCandleHistory.Execute(r.Context(), evidenceclient.CandleHistoryQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Limit:     limit,
-		Since:     since,
-		Until:     until,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Limit:      limit,
+		Since:      since,
+		Until:      until,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)
@@ -192,9 +227,9 @@ func (h *EvidenceWebHandler) GetLatestTradeBurst(w http.ResponseWriter, r *http.
 	}
 
 	result, prob := h.getLatestTradeBurst.Execute(r.Context(), evidenceclient.TradeBurstLatestQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)
@@ -222,9 +257,9 @@ func (h *EvidenceWebHandler) GetLatestVolume(w http.ResponseWriter, r *http.Requ
 	}
 
 	result, prob := h.getLatestVolume.Execute(r.Context(), evidenceclient.VolumeLatestQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)

@@ -137,8 +137,8 @@ func TestMeanReversionEntryResolver_PartitionKey(t *testing.T) {
 	if !ok {
 		t.Fatal("expected resolution to succeed")
 	}
-	if got := s.PartitionKey(); got != "binancef.btcusdt.60" {
-		t.Fatalf("expected binancef.btcusdt.60, got %s", got)
+	if got := s.PartitionKey(); got != "binancef.btc_usdt_perpetual.60" {
+		t.Fatalf("expected binancef.btc_usdt_perpetual.60, got %s", got)
 	}
 }
 

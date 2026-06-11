@@ -16,7 +16,7 @@ func TestS466_ParseQueryKeyParams_RequiresSource(t *testing.T) {
 		nil, nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -56,7 +56,7 @@ func TestS466_ParseQueryKeyParams_RequiresTimeframe(t *testing.T) {
 		nil, nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 

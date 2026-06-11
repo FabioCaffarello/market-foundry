@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"time"
 
 	"internal/domain/consistency"
@@ -27,13 +29,13 @@ type DecisionReviewQuery struct {
 	CorrelationID string `json:"correlation_id,omitempty"` // single-decision lookup
 
 	// Batch lookup filters.
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Outcome   string `json:"outcome,omitempty"` // optional: triggered, not_triggered, insufficient
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
-	Limit     int    `json:"limit,omitempty"` // default 20, max 100
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Outcome    string                         `json:"outcome,omitempty"` // optional: triggered, not_triggered, insufficient
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
+	Limit      int                            `json:"limit,omitempty"` // default 20, max 100
 }
 
 // DecisionReviewReply is the response contract for decision review queries.

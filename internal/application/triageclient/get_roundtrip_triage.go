@@ -46,13 +46,13 @@ func (uc *GetRoundTripTriageUseCase) Execute(ctx context.Context, query RoundTri
 
 	// Fetch flagged round-trips — the review endpoint already supports flagged filter.
 	reviewReply, prob := uc.reviewer.Execute(ctx, analyticalclient.RoundTripReviewQuery{
-		Source:    query.Source,
-		Symbol:    query.Symbol,
-		Timeframe: query.Timeframe,
-		Since:     query.Since,
-		Until:     query.Until,
-		Limit:     limit,
-		Flagged:   true, // only flagged items for triage
+		Source:     query.Source,
+		Instrument: query.Instrument,
+		Timeframe:  query.Timeframe,
+		Since:      query.Since,
+		Until:      query.Until,
+		Limit:      limit,
+		Flagged:    true, // only flagged items for triage
 	})
 	if prob != nil {
 		return RoundTripTriageReply{}, prob

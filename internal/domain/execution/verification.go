@@ -64,9 +64,16 @@ type VerificationScope struct {
 func DefaultVerificationScope(clk clock.Clock) VerificationScope {
 	now := clk.Now().UTC()
 	return VerificationScope{
-		Symbols: []string{"BTCUSDT"},
-		Since:   now.Add(-24 * time.Hour),
-		Until:   now,
+		// Real, registry-mappable source + venue-native symbol: the
+		// verification checks derive the canonical instrument via the
+		// config-boundary BindingTarget (H-6.e.2) — a synthetic venue
+		// here would make every default-scope check Skip. (The old
+		// default "BTCUSDT" was also case-mismatched against the
+		// lowercase ClickHouse symbol column.)
+		VenueType: "binances",
+		Symbols:   []string{"btcusdt"},
+		Since:     now.Add(-24 * time.Hour),
+		Until:     now,
 	}
 }
 

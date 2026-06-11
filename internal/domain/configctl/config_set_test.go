@@ -149,10 +149,10 @@ func TestDocumentValidationRejectsInvalidBindingTopicFormat(t *testing.T) {
 		{"binancef.btcusdt", true},
 		{"orders.v1", true},
 		{"source_a.symbol_b", true},
-		{"BINANCEF.BTCUSDT", false},  // uppercase
+		{"BINANCEF.BTCUSDT", false},   // uppercase
 		{"binancef", false},           // no dot separator
 		{".btcusdt", false},           // empty source
-		{"binancef.", false},           // empty symbol
+		{"binancef.", false},          // empty symbol
 		{"a.b.c", false},              // extra segment (parsed as source=a, symbol=b.c — dot in symbol)
 		{"source name.symbol", false}, // space in source
 	}

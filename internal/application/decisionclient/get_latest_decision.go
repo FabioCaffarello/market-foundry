@@ -32,8 +32,8 @@ func (uc *GetLatestDecisionUseCase) Execute(ctx context.Context, query DecisionL
 	if query.Source == "" {
 		return DecisionLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return DecisionLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return DecisionLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return DecisionLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

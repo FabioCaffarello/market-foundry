@@ -67,9 +67,9 @@ func TestGetRoundTripTriage_ProjectsVenueSymbolFromInstrument(t *testing.T) {
 
 	uc := NewGetRoundTripTriageUseCase(reviewer)
 	reply, prob := uc.Execute(context.Background(), RoundTripTriageQuery{
-		Source:    "binance_spot",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance_spot",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 
 	if prob != nil {
@@ -115,9 +115,9 @@ func TestGetRoundTripTriage_ZeroInstrumentProducesEmptyString(t *testing.T) {
 
 	uc := NewGetRoundTripTriageUseCase(reviewer)
 	reply, prob := uc.Execute(context.Background(), RoundTripTriageQuery{
-		Source:    "binance_spot",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance_spot",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 
 	if prob != nil {

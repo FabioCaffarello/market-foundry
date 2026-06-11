@@ -29,8 +29,8 @@ func (uc *GetLatestTradeBurstUseCase) Execute(ctx context.Context, query TradeBu
 	if query.Source == "" {
 		return TradeBurstLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return TradeBurstLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return TradeBurstLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return TradeBurstLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

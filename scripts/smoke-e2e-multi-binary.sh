@@ -307,7 +307,7 @@ phase "Phase 7: Store Materialization — NATS KV Read Path"
 
 # Verify store has materialized strategy data to KV (via gateway HTTP).
 STRATEGY_LATEST_CODE=$(curl -s -o /tmp/s373_strat_latest.json -w "%{http_code}" \
-    "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60" 2>/dev/null || echo "000")
+    "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" 2>/dev/null || echo "000")
 
 if [[ "$STRATEGY_LATEST_CODE" == "200" ]]; then
     STRAT_DATA=$(python3 -c "
@@ -327,7 +327,7 @@ fi
 rm -f /tmp/s373_strat_latest.json
 
 # Also check evidence candle as proof of earlier pipeline stages.
-CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$CANDLE_CODE" == "200" ]]; then
     pass "Evidence candle latest → 200 (ingest→derive→store path confirmed)"
 else
@@ -363,7 +363,7 @@ else
 fi
 
 # Check analytical endpoint through gateway.
-STRAT_HISTORY_CODE=$(http_code "${BASE_URL}/analytical/strategy/history?source=binancef&symbol=btcusdt&timeframe=60")
+STRAT_HISTORY_CODE=$(http_code "${BASE_URL}/analytical/strategy/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$STRAT_HISTORY_CODE" == "200" ]]; then
     pass "GET /analytical/strategy/history → 200 (writer→ClickHouse→gateway analytical path)"
 else
@@ -380,7 +380,7 @@ phase "Phase 10: Correlation Chain Audit — End-to-End Traceability"
 # ══════════════════════════════════════════════════════════════════════
 
 # Query the composite chains endpoint to verify correlation chains span the full pipeline.
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60&limit=5"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5"
 CHAINS_CODE=$(curl -s -o /tmp/s373_chains.json -w "%{http_code}" "$CHAINS_URL" 2>/dev/null || echo "000")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then

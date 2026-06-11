@@ -56,17 +56,17 @@ type getAnalyticalSessionExplainUseCase interface {
 // These are additive endpoints under /analytical/ — they do not modify or overlap
 // with the existing operational query surface.
 type AnalyticalWebHandler struct {
-	getCandleHistory       getAnalyticalCandleHistoryUseCase
-	getSignalHistory       getAnalyticalSignalHistoryUseCase
-	getDecisionHistory     getAnalyticalDecisionHistoryUseCase
-	getStrategyHistory     getAnalyticalStrategyHistoryUseCase
-	getRiskHistory         getAnalyticalRiskHistoryUseCase
-	getExecutionHistory    getAnalyticalExecutionHistoryUseCase
-	getLifecycleHistory    getAnalyticalLifecycleHistoryUseCase
-	getExecutionList       getAnalyticalExecutionListUseCase
-	getExecutionSummary    getAnalyticalExecutionSummaryUseCase
-	getSessionExplain      getAnalyticalSessionExplainUseCase
-	logger                 *slog.Logger
+	getCandleHistory    getAnalyticalCandleHistoryUseCase
+	getSignalHistory    getAnalyticalSignalHistoryUseCase
+	getDecisionHistory  getAnalyticalDecisionHistoryUseCase
+	getStrategyHistory  getAnalyticalStrategyHistoryUseCase
+	getRiskHistory      getAnalyticalRiskHistoryUseCase
+	getExecutionHistory getAnalyticalExecutionHistoryUseCase
+	getLifecycleHistory getAnalyticalLifecycleHistoryUseCase
+	getExecutionList    getAnalyticalExecutionListUseCase
+	getExecutionSummary getAnalyticalExecutionSummaryUseCase
+	getSessionExplain   getAnalyticalSessionExplainUseCase
+	logger              *slog.Logger
 }
 
 // AnalyticalHandlerDeps groups all dependencies for the analytical HTTP handler.
@@ -74,17 +74,17 @@ type AnalyticalWebHandler struct {
 // addition without signature churn. Each field is optional — nil disables the
 // corresponding endpoint gracefully.
 type AnalyticalHandlerDeps struct {
-	GetCandleHistory       getAnalyticalCandleHistoryUseCase
-	GetSignalHistory       getAnalyticalSignalHistoryUseCase
-	GetDecisionHistory     getAnalyticalDecisionHistoryUseCase
-	GetStrategyHistory     getAnalyticalStrategyHistoryUseCase
-	GetRiskHistory         getAnalyticalRiskHistoryUseCase
-	GetExecutionHistory    getAnalyticalExecutionHistoryUseCase
-	GetLifecycleHistory    getAnalyticalLifecycleHistoryUseCase
-	GetExecutionList       getAnalyticalExecutionListUseCase
-	GetExecutionSummary    getAnalyticalExecutionSummaryUseCase
-	GetSessionExplain      getAnalyticalSessionExplainUseCase
-	Logger                 *slog.Logger
+	GetCandleHistory    getAnalyticalCandleHistoryUseCase
+	GetSignalHistory    getAnalyticalSignalHistoryUseCase
+	GetDecisionHistory  getAnalyticalDecisionHistoryUseCase
+	GetStrategyHistory  getAnalyticalStrategyHistoryUseCase
+	GetRiskHistory      getAnalyticalRiskHistoryUseCase
+	GetExecutionHistory getAnalyticalExecutionHistoryUseCase
+	GetLifecycleHistory getAnalyticalLifecycleHistoryUseCase
+	GetExecutionList    getAnalyticalExecutionListUseCase
+	GetExecutionSummary getAnalyticalExecutionSummaryUseCase
+	GetSessionExplain   getAnalyticalSessionExplainUseCase
+	Logger              *slog.Logger
 }
 
 func NewAnalyticalWebHandler(deps AnalyticalHandlerDeps) *AnalyticalWebHandler {
@@ -93,17 +93,17 @@ func NewAnalyticalWebHandler(deps AnalyticalHandlerDeps) *AnalyticalWebHandler {
 		logger = slog.Default()
 	}
 	return &AnalyticalWebHandler{
-		getCandleHistory:       deps.GetCandleHistory,
-		getSignalHistory:       deps.GetSignalHistory,
-		getDecisionHistory:     deps.GetDecisionHistory,
-		getStrategyHistory:     deps.GetStrategyHistory,
-		getRiskHistory:         deps.GetRiskHistory,
-		getExecutionHistory:    deps.GetExecutionHistory,
-		getLifecycleHistory:    deps.GetLifecycleHistory,
-		getExecutionList:       deps.GetExecutionList,
-		getExecutionSummary:    deps.GetExecutionSummary,
-		getSessionExplain:      deps.GetSessionExplain,
-		logger:                 logger.With("component", "analytical_handler"),
+		getCandleHistory:    deps.GetCandleHistory,
+		getSignalHistory:    deps.GetSignalHistory,
+		getDecisionHistory:  deps.GetDecisionHistory,
+		getStrategyHistory:  deps.GetStrategyHistory,
+		getRiskHistory:      deps.GetRiskHistory,
+		getExecutionHistory: deps.GetExecutionHistory,
+		getLifecycleHistory: deps.GetLifecycleHistory,
+		getExecutionList:    deps.GetExecutionList,
+		getExecutionSummary: deps.GetExecutionSummary,
+		getSessionExplain:   deps.GetSessionExplain,
+		logger:              logger.With("component", "analytical_handler"),
 	}
 }
 
@@ -185,17 +185,17 @@ func (h *AnalyticalWebHandler) GetCandleHistory(w http.ResponseWriter, r *http.R
 	}
 
 	result, prob := h.getCandleHistory.Execute(r.Context(), analyticalclient.CandleHistoryQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -246,18 +246,18 @@ func (h *AnalyticalWebHandler) GetSignalHistory(w http.ResponseWriter, r *http.R
 	}
 
 	result, prob := h.getSignalHistory.Execute(r.Context(), analyticalclient.SignalHistoryQuery{
-		Type:      signalType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       signalType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical signal request failed",
-			"type", signalType, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", signalType, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -310,19 +310,19 @@ func (h *AnalyticalWebHandler) GetDecisionHistory(w http.ResponseWriter, r *http
 	}
 
 	result, prob := h.getDecisionHistory.Execute(r.Context(), analyticalclient.DecisionHistoryQuery{
-		Type:      decisionType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Outcome:   outcome,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       decisionType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Outcome:    outcome,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical decision request failed",
-			"type", decisionType, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", decisionType, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"outcome", outcome, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -375,19 +375,19 @@ func (h *AnalyticalWebHandler) GetStrategyHistory(w http.ResponseWriter, r *http
 	}
 
 	result, prob := h.getStrategyHistory.Execute(r.Context(), analyticalclient.StrategyHistoryQuery{
-		Type:      strategyType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Direction: direction,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       strategyType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Direction:  direction,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical strategy request failed",
-			"type", strategyType, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", strategyType, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"direction", direction, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -442,7 +442,7 @@ func (h *AnalyticalWebHandler) GetRiskHistory(w http.ResponseWriter, r *http.Req
 	result, prob := h.getRiskHistory.Execute(r.Context(), analyticalclient.RiskHistoryQuery{
 		Type:        riskType,
 		Source:      key.Source,
-		Symbol:      key.Symbol,
+		Instrument:  key.Instrument,
 		Timeframe:   key.Timeframe,
 		Disposition: disposition,
 		Limit:       params.Limit,
@@ -452,7 +452,7 @@ func (h *AnalyticalWebHandler) GetRiskHistory(w http.ResponseWriter, r *http.Req
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical risk request failed",
-			"type", riskType, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", riskType, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"disposition", disposition, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -506,20 +506,20 @@ func (h *AnalyticalWebHandler) GetExecutionHistory(w http.ResponseWriter, r *htt
 	}
 
 	result, prob := h.getExecutionHistory.Execute(r.Context(), analyticalclient.ExecutionHistoryQuery{
-		Type:      execType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Side:      side,
-		Status:    status,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       execType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Side:       side,
+		Status:     status,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical execution request failed",
-			"type", execType, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", execType, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"side", side, "status", status, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -569,19 +569,19 @@ func (h *AnalyticalWebHandler) GetLifecycleHistory(w http.ResponseWriter, r *htt
 	}
 
 	result, prob := h.getLifecycleHistory.Execute(r.Context(), analyticalclient.LifecycleHistoryQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Side:      side,
-		Status:    status,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Side:       side,
+		Status:     status,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical lifecycle request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"side", side, "status", status, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -616,7 +616,11 @@ func (h *AnalyticalWebHandler) GetExecutionList(w http.ResponseWriter, r *http.R
 
 	execType := r.URL.Query().Get("type")
 	source := r.URL.Query().Get("source")
-	symbol := r.URL.Query().Get("symbol")
+	inst, instProb := parseOptionalInstrumentParams(r)
+	if instProb != nil {
+		writeProblemResponse(w, instProb)
+		return
+	}
 	side := r.URL.Query().Get("side")
 	status := r.URL.Query().Get("status")
 
@@ -637,20 +641,20 @@ func (h *AnalyticalWebHandler) GetExecutionList(w http.ResponseWriter, r *http.R
 	}
 
 	result, prob := h.getExecutionList.Execute(r.Context(), analyticalclient.ExecutionListQuery{
-		Type:      execType,
-		Source:    source,
-		Symbol:    symbol,
-		Timeframe: timeframe,
-		Side:      side,
-		Status:    status,
-		Limit:     params.Limit,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       execType,
+		Source:     source,
+		Instrument: inst,
+		Timeframe:  timeframe,
+		Side:       side,
+		Status:     status,
+		Limit:      params.Limit,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical execution list request failed",
-			"type", execType, "source", source, "symbol", symbol, "timeframe", timeframe,
+			"type", execType, "source", source, "instrument", inst.Symbol(), "timeframe", timeframe,
 			"side", side, "status", status, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -684,7 +688,11 @@ func (h *AnalyticalWebHandler) GetExecutionSummary(w http.ResponseWriter, r *htt
 	}
 
 	source := r.URL.Query().Get("source")
-	symbol := r.URL.Query().Get("symbol")
+	inst, instProb := parseOptionalInstrumentParams(r)
+	if instProb != nil {
+		writeProblemResponse(w, instProb)
+		return
+	}
 
 	var timeframe int
 	if tfStr := r.URL.Query().Get("timeframe"); tfStr != "" {
@@ -703,16 +711,16 @@ func (h *AnalyticalWebHandler) GetExecutionSummary(w http.ResponseWriter, r *htt
 	}
 
 	result, prob := h.getExecutionSummary.Execute(r.Context(), analyticalclient.ExecutionSummaryQuery{
-		Source:    source,
-		Symbol:    symbol,
-		Timeframe: timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
+		Source:     source,
+		Instrument: inst,
+		Timeframe:  timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("analytical execution summary request failed",
-			"source", source, "symbol", symbol, "timeframe", timeframe,
+			"source", source, "instrument", inst.Symbol(), "timeframe", timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -752,15 +760,15 @@ func (h *AnalyticalWebHandler) GetSessionExplain(w http.ResponseWriter, r *http.
 	}
 
 	result, prob := h.getSessionExplain.Execute(r.Context(), analyticalclient.SessionExplainQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Limit:     params.Limit,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Limit:      params.Limit,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("session explain request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)

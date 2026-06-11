@@ -1,6 +1,8 @@
 package natsrisk
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -95,12 +97,12 @@ func (s *KVStore) Put(ctx context.Context, assessment risk.RiskAssessment) (nats
 }
 
 // Get retrieves the latest risk assessment for a given source/symbol/timeframe.
-func (s *KVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*risk.RiskAssessment, *problem.Problem) {
+func (s *KVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*risk.RiskAssessment, *problem.Problem) {
 	if s == nil || s.latest == nil {
 		return nil, problem.New(problem.Unavailable, "risk KV store is unavailable")
 	}
 
-	key := fmt.Sprintf("%s.%s.%d", source, symbol, timeframe)
+	key := fmt.Sprintf("%s.%s.%d", source, inst.SubjectToken(), timeframe)
 	entry, err := s.latest.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {

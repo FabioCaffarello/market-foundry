@@ -87,7 +87,7 @@ ELAPSED=0
 POLL_INTERVAL="${SMOKE_POLL_INTERVAL:-${CANDLE_POLL_INTERVAL:-5}}"
 
 while [[ $ELAPSED -lt $WAIT_SECONDS ]]; do
-    RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+    RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
     CANDLE=$(echo "$RESPONSE" | grep -o '"candle":{' 2>/dev/null || true)
 
     if [[ -n "$CANDLE" ]]; then
@@ -106,8 +106,8 @@ if $CANDLE_FOUND; then
     pass "60s evidence candle received after ${ELAPSED}s"
 else
     info "No finalized 60s candle yet — checking for active sampler (null candle is valid if < 60s of trades)..."
-    RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+    RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 
     if [[ "$HTTP_CODE" == "200" ]]; then
         pass "60s endpoint reachable (200) — derive is connected, candle not yet finalized"
@@ -120,7 +120,7 @@ fi
 
 # ---------- Step 5: Validate 60s response structure ----------
 info "Step 5: Validating 60s response structure..."
-RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 
 echo "$RESPONSE" | python3 -c "
 import sys, json
@@ -145,8 +145,8 @@ print('OK')
 
 # ---------- Step 6: Validate 300s candle endpoint ----------
 info "Step 6: Checking 300s (5-minute) candle endpoint..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=300")
-RESPONSE_300=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=300")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=300")
+RESPONSE_300=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=300")
 
 if [[ "$HTTP_CODE" == "200" ]]; then
     pass "300s endpoint reachable (200)"
@@ -171,8 +171,8 @@ fi
 
 # ---------- Step 6b: Validate 900s candle endpoint (TC-01) ----------
 info "Step 6b: Checking 900s (15-minute) candle endpoint..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=900")
-RESPONSE_900=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=900")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=900")
+RESPONSE_900=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=900")
 
 if [[ "$HTTP_CODE" == "200" ]]; then
     pass "900s endpoint reachable (200)"
@@ -197,8 +197,8 @@ fi
 
 # ---------- Step 6c: Validate 3600s candle endpoint (TC-01) ----------
 info "Step 6c: Checking 3600s (1-hour) candle endpoint..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=3600")
-RESPONSE_3600=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=3600")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=3600")
+RESPONSE_3600=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=3600")
 
 if [[ "$HTTP_CODE" == "200" ]]; then
     pass "3600s endpoint reachable (200)"
@@ -223,7 +223,7 @@ fi
 
 # ---------- Step 7: Validate error handling ----------
 info "Step 7: Checking error handling..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual")
 [[ "$HTTP_CODE" == "400" ]] && pass "Missing timeframe → 400" || info "Missing timeframe → $HTTP_CODE (expected 400, acceptable if gateway handles differently)"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest")

@@ -27,13 +27,13 @@ type AnalyticalFamilyDeps struct {
 	GetCompositeChain       handlersGetCompositeChainUseCase
 	GetPipelineFunnel       handlersGetPipelineFunnelUseCase
 	GetDispositionBreakdown handlersGetDispositionBreakdownUseCase
-	GetDecisionReview        handlersGetDecisionReviewUseCase
-	GetEffectiveness         handlersGetEffectivenessUseCase
-	GetEffectivenessSummary  handlersGetEffectivenessSummaryUseCase
-	GetPairing               handlersGetPairingUseCase
-	GetRoundTripReview       handlersGetRoundTripReviewUseCase
-	GetCrossSessionPairing   handlersGetCrossSessionPairingUseCase
-	GetContinuityReview      handlersGetContinuityReviewUseCase
+	GetDecisionReview       handlersGetDecisionReviewUseCase
+	GetEffectiveness        handlersGetEffectivenessUseCase
+	GetEffectivenessSummary handlersGetEffectivenessSummaryUseCase
+	GetPairing              handlersGetPairingUseCase
+	GetRoundTripReview      handlersGetRoundTripReviewUseCase
+	GetCrossSessionPairing  handlersGetCrossSessionPairingUseCase
+	GetContinuityReview     handlersGetContinuityReviewUseCase
 }
 
 // HasAny reports whether at least one analytical use case is available.
@@ -230,14 +230,14 @@ func Analytical(deps AnalyticalFamilyDeps, logger *slog.Logger) []webserver.Rout
 			GetCompositeChain:       deps.GetCompositeChain,
 			GetPipelineFunnel:       deps.GetPipelineFunnel,
 			GetDispositionBreakdown: deps.GetDispositionBreakdown,
-			GetDecisionReview:        deps.GetDecisionReview,
-			GetEffectiveness:         deps.GetEffectiveness,
-			GetEffectivenessSummary:  deps.GetEffectivenessSummary,
-			GetPairing:               deps.GetPairing,
-			GetRoundTripReview:       deps.GetRoundTripReview,
-			GetCrossSessionPairing:   deps.GetCrossSessionPairing,
-			GetContinuityReview:      deps.GetContinuityReview,
-			Logger:                   logger,
+			GetDecisionReview:       deps.GetDecisionReview,
+			GetEffectiveness:        deps.GetEffectiveness,
+			GetEffectivenessSummary: deps.GetEffectivenessSummary,
+			GetPairing:              deps.GetPairing,
+			GetRoundTripReview:      deps.GetRoundTripReview,
+			GetCrossSessionPairing:  deps.GetCrossSessionPairing,
+			GetContinuityReview:     deps.GetContinuityReview,
+			Logger:                  logger,
 		})
 
 		if deps.GetCompositeChain != nil {

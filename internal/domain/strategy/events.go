@@ -12,5 +12,5 @@ type StrategyResolvedEvent struct {
 	Strategy Strategy        `json:"strategy"`
 }
 
-func (e StrategyResolvedEvent) EventName() events.Name        { return EventStrategyResolved }
+func (e StrategyResolvedEvent) EventName() events.Name         { return EventStrategyResolved }
 func (e StrategyResolvedEvent) EventMetadata() events.Metadata { return e.Metadata }

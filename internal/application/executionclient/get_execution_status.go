@@ -29,8 +29,8 @@ func (uc *GetExecutionStatusUseCase) Execute(ctx context.Context, query Executio
 	if query.Source == "" {
 		return ExecutionStatusReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return ExecutionStatusReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return ExecutionStatusReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return ExecutionStatusReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

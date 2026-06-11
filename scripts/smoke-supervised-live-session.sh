@@ -483,7 +483,7 @@ cmd_post_session() {
     slog "  ClickHouse latest execution status: ${ch_latest_status}"
 
     local kv_status
-    kv_status=$(curl -sf "${GATEWAY_URL}/execution/venue-market-order/latest?symbol=BTCUSDT" 2>/dev/null || echo "unreachable")
+    kv_status=$(curl -sf "${GATEWAY_URL}/execution/venue-market-order/latest?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60" 2>/dev/null || echo "unreachable")
     slog "  NATS KV latest venue order: $(echo "${kv_status}" | head -c 500)"
 
     if [ "${ch_latest_status}" = "query_failed" ] && [ "${kv_status}" = "unreachable" ]; then

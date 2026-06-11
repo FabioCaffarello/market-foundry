@@ -54,7 +54,7 @@ func TestRiskWebHandler_GetLatestRisk(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/risk/:type/latest", handler.GetLatestRisk)
 
-	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -77,7 +77,7 @@ func TestRiskWebHandler_GetLatestRisk_Unavailable(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/risk/:type/latest", handler.GetLatestRisk)
 
-	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -94,7 +94,7 @@ func TestRiskWebHandler_GetLatestRisk_MissingTimeframe(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/risk/:type/latest", handler.GetLatestRisk)
 
-	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt")
+	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -111,7 +111,7 @@ func TestRiskWebHandler_GetLatestRisk_NullRisk(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/risk/:type/latest", handler.GetLatestRisk)
 
-	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := riskRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

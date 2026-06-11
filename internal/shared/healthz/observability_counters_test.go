@@ -32,18 +32,18 @@ func TestTracker_DomainCounterSemantics(t *testing.T) {
 	counters := tracker.Counters()
 
 	expected := map[string]int64{
-		"signal:bollinger":                       5,
-		"decision:bollinger_squeeze:triggered":    2,
+		"signal:bollinger":                         5,
+		"decision:bollinger_squeeze:triggered":     2,
 		"decision:bollinger_squeeze:not_triggered": 3,
-		"strategy:squeeze_breakout_entry:long":    2,
-		"strategy:squeeze_breakout_entry:flat":    3,
-		"risk:position_exposure:approved":         1,
-		"risk:drawdown_limit:modified":            1,
-		"risk:position_exposure:rejected":         0,
-		"execution:paper_order:buy":               1,
-		"execution:paper_order:filled":            1,
-		"execution:gate_halted":                   0,
-		"published:BTCUSDT":                       5,
+		"strategy:squeeze_breakout_entry:long":     2,
+		"strategy:squeeze_breakout_entry:flat":     3,
+		"risk:position_exposure:approved":          1,
+		"risk:drawdown_limit:modified":             1,
+		"risk:position_exposure:rejected":          0,
+		"execution:paper_order:buy":                1,
+		"execution:paper_order:filled":             1,
+		"execution:gate_halted":                    0,
+		"published:BTCUSDT":                        5,
 	}
 
 	for key, want := range expected {

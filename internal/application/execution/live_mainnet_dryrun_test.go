@@ -267,10 +267,10 @@ func TestMainnetDryRun_AuditMarkerConsistency(t *testing.T) {
 
 	// Test both active and no-action intents.
 	cases := []struct {
-		name           string
-		side           domainexec.Side
-		expectFilled   bool
-		expectFillLen  int
+		name          string
+		side          domainexec.Side
+		expectFilled  bool
+		expectFillLen int
 	}{
 		{"buy_intent", domainexec.SideBuy, true, 1},
 		{"sell_intent", domainexec.SideSell, true, 1},

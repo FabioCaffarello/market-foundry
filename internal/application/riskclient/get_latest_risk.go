@@ -32,8 +32,8 @@ func (uc *GetLatestRiskUseCase) Execute(ctx context.Context, query RiskLatestQue
 	if query.Source == "" {
 		return RiskLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return RiskLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return RiskLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return RiskLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

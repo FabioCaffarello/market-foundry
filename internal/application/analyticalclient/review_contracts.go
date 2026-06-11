@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"internal/domain/effectiveness"
 	"internal/domain/pairing"
 )
@@ -23,12 +25,12 @@ type RoundTripReviewQuery struct {
 	CorrelationID string `json:"correlation_id,omitempty"` // single lookup
 
 	// Batch lookup filters.
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
-	Limit     int    `json:"limit,omitempty"` // default 50, max 200
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
+	Limit      int                            `json:"limit,omitempty"` // default 50, max 200
 
 	// Post-computation filters.
 	State   string `json:"state,omitempty"`   // paired, unmatched_entry, unmatched_exit
@@ -67,25 +69,25 @@ type ReviewSummary struct {
 	ResolvedRate     float64 `json:"resolved_rate"`
 
 	// Effectiveness breakdown for paired round-trips.
-	WinCount       int     `json:"win_count"`
-	LossCount      int     `json:"loss_count"`
-	BreakevenCount int     `json:"breakeven_count"`
-	UnresolvedCount int    `json:"unresolved_count"`
-	TotalPnL       float64 `json:"total_pnl"`
-	TotalFees      float64 `json:"total_fees"`
+	WinCount        int     `json:"win_count"`
+	LossCount       int     `json:"loss_count"`
+	BreakevenCount  int     `json:"breakeven_count"`
+	UnresolvedCount int     `json:"unresolved_count"`
+	TotalPnL        float64 `json:"total_pnl"`
+	TotalFees       float64 `json:"total_fees"`
 
 	// Reconciliation aggregates.
 	CleanCount   int            `json:"clean_count"`   // round-trips with no flags
-	FlaggedCount int            `json:"flagged_count"`  // round-trips with at least one flag
-	FlagCounts   map[string]int `json:"flag_counts"`    // count per flag type
+	FlaggedCount int            `json:"flagged_count"` // round-trips with at least one flag
+	FlagCounts   map[string]int `json:"flag_counts"`   // count per flag type
 
 	// Data reliability.
 	FeeReliableCount int `json:"fee_reliable_count"` // round-trips with reliable fee data
 	PnLReliableCount int `json:"pnl_reliable_count"` // round-trips with reliable P&L
 
 	// S499: Fee coverage and cost basis totals for fee-to-volume analysis.
-	TotalCostBasis   float64 `json:"total_cost_basis"`    // sum of entry+exit cost basis across paired round-trips
-	FeeCoverageRatio string  `json:"fee_coverage_ratio"`  // "N/M" fills with fee / total fills
+	TotalCostBasis   float64 `json:"total_cost_basis"`   // sum of entry+exit cost basis across paired round-trips
+	FeeCoverageRatio string  `json:"fee_coverage_ratio"` // "N/M" fills with fee / total fills
 }
 
 // ReviewMeta carries diagnostic signals for review queries.

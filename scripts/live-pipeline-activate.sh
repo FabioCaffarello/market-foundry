@@ -249,26 +249,26 @@ check_endpoint "GET /configctl/configs/active" "${BASE_URL}/configctl/configs/ac
 # Evidence checks data availability; downstream checks endpoint wiring (200 even if null data).
 for sym in "${SYMBOLS[@]}"; do
     for tf in 60 300 900 3600; do
-        check_endpoint "GET /evidence/candles/latest [${sym} tf=${tf}]" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /evidence/candles/latest [${sym} tf=${tf}]" "${BASE_URL}/evidence/candles/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
     done
     for tf in 60 300 900 3600; do
-        check_endpoint "GET /signal/rsi/latest [${sym} tf=${tf}]" "${BASE_URL}/signal/rsi/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
-        check_endpoint "GET /decision/rsi_oversold/latest [${sym} tf=${tf}]" "${BASE_URL}/decision/rsi_oversold/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
-        check_endpoint "GET /strategy/mean_reversion_entry/latest [${sym} tf=${tf}]" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
-        check_endpoint "GET /risk/position_exposure/latest [${sym} tf=${tf}]" "${BASE_URL}/risk/position_exposure/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
-        check_endpoint "GET /execution/paper_order/latest [${sym} tf=${tf}]" "${BASE_URL}/execution/paper_order/latest?source=binancef&symbol=${sym}&timeframe=${tf}"
+        check_endpoint "GET /signal/rsi/latest [${sym} tf=${tf}]" "${BASE_URL}/signal/rsi/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
+        check_endpoint "GET /decision/rsi_oversold/latest [${sym} tf=${tf}]" "${BASE_URL}/decision/rsi_oversold/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
+        check_endpoint "GET /strategy/mean_reversion_entry/latest [${sym} tf=${tf}]" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
+        check_endpoint "GET /risk/position_exposure/latest [${sym} tf=${tf}]" "${BASE_URL}/risk/position_exposure/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
+        check_endpoint "GET /execution/paper_order/latest [${sym} tf=${tf}]" "${BASE_URL}/execution/paper_order/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=${tf}"
     done
-    check_endpoint "GET /signal/ema_crossover/latest [${sym}]" "${BASE_URL}/signal/ema_crossover/latest?source=binancef&symbol=${sym}&timeframe=60"
+    check_endpoint "GET /signal/ema_crossover/latest [${sym}]" "${BASE_URL}/signal/ema_crossover/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60"
 done
 
 # Analytical query surface — validate endpoints are reachable (may return 503 if ClickHouse unavailable).
 for sym in "${SYMBOLS[@]}"; do
-    check_endpoint "GET /analytical/evidence/candles [${sym}]" "${BASE_URL}/analytical/evidence/candles?source=binancef&symbol=${sym}&timeframe=60&limit=5"
-    check_endpoint "GET /analytical/signal/history [${sym}]" "${BASE_URL}/analytical/signal/history?type=rsi&source=binancef&symbol=${sym}&timeframe=60&limit=5"
-    check_endpoint "GET /analytical/decision/history [${sym}]" "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=${sym}&timeframe=60&limit=5"
-    check_endpoint "GET /analytical/strategy/history [${sym}]" "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=${sym}&timeframe=60&limit=5"
-    check_endpoint "GET /analytical/risk/history [${sym}]" "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=${sym}&timeframe=60&limit=5"
-    check_endpoint "GET /analytical/execution/history [${sym}]" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&symbol=${sym}&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/evidence/candles [${sym}]" "${BASE_URL}/analytical/evidence/candles?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/signal/history [${sym}]" "${BASE_URL}/analytical/signal/history?type=rsi&source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/decision/history [${sym}]" "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/strategy/history [${sym}]" "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/risk/history [${sym}]" "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
+    check_endpoint "GET /analytical/execution/history [${sym}]" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60&limit=5"
 done
 
 # Execution control (symbol-independent)
@@ -286,7 +286,7 @@ for sym in "${SYMBOLS[@]}"; do
     CANDLE_FOUND=false
 
     while [[ $CANDLE_ELAPSED -lt $CANDLE_WAIT ]]; do
-        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=${sym}&timeframe=60" 2>/dev/null || echo "{}")
+        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60" 2>/dev/null || echo "{}")
         HAS_CANDLE=$(echo "$RESPONSE" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
@@ -309,7 +309,7 @@ else:
 
     if $CANDLE_FOUND; then
         pass "${sym} candle materialized after ${CANDLE_ELAPSED}s"
-        curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=${sym}&timeframe=60" | python3 -c "
+        curl -s "${BASE_URL}/evidence/candles/latest?source=binancef&base=${sym%usdt}&quote=usdt&contract=perpetual&timeframe=60" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
 c=d['candle']

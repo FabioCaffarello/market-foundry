@@ -146,7 +146,7 @@ func TestRiskAssessment_Validate_AllDispositions(t *testing.T) {
 
 func TestRiskAssessment_PartitionKey(t *testing.T) {
 	r := risk.RiskAssessment{Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60}
-	expected := "binancef.btcusdt.60"
+	expected := "binancef.btc_usdt_perpetual.60"
 	if got := r.PartitionKey(); got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
 	}

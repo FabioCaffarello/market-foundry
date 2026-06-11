@@ -36,11 +36,11 @@ func TestGetLatestDecisionUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query decisionclient.DecisionLatestQuery
 	}{
-		{"empty type", decisionclient.DecisionLatestQuery{Type: "", Source: "binancef", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty source", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty type", decisionclient.DecisionLatestQuery{Type: "", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"empty source", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", decisionclient.DecisionLatestQuery{Type: "rsi_oversold", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -74,10 +74,10 @@ func TestGetLatestDecisionUseCase_ReturnsDecision(t *testing.T) {
 
 	uc := decisionclient.NewGetLatestDecisionUseCase(&mockDecisionGateway{dec: dec})
 	reply, prob := uc.Execute(context.Background(), decisionclient.DecisionLatestQuery{
-		Type:      "rsi_oversold",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi_oversold",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -93,10 +93,10 @@ func TestGetLatestDecisionUseCase_ReturnsDecision(t *testing.T) {
 func TestGetLatestDecisionUseCase_NilGateway(t *testing.T) {
 	var uc *decisionclient.GetLatestDecisionUseCase
 	_, prob := uc.Execute(context.Background(), decisionclient.DecisionLatestQuery{
-		Type:      "rsi_oversold",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi_oversold",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

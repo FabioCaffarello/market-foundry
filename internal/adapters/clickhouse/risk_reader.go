@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,7 +34,8 @@ func NewRiskReader(client *Client, logger *slog.Logger) *RiskReader {
 
 // QueryRiskHistory queries risk assessments from ClickHouse with filters.
 // Results are ordered newest-first (DESC by timestamp).
-func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source, symbol string, timeframe int, disposition string, since, until int64, limit int) ([]risk.RiskAssessment, error) {
+func (r *RiskReader) QueryRiskHistory(ctx context.Context, riskType, source string, inst instrument.CanonicalInstrument, timeframe int, disposition string, since, until int64, limit int) ([]risk.RiskAssessment, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildRiskQuery(riskType, source, symbol, timeframe, disposition, since, until, limit)
 
 	start := time.Now()

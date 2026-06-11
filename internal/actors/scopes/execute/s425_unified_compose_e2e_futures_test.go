@@ -169,8 +169,8 @@ func TestS425_ComposeE2E_FuturesFill_ValidatedLifecycle(t *testing.T) {
 	if receipt.Intent.Source != "binancef" {
 		t.Errorf("source: expected binancef, got %s", receipt.Intent.Source)
 	}
-	if key := receipt.Intent.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key: expected binancef.btcusdt.60, got %s", key)
+	if key := receipt.Intent.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 
 	// Segment isolation
@@ -312,8 +312,8 @@ func TestS425_ComposeE2E_RejectionMetadata_CanonicalKVRoundTrip(t *testing.T) {
 	if recovered.Source != "binancef" {
 		t.Errorf("source lost: expected binancef, got %s", recovered.Source)
 	}
-	if key := recovered.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key lost: expected binancef.btcusdt.60, got %s", key)
+	if key := recovered.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key lost: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 }
 
@@ -422,8 +422,8 @@ func TestS425_ComposeE2E_FillEvent_CanonicalStorePipeline(t *testing.T) {
 	}
 
 	// Partition key carries Futures segment identity
-	if key := fillEvent.ExecutionIntent.PartitionKey(); key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key: expected binancef.btcusdt.60, got %s", key)
+	if key := fillEvent.ExecutionIntent.PartitionKey(); key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 }
 
@@ -714,10 +714,10 @@ func TestS425_ComposeE2E_ReadPathSegmentParity(t *testing.T) {
 	if recoveredFutures.PartitionKey() == recoveredSpot.PartitionKey() {
 		t.Error("Futures and Spot must have different partition keys")
 	}
-	if recoveredFutures.PartitionKey() != "binancef.btcusdt.60" {
-		t.Errorf("Futures partition key: expected binancef.btcusdt.60, got %s", recoveredFutures.PartitionKey())
+	if recoveredFutures.PartitionKey() != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("Futures partition key: expected binancef.btc_usdt_perpetual.60, got %s", recoveredFutures.PartitionKey())
 	}
-	if recoveredSpot.PartitionKey() != "binances.btcusdt.60" {
-		t.Errorf("Spot partition key: expected binances.btcusdt.60, got %s", recoveredSpot.PartitionKey())
+	if recoveredSpot.PartitionKey() != "binances.btc_usdt_spot.60" {
+		t.Errorf("Spot partition key: expected binances.btc_usdt_spot.60, got %s", recoveredSpot.PartitionKey())
 	}
 }

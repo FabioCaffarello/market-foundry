@@ -229,10 +229,10 @@ func TestScheduleFlush_NilEngine(t *testing.T) {
 
 // fakeClient is a test double for adapterch.Client that controls InsertBatch outcomes.
 type fakeClient struct {
-	calls       atomic.Int32
-	failUntil   int32 // fail the first N calls, succeed after
-	alwaysFail  bool
-	lastErr     error
+	calls      atomic.Int32
+	failUntil  int32 // fail the first N calls, succeed after
+	alwaysFail bool
+	lastErr    error
 }
 
 func (f *fakeClient) insertBatch(_ context.Context, _ string, _ [][]any) error {

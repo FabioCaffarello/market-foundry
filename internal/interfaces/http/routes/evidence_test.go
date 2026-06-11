@@ -72,7 +72,7 @@ func TestEvidenceRoutesRegisterHandlers(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -93,7 +93,7 @@ func TestEvidenceRoutesRegisterHistoryHandler(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -122,7 +122,7 @@ func TestEvidenceRoutesRegisterTradeBurstHandler(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -155,7 +155,7 @@ func TestDefaultRoutesIncludesEvidenceWhenProvided(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

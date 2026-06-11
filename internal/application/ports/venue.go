@@ -14,10 +14,10 @@ type VenueOrderRequest struct {
 
 // VenueOrderReceipt is the output of a successful VenuePort.SubmitOrder call.
 type VenueOrderReceipt struct {
-	VenueOrderID    string
-	ClientOrderID   string
-	Status          domainexec.Status
-	Intent          domainexec.ExecutionIntent
+	VenueOrderID  string
+	ClientOrderID string
+	Status        domainexec.Status
+	Intent        domainexec.ExecutionIntent
 }
 
 // VenuePort is the adapter boundary for venue order placement.

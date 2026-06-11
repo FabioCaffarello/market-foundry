@@ -36,11 +36,11 @@ func TestGetLatestRiskUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query riskclient.RiskLatestQuery
 	}{
-		{"empty type", riskclient.RiskLatestQuery{Type: "", Source: "binancef", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty source", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty type", riskclient.RiskLatestQuery{Type: "", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"empty source", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", riskclient.RiskLatestQuery{Type: "position_exposure", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -73,10 +73,10 @@ func TestGetLatestRiskUseCase_ReturnsRisk(t *testing.T) {
 
 	uc := riskclient.NewGetLatestRiskUseCase(&mockRiskGateway{assessment: assessment})
 	reply, prob := uc.Execute(context.Background(), riskclient.RiskLatestQuery{
-		Type:      "position_exposure",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "position_exposure",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -92,10 +92,10 @@ func TestGetLatestRiskUseCase_ReturnsRisk(t *testing.T) {
 func TestGetLatestRiskUseCase_NilGateway(t *testing.T) {
 	var uc *riskclient.GetLatestRiskUseCase
 	_, prob := uc.Execute(context.Background(), riskclient.RiskLatestQuery{
-		Type:      "position_exposure",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "position_exposure",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

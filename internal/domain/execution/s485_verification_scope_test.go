@@ -13,7 +13,7 @@ func TestDefaultVerificationScope_Uses24hWindow(t *testing.T) {
 	scope := execution.DefaultVerificationScope(clock.SystemClock{})
 	after := time.Now().UTC()
 
-	if len(scope.Symbols) != 1 || scope.Symbols[0] != "BTCUSDT" {
+	if len(scope.Symbols) != 1 || scope.Symbols[0] != "btcusdt" {
 		t.Errorf("expected [BTCUSDT], got %v", scope.Symbols)
 	}
 

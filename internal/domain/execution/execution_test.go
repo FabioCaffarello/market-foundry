@@ -186,7 +186,7 @@ func TestExecutionIntent_Validate_AllSides(t *testing.T) {
 
 func TestExecutionIntent_PartitionKey(t *testing.T) {
 	ei := execution.ExecutionIntent{Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60}
-	expected := "binancef.btcusdt.60"
+	expected := "binancef.btc_usdt_perpetual.60"
 	if got := ei.PartitionKey(); got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
 	}

@@ -52,7 +52,7 @@ func (uc *GetSourceExplanationUseCase) Execute(ctx context.Context, query Source
 	// Fetch execution status (intent + result + propagation).
 	var lastIntent, lastResult *execution.ExecutionIntent
 	propagation := "none"
-	if query.Source != "" && query.Symbol != "" && query.Timeframe > 0 {
+	if query.Source != "" && !query.Instrument.IsZero() && query.Timeframe > 0 {
 		statusReply, prob := uc.gateway.GetExecutionStatus(ctx, ExecutionStatusQuery(query))
 		if prob == nil {
 			lastIntent = statusReply.Intent

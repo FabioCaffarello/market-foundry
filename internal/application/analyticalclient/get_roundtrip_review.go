@@ -55,11 +55,11 @@ func (uc *GetRoundTripReviewUseCase) Execute(ctx context.Context, query RoundTri
 }
 
 func (uc *GetRoundTripReviewUseCase) executeSingle(ctx context.Context, query RoundTripReviewQuery, start time.Time) (RoundTripReviewReply, *problem.Problem) {
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return RoundTripReviewReply{}, problem.New(problem.InvalidArgument, "symbol is required for single-chain review lookup (S301 isolation)")
 	}
 
-	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Symbol)
+	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Instrument)
 	elapsed := time.Since(start)
 	if err != nil {
 		return RoundTripReviewReply{}, problem.Wrap(err, problem.Unavailable, "review query failed")
@@ -96,7 +96,7 @@ func (uc *GetRoundTripReviewUseCase) executeBatch(ctx context.Context, query Rou
 	if query.Source == "" {
 		return RoundTripReviewReply{}, problem.New(problem.InvalidArgument, "source is required for batch review")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return RoundTripReviewReply{}, problem.New(problem.InvalidArgument, "symbol is required for batch review")
 	}
 	if query.Timeframe <= 0 {
@@ -110,11 +110,11 @@ func (uc *GetRoundTripReviewUseCase) executeBatch(ctx context.Context, query Rou
 		query.Limit = reviewMaxLimit
 	}
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("review batch query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return RoundTripReviewReply{}, problem.Wrap(err, problem.Unavailable, "review batch query failed")
@@ -145,7 +145,7 @@ func (uc *GetRoundTripReviewUseCase) executeBatch(ctx context.Context, query Rou
 	summary := buildReviewSummary(roundTrips, reviews)
 
 	uc.logger.Info("review batch completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"chains_scanned", len(chains), "legs_produced", len(legs),
 		"round_trips", len(roundTrips), "reviewed", len(reviews),
 		"clean", summary.CleanCount, "flagged", summary.FlaggedCount,

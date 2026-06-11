@@ -58,7 +58,7 @@ func TestAnalyticalWebHandler_GetCandleHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetCandleHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -95,7 +95,7 @@ func TestAnalyticalWebHandler_GetCandleHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetCandleHistory: &mockAnalyticalCandleHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -106,7 +106,7 @@ func TestAnalyticalWebHandler_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetCandleHistory: &mockAnalyticalCandleHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -117,7 +117,7 @@ func TestAnalyticalWebHandler_InvalidLimit(t *testing.T) {
 
 func TestAnalyticalWebHandler_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -131,7 +131,7 @@ func TestAnalyticalWebHandler_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetCandleHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -177,7 +177,7 @@ func TestAnalyticalWebHandler_GetSignalHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetSignalHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -210,7 +210,7 @@ func TestAnalyticalWebHandler_GetSignalHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_SignalHistory_MissingType(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetSignalHistory: &mockAnalyticalSignalHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -221,7 +221,7 @@ func TestAnalyticalWebHandler_SignalHistory_MissingType(t *testing.T) {
 
 func TestAnalyticalWebHandler_SignalHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetSignalHistory: &mockAnalyticalSignalHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -232,7 +232,7 @@ func TestAnalyticalWebHandler_SignalHistory_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_SignalHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetSignalHistory: &mockAnalyticalSignalHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -243,7 +243,7 @@ func TestAnalyticalWebHandler_SignalHistory_InvalidLimit(t *testing.T) {
 
 func TestAnalyticalWebHandler_SignalHistory_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -257,7 +257,7 @@ func TestAnalyticalWebHandler_SignalHistory_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetSignalHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetSignalHistory(rec, req)
 
@@ -307,7 +307,7 @@ func TestAnalyticalWebHandler_GetDecisionHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -340,7 +340,7 @@ func TestAnalyticalWebHandler_GetDecisionHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_DecisionHistory_MissingType(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: &mockAnalyticalDecisionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -351,7 +351,7 @@ func TestAnalyticalWebHandler_DecisionHistory_MissingType(t *testing.T) {
 
 func TestAnalyticalWebHandler_DecisionHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: &mockAnalyticalDecisionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -362,7 +362,7 @@ func TestAnalyticalWebHandler_DecisionHistory_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_DecisionHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: &mockAnalyticalDecisionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -381,7 +381,7 @@ func TestAnalyticalWebHandler_DecisionHistory_WithOutcome(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&outcome=triggered", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -395,7 +395,7 @@ func TestAnalyticalWebHandler_DecisionHistory_WithOutcome(t *testing.T) {
 
 func TestAnalyticalWebHandler_DecisionHistory_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -409,7 +409,7 @@ func TestAnalyticalWebHandler_DecisionHistory_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetDecisionHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetDecisionHistory(rec, req)
 
@@ -458,7 +458,7 @@ func TestAnalyticalWebHandler_GetStrategyHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -491,7 +491,7 @@ func TestAnalyticalWebHandler_GetStrategyHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_StrategyHistory_MissingType(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: &mockAnalyticalStrategyHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -502,7 +502,7 @@ func TestAnalyticalWebHandler_StrategyHistory_MissingType(t *testing.T) {
 
 func TestAnalyticalWebHandler_StrategyHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: &mockAnalyticalStrategyHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -513,7 +513,7 @@ func TestAnalyticalWebHandler_StrategyHistory_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_StrategyHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: &mockAnalyticalStrategyHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -532,7 +532,7 @@ func TestAnalyticalWebHandler_StrategyHistory_WithDirection(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&direction=long", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -546,7 +546,7 @@ func TestAnalyticalWebHandler_StrategyHistory_WithDirection(t *testing.T) {
 
 func TestAnalyticalWebHandler_StrategyHistory_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -560,7 +560,7 @@ func TestAnalyticalWebHandler_StrategyHistory_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetStrategyHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetStrategyHistory(rec, req)
 
@@ -611,7 +611,7 @@ func TestAnalyticalWebHandler_GetRiskHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -644,7 +644,7 @@ func TestAnalyticalWebHandler_GetRiskHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_RiskHistory_MissingType(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: &mockAnalyticalRiskHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -655,7 +655,7 @@ func TestAnalyticalWebHandler_RiskHistory_MissingType(t *testing.T) {
 
 func TestAnalyticalWebHandler_RiskHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: &mockAnalyticalRiskHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -666,7 +666,7 @@ func TestAnalyticalWebHandler_RiskHistory_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_RiskHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: &mockAnalyticalRiskHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -685,7 +685,7 @@ func TestAnalyticalWebHandler_RiskHistory_WithDisposition(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&disposition=approved", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -699,7 +699,7 @@ func TestAnalyticalWebHandler_RiskHistory_WithDisposition(t *testing.T) {
 
 func TestAnalyticalWebHandler_RiskHistory_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -713,7 +713,7 @@ func TestAnalyticalWebHandler_RiskHistory_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetRiskHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetRiskHistory(rec, req)
 
@@ -767,7 +767,7 @@ func TestAnalyticalWebHandler_GetExecutionHistory(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -800,7 +800,7 @@ func TestAnalyticalWebHandler_GetExecutionHistory(t *testing.T) {
 
 func TestAnalyticalWebHandler_ExecutionHistory_MissingType(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: &mockAnalyticalExecutionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?source=derive&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -811,7 +811,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_MissingType(t *testing.T) {
 
 func TestAnalyticalWebHandler_ExecutionHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: &mockAnalyticalExecutionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -822,7 +822,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_MissingTimeframe(t *testing.T) {
 
 func TestAnalyticalWebHandler_ExecutionHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: &mockAnalyticalExecutionHistory{}})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&limit=9999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=9999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -841,7 +841,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_WithSide(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&side=buy", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&side=buy", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -863,7 +863,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_WithStatus(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&status=filled", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&status=filled", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -885,7 +885,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_WithBothFilters(t *testing.T) {
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: mock})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&side=sell&status=rejected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&side=sell&status=rejected", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -902,7 +902,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_WithBothFilters(t *testing.T) {
 
 func TestAnalyticalWebHandler_ExecutionHistory_NilHandler(t *testing.T) {
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 
@@ -916,7 +916,7 @@ func TestAnalyticalWebHandler_ExecutionHistory_UseCaseError(t *testing.T) {
 		prob: problem.New(problem.Unavailable, "clickhouse down"),
 	}
 	handler := handlers.NewAnalyticalWebHandler(handlers.AnalyticalHandlerDeps{GetExecutionHistory: mock})
-	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetExecutionHistory(rec, req)
 

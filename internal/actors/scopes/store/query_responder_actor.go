@@ -452,7 +452,7 @@ func (a *QueryResponderActor) start(c *actor.Context) {
 }
 
 func (a *QueryResponderActor) handleCandleLatest(ctx context.Context, query evidenceclient.CandleLatestQuery) (evidenceclient.CandleLatestReply, *problem.Problem) {
-	candle, prob := a.store.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	candle, prob := a.store.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return evidenceclient.CandleLatestReply{}, prob
 	}
@@ -461,7 +461,7 @@ func (a *QueryResponderActor) handleCandleLatest(ctx context.Context, query evid
 }
 
 func (a *QueryResponderActor) handleTradeBurstLatest(ctx context.Context, query evidenceclient.TradeBurstLatestQuery) (evidenceclient.TradeBurstLatestReply, *problem.Problem) {
-	burst, prob := a.burstStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	burst, prob := a.burstStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return evidenceclient.TradeBurstLatestReply{}, prob
 	}
@@ -470,7 +470,7 @@ func (a *QueryResponderActor) handleTradeBurstLatest(ctx context.Context, query 
 }
 
 func (a *QueryResponderActor) handleCandleHistory(ctx context.Context, query evidenceclient.CandleHistoryQuery) (evidenceclient.CandleHistoryReply, *problem.Problem) {
-	candles, prob := a.store.GetHistory(ctx, query.Source, query.Symbol, query.Timeframe, query.Limit, query.Since, query.Until)
+	candles, prob := a.store.GetHistory(ctx, query.Source, query.Instrument, query.Timeframe, query.Limit, query.Since, query.Until)
 	if prob != nil {
 		return evidenceclient.CandleHistoryReply{}, prob
 	}
@@ -483,7 +483,7 @@ func (a *QueryResponderActor) handleCandleHistory(ctx context.Context, query evi
 }
 
 func (a *QueryResponderActor) handleVolumeLatest(ctx context.Context, query evidenceclient.VolumeLatestQuery) (evidenceclient.VolumeLatestReply, *problem.Problem) {
-	vol, prob := a.volumeStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	vol, prob := a.volumeStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return evidenceclient.VolumeLatestReply{}, prob
 	}
@@ -492,7 +492,7 @@ func (a *QueryResponderActor) handleVolumeLatest(ctx context.Context, query evid
 }
 
 func (a *QueryResponderActor) handleSignalRSILatest(ctx context.Context, query signalclient.SignalLatestQuery) (signalclient.SignalLatestReply, *problem.Problem) {
-	sig, prob := a.signalRSIStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	sig, prob := a.signalRSIStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return signalclient.SignalLatestReply{}, prob
 	}
@@ -501,7 +501,7 @@ func (a *QueryResponderActor) handleSignalRSILatest(ctx context.Context, query s
 }
 
 func (a *QueryResponderActor) handleDecisionRSIOversoldLatest(ctx context.Context, query decisionclient.DecisionLatestQuery) (decisionclient.DecisionLatestReply, *problem.Problem) {
-	dec, prob := a.decisionRSIOversoldStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	dec, prob := a.decisionRSIOversoldStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return decisionclient.DecisionLatestReply{}, prob
 	}
@@ -510,7 +510,7 @@ func (a *QueryResponderActor) handleDecisionRSIOversoldLatest(ctx context.Contex
 }
 
 func (a *QueryResponderActor) handleStrategyMeanReversionEntryLatest(ctx context.Context, query strategyclient.StrategyLatestQuery) (strategyclient.StrategyLatestReply, *problem.Problem) {
-	strat, prob := a.strategyMeanReversionEntryStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	strat, prob := a.strategyMeanReversionEntryStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return strategyclient.StrategyLatestReply{}, prob
 	}
@@ -519,7 +519,7 @@ func (a *QueryResponderActor) handleStrategyMeanReversionEntryLatest(ctx context
 }
 
 func (a *QueryResponderActor) handleRiskPositionExposureLatest(ctx context.Context, query riskclient.RiskLatestQuery) (riskclient.RiskLatestReply, *problem.Problem) {
-	assessment, prob := a.riskPositionExposureStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	assessment, prob := a.riskPositionExposureStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return riskclient.RiskLatestReply{}, prob
 	}
@@ -528,7 +528,7 @@ func (a *QueryResponderActor) handleRiskPositionExposureLatest(ctx context.Conte
 }
 
 func (a *QueryResponderActor) handleExecutionPaperOrderLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionLatestReply, *problem.Problem) {
-	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return executionclient.ExecutionLatestReply{}, prob
 	}
@@ -537,7 +537,7 @@ func (a *QueryResponderActor) handleExecutionPaperOrderLatest(ctx context.Contex
 }
 
 func (a *QueryResponderActor) handleExecutionVenueMarketOrderLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionLatestReply, *problem.Problem) {
-	intent, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	intent, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return executionclient.ExecutionLatestReply{}, prob
 	}
@@ -547,7 +547,7 @@ func (a *QueryResponderActor) handleExecutionVenueMarketOrderLatest(ctx context.
 
 // S407: Dedicated rejection query handler — returns intent + rejection audit detail.
 func (a *QueryResponderActor) handleExecutionVenueRejectionLatest(ctx context.Context, query executionclient.ExecutionLatestQuery) (executionclient.ExecutionRejectionReply, *problem.Problem) {
-	intent, prob := a.executionVenueRejectionStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	intent, prob := a.executionVenueRejectionStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return executionclient.ExecutionRejectionReply{}, prob
 	}
@@ -623,12 +623,12 @@ func (a *QueryResponderActor) handleActivationSurfaceGet(ctx context.Context, _ 
 }
 
 func (a *QueryResponderActor) handleExecutionStatusLatest(ctx context.Context, query executionclient.ExecutionStatusQuery) (executionclient.ExecutionStatusReply, *problem.Problem) {
-	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	intent, prob := a.executionPaperOrderStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return executionclient.ExecutionStatusReply{}, prob
 	}
 
-	result, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+	result, prob := a.executionVenueMarketOrderStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 	if prob != nil {
 		return executionclient.ExecutionStatusReply{}, prob
 	}
@@ -637,7 +637,7 @@ func (a *QueryResponderActor) handleExecutionStatusLatest(ctx context.Context, q
 	var rejection *execution.ExecutionIntent
 	var rejectionDetail *executionclient.RejectionDetail
 	if a.executionVenueRejectionStore != nil {
-		rejection, _ = a.executionVenueRejectionStore.Get(ctx, query.Source, query.Symbol, query.Timeframe)
+		rejection, _ = a.executionVenueRejectionStore.Get(ctx, query.Source, query.Instrument, query.Timeframe)
 		// S407: Extract rejection audit detail from embedded metadata.
 		if rejection != nil {
 			rejectionDetail = extractRejectionDetail(rejection)
@@ -704,7 +704,7 @@ func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, 
 		if query.Source != "" && source != query.Source {
 			continue
 		}
-		if query.Symbol != "" && symbol != query.Symbol {
+		if !query.Instrument.IsZero() && symbol != query.Instrument.SubjectToken() {
 			continue
 		}
 
@@ -718,7 +718,7 @@ func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, 
 		// Read intent (paper_order).
 		var intent, result, rejection *execution.ExecutionIntent
 		if _, ok := intentSet[key]; ok {
-			intent, _ = a.executionPaperOrderStore.Get(ctx, source, symbol, timeframe)
+			intent, _ = a.executionPaperOrderStore.GetByKey(ctx, key)
 		}
 		if intent != nil {
 			entry.IntentStatus = string(intent.Status)
@@ -728,7 +728,7 @@ func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, 
 
 		// Read fill (venue_market_order).
 		if _, ok := fillSet[key]; ok {
-			result, _ = a.executionVenueMarketOrderStore.Get(ctx, source, symbol, timeframe)
+			result, _ = a.executionVenueMarketOrderStore.GetByKey(ctx, key)
 		}
 		if result != nil {
 			entry.FillStatus = string(result.Status)
@@ -738,7 +738,7 @@ func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, 
 
 		// Read rejection (venue_rejection).
 		if _, ok := rejectionSet[key]; ok {
-			rejection, _ = a.executionVenueRejectionStore.Get(ctx, source, symbol, timeframe)
+			rejection, _ = a.executionVenueRejectionStore.GetByKey(ctx, key)
 		}
 		if rejection != nil {
 			entry.RejectionStatus = string(rejection.Status)
@@ -756,7 +756,10 @@ func (a *QueryResponderActor) handleExecutionLifecycleList(ctx context.Context, 
 	}, nil
 }
 
-// parsePartitionKey splits a "{source}.{symbol}.{timeframe}" key back into components.
+// parsePartitionKey splits a "{source}.{token}.{timeframe}" key back
+// into components. The token is the canonical SubjectToken since
+// H-6.e.2 (underscores, never dots), so the 3-way dot split is safe
+// for both the new shape and inert pre-cutover orphan keys.
 func parsePartitionKey(key string) (source, symbol string, timeframe int) {
 	parts := strings.SplitN(key, ".", 3)
 	if len(parts) < 3 {

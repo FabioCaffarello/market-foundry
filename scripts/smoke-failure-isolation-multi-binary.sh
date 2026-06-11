@@ -214,7 +214,7 @@ for svc in execute store gateway; do
 done
 
 # Verify gateway can still serve queries (store data is in KV, not dependent on derive).
-CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$CANDLE_CODE" == "200" ]]; then
     pass "FI-1: Gateway candle endpoint functional during derive restart"
 else
@@ -357,7 +357,7 @@ fi
 
 # Verify gateway KV endpoints recover.
 sleep 5
-CANDLE_AFTER=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+CANDLE_AFTER=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$CANDLE_AFTER" == "200" ]]; then
     pass "FI-3: Gateway KV endpoint recovered after store restart"
 else
@@ -390,7 +390,7 @@ if ! $ALL_RECOVERED; then
 fi
 
 # Verify gateway composite endpoint works.
-COMPOSITE_CODE=$(http_code "${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60&limit=5")
+COMPOSITE_CODE=$(http_code "${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5")
 if [[ "$COMPOSITE_CODE" == "200" ]]; then
     pass "FI-4: Composite endpoint operational after restart cycle"
 else

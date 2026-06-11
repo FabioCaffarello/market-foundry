@@ -275,6 +275,15 @@ var readerCanaryTs = time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 
 // ─── evidence_candles ───────────────────────────────────────────────────────
 
+func canonInstFor(t *testing.T, base, quote string, ct instrument.ContractType) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New(base, quote, ct)
+	if prob != nil {
+		t.Fatalf("instrument.New(%s,%s,%s): %v", base, quote, ct, prob)
+	}
+	return inst
+}
+
 func TestReader_CanonicalColumns_EvidenceCandles(t *testing.T) {
 	client := skipUnlessClickHouseReader(t)
 	defer client.Close()
@@ -284,7 +293,7 @@ func TestReader_CanonicalColumns_EvidenceCandles(t *testing.T) {
 		insertCandleRow(t, client, "h6d2r-cand-c1", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewCandleReader(client, slog.Default())
-		got, err := r.QueryCandleHistory(context.Background(), "binancef", "btcusdt", 60, 0, 0, 10)
+		got, err := r.QueryCandleHistory(context.Background(), "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryCandleHistory: %v", err)
 		}
@@ -299,7 +308,7 @@ func TestReader_CanonicalColumns_EvidenceCandles(t *testing.T) {
 		insertCandleRow(t, client, "h6d2r-cand-f1", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewCandleReader(client, slog.Default())
-		got, err := r.QueryCandleHistory(context.Background(), "binancef", "btcusdt", 60, 0, 0, 10)
+		got, err := r.QueryCandleHistory(context.Background(), "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryCandleHistory: %v", err)
 		}
@@ -320,7 +329,7 @@ func TestReader_CanonicalColumns_EvidenceCandles(t *testing.T) {
 		insertCandleRow(t, client, "h6d2r-cand-m2-legacy", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewCandleReader(client, slog.Default())
-		got, err := r.QueryCandleHistory(context.Background(), "binances", "ethusdt", 60, 0, 0, 10)
+		got, err := r.QueryCandleHistory(context.Background(), "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryCandleHistory: %v", err)
 		}
@@ -348,7 +357,7 @@ func TestReader_CanonicalColumns_Signals(t *testing.T) {
 		insertSignalRow(t, client, "h6d2r-sig-c1", "rsi", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewSignalReader(client, slog.Default())
-		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binancef", "btcusdt", 60, 0, 0, 10)
+		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QuerySignalHistory: %v", err)
 		}
@@ -363,7 +372,7 @@ func TestReader_CanonicalColumns_Signals(t *testing.T) {
 		insertSignalRow(t, client, "h6d2r-sig-f1", "rsi", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewSignalReader(client, slog.Default())
-		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binancef", "btcusdt", 60, 0, 0, 10)
+		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QuerySignalHistory: %v", err)
 		}
@@ -379,7 +388,7 @@ func TestReader_CanonicalColumns_Signals(t *testing.T) {
 		insertSignalRow(t, client, "h6d2r-sig-m2-legacy", "rsi", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewSignalReader(client, slog.Default())
-		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binances", "ethusdt", 60, 0, 0, 10)
+		got, err := r.QuerySignalHistory(context.Background(), "rsi", "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QuerySignalHistory: %v", err)
 		}
@@ -403,7 +412,7 @@ func TestReader_CanonicalColumns_Decisions(t *testing.T) {
 		insertDecisionRow(t, client, "h6d2r-dec-c1", "rsi_oversold", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewDecisionReader(client, slog.Default())
-		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryDecisionHistory: %v", err)
 		}
@@ -418,7 +427,7 @@ func TestReader_CanonicalColumns_Decisions(t *testing.T) {
 		insertDecisionRow(t, client, "h6d2r-dec-f1", "rsi_oversold", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewDecisionReader(client, slog.Default())
-		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryDecisionHistory: %v", err)
 		}
@@ -434,7 +443,7 @@ func TestReader_CanonicalColumns_Decisions(t *testing.T) {
 		insertDecisionRow(t, client, "h6d2r-dec-m2-legacy", "rsi_oversold", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewDecisionReader(client, slog.Default())
-		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binances", "ethusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryDecisionHistory(context.Background(), "rsi_oversold", "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryDecisionHistory: %v", err)
 		}
@@ -458,7 +467,7 @@ func TestReader_CanonicalColumns_Strategies(t *testing.T) {
 		insertStrategyRow(t, client, "h6d2r-strat-c1", "mean_reversion_entry", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewStrategyReader(client, slog.Default())
-		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryStrategyHistory: %v", err)
 		}
@@ -473,7 +482,7 @@ func TestReader_CanonicalColumns_Strategies(t *testing.T) {
 		insertStrategyRow(t, client, "h6d2r-strat-f1", "mean_reversion_entry", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewStrategyReader(client, slog.Default())
-		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryStrategyHistory: %v", err)
 		}
@@ -489,7 +498,7 @@ func TestReader_CanonicalColumns_Strategies(t *testing.T) {
 		insertStrategyRow(t, client, "h6d2r-strat-m2-legacy", "mean_reversion_entry", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewStrategyReader(client, slog.Default())
-		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binances", "ethusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryStrategyHistory(context.Background(), "mean_reversion_entry", "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryStrategyHistory: %v", err)
 		}
@@ -513,7 +522,7 @@ func TestReader_CanonicalColumns_RiskAssessments(t *testing.T) {
 		insertRiskRow(t, client, "h6d2r-risk-c1", "position_exposure", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewRiskReader(client, slog.Default())
-		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryRiskHistory: %v", err)
 		}
@@ -528,7 +537,7 @@ func TestReader_CanonicalColumns_RiskAssessments(t *testing.T) {
 		insertRiskRow(t, client, "h6d2r-risk-f1", "position_exposure", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewRiskReader(client, slog.Default())
-		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binancef", "btcusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryRiskHistory: %v", err)
 		}
@@ -544,7 +553,7 @@ func TestReader_CanonicalColumns_RiskAssessments(t *testing.T) {
 		insertRiskRow(t, client, "h6d2r-risk-m2-legacy", "position_exposure", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewRiskReader(client, slog.Default())
-		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binances", "ethusdt", 60, "", 0, 0, 10)
+		got, err := r.QueryRiskHistory(context.Background(), "position_exposure", "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryRiskHistory: %v", err)
 		}
@@ -568,7 +577,7 @@ func TestReader_CanonicalColumns_Executions(t *testing.T) {
 		insertExecutionRow(t, client, "h6d2r-exec-c1", "paper_order", "binancef", "btcusdt", "BTC", "USDT", "perpetual")
 
 		r := clickhouse.NewExecutionReader(client, slog.Default())
-		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binancef", "btcusdt", 60, "", "", 0, 0, 10)
+		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryExecutionHistory: %v", err)
 		}
@@ -583,7 +592,7 @@ func TestReader_CanonicalColumns_Executions(t *testing.T) {
 		insertExecutionRow(t, client, "h6d2r-exec-f1", "paper_order", "binancef", "btcusdt", "", "", "")
 
 		r := clickhouse.NewExecutionReader(client, slog.Default())
-		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binancef", "btcusdt", 60, "", "", 0, 0, 10)
+		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binancef", canonInstFor(t, "BTC", "USDT", instrument.ContractPerpetual), 60, "", "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryExecutionHistory: %v", err)
 		}
@@ -599,7 +608,7 @@ func TestReader_CanonicalColumns_Executions(t *testing.T) {
 		insertExecutionRow(t, client, "h6d2r-exec-m2-legacy", "paper_order", "binances", "ethusdt", "", "", "")
 
 		r := clickhouse.NewExecutionReader(client, slog.Default())
-		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binances", "ethusdt", 60, "", "", 0, 0, 10)
+		got, err := r.QueryExecutionHistory(context.Background(), "paper_order", "binances", canonInstFor(t, "ETH", "USDT", instrument.ContractSpot), 60, "", "", 0, 0, 10)
 		if err != nil {
 			t.Fatalf("QueryExecutionHistory: %v", err)
 		}

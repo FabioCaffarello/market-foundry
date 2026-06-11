@@ -27,11 +27,11 @@ type mockPriceSource struct {
 	err    *problem.Problem
 }
 
-func (m *mockPriceSource) LastPrice(_ context.Context, source, symbol string, _ int) (string, *problem.Problem) {
+func (m *mockPriceSource) LastPrice(_ context.Context, source string, symbol instrument.CanonicalInstrument, _ int) (string, *problem.Problem) {
 	if m.err != nil {
 		return "0", m.err
 	}
-	if price, ok := m.prices[source+"."+symbol]; ok {
+	if price, ok := m.prices[source+"."+symbol.SubjectToken()]; ok {
 		return price, nil
 	}
 	return "0", nil
@@ -51,7 +51,7 @@ func newFailingPriceSource() *mockPriceSource {
 
 func TestS384_DryRun_UsesRealisticPrice(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"binancef.btcusdt": "67432.50",
+		"binancef.btc_usdt_perpetual": "67432.50",
 	})
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
@@ -106,7 +106,7 @@ func TestS384_DryRun_FallsBackToZeroOnPriceError(t *testing.T) {
 
 func TestS384_DryRun_FallsBackToZeroForUnknownSymbol(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"binancef.btcusdt": "67432.50",
+		"binancef.btc_usdt_perpetual": "67432.50",
 	})
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
@@ -130,7 +130,7 @@ func TestS384_DryRun_FallsBackToZeroForUnknownSymbol(t *testing.T) {
 
 func TestS384_DryRun_PriceDoesNotAffectNoActionIntents(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"binancef.btcusdt": "67432.50",
+		"binancef.btc_usdt_perpetual": "67432.50",
 	})
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
@@ -152,7 +152,7 @@ func TestS384_DryRun_PriceDoesNotAffectNoActionIntents(t *testing.T) {
 
 func TestS384_DryRun_RealisticPricePreservesOtherFields(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"binancef.btcusdt": "67432.50",
+		"binancef.btc_usdt_perpetual": "67432.50",
 	})
 	inner := appexec.NewPaperVenueAdapter(0)
 	sub := appexec.NewDryRunSubmitter(inner).WithPriceSource(ps)
@@ -191,7 +191,7 @@ func TestS384_DryRun_RealisticPricePreservesOtherFields(t *testing.T) {
 
 func TestS384_Paper_UsesRealisticPrice(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"test.btcusdt": "67432.50",
+		"test.btc_usdt_perpetual": "67432.50",
 	})
 	adapter := appexec.NewPaperVenueAdapter(0).WithPriceSource(ps)
 
@@ -288,7 +288,7 @@ func TestS384_Paper_FallsBackToZeroOnPriceError(t *testing.T) {
 
 func TestS384_Paper_NoActionIntentIgnoresPriceSource(t *testing.T) {
 	ps := newMockPriceSource(map[string]string{
-		"test.btcusdt": "67432.50",
+		"test.btc_usdt_perpetual": "67432.50",
 	})
 	adapter := appexec.NewPaperVenueAdapter(0).WithPriceSource(ps)
 

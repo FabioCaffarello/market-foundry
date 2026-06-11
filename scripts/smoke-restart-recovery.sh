@@ -72,6 +72,7 @@ require_positive_integer "--wait" "${FLUSH_WAIT}"
 ERRORS=0
 SYMBOL="${SYMBOL:-btcusdt}"
 SOURCE="${SOURCE:-binancef}"
+CONTRACT="${CONTRACT:-perpetual}"
 TIMEFRAME="${TIMEFRAME:-60}"
 GATEWAY_URL="${BASE_URL}"
 
@@ -262,7 +263,7 @@ fi
 
 # Verify KV projections are queryable after store restart.
 kv_http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-    "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}" \
+    "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&base=${SYMBOL%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${TIMEFRAME}" \
     2>/dev/null || echo "000")
 
 if [[ "$kv_http_code" == "200" || "$kv_http_code" == "404" ]]; then
@@ -349,7 +350,7 @@ fi
 
 # Verify analytical endpoints recover.
 analytical_code=$(curl -s -o /dev/null -w "%{http_code}" \
-    "${GATEWAY_URL}/analytical/evidence/candles?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}&limit=5" \
+    "${GATEWAY_URL}/analytical/evidence/candles?source=${SOURCE}&base=${SYMBOL%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${TIMEFRAME}&limit=5" \
     2>/dev/null || echo "000")
 
 if [[ "$analytical_code" == "200" ]]; then

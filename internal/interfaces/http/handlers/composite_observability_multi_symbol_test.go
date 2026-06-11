@@ -12,6 +12,8 @@ package handlers
 //   HTTP-OBS-3 — Multi-symbol sequential queries produce independent responses.
 
 import (
+	"strings"
+
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +87,7 @@ func TestS303_HTTP_OBS1_CrossSurfaceStructure(t *testing.T) {
 			handler := newTestHandler(chainUC, funnelUC, dispUC)
 
 			// Chain endpoint.
-			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-http-obs1-"+sym+"&symbol="+sym, nil)
+			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-http-obs1-"+sym+"&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual", nil)
 			w := httptest.NewRecorder()
 			handler.GetChain(w, req)
 			if w.Code != http.StatusOK {
@@ -100,7 +102,7 @@ func TestS303_HTTP_OBS1_CrossSurfaceStructure(t *testing.T) {
 			}
 
 			// Funnel endpoint.
-			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=rsi&source=binancef&symbol="+sym+"&timeframe=60", nil)
+			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=rsi&source=binancef&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w = httptest.NewRecorder()
 			handler.GetFunnel(w, req)
 			if w.Code != http.StatusOK {
@@ -115,7 +117,7 @@ func TestS303_HTTP_OBS1_CrossSurfaceStructure(t *testing.T) {
 			}
 
 			// Dispositions endpoint.
-			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=rsi&source=binancef&symbol="+sym+"&timeframe=60", nil)
+			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=rsi&source=binancef&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w = httptest.NewRecorder()
 			handler.GetDispositions(w, req)
 			if w.Code != http.StatusOK {
@@ -195,7 +197,7 @@ func TestS303_HTTP_OBS2_AttributionCompleteness(t *testing.T) {
 			}
 			handler := newTestHandler(uc, nil, nil)
 
-			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-http-obs2-"+tc.symbol+"&symbol="+tc.symbol, nil)
+			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-http-obs2-"+tc.symbol+"&base="+strings.TrimSuffix(tc.symbol, "usdt")+"&quote=usdt&contract=perpetual", nil)
 			w := httptest.NewRecorder()
 			handler.GetChain(w, req)
 
@@ -337,7 +339,7 @@ func TestS303_HTTP_OBS3_SequentialQueryIndependence(t *testing.T) {
 			handler := newTestHandler(chainUC, funnelUC, dispUC)
 
 			// Chain.
-			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-obs3-"+sym+"&symbol="+sym, nil)
+			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s303-obs3-"+sym+"&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual", nil)
 			w := httptest.NewRecorder()
 			handler.GetChain(w, req)
 			if w.Code != http.StatusOK {
@@ -345,7 +347,7 @@ func TestS303_HTTP_OBS3_SequentialQueryIndependence(t *testing.T) {
 			}
 
 			// Funnel — verify signal count matches expected.
-			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=rsi&source=binancef&symbol="+sym+"&timeframe=60", nil)
+			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=rsi&source=binancef&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w = httptest.NewRecorder()
 			handler.GetFunnel(w, req)
 			if w.Code != http.StatusOK {
@@ -360,7 +362,7 @@ func TestS303_HTTP_OBS3_SequentialQueryIndependence(t *testing.T) {
 			}
 
 			// Dispositions — verify total matches expected.
-			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=rsi&source=binancef&symbol="+sym+"&timeframe=60", nil)
+			req = httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=rsi&source=binancef&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w = httptest.NewRecorder()
 			handler.GetDispositions(w, req)
 			if w.Code != http.StatusOK {

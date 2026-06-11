@@ -248,8 +248,8 @@ func TestS418_PartitionKey_FuturesSegmentIsolation(t *testing.T) {
 	if spotKey == futuresKey {
 		t.Fatalf("partition keys must differ: spot=%s futures=%s", spotKey, futuresKey)
 	}
-	if futuresKey != "binancef.btcusdt.60" {
-		t.Errorf("futures partition key: expected binancef.btcusdt.60, got %s", futuresKey)
+	if futuresKey != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("futures partition key: expected binancef.btc_usdt_perpetual.60, got %s", futuresKey)
 	}
 }
 
@@ -353,7 +353,7 @@ func TestS418_LifecycleEntry_FuturesFieldPopulation(t *testing.T) {
 	fill := s418FuturesFilledIntent(t, fillTs)
 
 	entry := executionclient.LifecycleEntry{
-		Key:             "binancef.btcusdt.60",
+		Key:             "binancef.btc_usdt_perpetual.60",
 		Source:          "binancef",
 		Symbol:          "btcusdt",
 		Timeframe:       60,
@@ -390,7 +390,7 @@ func TestS418_LifecycleEntry_FuturesRejection(t *testing.T) {
 	rejection := s418FuturesRejectedIntentWithAuditMetadata(t)
 
 	entry := executionclient.LifecycleEntry{
-		Key:                "binancef.btcusdt.60",
+		Key:                "binancef.btc_usdt_perpetual.60",
 		Source:             "binancef",
 		Symbol:             "btcusdt",
 		Timeframe:          60,
@@ -560,19 +560,19 @@ func TestS418_LifecycleList_MixedSegmentAggregation(t *testing.T) {
 
 	entries := []executionclient.LifecycleEntry{
 		{
-			Key: "binances.btcusdt.60", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
+			Key: "binances.btc_usdt_spot.60", Source: "binances", Symbol: "btcusdt", Timeframe: 60,
 			IntentStatus: "submitted", IntentTimestamp: &ts,
 			FillStatus: "filled", FillTimestamp: &ts,
 			Propagation: "filled",
 		},
 		{
-			Key: "binancef.btcusdt.60", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Key: "binancef.btc_usdt_perpetual.60", Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
 			IntentStatus: "submitted", IntentTimestamp: &ts,
 			FillStatus: "filled", FillTimestamp: &ts,
 			Propagation: "filled",
 		},
 		{
-			Key: "binancef.ethusdt.60", Source: "binancef", Symbol: "ethusdt", Timeframe: 60,
+			Key: "binancef.eth_usdt_perpetual.60", Source: "binancef", Symbol: "ethusdt", Timeframe: 60,
 			RejectionStatus: "rejected", RejectionTimestamp: &ts,
 			Propagation: "rejected",
 		},

@@ -27,8 +27,8 @@ func (u *GetLatestVolumeUseCase) Execute(ctx context.Context, query VolumeLatest
 	if query.Source == "" {
 		return VolumeLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return VolumeLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return VolumeLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return VolumeLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

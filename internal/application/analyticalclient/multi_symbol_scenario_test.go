@@ -13,6 +13,8 @@ package analyticalclient_test
 //   SC4 — Attribution correctness varies per symbol (severity, direction, constraints).
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -31,7 +33,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type symbolScenario struct {
-	Symbol        string
+	Instrument    instrument.CanonicalInstrument
 	SignalType    string
 	SignalValue   string
 	DecisionType  string
@@ -54,28 +56,28 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 		CorrelationID: corrID,
 		Signal: &analyticalclient.SignalWithTrace{
 			Signal: signal.Signal{
-				Type: sc.SignalType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
+				Type: sc.SignalType, Source: "binancef", Instrument: sc.Instrument, Timeframe: 60,
 				Value: sc.SignalValue, Timestamp: now,
 			},
 			EventID: "sig-" + corrID, CorrelationID: corrID, OccurredAt: now,
 		},
 		Decision: &analyticalclient.DecisionWithTrace{
 			Decision: decision.Decision{
-				Type: sc.DecisionType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
+				Type: sc.DecisionType, Source: "binancef", Instrument: sc.Instrument, Timeframe: 60,
 				Outcome: "triggered", Severity: decision.Severity(sc.DecisionSev), Confidence: "0.85", Timestamp: now,
 			},
 			EventID: "dec-" + corrID, CorrelationID: corrID, CausationID: "sig-" + corrID, OccurredAt: now,
 		},
 		Strategy: &analyticalclient.StrategyWithTrace{
 			Strategy: strategy.Strategy{
-				Type: sc.StrategyType, Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
+				Type: sc.StrategyType, Source: "binancef", Instrument: sc.Instrument, Timeframe: 60,
 				Direction: strategy.Direction(sc.StrategyDir), Confidence: "0.80", Timestamp: now,
 			},
 			EventID: "str-" + corrID, CorrelationID: corrID, CausationID: "dec-" + corrID, OccurredAt: now,
 		},
 		Risk: &analyticalclient.RiskWithTrace{
 			RiskAssessment: risk.RiskAssessment{
-				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: sc.Instrument, Timeframe: 60,
 				Disposition: risk.Disposition(sc.RiskDisp), Confidence: "0.75", Rationale: sc.RiskRationale,
 				Constraints: risk.Constraints{MaxPositionSize: sc.MaxPosPct, MaxExposure: sc.MaxExposure},
 				Strategies: []risk.StrategyInput{{
@@ -92,7 +94,7 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 	if sc.HasExecution {
 		chain.Execution = &analyticalclient.ExecutionWithTrace{
 			ExecutionIntent: execution.ExecutionIntent{
-				Type: "paper_order", Source: "binancef", Instrument: instrumentFromVenue(sc.Symbol), Timeframe: 60,
+				Type: "paper_order", Source: "binancef", Instrument: sc.Instrument, Timeframe: 60,
 				Side: execution.Side(sc.ExecSide), Quantity: sc.ExecQty, Status: execution.Status(sc.ExecStatus), Timestamp: now,
 			},
 			EventID: "exc-" + corrID, EventCorrelationID: corrID, EventCausationID: "rsk-" + corrID, OccurredAt: now,
@@ -113,7 +115,7 @@ func buildChainFromScenario(corrID string, sc symbolScenario) *analyticalclient.
 
 var sc1Scenarios = map[string]symbolScenario{
 	"btcusdt": {
-		Symbol: "btcusdt", SignalType: "rsi", SignalValue: "28.5",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "rsi", SignalValue: "28.5",
 		DecisionType: "rsi_oversold", DecisionSev: "high",
 		StrategyDir: "long", StrategyType: "mean_reversion_entry",
 		RiskDisp: "approved", RiskRationale: "within limits",
@@ -122,7 +124,7 @@ var sc1Scenarios = map[string]symbolScenario{
 		HasExecution: true,
 	},
 	"ethusdt": {
-		Symbol: "ethusdt", SignalType: "macd", SignalValue: "0.0025",
+		Instrument: instrument.CanonicalInstrument{Base: "ETH", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "macd", SignalValue: "0.0025",
 		DecisionType: "macd_crossover", DecisionSev: "moderate",
 		StrategyDir: "long", StrategyType: "trend_following_entry",
 		RiskDisp: "approved", RiskRationale: "exposure acceptable",
@@ -131,7 +133,7 @@ var sc1Scenarios = map[string]symbolScenario{
 		HasExecution: true,
 	},
 	"solusdt": {
-		Symbol: "solusdt", SignalType: "bollinger", SignalValue: "1.85",
+		Instrument: instrument.CanonicalInstrument{Base: "SOL", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "bollinger", SignalValue: "1.85",
 		DecisionType: "squeeze_breakout", DecisionSev: "low",
 		StrategyDir: "short", StrategyType: "squeeze_breakout_entry",
 		RiskDisp: "approved", RiskRationale: "within squeeze limits",
@@ -159,7 +161,7 @@ func TestS302_SC1_SimultaneousApprovedChains(t *testing.T) {
 			corrID := "s302-sc1-" + sym
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 				CorrelationID: corrID,
-				Symbol:        sym,
+				Instrument:    instrumentFromVenue(sym),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem for %s: %v", sym, prob)
@@ -226,7 +228,7 @@ func TestS302_SC1_SimultaneousApprovedChains(t *testing.T) {
 
 var sc2Scenarios = map[string]symbolScenario{
 	"btcusdt": {
-		Symbol: "btcusdt", SignalType: "rsi", SignalValue: "32.0",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "rsi", SignalValue: "32.0",
 		DecisionType: "rsi_oversold", DecisionSev: "high",
 		StrategyDir: "long", StrategyType: "mean_reversion_entry",
 		RiskDisp: "approved", RiskRationale: "within limits",
@@ -235,7 +237,7 @@ var sc2Scenarios = map[string]symbolScenario{
 		HasExecution: true,
 	},
 	"ethusdt": {
-		Symbol: "ethusdt", SignalType: "macd", SignalValue: "0.0010",
+		Instrument: instrument.CanonicalInstrument{Base: "ETH", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "macd", SignalValue: "0.0010",
 		DecisionType: "macd_crossover", DecisionSev: "moderate",
 		StrategyDir: "long", StrategyType: "trend_following_entry",
 		RiskDisp: "rejected", RiskRationale: "drawdown limit exceeded",
@@ -244,7 +246,7 @@ var sc2Scenarios = map[string]symbolScenario{
 		HasExecution: false,
 	},
 	"solusdt": {
-		Symbol: "solusdt", SignalType: "bollinger", SignalValue: "1.95",
+		Instrument: instrument.CanonicalInstrument{Base: "SOL", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "bollinger", SignalValue: "1.95",
 		DecisionType: "squeeze_breakout", DecisionSev: "low",
 		StrategyDir: "short", StrategyType: "squeeze_breakout_entry",
 		RiskDisp: "modified", RiskRationale: "position size reduced",
@@ -269,7 +271,7 @@ func TestS302_SC2_MixedDispositions(t *testing.T) {
 	// btcusdt: approved → full chain
 	t.Run("btcusdt_approved", func(t *testing.T) {
 		reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s302-sc2-btcusdt", Symbol: "btcusdt",
+			CorrelationID: "s302-sc2-btcusdt", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		})
 		if prob != nil {
 			t.Fatalf("unexpected problem: %v", prob)
@@ -292,7 +294,7 @@ func TestS302_SC2_MixedDispositions(t *testing.T) {
 	// ethusdt: rejected → no execution
 	t.Run("ethusdt_rejected", func(t *testing.T) {
 		reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s302-sc2-ethusdt", Symbol: "ethusdt",
+			CorrelationID: "s302-sc2-ethusdt", Instrument: instrument.CanonicalInstrument{Base: "ETH", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		})
 		if prob != nil {
 			t.Fatalf("unexpected problem: %v", prob)
@@ -324,7 +326,7 @@ func TestS302_SC2_MixedDispositions(t *testing.T) {
 	// solusdt: modified → execution with adjusted params
 	t.Run("solusdt_modified", func(t *testing.T) {
 		reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s302-sc2-solusdt", Symbol: "solusdt",
+			CorrelationID: "s302-sc2-solusdt", Instrument: instrument.CanonicalInstrument{Base: "SOL", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		})
 		if prob != nil {
 			t.Fatalf("unexpected problem: %v", prob)
@@ -383,7 +385,7 @@ func TestS302_SC3_ConcurrentBatchPerSymbol(t *testing.T) {
 	for sym, want := range expectedCounts {
 		t.Run("batch_"+sym, func(t *testing.T) {
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				Source: "binancef", Symbol: sym, Timeframe: 60,
+				Source: "binancef", Instrument: instrumentFromVenue(sym), Timeframe: 60,
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem for %s: %v", sym, prob)
@@ -424,7 +426,7 @@ func TestS302_SC4_AttributionDiversityPerSymbol(t *testing.T) {
 	}{
 		"btcusdt": {
 			sc: symbolScenario{
-				Symbol: "btcusdt", SignalType: "rsi", SignalValue: "25.0",
+				Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "rsi", SignalValue: "25.0",
 				DecisionType: "rsi_oversold", DecisionSev: "high",
 				StrategyDir: "long", StrategyType: "mean_reversion_entry",
 				RiskDisp: "approved", RiskRationale: "high confidence entry",
@@ -437,7 +439,7 @@ func TestS302_SC4_AttributionDiversityPerSymbol(t *testing.T) {
 		},
 		"ethusdt": {
 			sc: symbolScenario{
-				Symbol: "ethusdt", SignalType: "macd", SignalValue: "-0.003",
+				Instrument: instrument.CanonicalInstrument{Base: "ETH", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "macd", SignalValue: "-0.003",
 				DecisionType: "macd_crossover", DecisionSev: "moderate",
 				StrategyDir: "short", StrategyType: "trend_following_entry",
 				RiskDisp: "rejected", RiskRationale: "exposure limit breach",
@@ -449,7 +451,7 @@ func TestS302_SC4_AttributionDiversityPerSymbol(t *testing.T) {
 		},
 		"solusdt": {
 			sc: symbolScenario{
-				Symbol: "solusdt", SignalType: "bollinger", SignalValue: "2.10",
+				Instrument: instrument.CanonicalInstrument{Base: "SOL", Quote: "USDT", Contract: instrument.ContractPerpetual}, SignalType: "bollinger", SignalValue: "2.10",
 				DecisionType: "squeeze_breakout", DecisionSev: "low",
 				StrategyDir: "long", StrategyType: "squeeze_breakout_entry",
 				RiskDisp: "modified", RiskRationale: "position capped at 3%",
@@ -473,7 +475,7 @@ func TestS302_SC4_AttributionDiversityPerSymbol(t *testing.T) {
 			uc := analyticalclient.NewGetCompositeChainUseCase(reader, slog.Default())
 
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: corrID, Symbol: sym,
+				CorrelationID: corrID, Instrument: instrumentFromVenue(sym),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem: %v", prob)
@@ -519,14 +521,14 @@ type multiSymbolStubReader struct {
 	chainsPerSymbol map[string]*analyticalclient.CompositeExecutionChain
 }
 
-func (r *multiSymbolStubReader) QueryChainByCorrelationID(_ context.Context, _, symbol string) (*analyticalclient.CompositeExecutionChain, error) {
-	if chain, ok := r.chainsPerSymbol[symbol]; ok {
+func (r *multiSymbolStubReader) QueryChainByCorrelationID(_ context.Context, _ string, symbol instrument.CanonicalInstrument) (*analyticalclient.CompositeExecutionChain, error) {
+	if chain, ok := r.chainsPerSymbol[symbol.LegacyFilterValue()]; ok {
 		return chain, nil
 	}
 	return &analyticalclient.CompositeExecutionChain{StageCount: 0}, nil
 }
 
-func (r *multiSymbolStubReader) QueryChainsBatch(_ context.Context, _, _ string, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
+func (r *multiSymbolStubReader) QueryChainsBatch(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
 	return nil, nil
 }
 
@@ -535,12 +537,12 @@ type multiSymbolBatchStubReader struct {
 	batchPerSymbol map[string][]analyticalclient.CompositeExecutionChain
 }
 
-func (r *multiSymbolBatchStubReader) QueryChainByCorrelationID(_ context.Context, _, _ string) (*analyticalclient.CompositeExecutionChain, error) {
+func (r *multiSymbolBatchStubReader) QueryChainByCorrelationID(_ context.Context, _ string, _ instrument.CanonicalInstrument) (*analyticalclient.CompositeExecutionChain, error) {
 	return &analyticalclient.CompositeExecutionChain{StageCount: 0}, nil
 }
 
-func (r *multiSymbolBatchStubReader) QueryChainsBatch(_ context.Context, _, symbol string, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
-	if chains, ok := r.batchPerSymbol[symbol]; ok {
+func (r *multiSymbolBatchStubReader) QueryChainsBatch(_ context.Context, _ string, symbol instrument.CanonicalInstrument, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
+	if chains, ok := r.batchPerSymbol[symbol.LegacyFilterValue()]; ok {
 		return chains, nil
 	}
 	return nil, nil

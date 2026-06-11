@@ -141,7 +141,7 @@ func TestPipeline_EvaluateSimulateEmit_BuyOrder(t *testing.T) {
 	}
 
 	// Partition and dedup keys.
-	if ei.PartitionKey() != "binancef.btcusdt.60" {
+	if ei.PartitionKey() != "binancef.btc_usdt_perpetual.60" {
 		t.Fatalf("unexpected partition key: %q", ei.PartitionKey())
 	}
 	if ei.DeduplicationKey() == "" {

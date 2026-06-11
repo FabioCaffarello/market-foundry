@@ -36,11 +36,11 @@ type stubCompositeReader struct {
 	batchErr  error
 }
 
-func (s *stubCompositeReader) QueryChainByCorrelationID(_ context.Context, _, _ string) (*analyticalclient.CompositeExecutionChain, error) {
+func (s *stubCompositeReader) QueryChainByCorrelationID(_ context.Context, _ string, _ instrument.CanonicalInstrument) (*analyticalclient.CompositeExecutionChain, error) {
 	return s.chain, s.singleErr
 }
 
-func (s *stubCompositeReader) QueryChainsBatch(_ context.Context, _, _ string, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
+func (s *stubCompositeReader) QueryChainsBatch(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64, _ int) ([]analyticalclient.CompositeExecutionChain, error) {
 	return s.chains, s.batchErr
 }
 
@@ -99,7 +99,7 @@ func TestGetCompositeChain_Single_FullChain(t *testing.T) {
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-001",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -135,7 +135,7 @@ func TestGetCompositeChain_Single_EmptyResult(t *testing.T) {
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-missing",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -152,7 +152,7 @@ func TestGetCompositeChain_Single_ReaderError(t *testing.T) {
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-err",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -171,9 +171,9 @@ func TestGetCompositeChain_Batch_Success(t *testing.T) {
 	uc := analyticalclient.NewGetCompositeChainUseCase(reader, slog.Default())
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -191,8 +191,8 @@ func TestGetCompositeChain_Batch_MissingSource(t *testing.T) {
 	uc := analyticalclient.NewGetCompositeChainUseCase(&stubCompositeReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing source")
@@ -218,9 +218,9 @@ func TestGetCompositeChain_Batch_InvalidTimeframe(t *testing.T) {
 	uc := analyticalclient.NewGetCompositeChainUseCase(&stubCompositeReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: -1,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  -1,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for invalid timeframe")
@@ -233,10 +233,10 @@ func TestGetCompositeChain_Batch_LimitClamping(t *testing.T) {
 
 	// Over max limit — should clamp silently.
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     999,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      999,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -250,7 +250,7 @@ func TestGetCompositeChain_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetCompositeChainUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-nil",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -266,7 +266,7 @@ func TestGetCompositeChain_Single_Attribution(t *testing.T) {
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-attr",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -311,7 +311,7 @@ func TestGetCompositeChain_Single_NoRisk_NoAttribution(t *testing.T) {
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
 		CorrelationID: "corr-no-risk",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -347,7 +347,7 @@ func TestGetCompositeChain_Batch_Attribution(t *testing.T) {
 	uc := analyticalclient.NewGetCompositeChainUseCase(reader, slog.Default())
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

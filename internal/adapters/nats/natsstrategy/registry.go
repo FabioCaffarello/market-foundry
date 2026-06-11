@@ -10,12 +10,12 @@ import (
 
 // Registry defines the NATS subject and stream contracts for the strategy domain.
 type Registry struct {
-	MeanReversionEntryResolved    natskit.EventSpec
-	MeanReversionEntryLatest      natskit.ControlSpec
-	TrendFollowingEntryResolved   natskit.EventSpec
-	TrendFollowingEntryLatest     natskit.ControlSpec
-	SqueezeBreakoutEntryResolved  natskit.EventSpec
-	SqueezeBreakoutEntryLatest    natskit.ControlSpec
+	MeanReversionEntryResolved   natskit.EventSpec
+	MeanReversionEntryLatest     natskit.ControlSpec
+	TrendFollowingEntryResolved  natskit.EventSpec
+	TrendFollowingEntryLatest    natskit.ControlSpec
+	SqueezeBreakoutEntryResolved natskit.EventSpec
+	SqueezeBreakoutEntryLatest   natskit.ControlSpec
 }
 
 func DefaultRegistry() Registry {

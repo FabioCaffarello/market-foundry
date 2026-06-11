@@ -1,13 +1,17 @@
 package riskclient
 
-import "internal/domain/risk"
+import (
+	"internal/domain/instrument"
+
+	"internal/domain/risk"
+)
 
 // RiskLatestQuery is the request contract for querying the latest risk assessment of a given type.
 type RiskLatestQuery struct {
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 }
 
 // RiskLatestReply is the response contract for the latest risk assessment query.

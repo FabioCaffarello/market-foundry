@@ -1,6 +1,8 @@
 package evidenceclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -28,10 +30,10 @@ func TestGetCandleHistoryUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query evidenceclient.CandleHistoryQuery
 	}{
-		{"empty source", evidenceclient.CandleHistoryQuery{Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", evidenceclient.CandleHistoryQuery{Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", evidenceclient.CandleHistoryQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", evidenceclient.CandleHistoryQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty source", evidenceclient.CandleHistoryQuery{Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", evidenceclient.CandleHistoryQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", evidenceclient.CandleHistoryQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", evidenceclient.CandleHistoryQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -65,11 +67,11 @@ func TestGetCandleHistoryUseCase_ValidatesRange(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-				Source:    "binancef",
-				Symbol:    "btcusdt",
-				Timeframe: 60,
-				Since:     tc.since,
-				Until:     tc.until,
+				Source:     "binancef",
+				Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+				Timeframe:  60,
+				Since:      tc.since,
+				Until:      tc.until,
 			})
 			if tc.wantErr && prob == nil {
 				t.Fatal("expected validation error")
@@ -87,10 +89,10 @@ func TestGetCandleHistoryUseCase_DefaultsLimit(t *testing.T) {
 
 	// Zero limit should not cause validation error — it gets defaulted.
 	_, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     0,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      0,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -105,10 +107,10 @@ func TestGetCandleHistoryUseCase_ClampsLimit(t *testing.T) {
 	uc := evidenceclient.NewGetCandleHistoryUseCase(gw)
 
 	_, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     999,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      999,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -123,12 +125,12 @@ func TestGetCandleHistoryUseCase_PassesSinceUntil(t *testing.T) {
 	uc := evidenceclient.NewGetCandleHistoryUseCase(gw)
 
 	_, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     5,
-		Since:     1710000000,
-		Until:     1710003600,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      5,
+		Since:      1710000000,
+		Until:      1710003600,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -160,10 +162,10 @@ func TestGetCandleHistoryUseCase_ReturnsCandles(t *testing.T) {
 
 	uc := evidenceclient.NewGetCandleHistoryUseCase(&mockCandleHistoryGateway{candles: candles})
 	reply, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     10,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      10,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -176,9 +178,9 @@ func TestGetCandleHistoryUseCase_ReturnsCandles(t *testing.T) {
 func TestGetCandleHistoryUseCase_NilGateway(t *testing.T) {
 	var uc *evidenceclient.GetCandleHistoryUseCase
 	_, prob := uc.Execute(context.Background(), evidenceclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

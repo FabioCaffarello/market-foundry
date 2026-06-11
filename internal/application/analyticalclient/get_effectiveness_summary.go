@@ -46,7 +46,7 @@ func (uc *GetEffectivenessSummaryUseCase) Execute(ctx context.Context, query Eff
 	if query.Source == "" {
 		return EffectivenessSummaryReply{}, problem.New(problem.InvalidArgument, "source is required for effectiveness summary")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return EffectivenessSummaryReply{}, problem.New(problem.InvalidArgument, "symbol is required for effectiveness summary")
 	}
 	if query.Timeframe <= 0 {
@@ -65,11 +65,11 @@ func (uc *GetEffectivenessSummaryUseCase) Execute(ctx context.Context, query Eff
 
 	start := time.Now()
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("effectiveness summary query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return EffectivenessSummaryReply{}, problem.Wrap(err, problem.Unavailable, "effectiveness summary query failed")
@@ -153,7 +153,7 @@ func (uc *GetEffectivenessSummaryUseCase) Execute(ctx context.Context, query Eff
 	}
 
 	uc.logger.Info("effectiveness summary completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"group_by", query.GroupBy, "chains_scanned", len(chains),
 		"evaluated", len(attributions), "cohorts", len(cohorts),
 		"total_ms", elapsed.Milliseconds(),

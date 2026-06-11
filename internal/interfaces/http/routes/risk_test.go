@@ -62,7 +62,7 @@ func TestRiskRoutesRegisterHandler(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -93,7 +93,7 @@ func TestDefaultRoutesIncludesRiskWhenProvided(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -121,7 +121,7 @@ func TestDefaultRoutesOmitsRiskWhenNil(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/risk/position_exposure/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

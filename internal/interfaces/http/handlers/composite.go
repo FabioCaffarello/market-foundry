@@ -62,32 +62,32 @@ type getContinuityReviewUseCase interface {
 // S482: Round-trip review and outcome reconciliation endpoint added.
 // S495: Cross-session pairing read model endpoint added.
 type CompositeWebHandler struct {
-	getCompositeChain        getCompositeChainUseCase
-	getPipelineFunnel        getPipelineFunnelUseCase
-	getDispositionBreakdown  getDispositionBreakdownUseCase
-	getDecisionReview        getDecisionReviewUseCase
-	getEffectiveness         getEffectivenessUseCase
-	getEffectivenessSummary  getEffectivenessSummaryUseCase
-	getPairing               getPairingUseCase
-	getRoundTripReview       getRoundTripReviewUseCase
-	getCrossSessionPairing   getCrossSessionPairingUseCase
-	getContinuityReview      getContinuityReviewUseCase
-	logger                   *slog.Logger
+	getCompositeChain       getCompositeChainUseCase
+	getPipelineFunnel       getPipelineFunnelUseCase
+	getDispositionBreakdown getDispositionBreakdownUseCase
+	getDecisionReview       getDecisionReviewUseCase
+	getEffectiveness        getEffectivenessUseCase
+	getEffectivenessSummary getEffectivenessSummaryUseCase
+	getPairing              getPairingUseCase
+	getRoundTripReview      getRoundTripReviewUseCase
+	getCrossSessionPairing  getCrossSessionPairingUseCase
+	getContinuityReview     getContinuityReviewUseCase
+	logger                  *slog.Logger
 }
 
 // CompositeHandlerDeps groups all dependencies for the composite HTTP handler.
 type CompositeHandlerDeps struct {
-	GetCompositeChain        getCompositeChainUseCase
-	GetPipelineFunnel        getPipelineFunnelUseCase
-	GetDispositionBreakdown  getDispositionBreakdownUseCase
-	GetDecisionReview        getDecisionReviewUseCase
-	GetEffectiveness         getEffectivenessUseCase
-	GetEffectivenessSummary  getEffectivenessSummaryUseCase
-	GetPairing               getPairingUseCase
-	GetRoundTripReview       getRoundTripReviewUseCase
-	GetCrossSessionPairing   getCrossSessionPairingUseCase
-	GetContinuityReview      getContinuityReviewUseCase
-	Logger                   *slog.Logger
+	GetCompositeChain       getCompositeChainUseCase
+	GetPipelineFunnel       getPipelineFunnelUseCase
+	GetDispositionBreakdown getDispositionBreakdownUseCase
+	GetDecisionReview       getDecisionReviewUseCase
+	GetEffectiveness        getEffectivenessUseCase
+	GetEffectivenessSummary getEffectivenessSummaryUseCase
+	GetPairing              getPairingUseCase
+	GetRoundTripReview      getRoundTripReviewUseCase
+	GetCrossSessionPairing  getCrossSessionPairingUseCase
+	GetContinuityReview     getContinuityReviewUseCase
+	Logger                  *slog.Logger
 }
 
 func NewCompositeWebHandler(deps CompositeHandlerDeps) *CompositeWebHandler {
@@ -96,17 +96,17 @@ func NewCompositeWebHandler(deps CompositeHandlerDeps) *CompositeWebHandler {
 		logger = slog.Default()
 	}
 	return &CompositeWebHandler{
-		getCompositeChain:        deps.GetCompositeChain,
-		getPipelineFunnel:        deps.GetPipelineFunnel,
-		getDispositionBreakdown:  deps.GetDispositionBreakdown,
-		getDecisionReview:        deps.GetDecisionReview,
-		getEffectiveness:         deps.GetEffectiveness,
-		getEffectivenessSummary:  deps.GetEffectivenessSummary,
-		getPairing:               deps.GetPairing,
-		getRoundTripReview:       deps.GetRoundTripReview,
-		getCrossSessionPairing:   deps.GetCrossSessionPairing,
-		getContinuityReview:      deps.GetContinuityReview,
-		logger:                   logger.With("component", "composite_handler"),
+		getCompositeChain:       deps.GetCompositeChain,
+		getPipelineFunnel:       deps.GetPipelineFunnel,
+		getDispositionBreakdown: deps.GetDispositionBreakdown,
+		getDecisionReview:       deps.GetDecisionReview,
+		getEffectiveness:        deps.GetEffectiveness,
+		getEffectivenessSummary: deps.GetEffectivenessSummary,
+		getPairing:              deps.GetPairing,
+		getRoundTripReview:      deps.GetRoundTripReview,
+		getCrossSessionPairing:  deps.GetCrossSessionPairing,
+		getContinuityReview:     deps.GetContinuityReview,
+		logger:                  logger.With("component", "composite_handler"),
 	}
 }
 
@@ -135,20 +135,21 @@ func (h *CompositeWebHandler) GetChain(w http.ResponseWriter, r *http.Request) {
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "correlation_id query parameter is required"))
 		return
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		writeProblemResponse(w, problem.New(problem.InvalidArgument, "symbol query parameter is required for isolation (S301)"))
+	inst, instProb := parseRequiredInstrumentParams(r)
+	if instProb != nil {
+		// Canonical trio required for cross-symbol isolation (S301).
+		writeProblemResponse(w, instProb)
 		return
 	}
 
 	result, prob := h.getCompositeChain.Execute(r.Context(), analyticalclient.CompositeChainQuery{
 		CorrelationID: correlationID,
-		Symbol:        symbol,
+		Instrument:    inst,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("composite chain request failed",
-			"correlation_id", correlationID, "symbol", symbol, "total_ms", totalMs, "problem", prob.Code,
+			"correlation_id", correlationID, "instrument", inst.Symbol(), "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
 		return
@@ -189,17 +190,17 @@ func (h *CompositeWebHandler) GetChains(w http.ResponseWriter, r *http.Request) 
 	}
 
 	result, prob := h.getCompositeChain.Execute(r.Context(), analyticalclient.CompositeChainQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
-		Limit:     params.Limit,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
+		Limit:      params.Limit,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("composite chains request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -253,17 +254,17 @@ func (h *CompositeWebHandler) GetFunnel(w http.ResponseWriter, r *http.Request) 
 	}
 
 	result, prob := h.getPipelineFunnel.Execute(r.Context(), analyticalclient.PipelineFunnelQuery{
-		Type:      typ,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       typ,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("pipeline funnel request failed",
-			"type", typ, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", typ, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -317,17 +318,17 @@ func (h *CompositeWebHandler) GetDispositions(w http.ResponseWriter, r *http.Req
 	}
 
 	result, prob := h.getDispositionBreakdown.Execute(r.Context(), analyticalclient.DispositionBreakdownQuery{
-		Type:      typ,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
+		Type:       typ,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("disposition breakdown request failed",
-			"type", typ, "source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"type", typ, "source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -371,9 +372,10 @@ func (h *CompositeWebHandler) GetDecisionReview(w http.ResponseWriter, r *http.R
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "correlation_id query parameter is required"))
 		return
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		writeProblemResponse(w, problem.New(problem.InvalidArgument, "symbol query parameter is required for isolation (S301)"))
+	inst, instProb := parseRequiredInstrumentParams(r)
+	if instProb != nil {
+		// Canonical trio required for cross-symbol isolation (S301).
+		writeProblemResponse(w, instProb)
 		return
 	}
 
@@ -381,13 +383,13 @@ func (h *CompositeWebHandler) GetDecisionReview(w http.ResponseWriter, r *http.R
 
 	result, prob := h.getDecisionReview.Execute(r.Context(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: correlationID,
-		Symbol:        symbol,
+		Instrument:    inst,
 		Outcome:       outcome,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("decision review request failed",
-			"correlation_id", correlationID, "symbol", symbol, "total_ms", totalMs, "problem", prob.Code,
+			"correlation_id", correlationID, "instrument", inst.Symbol(), "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
 		return
@@ -432,18 +434,18 @@ func (h *CompositeWebHandler) GetDecisionReviews(w http.ResponseWriter, r *http.
 	}
 
 	result, prob := h.getDecisionReview.Execute(r.Context(), analyticalclient.DecisionReviewQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Outcome:   outcome,
-		Since:     params.Since,
-		Until:     params.Until,
-		Limit:     params.Limit,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Outcome:    outcome,
+		Since:      params.Since,
+		Until:      params.Until,
+		Limit:      params.Limit,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("decision reviews request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"outcome", outcome, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -478,20 +480,21 @@ func (h *CompositeWebHandler) GetEffectiveness(w http.ResponseWriter, r *http.Re
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "correlation_id query parameter is required"))
 		return
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		writeProblemResponse(w, problem.New(problem.InvalidArgument, "symbol query parameter is required for isolation (S301)"))
+	inst, instProb := parseRequiredInstrumentParams(r)
+	if instProb != nil {
+		// Canonical trio required for cross-symbol isolation (S301).
+		writeProblemResponse(w, instProb)
 		return
 	}
 
 	result, prob := h.getEffectiveness.Execute(r.Context(), analyticalclient.EffectivenessQuery{
 		CorrelationID: correlationID,
-		Symbol:        symbol,
+		Instrument:    inst,
 	})
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("effectiveness request failed",
-			"correlation_id", correlationID, "symbol", symbol, "total_ms", totalMs, "problem", prob.Code,
+			"correlation_id", correlationID, "instrument", inst.Symbol(), "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
 		return
@@ -536,7 +539,7 @@ func (h *CompositeWebHandler) GetEffectivenessBatch(w http.ResponseWriter, r *ht
 
 	result, prob := h.getEffectiveness.Execute(r.Context(), analyticalclient.EffectivenessQuery{
 		Source:        key.Source,
-		Symbol:        key.Symbol,
+		Instrument:    key.Instrument,
 		Timeframe:     key.Timeframe,
 		DecisionType:  decisionType,
 		StrategyType:  strategyType,
@@ -549,7 +552,7 @@ func (h *CompositeWebHandler) GetEffectivenessBatch(w http.ResponseWriter, r *ht
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("effectiveness batch request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -596,7 +599,7 @@ func (h *CompositeWebHandler) GetEffectivenessSummary(w http.ResponseWriter, r *
 
 	result, prob := h.getEffectivenessSummary.Execute(r.Context(), analyticalclient.EffectivenessSummaryQuery{
 		Source:       key.Source,
-		Symbol:       key.Symbol,
+		Instrument:   key.Instrument,
 		Timeframe:    key.Timeframe,
 		DecisionType: decisionType,
 		StrategyType: strategyType,
@@ -609,7 +612,7 @@ func (h *CompositeWebHandler) GetEffectivenessSummary(w http.ResponseWriter, r *
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("effectiveness summary request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"group_by", groupBy, "total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -652,19 +655,19 @@ func (h *CompositeWebHandler) GetPairing(w http.ResponseWriter, r *http.Request)
 	side := r.URL.Query().Get("side")
 
 	pairingResult, prob := h.getPairing.Execute(r.Context(), analyticalclient.PairingQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
-		Limit:     params.Limit,
-		State:     state,
-		Side:      side,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
+		Limit:      params.Limit,
+		State:      state,
+		Side:       side,
 	})
 	if prob != nil {
 		pairingTotalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("pairing request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", pairingTotalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -695,20 +698,21 @@ func (h *CompositeWebHandler) GetPairingSingle(w http.ResponseWriter, r *http.Re
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "correlation_id query parameter is required"))
 		return
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		writeProblemResponse(w, problem.New(problem.InvalidArgument, "symbol query parameter is required for isolation (S301)"))
+	inst, instProb := parseRequiredInstrumentParams(r)
+	if instProb != nil {
+		// Canonical trio required for cross-symbol isolation (S301).
+		writeProblemResponse(w, instProb)
 		return
 	}
 
 	singleResult, prob := h.getPairing.Execute(r.Context(), analyticalclient.PairingQuery{
 		CorrelationID: correlationID,
-		Symbol:        symbol,
+		Instrument:    inst,
 	})
 	if prob != nil {
 		singleTotalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("pairing single request failed",
-			"correlation_id", correlationID, "symbol", symbol,
+			"correlation_id", correlationID, "instrument", inst.Symbol(),
 			"total_ms", singleTotalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -753,21 +757,21 @@ func (h *CompositeWebHandler) GetRoundTripReview(w http.ResponseWriter, r *http.
 	flagged := r.URL.Query().Get("flagged") == "true"
 
 	reviewResult, prob := h.getRoundTripReview.Execute(r.Context(), analyticalclient.RoundTripReviewQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
-		Since:     params.Since,
-		Until:     params.Until,
-		Limit:     params.Limit,
-		State:     state,
-		Side:      side,
-		Outcome:   outcome,
-		Flagged:   flagged,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
+		Since:      params.Since,
+		Until:      params.Until,
+		Limit:      params.Limit,
+		State:      state,
+		Side:       side,
+		Outcome:    outcome,
+		Flagged:    flagged,
 	})
 	if prob != nil {
 		reviewTotalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("round-trip review request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", reviewTotalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -798,20 +802,21 @@ func (h *CompositeWebHandler) GetRoundTripReviewSingle(w http.ResponseWriter, r 
 		writeProblemResponse(w, problem.New(problem.InvalidArgument, "correlation_id query parameter is required"))
 		return
 	}
-	symbol := r.URL.Query().Get("symbol")
-	if symbol == "" {
-		writeProblemResponse(w, problem.New(problem.InvalidArgument, "symbol query parameter is required for isolation (S301)"))
+	inst, instProb := parseRequiredInstrumentParams(r)
+	if instProb != nil {
+		// Canonical trio required for cross-symbol isolation (S301).
+		writeProblemResponse(w, instProb)
 		return
 	}
 
 	reviewSingleResult, prob := h.getRoundTripReview.Execute(r.Context(), analyticalclient.RoundTripReviewQuery{
 		CorrelationID: correlationID,
-		Symbol:        symbol,
+		Instrument:    inst,
 	})
 	if prob != nil {
 		reviewSingleTotalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("round-trip review single request failed",
-			"correlation_id", correlationID, "symbol", symbol,
+			"correlation_id", correlationID, "instrument", inst.Symbol(),
 			"total_ms", reviewSingleTotalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -871,7 +876,7 @@ func (h *CompositeWebHandler) GetCrossSessionPairing(w http.ResponseWriter, r *h
 
 	result, prob := h.getCrossSessionPairing.Execute(r.Context(), analyticalclient.CrossSessionPairingQuery{
 		Source:      key.Source,
-		Symbol:      key.Symbol,
+		Instrument:  key.Instrument,
 		Timeframe:   key.Timeframe,
 		Since:       params.Since,
 		Until:       params.Until,
@@ -882,7 +887,7 @@ func (h *CompositeWebHandler) GetCrossSessionPairing(w http.ResponseWriter, r *h
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("cross-session pairing request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)
@@ -944,7 +949,7 @@ func (h *CompositeWebHandler) GetContinuityReview(w http.ResponseWriter, r *http
 
 	result, prob := h.getContinuityReview.Execute(r.Context(), analyticalclient.ContinuityReviewQuery{
 		Source:      key.Source,
-		Symbol:      key.Symbol,
+		Instrument:  key.Instrument,
 		Timeframe:   key.Timeframe,
 		Since:       params.Since,
 		Until:       params.Until,
@@ -957,7 +962,7 @@ func (h *CompositeWebHandler) GetContinuityReview(w http.ResponseWriter, r *http
 	if prob != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("continuity review request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", prob.Code,
 		)
 		writeProblemResponse(w, prob)

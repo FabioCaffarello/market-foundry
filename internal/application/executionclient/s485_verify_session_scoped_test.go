@@ -79,8 +79,8 @@ func TestVerifySession_DerivesScope_NilSession(t *testing.T) {
 	if reply.Report.Scope == nil {
 		t.Fatal("expected scope in report even without session")
 	}
-	if len(reply.Report.Scope.Symbols) != 1 || reply.Report.Scope.Symbols[0] != "BTCUSDT" {
-		t.Errorf("expected default symbol BTCUSDT, got %v", reply.Report.Scope.Symbols)
+	if len(reply.Report.Scope.Symbols) != 1 || reply.Report.Scope.Symbols[0] != "btcusdt" {
+		t.Errorf("expected default symbol btcusdt, got %v", reply.Report.Scope.Symbols)
 	}
 }
 

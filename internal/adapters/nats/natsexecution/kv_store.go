@@ -1,6 +1,8 @@
 package natsexecution
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -93,13 +95,20 @@ func (s *KVStore) Put(ctx context.Context, intent execution.ExecutionIntent) (na
 	return natskit.PutWritten, nil
 }
 
-// Get retrieves the latest execution intent for a given source/symbol/timeframe.
-func (s *KVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*execution.ExecutionIntent, *problem.Problem) {
+// Get retrieves the latest execution intent for a given source/instrument/timeframe.
+func (s *KVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*execution.ExecutionIntent, *problem.Problem) {
+	return s.GetByKey(ctx, fmt.Sprintf("%s.%s.%d", source, inst.SubjectToken(), timeframe))
+}
+
+// GetByKey retrieves the latest execution intent by the literal
+// partition key. Used by surfaces that already HOLD a key (e.g. the
+// lifecycle list iterating bucket keys) — avoids any string→canonical
+// reconstruction (banned since H-6.c).
+func (s *KVStore) GetByKey(ctx context.Context, key string) (*execution.ExecutionIntent, *problem.Problem) {
 	if s == nil || s.latest == nil {
 		return nil, problem.New(problem.Unavailable, "execution KV store is unavailable")
 	}
 
-	key := fmt.Sprintf("%s.%s.%d", source, symbol, timeframe)
 	entry, err := s.latest.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {

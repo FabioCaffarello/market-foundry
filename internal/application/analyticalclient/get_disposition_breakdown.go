@@ -33,8 +33,8 @@ func (uc *GetDispositionBreakdownUseCase) Execute(ctx context.Context, query Dis
 	if query.Source == "" {
 		return DispositionBreakdownReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return DispositionBreakdownReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return DispositionBreakdownReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return DispositionBreakdownReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -50,12 +50,12 @@ func (uc *GetDispositionBreakdownUseCase) Execute(ctx context.Context, query Dis
 	}
 
 	start := time.Now()
-	dispositions, err := uc.reader.QueryDispositionBreakdown(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until)
+	dispositions, err := uc.reader.QueryDispositionBreakdown(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("disposition breakdown query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return DispositionBreakdownReply{}, problem.Wrap(err, problem.Unavailable, "disposition breakdown query failed")
@@ -76,7 +76,7 @@ func (uc *GetDispositionBreakdownUseCase) Execute(ctx context.Context, query Dis
 	}
 
 	uc.logger.Info("disposition breakdown query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"total", total, "total_ms", elapsed.Milliseconds(),
 	)
 

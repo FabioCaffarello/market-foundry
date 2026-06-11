@@ -46,10 +46,10 @@ func (h *DecisionWebHandler) GetLatestDecision(w http.ResponseWriter, r *http.Re
 	}
 
 	result, prob := h.getLatestDecision.Execute(r.Context(), decisionclient.DecisionLatestQuery{
-		Type:      decisionType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Type:       decisionType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)

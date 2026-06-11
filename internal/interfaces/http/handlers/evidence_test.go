@@ -66,7 +66,7 @@ func TestEvidenceWebHandler_GetLatestCandle(t *testing.T) {
 		nil, nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -86,7 +86,7 @@ func TestEvidenceWebHandler_GetLatestCandle(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestCandle_Unavailable(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -98,7 +98,7 @@ func TestEvidenceWebHandler_GetLatestCandle_Unavailable(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestCandle_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(&mockGetLatestCandle{}, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -110,7 +110,7 @@ func TestEvidenceWebHandler_GetLatestCandle_MissingTimeframe(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestCandle_InvalidTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(&mockGetLatestCandle{}, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=abc", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -125,7 +125,7 @@ func TestEvidenceWebHandler_GetLatestCandle_NullCandle(t *testing.T) {
 		nil, nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestCandle(rec, req)
 
@@ -161,7 +161,7 @@ func TestEvidenceWebHandler_GetCandleHistory(t *testing.T) {
 		nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&limit=5", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -185,7 +185,7 @@ func TestEvidenceWebHandler_GetCandleHistory_WithRange(t *testing.T) {
 	}
 	handler := handlers.NewEvidenceWebHandler(nil, mock, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&since=1710000000&until=1710003600&limit=20", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&since=1710000000&until=1710003600&limit=20", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -206,7 +206,7 @@ func TestEvidenceWebHandler_GetCandleHistory_WithRange(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_InvalidSince(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, &mockGetCandleHistory{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&since=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&since=abc", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -218,7 +218,7 @@ func TestEvidenceWebHandler_GetCandleHistory_InvalidSince(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_InvalidUntil(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, &mockGetCandleHistory{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&until=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&until=abc", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -230,7 +230,7 @@ func TestEvidenceWebHandler_GetCandleHistory_InvalidUntil(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_Unavailable(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -242,7 +242,7 @@ func TestEvidenceWebHandler_GetCandleHistory_Unavailable(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, &mockGetCandleHistory{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -254,7 +254,7 @@ func TestEvidenceWebHandler_GetCandleHistory_MissingTimeframe(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_InvalidLimit(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, &mockGetCandleHistory{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&limit=999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=999", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -266,7 +266,7 @@ func TestEvidenceWebHandler_GetCandleHistory_InvalidLimit(t *testing.T) {
 func TestEvidenceWebHandler_GetCandleHistory_LimitZeroNotParsed(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, &mockGetCandleHistory{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60&limit=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=0", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -282,7 +282,7 @@ func TestEvidenceWebHandler_GetCandleHistory_EmptyResult(t *testing.T) {
 		nil, nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/candles/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetCandleHistory(rec, req)
 
@@ -335,7 +335,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst(t *testing.T) {
 		nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -355,7 +355,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestTradeBurst_Unavailable(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -367,7 +367,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst_Unavailable(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestTradeBurst_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, &mockGetLatestTradeBurst{}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -379,7 +379,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst_MissingTimeframe(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestTradeBurst_InvalidTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, &mockGetLatestTradeBurst{}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=abc", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -395,7 +395,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst_NullResult(t *testing.T) {
 		nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -419,7 +419,7 @@ func TestEvidenceWebHandler_GetLatestTradeBurst_UseCaseError(t *testing.T) {
 		nil,
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/tradeburst/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestTradeBurst(rec, req)
 
@@ -460,7 +460,7 @@ func TestEvidenceWebHandler_GetLatestVolume(t *testing.T) {
 		&mockGetLatestVolume{reply: evidenceclient.VolumeLatestReply{Volume: vol}},
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 
@@ -480,7 +480,7 @@ func TestEvidenceWebHandler_GetLatestVolume(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestVolume_Unavailable(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 
@@ -492,7 +492,7 @@ func TestEvidenceWebHandler_GetLatestVolume_Unavailable(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestVolume_MissingTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, &mockGetLatestVolume{})
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 
@@ -504,7 +504,7 @@ func TestEvidenceWebHandler_GetLatestVolume_MissingTimeframe(t *testing.T) {
 func TestEvidenceWebHandler_GetLatestVolume_InvalidTimeframe(t *testing.T) {
 	handler := handlers.NewEvidenceWebHandler(nil, nil, nil, &mockGetLatestVolume{})
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt&timeframe=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=abc", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 
@@ -519,7 +519,7 @@ func TestEvidenceWebHandler_GetLatestVolume_NullResult(t *testing.T) {
 		&mockGetLatestVolume{reply: evidenceclient.VolumeLatestReply{Volume: nil}},
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 
@@ -542,7 +542,7 @@ func TestEvidenceWebHandler_GetLatestVolume_UseCaseError(t *testing.T) {
 		&mockGetLatestVolume{prob: problem.New(problem.Unavailable, "store down")},
 	)
 
-	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/evidence/volume/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	handler.GetLatestVolume(rec, req)
 

@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"testing"
@@ -14,15 +16,15 @@ type stubCandleReader struct {
 	err     error
 }
 
-func (s *stubCandleReader) QueryCandleHistory(_ context.Context, _, _ string, _ int, _, _ int64, _ int) ([]evidence.EvidenceCandle, error) {
+func (s *stubCandleReader) QueryCandleHistory(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64, _ int) ([]evidence.EvidenceCandle, error) {
 	return s.candles, s.err
 }
 
 func TestGetCandleHistoryUseCase_MissingSource(t *testing.T) {
 	uc := analyticalclient.NewGetCandleHistoryUseCase(&stubCandleReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing source")
@@ -43,9 +45,9 @@ func TestGetCandleHistoryUseCase_MissingSymbol(t *testing.T) {
 func TestGetCandleHistoryUseCase_InvalidTimeframe(t *testing.T) {
 	uc := analyticalclient.NewGetCandleHistoryUseCase(&stubCandleReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 0,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  0,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for zero timeframe")
@@ -55,11 +57,11 @@ func TestGetCandleHistoryUseCase_InvalidTimeframe(t *testing.T) {
 func TestGetCandleHistoryUseCase_SinceAfterUntil(t *testing.T) {
 	uc := analyticalclient.NewGetCandleHistoryUseCase(&stubCandleReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     2000,
-		Until:     1000,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      2000,
+		Until:      1000,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for since > until")
@@ -70,9 +72,9 @@ func TestGetCandleHistoryUseCase_DefaultLimit(t *testing.T) {
 	reader := &stubCandleReader{candles: []evidence.EvidenceCandle{}}
 	uc := analyticalclient.NewGetCandleHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -86,10 +88,10 @@ func TestGetCandleHistoryUseCase_LimitClamped(t *testing.T) {
 	reader := &stubCandleReader{candles: []evidence.EvidenceCandle{}}
 	uc := analyticalclient.NewGetCandleHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     9999,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      9999,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -103,9 +105,9 @@ func TestGetCandleHistoryUseCase_ReaderError(t *testing.T) {
 	reader := &stubCandleReader{err: errors.New("connection refused")}
 	uc := analyticalclient.NewGetCandleHistoryUseCase(reader, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -115,9 +117,9 @@ func TestGetCandleHistoryUseCase_ReaderError(t *testing.T) {
 func TestGetCandleHistoryUseCase_NilReader(t *testing.T) {
 	uc := analyticalclient.NewGetCandleHistoryUseCase(nil, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil reader")
@@ -127,9 +129,9 @@ func TestGetCandleHistoryUseCase_NilReader(t *testing.T) {
 func TestGetCandleHistoryUseCase_NilUseCaseExecute(t *testing.T) {
 	var uc *analyticalclient.GetCandleHistoryUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.CandleHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")

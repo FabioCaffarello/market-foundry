@@ -14,10 +14,10 @@ import "time"
 // automatically by the event-driven verification trigger (S490).
 type UnifiedOperationalReport struct {
 	// Identity and provenance.
-	SessionID  string    `json:"session_id"`
+	SessionID   string    `json:"session_id"`
 	GeneratedAt time.Time `json:"generated_at"`
 	GeneratedBy string    `json:"generated_by"` // "auto-trigger" or "http-request"
-	DurationMs int64     `json:"duration_ms"`
+	DurationMs  int64     `json:"duration_ms"`
 
 	// Section 1: Verification (PO checks).
 	Verification *ReportVerificationSection `json:"verification,omitempty"`
@@ -66,8 +66,8 @@ type ReportVerificationSection struct {
 
 // ReportAuditSection wraps the session audit bundle highlights.
 type ReportAuditSection struct {
-	SessionStatus string           `json:"session_status"`
-	Operator      string           `json:"operator,omitempty"`
+	SessionStatus string             `json:"session_status"`
+	Operator      string             `json:"operator,omitempty"`
 	OrderActivity AuditOrderActivity `json:"order_activity"`
 	FeeSummary    AuditFeeSummary    `json:"fee_summary"`
 	Consistency   AuditConsistency   `json:"consistency"`
@@ -84,14 +84,14 @@ type ReportOperationalStateSection struct {
 
 // ReportTriageSection captures the cross-domain triage summary.
 type ReportTriageSection struct {
-	TotalAnomalies int              `json:"total_anomalies"`
-	SessionCritical int             `json:"session_critical"`
-	SessionWarning  int             `json:"session_warning"`
-	DecisionCritical int            `json:"decision_critical"`
-	DecisionWarning  int            `json:"decision_warning"`
-	RoundTripCritical int           `json:"round_trip_critical"`
-	RoundTripWarning  int           `json:"round_trip_warning"`
-	TopFindings     []string        `json:"top_findings,omitempty"`
+	TotalAnomalies    int      `json:"total_anomalies"`
+	SessionCritical   int      `json:"session_critical"`
+	SessionWarning    int      `json:"session_warning"`
+	DecisionCritical  int      `json:"decision_critical"`
+	DecisionWarning   int      `json:"decision_warning"`
+	RoundTripCritical int      `json:"round_trip_critical"`
+	RoundTripWarning  int      `json:"round_trip_warning"`
+	TopFindings       []string `json:"top_findings,omitempty"`
 }
 
 // ComputeVerdict derives the overall verdict from all populated sections.

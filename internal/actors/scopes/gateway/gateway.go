@@ -2,8 +2,8 @@ package actorgateway
 
 import (
 	"context"
-	"internal/shared/webserver"
 	"internal/shared/settings"
+	"internal/shared/webserver"
 	"log/slog"
 	"time"
 

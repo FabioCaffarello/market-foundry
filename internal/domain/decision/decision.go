@@ -111,9 +111,10 @@ func (d Decision) Validate() *problem.Problem {
 }
 
 // PartitionKey returns the key used for KV bucket entries:
-// "{source}.{venuesymbol}.{timeframe}". Preserves H-6.b back-compat.
+// "{source}.{subject_token}.{timeframe}" — canonical token via
+// SubjectToken() since H-6.e.2 (read side composes the same shape).
 func (d Decision) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", d.Source, d.VenueSymbol(), d.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", d.Source, d.Instrument.SubjectToken(), d.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.

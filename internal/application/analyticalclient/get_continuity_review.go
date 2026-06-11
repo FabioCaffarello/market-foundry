@@ -55,7 +55,7 @@ func (uc *GetContinuityReviewUseCase) Execute(ctx context.Context, query Continu
 	start := time.Now()
 
 	// Validate required fields.
-	if query.Source == "" || query.Symbol == "" || query.Timeframe <= 0 || query.Since <= 0 {
+	if query.Source == "" || query.Instrument.IsZero() || query.Timeframe <= 0 || query.Since <= 0 {
 		return ContinuityReviewReply{}, problem.New(problem.InvalidArgument,
 			"source, symbol, timeframe, and since are required for continuity review")
 	}
@@ -128,7 +128,7 @@ func (uc *GetContinuityReviewUseCase) Execute(ctx context.Context, query Continu
 			sessUntil = untilTime.Unix()
 		}
 
-		chains, qErr := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, sessSince, sessUntil, crossSessionDefaultLimit)
+		chains, qErr := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, sessSince, sessUntil, crossSessionDefaultLimit)
 		if qErr != nil {
 			uc.logger.Warn("chain query failed for session",
 				"session_id", sess.SessionID, "error", qErr)
@@ -178,7 +178,7 @@ func (uc *GetContinuityReviewUseCase) Execute(ctx context.Context, query Continu
 	// would force regression-prone source-string reconstruction).
 	legSet := pairing.CrossSessionLegSet{
 		Window: pairing.CrossSessionWindow{
-			VenueSymbol: query.Symbol,
+			VenueSymbol: query.Instrument.LegacyFilterValue(),
 			Source:      query.Source,
 			Timeframe:   query.Timeframe,
 			Since:       sinceTime,
@@ -208,7 +208,7 @@ func (uc *GetContinuityReviewUseCase) Execute(ctx context.Context, query Continu
 	elapsed := time.Since(start)
 
 	uc.logger.Info("continuity review completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"sessions", len(sessionIDs), "chains", totalChains, "legs", len(allLegs),
 		"round_trips", len(csRoundTrips), "reviewed", len(reviews),
 		"resolved", continuity.ResolvedCount,

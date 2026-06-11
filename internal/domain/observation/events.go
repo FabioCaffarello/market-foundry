@@ -12,5 +12,5 @@ type TradeReceivedEvent struct {
 	Trade    ObservationTrade `json:"trade"`
 }
 
-func (e TradeReceivedEvent) EventName() events.Name        { return EventTradeReceived }
+func (e TradeReceivedEvent) EventName() events.Name         { return EventTradeReceived }
 func (e TradeReceivedEvent) EventMetadata() events.Metadata { return e.Metadata }

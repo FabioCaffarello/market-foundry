@@ -1,6 +1,8 @@
 package natsevidence
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -60,7 +62,7 @@ func (s *VolumeKVStore) Put(ctx context.Context, vol evidence.EvidenceVolume) (n
 		return natskit.PutWritten, problem.New(problem.Unavailable, "volume KV store is unavailable")
 	}
 
-	key := volumeKey(vol.Source, vol.VenueSymbol(), vol.Timeframe)
+	key := volumeKey(vol.Source, vol.Instrument.SubjectToken(), vol.Timeframe)
 
 	existing, err := s.latest.Get(ctx, key)
 	if err == nil {
@@ -87,12 +89,12 @@ func (s *VolumeKVStore) Put(ctx context.Context, vol evidence.EvidenceVolume) (n
 	return natskit.PutWritten, nil
 }
 
-func (s *VolumeKVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*evidence.EvidenceVolume, *problem.Problem) {
+func (s *VolumeKVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*evidence.EvidenceVolume, *problem.Problem) {
 	if s == nil || s.latest == nil {
 		return nil, problem.New(problem.Unavailable, "volume KV store is unavailable")
 	}
 
-	key := volumeKey(source, symbol, timeframe)
+	key := volumeKey(source, inst.SubjectToken(), timeframe)
 	entry, err := s.latest.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {

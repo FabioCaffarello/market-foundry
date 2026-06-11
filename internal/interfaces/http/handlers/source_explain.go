@@ -37,7 +37,7 @@ func (h *SourceExplainWebHandler) GetExplanation(w http.ResponseWriter, r *http.
 			return
 		}
 		query.Source = key.Source
-		query.Symbol = key.Symbol
+		query.Instrument = key.Instrument
 		query.Timeframe = key.Timeframe
 	}
 

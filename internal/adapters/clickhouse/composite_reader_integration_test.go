@@ -20,6 +20,10 @@ package clickhouse_test
 //   Skipped when CLICKHOUSE_DSN is not set.
 
 import (
+	"strings"
+
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -340,6 +344,17 @@ func insertPartialFixture(t *testing.T, client *clickhouse.Client, corrID string
 }
 
 // CRI-1: Full chain reconstruction by correlation_id.
+func compInstFor(t *testing.T, base string) instrument.CanonicalInstrument {
+	t.Helper()
+	// Filter-value equivalent of the legacy venue symbol the fixtures
+	// insert (LegacyFilterValue drops contract by design).
+	inst, prob := instrument.New(base, "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("instrument.New(%s/USDT): %v", base, prob)
+	}
+	return inst
+}
+
 func TestCompositeReader_FullChain(t *testing.T) {
 	client := skipUnlessClickHouse(t)
 	defer client.Close()
@@ -350,7 +365,7 @@ func TestCompositeReader_FullChain(t *testing.T) {
 	insertCompositeFixture(t, client, corrID, ts)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("query chain: %v", err)
 	}
@@ -420,7 +435,7 @@ func TestCompositeReader_PartialChain(t *testing.T) {
 	insertPartialFixture(t, client, corrID, ts)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("query chain: %v", err)
 	}
@@ -454,7 +469,7 @@ func TestCompositeReader_BatchLookup(t *testing.T) {
 	insertCompositeFixture(t, client, "s296-batch-002", ts2)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chains, err := reader.QueryChainsBatch(context.Background(), "binance", "btcusdt", 60, 0, 0, 10)
+	chains, err := reader.QueryChainsBatch(context.Background(), "binance", compInstFor(t, "BTC"), 60, 0, 0, 10)
 	if err != nil {
 		t.Fatalf("batch query: %v", err)
 	}
@@ -479,7 +494,7 @@ func TestCompositeReader_MissingCorrelation(t *testing.T) {
 	setupAllTables(t, client)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), "nonexistent-corr-id", "btcusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), "nonexistent-corr-id", compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("query chain: %v", err)
 	}
@@ -514,7 +529,7 @@ func TestCompositeReader_SymbolIsolation_SingleChain(t *testing.T) {
 
 	// Query each symbol independently — must get exactly 1 chain with correct symbol.
 	for _, sym := range symbols {
-		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s301-iso-"+sym, sym)
+		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s301-iso-"+sym, compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		if err != nil {
 			t.Fatalf("query chain for %s: %v", sym, err)
 		}
@@ -522,19 +537,19 @@ func TestCompositeReader_SymbolIsolation_SingleChain(t *testing.T) {
 			t.Errorf("[%s] expected stage_count=5, got %d", sym, chain.StageCount)
 		}
 		if chain.Signal.VenueSymbol() != sym {
-			t.Errorf("[%s] signal.symbol=%q, want %q", sym, chain.Signal.VenueSymbol(), sym)
+			t.Errorf("[%s] signal.symbol=%q, want %q", sym, chain.Signal.VenueSymbol(), compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		}
 		if chain.Decision.VenueSymbol() != sym {
-			t.Errorf("[%s] decision.symbol=%q, want %q", sym, chain.Decision.VenueSymbol(), sym)
+			t.Errorf("[%s] decision.symbol=%q, want %q", sym, chain.Decision.VenueSymbol(), compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		}
 		if chain.Strategy.VenueSymbol() != sym {
-			t.Errorf("[%s] strategy.symbol=%q, want %q", sym, chain.Strategy.VenueSymbol(), sym)
+			t.Errorf("[%s] strategy.symbol=%q, want %q", sym, chain.Strategy.VenueSymbol(), compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		}
 		if chain.Risk.VenueSymbol() != sym {
-			t.Errorf("[%s] risk.symbol=%q, want %q", sym, chain.Risk.VenueSymbol(), sym)
+			t.Errorf("[%s] risk.symbol=%q, want %q", sym, chain.Risk.VenueSymbol(), compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		}
 		if chain.Execution.VenueSymbol() != sym {
-			t.Errorf("[%s] execution.symbol=%q, want %q", sym, chain.Execution.VenueSymbol(), sym)
+			t.Errorf("[%s] execution.symbol=%q, want %q", sym, chain.Execution.VenueSymbol(), compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 		}
 	}
 }
@@ -553,7 +568,7 @@ func TestCompositeReader_SymbolIsolation_CrossSymbolBlocked(t *testing.T) {
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
 
 	// Query btcusdt's correlation_id with wrong symbol — must return 0 stages.
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), "s301-cross-btc", "ethusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), "s301-cross-btc", compInstFor(t, "ETH"))
 	if err != nil {
 		t.Fatalf("cross-symbol query: %v", err)
 	}
@@ -562,7 +577,7 @@ func TestCompositeReader_SymbolIsolation_CrossSymbolBlocked(t *testing.T) {
 	}
 
 	// And vice versa.
-	chain, err = reader.QueryChainByCorrelationID(context.Background(), "s301-cross-eth", "btcusdt")
+	chain, err = reader.QueryChainByCorrelationID(context.Background(), "s301-cross-eth", compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("cross-symbol query: %v", err)
 	}
@@ -587,7 +602,7 @@ func TestCompositeReader_SymbolIsolation_BatchScoping(t *testing.T) {
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
 
 	// Batch for btcusdt — must get exactly 2 chains, all btcusdt.
-	chains, err := reader.QueryChainsBatch(context.Background(), "binance", "btcusdt", 60, 0, 0, 10)
+	chains, err := reader.QueryChainsBatch(context.Background(), "binance", compInstFor(t, "BTC"), 60, 0, 0, 10)
 	if err != nil {
 		t.Fatalf("batch query btcusdt: %v", err)
 	}
@@ -604,7 +619,7 @@ func TestCompositeReader_SymbolIsolation_BatchScoping(t *testing.T) {
 	}
 
 	// Batch for ethusdt — must get exactly 1 chain.
-	chains, err = reader.QueryChainsBatch(context.Background(), "binance", "ethusdt", 60, 0, 0, 10)
+	chains, err = reader.QueryChainsBatch(context.Background(), "binance", compInstFor(t, "ETH"), 60, 0, 0, 10)
 	if err != nil {
 		t.Fatalf("batch query ethusdt: %v", err)
 	}
@@ -613,7 +628,7 @@ func TestCompositeReader_SymbolIsolation_BatchScoping(t *testing.T) {
 	}
 
 	// Batch for solusdt — must get exactly 1 chain.
-	chains, err = reader.QueryChainsBatch(context.Background(), "binance", "solusdt", 60, 0, 0, 10)
+	chains, err = reader.QueryChainsBatch(context.Background(), "binance", compInstFor(t, "SOL"), 60, 0, 0, 10)
 	if err != nil {
 		t.Fatalf("batch query solusdt: %v", err)
 	}
@@ -637,7 +652,7 @@ func TestCompositeReader_SymbolIsolation_Funnel(t *testing.T) {
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
 
 	// Funnel for btcusdt — each stage should have count=2.
-	stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", "btcusdt", 60, 0, 0)
+	stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", compInstFor(t, "BTC"), 60, 0, 0)
 	if err != nil {
 		t.Fatalf("funnel btcusdt: %v", err)
 	}
@@ -648,7 +663,7 @@ func TestCompositeReader_SymbolIsolation_Funnel(t *testing.T) {
 	}
 
 	// Funnel for ethusdt — each stage should have count=1.
-	stages, err = reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", "ethusdt", 60, 0, 0)
+	stages, err = reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", compInstFor(t, "ETH"), 60, 0, 0)
 	if err != nil {
 		t.Fatalf("funnel ethusdt: %v", err)
 	}
@@ -674,7 +689,7 @@ func TestCompositeReader_SymbolIsolation_Dispositions(t *testing.T) {
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
 
 	// Disposition for btcusdt — should have 1 approved.
-	disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", "btcusdt", 60, 0, 0)
+	disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", compInstFor(t, "BTC"), 60, 0, 0)
 	if err != nil {
 		t.Fatalf("disposition btcusdt: %v", err)
 	}
@@ -686,7 +701,7 @@ func TestCompositeReader_SymbolIsolation_Dispositions(t *testing.T) {
 	}
 
 	// Disposition for ethusdt — should have 1 approved (independent).
-	disps, err = reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", "ethusdt", 60, 0, 0)
+	disps, err = reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", compInstFor(t, "ETH"), 60, 0, 0)
 	if err != nil {
 		t.Fatalf("disposition ethusdt: %v", err)
 	}
@@ -820,7 +835,7 @@ func TestCompositeReader_S302_SC1_SimultaneousApproved(t *testing.T) {
 
 	for _, sym := range symbols {
 		t.Run("chain_"+sym, func(t *testing.T) {
-			chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc1-"+sym, sym)
+			chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc1-"+sym, compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 			if err != nil {
 				t.Fatalf("query %s: %v", sym, err)
 			}
@@ -828,7 +843,7 @@ func TestCompositeReader_S302_SC1_SimultaneousApproved(t *testing.T) {
 				t.Errorf("[%s] stage_count=%d, want 5", sym, chain.StageCount)
 			}
 			if !chain.ChainComplete {
-				t.Errorf("[%s] expected chain_complete=true", sym)
+				t.Errorf("[%s] expected chain_complete=true", compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))))
 			}
 			// Verify all stages belong to this symbol.
 			if chain.Signal.VenueSymbol() != sym {
@@ -864,7 +879,7 @@ func TestCompositeReader_S302_SC2_MixedDispositions(t *testing.T) {
 
 	// btcusdt: approved, full chain
 	t.Run("btcusdt_approved", func(t *testing.T) {
-		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-btcusdt", "btcusdt")
+		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-btcusdt", compInstFor(t, "BTC"))
 		if err != nil {
 			t.Fatalf("query btcusdt: %v", err)
 		}
@@ -881,7 +896,7 @@ func TestCompositeReader_S302_SC2_MixedDispositions(t *testing.T) {
 
 	// ethusdt: rejected, partial chain (no execution)
 	t.Run("ethusdt_rejected", func(t *testing.T) {
-		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-ethusdt", "ethusdt")
+		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-ethusdt", compInstFor(t, "ETH"))
 		if err != nil {
 			t.Fatalf("query ethusdt: %v", err)
 		}
@@ -901,7 +916,7 @@ func TestCompositeReader_S302_SC2_MixedDispositions(t *testing.T) {
 
 	// solusdt: modified, full chain
 	t.Run("solusdt_modified", func(t *testing.T) {
-		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-solusdt", "solusdt")
+		chain, err := reader.QueryChainByCorrelationID(context.Background(), "s302-sc2-solusdt", compInstFor(t, "SOL"))
 		if err != nil {
 			t.Fatalf("query solusdt: %v", err)
 		}
@@ -944,7 +959,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 
 	// Funnel independence: btcusdt signals=3, ethusdt signals=2, solusdt signals=1
 	t.Run("funnel_btcusdt", func(t *testing.T) {
-		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", "btcusdt", 60, 0, 0)
+		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", compInstFor(t, "BTC"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("funnel btcusdt: %v", err)
 		}
@@ -963,7 +978,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 		// ethusdt signals use different types, so query "rsi" for the approved one
 		// and "bollinger" for the modified one. For funnel totals we need a type
 		// that matches. The approved fixture uses "rsi" type.
-		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", "ethusdt", 60, 0, 0)
+		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", compInstFor(t, "ETH"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("funnel ethusdt: %v", err)
 		}
@@ -975,7 +990,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 	})
 
 	t.Run("funnel_solusdt", func(t *testing.T) {
-		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", "solusdt", 60, 0, 0)
+		stages, err := reader.QueryPipelineFunnel(context.Background(), "rsi", "binance", compInstFor(t, "SOL"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("funnel solusdt: %v", err)
 		}
@@ -988,7 +1003,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 
 	// Disposition independence
 	t.Run("dispositions_btcusdt", func(t *testing.T) {
-		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", "btcusdt", 60, 0, 0)
+		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", compInstFor(t, "BTC"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("dispositions btcusdt: %v", err)
 		}
@@ -1012,7 +1027,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 	})
 
 	t.Run("dispositions_ethusdt", func(t *testing.T) {
-		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", "ethusdt", 60, 0, 0)
+		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", compInstFor(t, "ETH"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("dispositions ethusdt: %v", err)
 		}
@@ -1026,7 +1041,7 @@ func TestCompositeReader_S302_SC3_AggregateIndependence(t *testing.T) {
 	})
 
 	t.Run("dispositions_solusdt", func(t *testing.T) {
-		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", "solusdt", 60, 0, 0)
+		disps, err := reader.QueryDispositionBreakdown(context.Background(), "position_exposure", "binance", compInstFor(t, "SOL"), 60, 0, 0)
 		if err != nil {
 			t.Fatalf("dispositions solusdt: %v", err)
 		}
@@ -1061,7 +1076,7 @@ func TestCompositeReader_S302_SC4_BatchCountPerSymbol(t *testing.T) {
 	expected := map[string]int{"btcusdt": 3, "ethusdt": 2, "solusdt": 1}
 	for sym, want := range expected {
 		t.Run("batch_"+sym, func(t *testing.T) {
-			chains, err := reader.QueryChainsBatch(context.Background(), "binance", sym, 60, 0, 0, 10)
+			chains, err := reader.QueryChainsBatch(context.Background(), "binance", compInstFor(t, strings.ToUpper(strings.TrimSuffix(sym, "usdt"))), 60, 0, 0, 10)
 			if err != nil {
 				t.Fatalf("batch %s: %v", sym, err)
 			}
@@ -1235,7 +1250,7 @@ func TestCompositeReader_S334_VenueFillChain(t *testing.T) {
 	insertVenueFillFixture(t, client, corrID, "btcusdt", ts)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("query chain: %v", err)
 	}
@@ -1313,7 +1328,7 @@ func TestCompositeReader_S334_VenueFillWinsOverPaperOrder(t *testing.T) {
 	insertDualExecutionFixture(t, client, corrID, "btcusdt", ts)
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, "btcusdt")
+	chain, err := reader.QueryChainByCorrelationID(context.Background(), corrID, compInstFor(t, "BTC"))
 	if err != nil {
 		t.Fatalf("query chain: %v", err)
 	}
@@ -1365,7 +1380,7 @@ func TestCompositeReader_S334_BatchWithVenueFills(t *testing.T) {
 	insertVenueFillFixture(t, client, "s334-batch-fill", "btcusdt", ts.Add(time.Minute))
 
 	reader := clickhouse.NewCompositeReader(client, slog.Default())
-	chains, err := reader.QueryChainsBatch(context.Background(), "binancef", "btcusdt", 60, 0, 0, 10)
+	chains, err := reader.QueryChainsBatch(context.Background(), "binancef", compInstFor(t, "BTC"), 60, 0, 0, 10)
 	if err != nil {
 		t.Fatalf("batch query: %v", err)
 	}

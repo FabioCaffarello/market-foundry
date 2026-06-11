@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -17,7 +19,7 @@ const (
 // CandleReader is the local interface for reading historical candles
 // from the analytical store.
 type CandleReader interface {
-	QueryCandleHistory(ctx context.Context, source, symbol string, timeframe int, since, until int64, limit int) ([]evidence.EvidenceCandle, error)
+	QueryCandleHistory(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]evidence.EvidenceCandle, error)
 }
 
 // GetCandleHistoryUseCase queries the analytical store for historical candles.
@@ -41,8 +43,8 @@ func (uc *GetCandleHistoryUseCase) Execute(ctx context.Context, query CandleHist
 	if query.Source == "" {
 		return CandleHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return CandleHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return CandleHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return CandleHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -65,12 +67,12 @@ func (uc *GetCandleHistoryUseCase) Execute(ctx context.Context, query CandleHist
 	}
 
 	start := time.Now()
-	candles, err := uc.reader.QueryCandleHistory(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	candles, err := uc.reader.QueryCandleHistory(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return CandleHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical query failed")
@@ -84,7 +86,7 @@ func (uc *GetCandleHistoryUseCase) Execute(ctx context.Context, query CandleHist
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical query completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"rows", rowCount, "query_ms", queryMs,
 	)
 

@@ -14,7 +14,7 @@ type CandleSampledEvent struct {
 	Candle   EvidenceCandle  `json:"candle"`
 }
 
-func (e CandleSampledEvent) EventName() events.Name        { return EventCandleSampled }
+func (e CandleSampledEvent) EventName() events.Name         { return EventCandleSampled }
 func (e CandleSampledEvent) EventMetadata() events.Metadata { return e.Metadata }
 
 // TradeBurstSampledEvent is emitted by derive when a trade burst window is sampled.
@@ -23,7 +23,7 @@ type TradeBurstSampledEvent struct {
 	TradeBurst EvidenceTradeBurst `json:"trade_burst"`
 }
 
-func (e TradeBurstSampledEvent) EventName() events.Name        { return EventTradeBurstSampled }
+func (e TradeBurstSampledEvent) EventName() events.Name         { return EventTradeBurstSampled }
 func (e TradeBurstSampledEvent) EventMetadata() events.Metadata { return e.Metadata }
 
 // VolumeSampledEvent is emitted by derive when a volume profile window is sampled.
@@ -32,5 +32,5 @@ type VolumeSampledEvent struct {
 	Volume   EvidenceVolume  `json:"volume"`
 }
 
-func (e VolumeSampledEvent) EventName() events.Name        { return EventVolumeSampled }
+func (e VolumeSampledEvent) EventName() events.Name         { return EventVolumeSampled }
 func (e VolumeSampledEvent) EventMetadata() events.Metadata { return e.Metadata }

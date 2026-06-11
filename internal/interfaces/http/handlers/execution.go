@@ -23,9 +23,9 @@ type getLifecycleListUseCase interface {
 
 // ExecutionWebHandler handles HTTP requests for execution queries.
 type ExecutionWebHandler struct {
-	getLatestExecution  getLatestExecutionUseCase
-	getExecutionStatus  getExecutionStatusUseCase
-	getLifecycleList    getLifecycleListUseCase
+	getLatestExecution getLatestExecutionUseCase
+	getExecutionStatus getExecutionStatusUseCase
+	getLifecycleList   getLifecycleListUseCase
 }
 
 func NewExecutionWebHandler(getLatestExecution getLatestExecutionUseCase, getExecutionStatus getExecutionStatusUseCase, getLifecycleList getLifecycleListUseCase) *ExecutionWebHandler {
@@ -63,10 +63,10 @@ func (h *ExecutionWebHandler) GetLatestExecution(w http.ResponseWriter, r *http.
 	}
 
 	result, prob := h.getLatestExecution.Execute(r.Context(), executionclient.ExecutionLatestQuery{
-		Type:      execType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Type:       execType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)
@@ -90,9 +90,9 @@ func (h *ExecutionWebHandler) GetExecutionStatus(w http.ResponseWriter, r *http.
 	}
 
 	result, prob := h.getExecutionStatus.Execute(r.Context(), executionclient.ExecutionStatusQuery{
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)
@@ -101,4 +101,3 @@ func (h *ExecutionWebHandler) GetExecutionStatus(w http.ResponseWriter, r *http.
 
 	writeJSONResponse(w, http.StatusOK, result)
 }
-

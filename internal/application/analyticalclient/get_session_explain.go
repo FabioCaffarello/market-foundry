@@ -44,8 +44,8 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 	if query.Source == "" {
 		return SessionExplainReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return SessionExplainReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return SessionExplainReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return SessionExplainReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -61,7 +61,7 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 	start := time.Now()
 	reply := SessionExplainReply{
 		Source:    query.Source,
-		Symbol:    query.Symbol,
+		Symbol:    query.Instrument.LegacyFilterValue(),
 		Timeframe: query.Timeframe,
 	}
 
@@ -69,9 +69,9 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 	var kvStatus executionclient.ExecutionStatusReply
 	if uc.kvReader != nil {
 		kvResult, kvProb := uc.kvReader.Execute(ctx, executionclient.ExecutionStatusQuery{
-			Source:    query.Source,
-			Symbol:    query.Symbol,
-			Timeframe: query.Timeframe,
+			Source:     query.Source,
+			Instrument: query.Instrument,
+			Timeframe:  query.Timeframe,
 		})
 		if kvProb == nil {
 			kvStatus = kvResult
@@ -88,7 +88,7 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 			}
 		} else {
 			uc.logger.Warn("kv status unavailable for explain",
-				"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+				"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 				"problem", kvProb.Code,
 			)
 		}
@@ -96,7 +96,7 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 
 	// Phase 2: Read ClickHouse lifecycle history.
 	if uc.chReader != nil {
-		intents, err := uc.chReader.QueryLifecycleHistory(ctx, query.Source, query.Symbol, query.Timeframe, "", "", 0, 0, query.Limit)
+		intents, err := uc.chReader.QueryLifecycleHistory(ctx, query.Source, query.Instrument, query.Timeframe, "", "", 0, 0, query.Limit)
 		if err == nil {
 			reply.CHAvailable = true
 			entries := make([]LifecycleHistoryEntry, 0, len(intents))
@@ -110,7 +110,7 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 			reply.CHPropagation = deriveCHPropagation(intents)
 		} else {
 			uc.logger.Warn("clickhouse lifecycle unavailable for explain",
-				"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+				"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 				"error", err,
 			)
 		}
@@ -129,7 +129,7 @@ func (uc *GetSessionExplainUseCase) Execute(ctx context.Context, query SessionEx
 	}
 
 	uc.logger.Info("session explain completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"kv_available", reply.KVAvailable, "ch_available", reply.CHAvailable,
 		"consistent", reply.Consistent, "history_rows", len(reply.History),
 		"elapsed_ms", elapsed.Milliseconds(),

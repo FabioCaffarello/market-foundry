@@ -449,7 +449,7 @@ phase "Phase 11: Store Materialization — Read Path from Futures Segment"
 # ══════════════════════════════════════════════════════════════════════
 
 # Check Futures evidence candle (proves ingest -> derive -> store with Futures data).
-CANDLE_FUTURES_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+CANDLE_FUTURES_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$CANDLE_FUTURES_CODE" == "200" ]]; then
     pass "Futures evidence candle latest -> 200 (Futures live data -> evidence path confirmed)"
 else
@@ -457,7 +457,7 @@ else
 fi
 
 # Check Futures strategy read-path.
-STRATEGY_FUTURES_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60")
+STRATEGY_FUTURES_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$STRATEGY_FUTURES_CODE" == "200" ]]; then
     pass "Futures strategy latest -> 200 (derive -> store read path for Futures confirmed)"
 else
@@ -512,7 +512,7 @@ info "ClickHouse executions total: ${EXEC_CH} rows"
 phase "Phase 13: Correlation Chain Audit — Futures Segment Traceability"
 # ══════════════════════════════════════════════════════════════════════
 
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60&limit=5"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5"
 CHAINS_CODE=$(curl -s -o /tmp/s419_chains.json -w "%{http_code}" "$CHAINS_URL" 2>/dev/null || echo "000")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then

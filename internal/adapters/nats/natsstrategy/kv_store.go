@@ -1,6 +1,8 @@
 package natsstrategy
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -95,12 +97,12 @@ func (s *KVStore) Put(ctx context.Context, strat strategy.Strategy) (natskit.Put
 }
 
 // Get retrieves the latest strategy for a given source/symbol/timeframe.
-func (s *KVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*strategy.Strategy, *problem.Problem) {
+func (s *KVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*strategy.Strategy, *problem.Problem) {
 	if s == nil || s.latest == nil {
 		return nil, problem.New(problem.Unavailable, "strategy KV store is unavailable")
 	}
 
-	key := fmt.Sprintf("%s.%s.%d", source, symbol, timeframe)
+	key := fmt.Sprintf("%s.%s.%d", source, inst.SubjectToken(), timeframe)
 	entry, err := s.latest.Get(ctx, key)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {

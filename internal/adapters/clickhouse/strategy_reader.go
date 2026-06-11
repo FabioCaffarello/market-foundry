@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,7 +34,8 @@ func NewStrategyReader(client *Client, logger *slog.Logger) *StrategyReader {
 
 // QueryStrategyHistory queries strategies from ClickHouse with filters.
 // Results are ordered newest-first (DESC by timestamp).
-func (r *StrategyReader) QueryStrategyHistory(ctx context.Context, strategyType, source, symbol string, timeframe int, direction string, since, until int64, limit int) ([]strategy.Strategy, error) {
+func (r *StrategyReader) QueryStrategyHistory(ctx context.Context, strategyType, source string, inst instrument.CanonicalInstrument, timeframe int, direction string, since, until int64, limit int) ([]strategy.Strategy, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildStrategyQuery(strategyType, source, symbol, timeframe, direction, since, until, limit)
 
 	start := time.Now()

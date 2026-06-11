@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"internal/domain/effectiveness"
 	"internal/domain/pairing"
 )
@@ -21,12 +23,12 @@ type PairingQuery struct {
 	CorrelationID string `json:"correlation_id,omitempty"` // single lookup
 
 	// Batch lookup filters.
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive
-	Limit     int    `json:"limit,omitempty"` // default 50, max 200
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive
+	Limit      int                            `json:"limit,omitempty"` // default 50, max 200
 
 	// Filters.
 	State string `json:"state,omitempty"` // paired, unmatched_entry, unmatched_exit

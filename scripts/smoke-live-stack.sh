@@ -193,7 +193,7 @@ phase "Phase 4: Gateway Composite HTTP Surface"
 
 # 4a. Composite chains endpoint
 info "Querying composite chains..."
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60&limit=5"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5"
 CHAINS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CHAINS_URL")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then
@@ -242,7 +242,7 @@ fi
 
 # 4b. Pipeline funnel endpoint
 info "Querying pipeline funnel..."
-FUNNEL_URL="${BASE_URL}/analytical/composite/funnel?type=paper_order&source=binancef&symbol=btcusdt&timeframe=60"
+FUNNEL_URL="${BASE_URL}/analytical/composite/funnel?type=paper_order&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
 FUNNEL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FUNNEL_URL")
 
 if [[ "$FUNNEL_CODE" == "200" ]]; then
@@ -259,7 +259,7 @@ fi
 
 # 4c. Disposition breakdown endpoint
 info "Querying disposition breakdown..."
-DISP_URL="${BASE_URL}/analytical/composite/dispositions?type=paper_order&source=binancef&symbol=btcusdt&timeframe=60"
+DISP_URL="${BASE_URL}/analytical/composite/dispositions?type=paper_order&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
 DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$DISP_URL")
 
 if [[ "$DISP_CODE" == "200" ]]; then
@@ -279,12 +279,12 @@ phase "Phase 5: Single-Family Analytical Endpoints"
 # ══════════════════════════════════════════════════════════════════════
 
 ANALYTICAL_ENDPOINTS=(
-    "/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60"
-    "/analytical/signal/history?source=binancef&symbol=btcusdt&timeframe=60"
-    "/analytical/decision/history?source=binancef&symbol=btcusdt&timeframe=60"
-    "/analytical/strategy/history?source=binancef&symbol=btcusdt&timeframe=60"
-    "/analytical/risk/history?source=binancef&symbol=btcusdt&timeframe=60"
-    "/analytical/execution/history?source=binancef&symbol=btcusdt&timeframe=60"
+    "/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
+    "/analytical/signal/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
+    "/analytical/decision/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
+    "/analytical/strategy/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
+    "/analytical/risk/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
+    "/analytical/execution/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
 )
 
 for ENDPOINT in "${ANALYTICAL_ENDPOINTS[@]}"; do

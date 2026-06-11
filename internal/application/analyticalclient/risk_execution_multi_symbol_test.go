@@ -14,6 +14,8 @@ package analyticalclient_test
 //   RX-5 — Drawdown vs position_exposure risk type coexistence across symbols.
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -79,7 +81,7 @@ func TestS304_RX1_RiskExecutionCoherence(t *testing.T) {
 	for _, p := range profiles {
 		t.Run(p.symbol+"_"+p.riskDisp, func(t *testing.T) {
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: "s304-rx1-" + p.symbol, Symbol: p.symbol,
+				CorrelationID: "s304-rx1-" + p.symbol, Instrument: instrumentFromVenue(p.symbol),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem: %v", prob)
@@ -181,7 +183,7 @@ func TestS304_RX2_RiskAttributionDiversity(t *testing.T) {
 			uc := analyticalclient.NewGetCompositeChainUseCase(reader, slog.Default())
 
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: corrID, Symbol: p.symbol,
+				CorrelationID: corrID, Instrument: instrumentFromVenue(p.symbol),
 			})
 			if prob != nil {
 				t.Fatalf("problem: %v", prob)
@@ -239,7 +241,7 @@ func TestS304_RX3_ExecutionStatusCoherence(t *testing.T) {
 	// Approved: 5 stages, filled.
 	t.Run("btcusdt_filled", func(t *testing.T) {
 		reply, _ := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s304-rx3-btcusdt", Symbol: "btcusdt",
+			CorrelationID: "s304-rx3-btcusdt", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		})
 		ch := reply.Chains[0]
 		if ch.StageCount != 5 {
@@ -256,7 +258,7 @@ func TestS304_RX3_ExecutionStatusCoherence(t *testing.T) {
 	// Rejected: 4 stages, no execution.
 	t.Run("ethusdt_blocked", func(t *testing.T) {
 		reply, _ := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s304-rx3-ethusdt", Symbol: "ethusdt",
+			CorrelationID: "s304-rx3-ethusdt", Instrument: instrumentFromVenue("ethusdt"),
 		})
 		ch := reply.Chains[0]
 		if ch.StageCount != 4 {
@@ -273,7 +275,7 @@ func TestS304_RX3_ExecutionStatusCoherence(t *testing.T) {
 	// Modified: 5 stages, filled with capped quantity.
 	t.Run("solusdt_modified_filled", func(t *testing.T) {
 		reply, _ := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s304-rx3-solusdt", Symbol: "solusdt",
+			CorrelationID: "s304-rx3-solusdt", Instrument: instrumentFromVenue("solusdt"),
 		})
 		ch := reply.Chains[0]
 		if ch.StageCount != 5 {
@@ -339,7 +341,7 @@ func TestS304_RX4_CrossSurfaceRiskExecutionAlignment(t *testing.T) {
 		t.Run(sym, func(t *testing.T) {
 			// Funnel query.
 			fReply, prob := funnelUC.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-				Type: "position_exposure", Source: "binancef", Symbol: sym, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(sym), Timeframe: 60,
 			})
 			if prob != nil {
 				t.Fatalf("funnel: %v", prob)
@@ -361,7 +363,7 @@ func TestS304_RX4_CrossSurfaceRiskExecutionAlignment(t *testing.T) {
 
 			// Disposition query.
 			dReply, prob := dispUC.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-				Type: "position_exposure", Source: "binancef", Symbol: sym, Timeframe: 60,
+				Type: "position_exposure", Source: "binancef", Instrument: instrumentFromVenue(sym), Timeframe: 60,
 			})
 			if prob != nil {
 				t.Fatalf("disposition: %v", prob)
@@ -406,7 +408,7 @@ func TestS304_RX5_RiskTypeCoexistence(t *testing.T) {
 
 	t.Run("btcusdt_position_exposure", func(t *testing.T) {
 		reply, _ := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s304-rx5-btcusdt", Symbol: "btcusdt",
+			CorrelationID: "s304-rx5-btcusdt", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		})
 		ch := reply.Chains[0]
 		if ch.Risk.Type != "position_exposure" {
@@ -419,7 +421,7 @@ func TestS304_RX5_RiskTypeCoexistence(t *testing.T) {
 
 	t.Run("ethusdt_drawdown_limit", func(t *testing.T) {
 		reply, _ := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			CorrelationID: "s304-rx5-ethusdt", Symbol: "ethusdt",
+			CorrelationID: "s304-rx5-ethusdt", Instrument: instrumentFromVenue("ethusdt"),
 		})
 		ch := reply.Chains[0]
 		if ch.Risk.Type != "drawdown_limit" {

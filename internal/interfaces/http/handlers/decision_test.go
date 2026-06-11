@@ -55,7 +55,7 @@ func TestDecisionWebHandler_GetLatestDecision(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/decision/:type/latest", handler.GetLatestDecision)
 
-	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -78,7 +78,7 @@ func TestDecisionWebHandler_GetLatestDecision_Unavailable(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/decision/:type/latest", handler.GetLatestDecision)
 
-	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -95,7 +95,7 @@ func TestDecisionWebHandler_GetLatestDecision_MissingTimeframe(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/decision/:type/latest", handler.GetLatestDecision)
 
-	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt")
+	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -112,7 +112,7 @@ func TestDecisionWebHandler_GetLatestDecision_NullDecision(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/decision/:type/latest", handler.GetLatestDecision)
 
-	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := decisionRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -12,7 +14,7 @@ import (
 // DecisionReader is the local interface for reading historical decisions
 // from the analytical store.
 type DecisionReader interface {
-	QueryDecisionHistory(ctx context.Context, decisionType, source, symbol string, timeframe int, outcome string, since, until int64, limit int) ([]decision.Decision, error)
+	QueryDecisionHistory(ctx context.Context, decisionType, source string, inst instrument.CanonicalInstrument, timeframe int, outcome string, since, until int64, limit int) ([]decision.Decision, error)
 }
 
 // GetDecisionHistoryUseCase queries the analytical store for historical decisions.
@@ -39,8 +41,8 @@ func (uc *GetDecisionHistoryUseCase) Execute(ctx context.Context, query Decision
 	if query.Source == "" {
 		return DecisionHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return DecisionHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return DecisionHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return DecisionHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -63,12 +65,12 @@ func (uc *GetDecisionHistoryUseCase) Execute(ctx context.Context, query Decision
 	}
 
 	start := time.Now()
-	decisions, err := uc.reader.QueryDecisionHistory(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Outcome, query.Since, query.Until, query.Limit)
+	decisions, err := uc.reader.QueryDecisionHistory(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Outcome, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical decision query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"outcome", query.Outcome, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return DecisionHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical decision query failed")
@@ -82,7 +84,7 @@ func (uc *GetDecisionHistoryUseCase) Execute(ctx context.Context, query Decision
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical decision query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"outcome", query.Outcome, "rows", rowCount, "query_ms", queryMs,
 	)
 

@@ -639,8 +639,8 @@ func TestPaperOrder_PartitionAndDedupKeys(t *testing.T) {
 	intent := runFullChainToExecution(t, "10.0000", "po7-keys-corr")
 
 	pk := intent.PartitionKey()
-	if pk != "binancef.btcusdt.60" {
-		t.Fatalf("expected partition key binancef.btcusdt.60, got %q", pk)
+	if pk != "binancef.btc_usdt_perpetual.60" {
+		t.Fatalf("expected partition key binancef.btc_usdt_perpetual.60, got %q", pk)
 	}
 	dk := intent.DeduplicationKey()
 	if dk == "" {

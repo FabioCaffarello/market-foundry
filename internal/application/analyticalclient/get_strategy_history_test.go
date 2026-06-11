@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"testing"
@@ -14,16 +16,16 @@ type stubStrategyReader struct {
 	err        error
 }
 
-func (s *stubStrategyReader) QueryStrategyHistory(_ context.Context, _, _, _ string, _ int, _ string, _, _ int64, _ int) ([]strategy.Strategy, error) {
+func (s *stubStrategyReader) QueryStrategyHistory(_ context.Context, _, _ string, _ instrument.CanonicalInstrument, _ int, _ string, _, _ int64, _ int) ([]strategy.Strategy, error) {
 	return s.strategies, s.err
 }
 
 func TestGetStrategyHistoryUseCase_MissingType(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(&stubStrategyReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing type")
@@ -33,9 +35,9 @@ func TestGetStrategyHistoryUseCase_MissingType(t *testing.T) {
 func TestGetStrategyHistoryUseCase_MissingSource(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(&stubStrategyReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing source")
@@ -57,10 +59,10 @@ func TestGetStrategyHistoryUseCase_MissingSymbol(t *testing.T) {
 func TestGetStrategyHistoryUseCase_InvalidTimeframe(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(&stubStrategyReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 0,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  0,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for zero timeframe")
@@ -70,12 +72,12 @@ func TestGetStrategyHistoryUseCase_InvalidTimeframe(t *testing.T) {
 func TestGetStrategyHistoryUseCase_SinceAfterUntil(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(&stubStrategyReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     2000,
-		Until:     1000,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      2000,
+		Until:      1000,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for since > until")
@@ -86,10 +88,10 @@ func TestGetStrategyHistoryUseCase_DefaultLimit(t *testing.T) {
 	reader := &stubStrategyReader{strategies: []strategy.Strategy{}}
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -103,11 +105,11 @@ func TestGetStrategyHistoryUseCase_LimitClamped(t *testing.T) {
 	reader := &stubStrategyReader{strategies: []strategy.Strategy{}}
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     9999,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      9999,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -121,11 +123,11 @@ func TestGetStrategyHistoryUseCase_WithDirection(t *testing.T) {
 	reader := &stubStrategyReader{strategies: []strategy.Strategy{}}
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Direction: "long",
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Direction:  "long",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -139,10 +141,10 @@ func TestGetStrategyHistoryUseCase_ReaderError(t *testing.T) {
 	reader := &stubStrategyReader{err: errors.New("connection refused")}
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(reader, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -152,10 +154,10 @@ func TestGetStrategyHistoryUseCase_ReaderError(t *testing.T) {
 func TestGetStrategyHistoryUseCase_NilReader(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(nil, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil reader")
@@ -165,10 +167,10 @@ func TestGetStrategyHistoryUseCase_NilReader(t *testing.T) {
 func TestGetStrategyHistoryUseCase_NilUseCaseExecute(t *testing.T) {
 	var uc *analyticalclient.GetStrategyHistoryUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -178,11 +180,11 @@ func TestGetStrategyHistoryUseCase_NilUseCaseExecute(t *testing.T) {
 func TestGetStrategyHistoryUseCase_NegativeSince(t *testing.T) {
 	uc := analyticalclient.NewGetStrategyHistoryUseCase(&stubStrategyReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.StrategyHistoryQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     -1,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      -1,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for negative since")

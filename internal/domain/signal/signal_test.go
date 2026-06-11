@@ -81,7 +81,7 @@ func TestSignal_Validate_NilMetadata(t *testing.T) {
 func TestSignal_PartitionKey(t *testing.T) {
 	s := validSignal(t)
 	got := s.PartitionKey()
-	want := "binancef.btcusdt.300"
+	want := "binancef.btc_usdt_perpetual.300"
 	if got != want {
 		t.Fatalf("PartitionKey() = %q, want %q", got, want)
 	}
@@ -124,8 +124,8 @@ func TestSignal_PartitionKey_MultiSymbolIsolation(t *testing.T) {
 		}
 		keys[key] = base
 
-		// Verify key contains the venue symbol form
-		want := "binancef." + s.VenueSymbol() + ".60"
+		// Verify key contains the canonical subject token (H-6.e.2)
+		want := "binancef." + s.Instrument.SubjectToken() + ".60"
 		if key != want {
 			t.Errorf("base %s: PartitionKey() = %q, want %q", base, key, want)
 		}

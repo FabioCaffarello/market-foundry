@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"internal/domain/effectiveness"
 )
 
@@ -19,16 +21,16 @@ type EffectivenessQuery struct {
 	CorrelationID string `json:"correlation_id,omitempty"` // single lookup
 
 	// Batch lookup filters.
-	Source       string `json:"source,omitempty"`
-	Symbol       string `json:"symbol,omitempty"`
-	Timeframe    int    `json:"timeframe,omitempty"`
-	DecisionType string `json:"decision_type,omitempty"` // filter by decision evaluator type
-	StrategyType string `json:"strategy_type,omitempty"` // filter by strategy resolver type
-	Severity     string `json:"severity,omitempty"`      // filter by decision severity
-	Effectiveness string `json:"effectiveness,omitempty"` // filter by outcome: win/loss/breakeven/unresolved
-	Since        int64  `json:"since,omitempty"`          // unix seconds, inclusive
-	Until        int64  `json:"until,omitempty"`          // unix seconds, inclusive
-	Limit        int    `json:"limit,omitempty"`          // default 20, max 100
+	Source        string                         `json:"source,omitempty"`
+	Instrument    instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe     int                            `json:"timeframe,omitempty"`
+	DecisionType  string                         `json:"decision_type,omitempty"` // filter by decision evaluator type
+	StrategyType  string                         `json:"strategy_type,omitempty"` // filter by strategy resolver type
+	Severity      string                         `json:"severity,omitempty"`      // filter by decision severity
+	Effectiveness string                         `json:"effectiveness,omitempty"` // filter by outcome: win/loss/breakeven/unresolved
+	Since         int64                          `json:"since,omitempty"`         // unix seconds, inclusive
+	Until         int64                          `json:"until,omitempty"`         // unix seconds, inclusive
+	Limit         int                            `json:"limit,omitempty"`         // default 20, max 100
 }
 
 // EffectivenessReply is the response contract for effectiveness queries.
@@ -59,15 +61,15 @@ type EffectivenessMeta struct {
 // Filters narrow the cohort before aggregation. The same Source+Symbol+Timeframe
 // partition key as EffectivenessQuery is required.
 type EffectivenessSummaryQuery struct {
-	Source       string `json:"source"`
-	Symbol       string `json:"symbol"`
-	Timeframe    int    `json:"timeframe"`
-	DecisionType string `json:"decision_type,omitempty"`
-	StrategyType string `json:"strategy_type,omitempty"`
-	Severity     string `json:"severity,omitempty"`
-	Since        int64  `json:"since,omitempty"`
-	Until        int64  `json:"until,omitempty"`
-	Limit        int    `json:"limit,omitempty"` // max chains to scan (default 100, max 300)
+	Source       string                         `json:"source"`
+	Instrument   instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe    int                            `json:"timeframe"`
+	DecisionType string                         `json:"decision_type,omitempty"`
+	StrategyType string                         `json:"strategy_type,omitempty"`
+	Severity     string                         `json:"severity,omitempty"`
+	Since        int64                          `json:"since,omitempty"`
+	Until        int64                          `json:"until,omitempty"`
+	Limit        int                            `json:"limit,omitempty"` // max chains to scan (default 100, max 300)
 
 	// GroupBy enables comparative analysis. When set, the response contains one
 	// CohortSummary per distinct value of the grouping dimension.
@@ -86,9 +88,9 @@ func ValidGroupBy(g string) bool {
 // When GroupBy is set, Cohorts contains one entry per distinct dimension value,
 // sorted by evaluated count descending.
 type EffectivenessSummaryReply struct {
-	Cohorts []CohortSummary       `json:"cohorts"`
-	Source  string                 `json:"source"` // always "clickhouse"
-	Meta    EffectivenessMeta     `json:"meta"`
+	Cohorts []CohortSummary   `json:"cohorts"`
+	Source  string            `json:"source"` // always "clickhouse"
+	Meta    EffectivenessMeta `json:"meta"`
 }
 
 // CohortSummary is the aggregated effectiveness view for a group of decision chains.
@@ -102,9 +104,9 @@ type CohortSummary struct {
 	Key string `json:"key"` // grouping key value ("all" when ungrouped)
 
 	// Counts by outcome.
-	WinCount       int `json:"win_count"`
-	LossCount      int `json:"loss_count"`
-	BreakevenCount int `json:"breakeven_count"`
+	WinCount        int `json:"win_count"`
+	LossCount       int `json:"loss_count"`
+	BreakevenCount  int `json:"breakeven_count"`
 	UnresolvedCount int `json:"unresolved_count"`
 
 	// Derived counts.
@@ -114,7 +116,7 @@ type CohortSummary struct {
 	// P&L statistics (over resolved chains only).
 	TotalPnL  float64 `json:"total_pnl"`  // sum of net_pnl across resolved chains
 	AvgPnL    float64 `json:"avg_pnl"`    // TotalPnL / Resolved (0 when Resolved=0)
-	TotalFees float64 `json:"total_fees"`  // sum of total_fees across all evaluated chains
+	TotalFees float64 `json:"total_fees"` // sum of total_fees across all evaluated chains
 
 	// Win rate: wins / resolved (0 when Resolved=0).
 	// Expressed as a ratio 0.0--1.0, NOT a percentage.
@@ -126,7 +128,7 @@ type CohortSummary struct {
 //
 // S476: Extends S471 DecisionReviewBundle with effectiveness attribution.
 type ReviewEffectiveness struct {
-	Outcome        string  `json:"outcome"`          // win, loss, breakeven, unresolved
+	Outcome        string  `json:"outcome"` // win, loss, breakeven, unresolved
 	RealizedPnL    float64 `json:"realized_pnl"`
 	GrossPnL       float64 `json:"gross_pnl"`
 	NetPnL         float64 `json:"net_pnl"`

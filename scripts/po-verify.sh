@@ -294,7 +294,7 @@ po5_start=$(date -u +%s%3N 2>/dev/null || python3 -c "import time; print(int(tim
 log "PO-5: NATS KV state validation"
 
 control_resp=$(http_get "${GATEWAY_URL}/execution/control")
-kv_latest=$(http_get "${GATEWAY_URL}/execution/venue-market-order/latest?symbol=BTCUSDT")
+kv_latest=$(http_get "${GATEWAY_URL}/execution/venue-market-order/latest?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60")
 
 po5_end=$(date -u +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
 po5_dur=$(( po5_end - po5_start ))
@@ -408,7 +408,7 @@ po8_start=$(date -u +%s%3N 2>/dev/null || python3 -c "import time; print(int(tim
 log "PO-8: Lifecycle consistency (ClickHouse vs NATS KV)"
 
 # Use the session-explain endpoint if available — it already does CH-vs-KV consistency.
-explain_resp=$(http_get "${GATEWAY_URL}/analytical/execution/explain?source=binance_spot&symbol=BTCUSDT&timeframe=60")
+explain_resp=$(http_get "${GATEWAY_URL}/analytical/execution/explain?source=binance_spot&base=btc&quote=usdt&contract=spot&timeframe=60")
 
 po8_end=$(date -u +%s%3N 2>/dev/null || python3 -c "import time; print(int(time.time()*1000))")
 po8_dur=$(( po8_end - po8_start ))

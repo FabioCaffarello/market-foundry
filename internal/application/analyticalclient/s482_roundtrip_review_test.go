@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -24,9 +26,9 @@ func TestGetRoundTripReview_Batch_PairedClean(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -77,9 +79,9 @@ func TestGetRoundTripReview_Batch_FeeGapFlagged(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -113,9 +115,9 @@ func TestGetRoundTripReview_Batch_UnmatchedEntryFlagged(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -154,10 +156,10 @@ func TestGetRoundTripReview_OutcomeFilter(t *testing.T) {
 
 	// Filter to win only.
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Outcome:   "win",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Outcome:    "win",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -186,10 +188,10 @@ func TestGetRoundTripReview_FlaggedFilter(t *testing.T) {
 
 	// Filter to flagged only.
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Flagged:   true,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Flagged:    true,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -209,9 +211,9 @@ func TestGetRoundTripReview_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.RoundTripReviewQuery
 	}{
-		{"missing source", analyticalclient.RoundTripReviewQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"missing source", analyticalclient.RoundTripReviewQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"missing symbol", analyticalclient.RoundTripReviewQuery{Source: "binance", Timeframe: 60}},
-		{"invalid timeframe", analyticalclient.RoundTripReviewQuery{Source: "binance", Symbol: "btcusdt", Timeframe: 0}},
+		{"invalid timeframe", analyticalclient.RoundTripReviewQuery{Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
 	}
 
 	for _, tt := range tests {
@@ -230,7 +232,7 @@ func TestGetRoundTripReview_ValidationErrors(t *testing.T) {
 func TestGetRoundTripReview_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetRoundTripReviewUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		CorrelationID: "x", Symbol: "y",
+		CorrelationID: "x", Instrument: instrumentFromVenue("btcusdt"),
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -253,7 +255,7 @@ func TestGetRoundTripReview_SimulatedFlagged(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -293,7 +295,7 @@ func TestGetRoundTripReview_SummaryReconciliationCounts(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -330,7 +332,7 @@ func TestGetRoundTripReview_RejectedExcluded(t *testing.T) {
 	uc := analyticalclient.NewGetRoundTripReviewUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.RoundTripReviewQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

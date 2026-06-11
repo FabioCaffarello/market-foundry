@@ -273,7 +273,7 @@ fi
 
 # --- 1d. Analytical endpoint availability (not 503) ---
 info "Checking analytical endpoint availability..."
-ANALYTICAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60")
+ANALYTICAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$ANALYTICAL_CODE" == "503" ]]; then
     record_fail "Analytical endpoint returns 503 — inspect gateway logs, ClickHouse schema, and runtime config alignment"
     warn "Continuing so migration and table checks can identify the concrete blocker."
@@ -447,7 +447,7 @@ validate_analytical_family \
     "Candles — Baseline Family" \
     "evidence_candles" \
     "" \
-    "${BASE_URL}/analytical/evidence/candles?source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/evidence/candles?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "candles" \
     "source|symbol|timeframe|open|high|low|close|volume|trade_count|open_time|close_time|final"
 CANDLE_COUNT=$_VAL_HTTP_COUNT
@@ -457,7 +457,7 @@ validate_analytical_family \
     "Signals/RSI — Wave B Family-01" \
     "signals" \
     "type = 'rsi'" \
-    "${BASE_URL}/analytical/signal/history?type=rsi&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/signal/history?type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "signals" \
     "type|source|symbol|timeframe|value|metadata|final|timestamp"
 CH_SIGNAL_COUNT=$_VAL_CH_COUNT
@@ -468,7 +468,7 @@ validate_analytical_family \
     "Decisions/RSI Oversold — Wave B Family-02" \
     "decisions" \
     "type = 'rsi_oversold'" \
-    "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "decisions" \
     "type|source|symbol|timeframe|outcome|confidence|severity|rationale|signals|metadata|final|timestamp"
 CH_DECISION_COUNT=$_VAL_CH_COUNT
@@ -476,7 +476,7 @@ DEC_COUNT=$_VAL_HTTP_COUNT
 
 # --- Decision: Outcome filter validation ---
 info "Checking outcome filter on decision endpoint..."
-DEC_OUTCOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered")
+DEC_OUTCOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&outcome=triggered")
 if [[ "$DEC_OUTCOME_CODE" == "200" ]]; then
     pass "Decision endpoint with outcome=triggered → 200"
 else
@@ -488,7 +488,7 @@ validate_analytical_family \
     "Decisions/EMA Crossover — Breadth S241" \
     "decisions" \
     "type = 'ema_crossover'" \
-    "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "decisions" \
     "type|source|symbol|timeframe|outcome|confidence|severity|rationale|signals|metadata|final|timestamp"
 CH_DECISION_EMA_COUNT=$_VAL_CH_COUNT
@@ -496,7 +496,7 @@ DEC_EMA_COUNT=$_VAL_HTTP_COUNT
 
 # --- Decision EMA Crossover: Outcome filter validation ---
 info "Checking outcome filter on ema_crossover decision endpoint..."
-DEC_EMA_OUTCOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&outcome=triggered")
+DEC_EMA_OUTCOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&outcome=triggered")
 if [[ "$DEC_EMA_OUTCOME_CODE" == "200" ]]; then
     pass "Decision ema_crossover endpoint with outcome=triggered → 200"
 else
@@ -508,7 +508,7 @@ validate_analytical_family \
     "Strategies/Mean Reversion Entry — Wave B Family-03" \
     "strategies" \
     "type = 'mean_reversion_entry'" \
-    "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "strategies" \
     "type|source|symbol|timeframe|direction|confidence|decisions|parameters|metadata|final|timestamp"
 CH_STRATEGY_COUNT=$_VAL_CH_COUNT
@@ -516,7 +516,7 @@ STRAT_COUNT=$_VAL_HTTP_COUNT
 
 # --- Strategy: Direction filter validation ---
 info "Checking direction filter on strategy endpoint..."
-STRAT_DIR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long")
+STRAT_DIR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&direction=long")
 if [[ "$STRAT_DIR_CODE" == "200" ]]; then
     pass "Strategy endpoint with direction=long → 200"
 else
@@ -528,7 +528,7 @@ validate_analytical_family \
     "Strategies/Trend Following Entry — Breadth S242" \
     "strategies" \
     "type = 'trend_following_entry'" \
-    "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "strategies" \
     "type|source|symbol|timeframe|direction|confidence|decisions|parameters|metadata|final|timestamp"
 CH_STRATEGY_TFE_COUNT=$_VAL_CH_COUNT
@@ -536,7 +536,7 @@ STRAT_TFE_COUNT=$_VAL_HTTP_COUNT
 
 # --- Strategy Trend Following Entry: Direction filter validation ---
 info "Checking direction filter on trend_following_entry strategy endpoint..."
-STRAT_TFE_DIR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long")
+STRAT_TFE_DIR_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&direction=long")
 if [[ "$STRAT_TFE_DIR_CODE" == "200" ]]; then
     pass "Strategy trend_following_entry endpoint with direction=long → 200"
 else
@@ -548,7 +548,7 @@ validate_analytical_family \
     "Risk Assessments/Position Exposure — Wave B Family-04" \
     "risk_assessments" \
     "type = 'position_exposure'" \
-    "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "risk_assessments" \
     "type|source|symbol|timeframe|disposition|confidence|strategies|constraints|rationale|parameters|metadata|final|timestamp"
 CH_RISK_COUNT=$_VAL_CH_COUNT
@@ -556,7 +556,7 @@ RISK_COUNT=$_VAL_HTTP_COUNT
 
 # --- Risk: Disposition filter validation ---
 info "Checking disposition filter on risk endpoint..."
-RISK_DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved")
+RISK_DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&disposition=approved")
 if [[ "$RISK_DISP_CODE" == "200" ]]; then
     pass "Risk endpoint with disposition=approved → 200"
 else
@@ -568,7 +568,7 @@ validate_analytical_family \
     "Risk Assessments/Drawdown Limit — Breadth S243" \
     "risk_assessments" \
     "type = 'drawdown_limit'" \
-    "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "risk_assessments" \
     "type|source|symbol|timeframe|disposition|confidence|strategies|constraints|rationale|parameters|metadata|final|timestamp"
 CH_RISK_DL_COUNT=$_VAL_CH_COUNT
@@ -576,7 +576,7 @@ RISK_DL_COUNT=$_VAL_HTTP_COUNT
 
 # --- Risk Drawdown Limit: Disposition filter validation ---
 info "Checking disposition filter on drawdown_limit risk endpoint..."
-RISK_DL_DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved")
+RISK_DL_DISP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&disposition=approved")
 if [[ "$RISK_DL_DISP_CODE" == "200" ]]; then
     pass "Risk drawdown_limit endpoint with disposition=approved → 200"
 else
@@ -588,7 +588,7 @@ validate_analytical_family \
     "Executions/Paper Order — Wave B Family-05" \
     "executions" \
     "type = 'paper_order'" \
-    "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60" \
+    "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
     "executions" \
     "type|source|symbol|timeframe|side|quantity|filled_quantity|status|risk|fills|parameters|metadata|correlation_id|causation_id|final|timestamp"
 CH_EXECUTION_COUNT=$_VAL_CH_COUNT
@@ -596,7 +596,7 @@ EXEC_COUNT=$_VAL_HTTP_COUNT
 
 # --- Execution: Side filter validation ---
 info "Checking side filter on execution endpoint..."
-EXEC_SIDE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&side=buy")
+EXEC_SIDE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&side=buy")
 if [[ "$EXEC_SIDE_CODE" == "200" ]]; then
     pass "Execution endpoint with side=buy → 200"
 else
@@ -605,7 +605,7 @@ fi
 
 # --- Execution: Status filter validation ---
 info "Checking status filter on execution endpoint..."
-EXEC_STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&symbol=btcusdt&timeframe=60&status=filled")
+EXEC_STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60&status=filled")
 if [[ "$EXEC_STATUS_CODE" == "200" ]]; then
     pass "Execution endpoint with status=filled → 200"
 else
@@ -629,7 +629,7 @@ fi
 #   HTTP != 200                                              → FAIL
 #       (route regression).
 info "Querying pairing/review endpoint (H-6.b'' γ canary)..."
-PAIRING_REVIEW_URL="${BASE_URL}/analytical/composite/pairing/review?source=binances&symbol=btcusdt&timeframe=60&limit=10"
+PAIRING_REVIEW_URL="${BASE_URL}/analytical/composite/pairing/review?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60&limit=10"
 PAIRING_REVIEW_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${PAIRING_REVIEW_URL}")
 
 if [[ "$PAIRING_REVIEW_CODE" != "200" ]]; then
@@ -675,53 +675,53 @@ phase "Phase 6: Error Handling Validation"
 
 validate_analytical_error_handling "Candle" \
     "${BASE_URL}/analytical/evidence/candles" \
-    "source=binancef&symbol=btcusdt&timeframe=60" \
-    "source=binancef&symbol=btcusdt"
+    "source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "source=binancef&base=btc&quote=usdt&contract=perpetual"
 
 # Signal has an extra required param (type), so we test that separately
 info "Checking signal error handling..."
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/signal/history?source=binancef&symbol=btcusdt&timeframe=60")
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/signal/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 [[ "$CODE" == "400" ]] && pass "Signal: missing type → 400" || record_fail "Signal: missing type → ${CODE} (expected 400)"
 validate_analytical_error_handling "Signal" \
     "${BASE_URL}/analytical/signal/history" \
-    "type=rsi&source=binancef&symbol=btcusdt&timeframe=60" \
-    "type=rsi&source=binancef&symbol=btcusdt"
+    "type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "type=rsi&source=binancef&base=btc&quote=usdt&contract=perpetual"
 
 # Decision also has an extra required param (type)
 info "Checking decision error handling..."
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?source=binancef&symbol=btcusdt&timeframe=60")
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/decision/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 [[ "$CODE" == "400" ]] && pass "Decision: missing type → 400" || record_fail "Decision: missing type → ${CODE} (expected 400)"
 validate_analytical_error_handling "Decision" \
     "${BASE_URL}/analytical/decision/history" \
-    "type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60" \
-    "type=rsi_oversold&source=binancef&symbol=btcusdt"
+    "type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual"
 
 # Strategy also has an extra required param (type)
 info "Checking strategy error handling..."
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?source=binancef&symbol=btcusdt&timeframe=60")
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/strategy/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 [[ "$CODE" == "400" ]] && pass "Strategy: missing type → 400" || record_fail "Strategy: missing type → ${CODE} (expected 400)"
 validate_analytical_error_handling "Strategy" \
     "${BASE_URL}/analytical/strategy/history" \
-    "type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60" \
-    "type=mean_reversion_entry&source=binancef&symbol=btcusdt"
+    "type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual"
 
 # Risk also has an extra required param (type)
 info "Checking risk error handling..."
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?source=binancef&symbol=btcusdt&timeframe=60")
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/risk/history?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 [[ "$CODE" == "400" ]] && pass "Risk: missing type → 400" || record_fail "Risk: missing type → ${CODE} (expected 400)"
 validate_analytical_error_handling "Risk" \
     "${BASE_URL}/analytical/risk/history" \
-    "type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60" \
-    "type=position_exposure&source=binancef&symbol=btcusdt"
+    "type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual"
 
 # Execution also has an extra required param (type)
 info "Checking execution error handling..."
-CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?source=derive&symbol=btcusdt&timeframe=60")
+CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/analytical/execution/history?source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 [[ "$CODE" == "400" ]] && pass "Execution: missing type → 400" || record_fail "Execution: missing type → ${CODE} (expected 400)"
 validate_analytical_error_handling "Execution" \
     "${BASE_URL}/analytical/execution/history" \
-    "type=paper_order&source=derive&symbol=btcusdt&timeframe=60" \
-    "type=paper_order&source=derive&symbol=btcusdt"
+    "type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual&timeframe=60" \
+    "type=paper_order&source=derive&base=btc&quote=usdt&contract=perpetual"
 
 # ══════════════════════════════════════════════════════════════════════
 phase "Phase 7: Domain Depth Validation (S234–S236)"
@@ -733,7 +733,7 @@ phase "Phase 7: Domain Depth Validation (S234–S236)"
 #   evaluator → NATS → writer → ClickHouse → reader → HTTP
 
 info "Checking decision severity/rationale propagation..."
-DEPTH_RESULT=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+DEPTH_RESULT=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -775,7 +775,7 @@ esac
 
 # Validate that strategy responses carry decision severity/rationale in their decisions JSON
 info "Checking strategy→decision context propagation..."
-STRAT_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+STRAT_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -818,7 +818,7 @@ esac
 
 # Validate that risk responses carry decision context in metadata
 info "Checking risk→decision context propagation..."
-RISK_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+RISK_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -859,7 +859,7 @@ esac
 
 # --- Chain B: EMA Crossover → Trend Following Entry → Drawdown Limit depth (S246) ---
 info "Checking Chain B: ema_crossover decision severity/rationale propagation..."
-DEPTH_EMA=$(curl -s "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+DEPTH_EMA=$(curl -s "${BASE_URL}/analytical/decision/history?type=ema_crossover&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -900,7 +900,7 @@ case "$DEPTH_EMA" in
 esac
 
 info "Checking Chain B: trend_following_entry→decision context propagation..."
-STRAT_TFE_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+STRAT_TFE_DEPTH=$(curl -s "${BASE_URL}/analytical/strategy/history?type=trend_following_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -942,7 +942,7 @@ case "$STRAT_TFE_DEPTH" in
 esac
 
 info "Checking Chain B: drawdown_limit→decision context propagation..."
-RISK_DL_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&limit=5" | python3 -c "
+RISK_DL_DEPTH=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -990,7 +990,7 @@ phase "Phase 8: Behavioral Semantic Verification (S255 — Full-Stack Proof)"
 
 # --- 8a. Decision severity is valid enum value ---
 info "Verifying decision severity enum fidelity..."
-BEH_SEV=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+BEH_SEV=$(curl -s "${BASE_URL}/analytical/decision/history?type=rsi_oversold&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=10" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -1028,7 +1028,7 @@ esac
 
 # --- 8b. Strategy confidence is severity-scaled (≤ decision confidence for triggered) ---
 info "Verifying strategy confidence is severity-scaled..."
-BEH_CONF=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&symbol=btcusdt&timeframe=60&direction=long&limit=10" | python3 -c "
+BEH_CONF=$(curl -s "${BASE_URL}/analytical/strategy/history?type=mean_reversion_entry&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&direction=long&limit=10" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -1078,7 +1078,7 @@ esac
 
 # --- 8c. Risk carries behavioral metadata (strategy_type, confidence_factor) ---
 info "Verifying risk behavioral metadata..."
-BEH_RISK_META=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+BEH_RISK_META=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=10" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -1119,7 +1119,7 @@ esac
 
 # --- 8d. Risk constraints are non-empty for approved dispositions ---
 info "Verifying risk constraints for approved dispositions..."
-BEH_CONSTRAINTS=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&symbol=btcusdt&timeframe=60&disposition=approved&limit=10" | python3 -c "
+BEH_CONSTRAINTS=$(curl -s "${BASE_URL}/analytical/risk/history?type=position_exposure&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&disposition=approved&limit=10" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -1187,7 +1187,7 @@ esac
 
 # --- 8f. Chain B behavioral verification (trend_following + drawdown_limit) ---
 info "Verifying Chain B behavioral metadata (trend_following → drawdown_limit)..."
-BEH_CHAIN_B=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&symbol=btcusdt&timeframe=60&limit=10" | python3 -c "
+BEH_CHAIN_B=$(curl -s "${BASE_URL}/analytical/risk/history?type=drawdown_limit&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=10" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)

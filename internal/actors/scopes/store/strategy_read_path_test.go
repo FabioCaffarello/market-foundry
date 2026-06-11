@@ -1,6 +1,8 @@
 package store
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -116,7 +118,7 @@ func TestReadPath_ProjectionMaterializesEvent(t *testing.T) {
 	}
 
 	// Verify the strategy was stored.
-	strat, ok := store.stored["binancef.btcusdt.60"]
+	strat, ok := store.stored["binancef.btc_usdt_perpetual.60"]
 	if !ok {
 		t.Fatal("strategy not found in store after projection")
 	}
@@ -143,7 +145,7 @@ func TestReadPath_ProjectionPreservesDecisionInputs(t *testing.T) {
 	event := deriveProducedEvent(time.Now().UTC())
 	a.onStrategy(strategyReceivedMessage{Event: event})
 
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if len(strat.Decisions) != 1 {
 		t.Fatalf("expected 1 decision, got %d", len(strat.Decisions))
 	}
@@ -167,7 +169,7 @@ func TestReadPath_ProjectionPreservesParameters(t *testing.T) {
 	event := deriveProducedEvent(time.Now().UTC())
 	a.onStrategy(strategyReceivedMessage{Event: event})
 
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	expected := map[string]string{"entry": "market", "target_offset": "0.02", "stop_offset": "0.01"}
 	for k, v := range expected {
 		if strat.Parameters[k] != v {
@@ -194,7 +196,7 @@ func TestReadPath_EventMetadataNotInStore(t *testing.T) {
 
 	// Strategy is stored, but event metadata is not part of the persisted data.
 	// This is the documented gap: correlation_id / causation_id are only logged, not persisted.
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Type == "" {
 		t.Fatal("strategy should be stored")
 	}
@@ -251,7 +253,7 @@ func TestReadPath_MonotonicityGuard_NewerAccepted(t *testing.T) {
 	}
 
 	// Store should have the latest strategy.
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Direction != strategy.DirectionShort {
 		t.Errorf("expected latest direction=short, got %s", strat.Direction)
 	}
@@ -262,10 +264,10 @@ func TestReadPath_QueryUseCaseValidation(t *testing.T) {
 	uc := strategyclient.NewGetLatestStrategyUseCase(&localStrategyGateway{})
 
 	_, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected validation error for empty type")
@@ -291,10 +293,10 @@ func TestReadPath_QueryUseCaseReturnsStoredStrategy(t *testing.T) {
 
 	uc := strategyclient.NewGetLatestStrategyUseCase(&localStrategyGateway{strat: strat})
 	reply, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob.Message)
@@ -313,10 +315,10 @@ func TestReadPath_QueryUseCaseReturnsStoredStrategy(t *testing.T) {
 func TestReadPath_QueryUseCaseNilStrategy(t *testing.T) {
 	uc := strategyclient.NewGetLatestStrategyUseCase(&localStrategyGateway{strat: nil})
 	reply, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob.Message)
@@ -332,7 +334,7 @@ func TestReadPath_RegistrySubjectAlignment(t *testing.T) {
 	// Publisher:       strategy.events.mean_reversion_entry.resolved.{source}.{symbol}.{timeframe}
 	// The wildcard > must capture all publisher variations.
 
-	publisherSubject := "strategy.events.mean_reversion_entry.resolved.binancef.btcusdt.60"
+	publisherSubject := "strategy.events.mean_reversion_entry.resolved.binancef.btc_usdt_perpetual.60"
 	consumerFilter := "strategy.events.mean_reversion_entry.resolved.>"
 
 	// Simple prefix match — NATS > wildcard matches any number of tokens after the prefix.
@@ -369,7 +371,7 @@ func TestReadPath_FlatStrategyMaterializes(t *testing.T) {
 		t.Fatalf("flat strategy should materialize, got materialized=%d", a.stats.materialized.Load())
 	}
 
-	strat := store.stored["binancef.btcusdt.60"]
+	strat := store.stored["binancef.btc_usdt_perpetual.60"]
 	if strat.Direction != strategy.DirectionFlat {
 		t.Errorf("expected flat, got %s", strat.Direction)
 	}

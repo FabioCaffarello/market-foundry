@@ -130,7 +130,7 @@ func (h *TriageWebHandler) GetDecisionTriage(w http.ResponseWriter, r *http.Requ
 
 	result, dProb := h.getDecisionTriage.Execute(r.Context(), triageclient.DecisionTriageQuery{
 		Source:         key.Source,
-		Symbol:         key.Symbol,
+		Instrument:     key.Instrument,
 		Timeframe:      key.Timeframe,
 		Since:          params.Since,
 		Until:          params.Until,
@@ -140,7 +140,7 @@ func (h *TriageWebHandler) GetDecisionTriage(w http.ResponseWriter, r *http.Requ
 	if dProb != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("decision triage request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", dProb.Code,
 		)
 		writeProblemResponse(w, dProb)
@@ -185,7 +185,7 @@ func (h *TriageWebHandler) GetRoundTripTriage(w http.ResponseWriter, r *http.Req
 
 	result, rtProb := h.getRoundTripTriage.Execute(r.Context(), triageclient.RoundTripTriageQuery{
 		Source:         key.Source,
-		Symbol:         key.Symbol,
+		Instrument:     key.Instrument,
 		Timeframe:      key.Timeframe,
 		Since:          params.Since,
 		Until:          params.Until,
@@ -195,7 +195,7 @@ func (h *TriageWebHandler) GetRoundTripTriage(w http.ResponseWriter, r *http.Req
 	if rtProb != nil {
 		totalMs := time.Since(start).Milliseconds()
 		h.logger.Warn("round-trip triage request failed",
-			"source", key.Source, "symbol", key.Symbol, "timeframe", key.Timeframe,
+			"source", key.Source, "instrument", key.Instrument.Symbol(), "timeframe", key.Timeframe,
 			"total_ms", totalMs, "problem", rtProb.Code,
 		)
 		writeProblemResponse(w, rtProb)
@@ -228,10 +228,16 @@ func (h *TriageWebHandler) GetTriageOverview(w http.ResponseWriter, r *http.Requ
 	since, _ := strconv.ParseInt(r.URL.Query().Get("since"), 10, 64)
 	until, _ := strconv.ParseInt(r.URL.Query().Get("until"), 10, 64)
 
+	inst, instProb := parseOptionalInstrumentParams(r)
+	if instProb != nil {
+		writeProblemResponse(w, instProb)
+		return
+	}
+
 	result, prob := h.getTriageOverview.Execute(r.Context(), triageclient.TriageOverviewQuery{
 		SessionStatus: r.URL.Query().Get("session_status"),
 		Source:        r.URL.Query().Get("source"),
-		Symbol:        r.URL.Query().Get("symbol"),
+		Instrument:    inst,
 		Timeframe:     timeframe,
 		Since:         since,
 		Until:         until,

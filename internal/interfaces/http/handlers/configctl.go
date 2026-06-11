@@ -386,4 +386,3 @@ func versionIDFromRequest(r *http.Request) string {
 	}
 	return r.URL.Query().Get("id")
 }
-

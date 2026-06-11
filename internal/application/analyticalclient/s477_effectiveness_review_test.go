@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -30,9 +32,9 @@ func TestGetEffectivenessSummary_Ungrouped_SingleCohort(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -62,10 +64,10 @@ func TestGetEffectivenessSummary_GroupByDecisionType(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		GroupBy:   "decision_type",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		GroupBy:    "decision_type",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -97,10 +99,10 @@ func TestGetEffectivenessSummary_GroupByStrategyType(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		GroupBy:   "strategy_type",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		GroupBy:    "strategy_type",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -119,10 +121,10 @@ func TestGetEffectivenessSummary_GroupBySeverity(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		GroupBy:   "severity",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		GroupBy:    "severity",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -142,10 +144,10 @@ func TestGetEffectivenessSummary_InvalidGroupBy(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(&stubCompositeReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		GroupBy:   "invalid_dimension",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		GroupBy:    "invalid_dimension",
 	})
 	if prob == nil {
 		t.Fatal("expected validation problem for invalid group_by")
@@ -162,9 +164,9 @@ func TestGetEffectivenessSummary_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.EffectivenessSummaryQuery
 	}{
-		{"missing source", analyticalclient.EffectivenessSummaryQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"missing source", analyticalclient.EffectivenessSummaryQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"missing symbol", analyticalclient.EffectivenessSummaryQuery{Source: "binance", Timeframe: 60}},
-		{"invalid timeframe", analyticalclient.EffectivenessSummaryQuery{Source: "binance", Symbol: "btcusdt", Timeframe: 0}},
+		{"invalid timeframe", analyticalclient.EffectivenessSummaryQuery{Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
 	}
 
 	for _, tt := range tests {
@@ -183,7 +185,7 @@ func TestGetEffectivenessSummary_ValidationErrors(t *testing.T) {
 func TestGetEffectivenessSummary_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetEffectivenessSummaryUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -198,9 +200,9 @@ func TestGetEffectivenessSummary_EmptyResult(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -229,9 +231,9 @@ func TestGetEffectivenessSummary_RejectedExcluded(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -253,7 +255,7 @@ func TestGetEffectivenessSummary_PreAggregationFilter(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
 		Source:       "binance",
-		Symbol:       "btcusdt",
+		Instrument:   instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		Timeframe:    60,
 		DecisionType: "rsi",
 	})
@@ -279,9 +281,9 @@ func TestGetEffectivenessSummary_WinRateComputation(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -313,9 +315,9 @@ func TestGetEffectivenessSummary_TotalFeesAccumulated(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

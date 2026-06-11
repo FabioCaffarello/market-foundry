@@ -45,8 +45,8 @@ func (s *stubDispositionUseCase) Execute(_ context.Context, _ analyticalclient.D
 
 func newTestHandler(chain *stubCompositeUseCase, funnel *stubFunnelUseCase, disp *stubDispositionUseCase) *CompositeWebHandler {
 	return NewCompositeWebHandler(CompositeHandlerDeps{
-		GetCompositeChain:      chain,
-		GetPipelineFunnel:      funnel,
+		GetCompositeChain:       chain,
+		GetPipelineFunnel:       funnel,
 		GetDispositionBreakdown: disp,
 	})
 }
@@ -78,7 +78,7 @@ func TestCompositeGetChain_Success(t *testing.T) {
 	}
 	handler := newTestHandler(uc, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-corr-001&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-corr-001&base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChain(w, req)
 
@@ -110,7 +110,7 @@ func TestCompositeGetChain_Success(t *testing.T) {
 func TestCompositeGetChain_MissingCorrelationID(t *testing.T) {
 	handler := newTestHandler(&stubCompositeUseCase{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChain(w, req)
 
@@ -137,7 +137,7 @@ func TestCompositeGetChain_UseCaseError(t *testing.T) {
 	}
 	handler := newTestHandler(uc, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-001&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-001&base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChain(w, req)
 
@@ -148,7 +148,7 @@ func TestCompositeGetChain_UseCaseError(t *testing.T) {
 
 func TestCompositeGetChain_NilHandler(t *testing.T) {
 	var handler *CompositeWebHandler
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-001&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=test-001&base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChain(w, req)
 
@@ -172,7 +172,7 @@ func TestCompositeGetChains_Success(t *testing.T) {
 	}
 	handler := newTestHandler(uc, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetChains(w, req)
 
@@ -195,7 +195,7 @@ func TestCompositeGetChains_Success(t *testing.T) {
 func TestCompositeGetChains_MissingTimeframe(t *testing.T) {
 	handler := newTestHandler(&stubCompositeUseCase{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&symbol=BTCUSDT", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChains(w, req)
 
@@ -207,7 +207,7 @@ func TestCompositeGetChains_MissingTimeframe(t *testing.T) {
 func TestCompositeGetChains_InvalidLimit(t *testing.T) {
 	handler := newTestHandler(&stubCompositeUseCase{}, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&symbol=BTCUSDT&timeframe=60&limit=abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=abc", nil)
 	w := httptest.NewRecorder()
 	handler.GetChains(w, req)
 
@@ -218,7 +218,7 @@ func TestCompositeGetChains_InvalidLimit(t *testing.T) {
 
 func TestCompositeGetChains_NilHandler(t *testing.T) {
 	var handler *CompositeWebHandler
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chains?source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetChains(w, req)
 
@@ -245,7 +245,7 @@ func TestCompositeGetFunnel_Success(t *testing.T) {
 	}
 	handler := newTestHandler(nil, uc, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=ema_crossover&source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=ema_crossover&source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetFunnel(w, req)
 
@@ -268,7 +268,7 @@ func TestCompositeGetFunnel_Success(t *testing.T) {
 func TestCompositeGetFunnel_MissingType(t *testing.T) {
 	handler := newTestHandler(nil, &stubFunnelUseCase{}, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetFunnel(w, req)
 
@@ -279,7 +279,7 @@ func TestCompositeGetFunnel_MissingType(t *testing.T) {
 
 func TestCompositeGetFunnel_NilHandler(t *testing.T) {
 	var handler *CompositeWebHandler
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=ema&source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/funnel?type=ema&source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetFunnel(w, req)
 
@@ -305,7 +305,7 @@ func TestCompositeGetDispositions_Success(t *testing.T) {
 	}
 	handler := newTestHandler(nil, nil, uc)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=position_exposure&source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=position_exposure&source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetDispositions(w, req)
 
@@ -328,7 +328,7 @@ func TestCompositeGetDispositions_Success(t *testing.T) {
 func TestCompositeGetDispositions_MissingType(t *testing.T) {
 	handler := newTestHandler(nil, nil, &stubDispositionUseCase{})
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetDispositions(w, req)
 
@@ -339,7 +339,7 @@ func TestCompositeGetDispositions_MissingType(t *testing.T) {
 
 func TestCompositeGetDispositions_NilHandler(t *testing.T) {
 	var handler *CompositeWebHandler
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=pos&source=binance&symbol=BTCUSDT&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/dispositions?type=pos&source=binance&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	w := httptest.NewRecorder()
 	handler.GetDispositions(w, req)
 
@@ -379,7 +379,7 @@ func TestCompositeGetChain_WithRejectionAttribution(t *testing.T) {
 	}
 	handler := newTestHandler(uc, nil, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=rejected-001&symbol=btcusdt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=rejected-001&base=btc&quote=usdt&contract=perpetual", nil)
 	w := httptest.NewRecorder()
 	handler.GetChain(w, req)
 

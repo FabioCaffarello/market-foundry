@@ -230,8 +230,8 @@ func TestS407_FillReadPath_SpotRealFillCarriesSegmentAndAudit(t *testing.T) {
 
 	// Partition key carries segment
 	key := receipt.Intent.PartitionKey()
-	if key != "binances.btcusdt.60" {
-		t.Errorf("partition_key: expected binances.btcusdt.60, got %s", key)
+	if key != "binances.btc_usdt_spot.60" {
+		t.Errorf("partition_key: expected binances.btc_usdt_spot.60, got %s", key)
 	}
 }
 

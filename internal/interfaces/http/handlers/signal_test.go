@@ -49,7 +49,7 @@ func TestSignalWebHandler_GetLatestSignal(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/signal/:type/latest", handler.GetLatestSignal)
 
-	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -72,7 +72,7 @@ func TestSignalWebHandler_GetLatestSignal_Unavailable(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/signal/:type/latest", handler.GetLatestSignal)
 
-	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -89,7 +89,7 @@ func TestSignalWebHandler_GetLatestSignal_MissingTimeframe(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/signal/:type/latest", handler.GetLatestSignal)
 
-	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&symbol=btcusdt")
+	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&base=btc&quote=usdt&contract=perpetual")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -106,7 +106,7 @@ func TestSignalWebHandler_GetLatestSignal_NullSignal(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/signal/:type/latest", handler.GetLatestSignal)
 
-	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := signalRequest(http.MethodGet, "/signal/rsi/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

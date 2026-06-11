@@ -36,11 +36,11 @@ func TestGetLatestStrategyUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query strategyclient.StrategyLatestQuery
 	}{
-		{"empty type", strategyclient.StrategyLatestQuery{Type: "", Source: "binancef", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty source", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty type", strategyclient.StrategyLatestQuery{Type: "", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"empty source", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", strategyclient.StrategyLatestQuery{Type: "mean_reversion_entry", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -72,10 +72,10 @@ func TestGetLatestStrategyUseCase_ReturnsStrategy(t *testing.T) {
 
 	uc := strategyclient.NewGetLatestStrategyUseCase(&mockStrategyGateway{strat: strat})
 	reply, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -91,10 +91,10 @@ func TestGetLatestStrategyUseCase_ReturnsStrategy(t *testing.T) {
 func TestGetLatestStrategyUseCase_NilGateway(t *testing.T) {
 	var uc *strategyclient.GetLatestStrategyUseCase
 	_, prob := uc.Execute(context.Background(), strategyclient.StrategyLatestQuery{
-		Type:      "mean_reversion_entry",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "mean_reversion_entry",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

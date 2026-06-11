@@ -32,8 +32,8 @@ func (uc *GetLatestSignalUseCase) Execute(ctx context.Context, query SignalLates
 	if query.Source == "" {
 		return SignalLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return SignalLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return SignalLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return SignalLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
