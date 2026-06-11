@@ -96,7 +96,7 @@ says *where* you can verify it in the code.
 | Layer sovereignty (`domain → application → adapters → actors → interfaces → cmd`) | [ADR-0005](decisions/0005-layer-sovereignty.md), [ADR-0004](decisions/0004-raccoon-cli-static-enforcement.md) | `tools/raccoon-cli/src/analyzers/arch_guard.rs` (LAYERS const + `is_allowed_dependency`) | `make arch-guard` (Rust analyzer; runs in `make verify`) | Implemented | Statically enforced. |
 | Raccoon-cli arch-guard enforcement | [ADR-0004](decisions/0004-raccoon-cli-static-enforcement.md) | `tools/raccoon-cli/src/analyzers/arch_guard.rs` | `make verify` (quality-gate, 84 checks) | Implemented | |
 | Raccoon-cli drift-detect const tables | [ADR-0004](decisions/0004-raccoon-cli-static-enforcement.md) | `tools/raccoon-cli/src/analyzers/drift_detect.rs:APP_BINARIES`; `…:CANONICAL_STREAMS` | `make drift-detect` | Implemented | 6 app binaries + 11 streams declared. |
-| Subject taxonomy (verb-last, canonical symbol token) | [ADR-0009](decisions/0009-subject-taxonomy.md) (+ erratum 2026-06-10) | `internal/adapters/nats/nats*/registry.go` (subject declarations); `internal/domain/instrument/subject_token.go:SubjectToken` (única derivação sancionada do `{symbol}`, H-6.e); `tools/raccoon-cli/src/analyzers/check_subjects.rs` + `policies/subjects.toml` | `internal/domain/instrument/subject_token_test.go` (lock-in); `internal/adapters/nats/natssignal/subject_cutover_canary_test.go` (integration, canonical+mixed-state); raccoon-cli `check subjects` (gate step 10) | Implemented | Pattern: `{domain}.{plane}.{type}.{verb}[.{key}]`; `{symbol}` = `base_quote_contract` lowercase desde H-6.e (legacy venue-native convive até TTL 72h; KV keys seguem VenueSymbol até H-6.e.2). |
+| Subject taxonomy (verb-last, canonical symbol token) | [ADR-0009](decisions/0009-subject-taxonomy.md) (+ erratum 2026-06-10) | `internal/adapters/nats/nats*/registry.go` (subject declarations); `internal/domain/instrument/subject_token.go:SubjectToken` (única derivação sancionada do `{symbol}`, H-6.e); `tools/raccoon-cli/src/analyzers/check_subjects.rs` + `policies/subjects.toml` | `internal/domain/instrument/subject_token_test.go` (lock-in); `internal/adapters/nats/natssignal/subject_cutover_canary_test.go` (integration, canonical+mixed-state); raccoon-cli `check subjects` (gate step 10) | Implemented | Pattern: `{domain}.{plane}.{type}.{verb}[.{key}]`; `{symbol}` = `base_quote_contract` lowercase desde H-6.e (legacy venue-native convive até TTL 72h; KV keys canônicas desde H-6.e.2 — `{source}.{subject_token}.{timeframe}`; contrato HTTP = trio `base/quote/contract`; ClickHouse WHERE legacy com valor derivado via `LegacyFilterValue()` até o flip em H-6.f). |
 | Forward-only ClickHouse migrations | [ADR-0003](decisions/0003-clickhouse-analytical.md) | `cmd/migrate/engine/runner.go:Runner`; `deploy/migrations/*.sql`; `_migrations` metadata table | (operational) | Implemented | Rollback is forward fix; never revert. |
 | Gateway httprouter trie regression guard | [ADR-0010](decisions/0010-httprouter-trie-constraints.md) | `cmd/gateway/boot_test.go` (`routes` slice) | `cmd/gateway/boot_test.go:TestGatewayRouteRegistrationDoesNotPanic` | Implemented | 60 routes enumerated; CI fails if route added without slice entry. |
 | ControlGate fail-open posture | [ADR-0012](decisions/0012-control-gate-fail-open-posture.md) | `internal/domain/execution/control.go:ControlGate`, `…:DefaultControlGate`; `internal/adapters/nats/natsexecution/control_kv_store.go:IsHalted`, `…:Get`, `…:Put` | `internal/adapters/nats/natsexecution/control_kv_store_unit_test.go:TestIsHalted_NilReceiver_FailsOpenAndCountsNilBucket`; `…:TestIsHalted_UnstartedStore_FailsOpenAndCountsNilBucket` | Implemented | 5 failure modes counted; query path surfaces errors. |
@@ -297,6 +297,15 @@ a TRUTH-MAP row either.
 ---
 
 ## Changelog
+
+- **2026-06-10/11 (H-6.e.2)** — Read-contract canonical cutover:
+  HTTP query contract = trio `base/quote/contract` (legacy `symbol`
+  param retired; zero external consumers); client query structs +
+  reader/KV ports carry `CanonicalInstrument`; KV partition keys
+  compose via `SubjectToken()` (write+read); ClickHouse builders
+  byte-identical with `LegacyFilterValue()`-derived args (WHERE flip
+  in H-6.f post-TTL). Critério #2 do ADR-0021 literalmente
+  satisfeito (erratum chain e → e.2 → f).
 
 - **2026-06-10 (H-6.e)** — Subject-taxonomy row updated for the
   canonical symbol-token cutover: anchors gain

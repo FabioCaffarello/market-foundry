@@ -228,6 +228,59 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-6.e.2 (esta sessão):
+
+- **Commit 0**: PRD registra as decisões do pacote B (trio canônico
+  `base/quote/contract`; KV keys write+read juntos; ClickHouse WHERE
+  inalterado com valor derivado; analyzer `[keys]`; expiry → H-7) e
+  o RESUMPTION fecha a linha H-6.e (convenção declarada).
+- **Commit 1**: `CanonicalInstrument.LegacyFilterValue()` transitório
+  (= `lower(base+quote)`, o valor exato da coluna legacy `symbol`)
+  + lock-in 2/2 — sunset em H-6.f com o flip do WHERE pós-TTL.
+- **Commit 2 (bundle atômico, 231 arquivos)**: contrato HTTP → trio
+  via `instrument.New` (31 sites `parseQueryKeyParams` + 9 extrações
+  diretas; S301 preservado; opcional = all-or-none); 8 client
+  packages `Symbol string` → `CanonicalInstrument` (DTOs/replies
+  ficam string per string_filter); ports flipados (13 readers
+  analíticos, 8 KV Gets, PriceSource, Verify*/Audit*, consistency)
+  com zero-inst = sem filtro; builders ClickHouse **byte-idênticos**
+  (arg derivado no port method); 5 `PartitionKey()` + composers
+  read-side → `{source}.{SubjectToken()}.{timeframe}`; novo
+  `KVStore.GetByKey` para o lifecycle list; `scopeInstrument` via
+  BindingTarget com Skip honesto; `DefaultVerificationScope` →
+  source real (`binances`/`btcusdt` — o default antigo "BTCUSDT" era
+  case-mismatched contra a coluna lowercase); ~60 test files
+  compiler-driven incl. tagged builds; 14 smokes → trio; HTTP-API.md
+  (incl. correção do pointer `evidence.go`). **MEA CULPA do
+  executor**: a enumeração da abertura declarou as chaves
+  parser-free; `parsePartitionKey` (query_responder_actor) É um
+  parser que o sweep perdeu — sobrevive intacto ao cutover (token
+  sem pontos), o pacote B fica de pé, mas a claim estava errada.
+- **Commit 3**: `check subjects` ganha seção `[keys]` (block-scoped
+  a corpos de `PartitionKey()`; proíbe `VenueSymbol()`, exige
+  `SubjectToken()`); fix estrutural do early-return que pulava o
+  check; 12/12 unit tests; gate `--profile ci` GREEN.
+- **Commit 4**: canário `key_cutover_canary_test.go` (shape literal
+  da chave + ausência de escrita legacy) PASS contra NATS vivo;
+  canários de reader d.2 — agora via ports canônicos com arg
+  derivado — 6/6 PASS contra ClickHouse vivo (mixed-state lido
+  identicamente).
+- **Commit 5**: docs closure (esta seção, G10, TRUTH-MAP, PRD).
+
+**Critério #2 do ADR-0021 literalmente satisfeito nesta entrega**
+(per erratum 2026-06-10); promoção do ADR permanece atômica em
+H-6.f. Nota operacional: chaves KV pré-cutover são órfãs inertes
+(purge manual opcional); janela de miss por tipo até a primeira
+escrita pós-deploy.
+
+**Próxima sub-onda destravada após merge**: **H-6.f** — cleanup
+final (sunset VenueSymbol + LegacyFilterValue + flip do WHERE
+pós-TTL ~2026-08-26 + reconstructInstrumentFromLegacy deletion) +
+**promoção ADR-0021 → Accepted**. Sequencing estrito: H-6.f abre
+branch APENAS após merge desta PR (H-6.e.2) em `main`.
+
+---
+
 Entregas H-6.e (esta sessão):
 
 - **Commit 0**: errata dupla + PRD. ADR-0009 ganha o token
@@ -1929,8 +1982,8 @@ e o ingest não os habilita.
 
 **Tratamento registrado**: o token de subject (H-6.e) carrega o
 slot `[_expiry]` dormente (erratum ao ADR-0009); a modelagem do
-expiry entra em **H-6.e.2 ou H-7** (decisão do owner na abertura
-da sub-onda — registrado no escopo da H-6.e.2 no PROGRAM-0004).
+expiry entra em **H-7** (decidido pelo owner na abertura de
+H-6.e.2, 2026-06-11 — registrado no PROGRAM-0004).
 Habilitar delivery futures no ingest **antes** da modelagem é
 bloqueado por este gap.
 

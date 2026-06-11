@@ -410,6 +410,21 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-11 (closure H-6.e.2)** — Entrega completa do pacote B em
+  6 commits (bundle atômico de 231 arquivos no commit 2). **Critério
+  #2 do ADR-0021 literalmente satisfeito** per erratum (subjects em
+  H-6.e + keys/contrato aqui); promoção segue atômica em H-6.f.
+  Mea culpa do executor registrado: a enumeração da abertura
+  declarou as chaves KV "parser-free"; `parsePartitionKey`
+  (`query_responder_actor.go`) é um parser que o sweep não viu —
+  formato-compatível com o token novo (sem pontos), pacote B
+  inalterado, claim corrigida. `DefaultVerificationScope` migrou
+  para source real (`binances`/`btcusdt`) — o default antigo
+  ("BTCUSDT", sem venue) era case-mismatched contra a coluna
+  ClickHouse lowercase e tornaria os checks Skip. Canários: key
+  shape literal vs NATS vivo PASS; readers d.2 via ports canônicos
+  6/6 PASS vs ClickHouse vivo.
+
 - **2026-06-11** — H-6.e fechada (PR #42 mergeada em `main` em
   `f8543b7`, 2026-06-10); **H-6.e.2 aberta** com decisões do owner
   registradas (**pacote B**): contrato HTTP → trio canônico
