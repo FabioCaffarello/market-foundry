@@ -67,14 +67,14 @@ func SplitStatements(content string) []string {
 				state = code
 			}
 		case singleQuote:
-			switch {
-			case ch == '\\':
+			switch ch {
+			case '\\':
 				if i+1 < len(runes) {
 					current.WriteRune(ch)
 					i++
 					ch = runes[i]
 				}
-			case ch == '\'':
+			case '\'':
 				state = code
 			}
 		case doubleQuote:
@@ -121,7 +121,7 @@ func hasExecutableContent(s string) bool {
 			}
 		case ch == '/' && next == '*':
 			i += 2
-			for i+1 < len(runes) && !(runes[i] == '*' && runes[i+1] == '/') {
+			for i+1 < len(runes) && (runes[i] != '*' || runes[i+1] != '/') {
 				i++
 			}
 			i++ // skip the closing '/'
