@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -46,9 +48,9 @@ func TestGetPairing_Batch_PairedRoundTrip(t *testing.T) {
 	uc := analyticalclient.NewGetPairingUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -95,9 +97,9 @@ func TestGetPairing_Batch_UnmatchedEntry(t *testing.T) {
 	uc := analyticalclient.NewGetPairingUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -137,10 +139,10 @@ func TestGetPairing_Batch_StateFilter(t *testing.T) {
 
 	// Filter to only paired.
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		State:     "paired",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		State:      "paired",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -165,9 +167,9 @@ func TestGetPairing_Batch_RejectedExcluded(t *testing.T) {
 	uc := analyticalclient.NewGetPairingUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -187,9 +189,9 @@ func TestGetPairing_Batch_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.PairingQuery
 	}{
-		{"missing source", analyticalclient.PairingQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"missing source", analyticalclient.PairingQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"missing symbol", analyticalclient.PairingQuery{Source: "binance", Timeframe: 60}},
-		{"invalid timeframe", analyticalclient.PairingQuery{Source: "binance", Symbol: "btcusdt", Timeframe: 0}},
+		{"invalid timeframe", analyticalclient.PairingQuery{Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
 	}
 
 	for _, tt := range tests {
@@ -208,7 +210,7 @@ func TestGetPairing_Batch_ValidationErrors(t *testing.T) {
 func TestGetPairing_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetPairingUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		CorrelationID: "x", Symbol: "y",
+		CorrelationID: "x", Instrument: instrumentFromVenue("btcusdt"),
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -239,7 +241,7 @@ func TestGetPairing_Single_NoExecution(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
 		CorrelationID: "corr-noexec",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -261,9 +263,9 @@ func TestGetPairing_Batch_LossRoundTrip(t *testing.T) {
 	uc := analyticalclient.NewGetPairingUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.PairingQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -297,9 +299,9 @@ func TestGetEffectiveness_Batch_PairedRoundTripProducesWin(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -329,9 +331,9 @@ func TestGetEffectiveness_Batch_SingleLegRemainsUnresolved(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -357,9 +359,9 @@ func TestGetEffectivenessSummary_PairingIntegration_ReducesUnresolved(t *testing
 	uc := analyticalclient.NewGetEffectivenessSummaryUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessSummaryQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

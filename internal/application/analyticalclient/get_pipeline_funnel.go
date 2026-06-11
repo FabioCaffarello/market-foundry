@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -11,8 +13,8 @@ import (
 // AggregationReader is the local interface for aggregation queries across the
 // five domain tables. Implemented by clickhouse.CompositeReader.
 type AggregationReader interface {
-	QueryPipelineFunnel(ctx context.Context, typ, source, symbol string, timeframe int, since, until int64) ([]StageFunnelCount, error)
-	QueryDispositionBreakdown(ctx context.Context, typ, source, symbol string, timeframe int, since, until int64) ([]DispositionCount, error)
+	QueryPipelineFunnel(ctx context.Context, typ, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]StageFunnelCount, error)
+	QueryDispositionBreakdown(ctx context.Context, typ, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]DispositionCount, error)
 }
 
 // GetPipelineFunnelUseCase queries all five domain tables to produce a stage-by-stage
@@ -40,8 +42,8 @@ func (uc *GetPipelineFunnelUseCase) Execute(ctx context.Context, query PipelineF
 	if query.Source == "" {
 		return PipelineFunnelReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return PipelineFunnelReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return PipelineFunnelReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return PipelineFunnelReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -57,12 +59,12 @@ func (uc *GetPipelineFunnelUseCase) Execute(ctx context.Context, query PipelineF
 	}
 
 	start := time.Now()
-	stages, err := uc.reader.QueryPipelineFunnel(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until)
+	stages, err := uc.reader.QueryPipelineFunnel(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("pipeline funnel query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return PipelineFunnelReply{}, problem.Wrap(err, problem.Unavailable, "pipeline funnel query failed")
@@ -73,7 +75,7 @@ func (uc *GetPipelineFunnelUseCase) Execute(ctx context.Context, query PipelineF
 	}
 
 	uc.logger.Info("pipeline funnel query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"total_ms", elapsed.Milliseconds(),
 	)
 

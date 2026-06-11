@@ -34,7 +34,8 @@ func NewCandleReader(client *Client, logger *slog.Logger) *CandleReader {
 
 // QueryCandleHistory queries evidence_candles from ClickHouse with filters.
 // Results are ordered newest-first (DESC by open_time).
-func (r *CandleReader) QueryCandleHistory(ctx context.Context, source, symbol string, timeframe int, since, until int64, limit int) ([]evidence.EvidenceCandle, error) {
+func (r *CandleReader) QueryCandleHistory(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]evidence.EvidenceCandle, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildCandleQuery(source, symbol, timeframe, since, until, limit)
 
 	start := time.Now()

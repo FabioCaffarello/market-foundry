@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"log/slog"
@@ -21,7 +23,7 @@ func TestGetDispositionBreakdown_Success(t *testing.T) {
 	uc := analyticalclient.NewGetDispositionBreakdownUseCase(reader, slog.Default())
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-		Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "position_exposure", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -56,7 +58,7 @@ func TestGetDispositionBreakdown_EmptyResult(t *testing.T) {
 	uc := analyticalclient.NewGetDispositionBreakdownUseCase(reader, slog.Default())
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-		Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "position_exposure", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -73,7 +75,7 @@ func TestGetDispositionBreakdown_MissingType(t *testing.T) {
 	uc := analyticalclient.NewGetDispositionBreakdownUseCase(&stubAggregationReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing type")
@@ -88,7 +90,7 @@ func TestGetDispositionBreakdown_ReaderError(t *testing.T) {
 	uc := analyticalclient.NewGetDispositionBreakdownUseCase(reader, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-		Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "position_exposure", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -101,7 +103,7 @@ func TestGetDispositionBreakdown_ReaderError(t *testing.T) {
 func TestGetDispositionBreakdown_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetDispositionBreakdownUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-		Type: "position_exposure", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "position_exposure", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")

@@ -444,7 +444,7 @@ phase "Phase 11: Store Materialization — Read Path from Spot Segment"
 # ══════════════════════════════════════════════════════════════════════
 
 # Check Spot evidence candle (proves ingest -> derive -> store with Spot data).
-CANDLE_SPOT_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binances&symbol=btcusdt&timeframe=60")
+CANDLE_SPOT_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60")
 if [[ "$CANDLE_SPOT_CODE" == "200" ]]; then
     pass "Spot evidence candle latest -> 200 (Spot live data -> evidence path confirmed)"
 else
@@ -452,7 +452,7 @@ else
 fi
 
 # Check Spot strategy read-path.
-STRATEGY_SPOT_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binances&symbol=btcusdt&timeframe=60")
+STRATEGY_SPOT_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60")
 if [[ "$STRATEGY_SPOT_CODE" == "200" ]]; then
     pass "Spot strategy latest -> 200 (derive -> store read path for Spot confirmed)"
 else
@@ -507,7 +507,7 @@ info "ClickHouse executions total: ${EXEC_CH} rows"
 phase "Phase 13: Correlation Chain Audit — Spot Segment Traceability"
 # ══════════════════════════════════════════════════════════════════════
 
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binances&symbol=btcusdt&timeframe=60&limit=5"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binances&base=btc&quote=usdt&contract=spot&timeframe=60&limit=5"
 CHAINS_CODE=$(curl -s -o /tmp/s408_chains.json -w "%{http_code}" "$CHAINS_URL" 2>/dev/null || echo "000")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then

@@ -67,7 +67,7 @@ func (uc *GetCrossSessionPairingUseCase) Execute(ctx context.Context, query Cros
 	start := time.Now()
 
 	// Validate required fields.
-	if query.Source == "" || query.Symbol == "" || query.Timeframe <= 0 || query.Since <= 0 {
+	if query.Source == "" || query.Instrument.IsZero() || query.Timeframe <= 0 || query.Since <= 0 {
 		return CrossSessionPairingReply{}, problem.New(problem.InvalidArgument,
 			"source, symbol, timeframe, and since are required for cross-session pairing")
 	}
@@ -136,7 +136,7 @@ func (uc *GetCrossSessionPairingUseCase) Execute(ctx context.Context, query Cros
 	// supplied by the HTTP query parameter and is passed through
 	// without canonical-instrument reconstruction.
 	window := pairing.CrossSessionWindow{
-		VenueSymbol: query.Symbol,
+		VenueSymbol: query.Instrument.LegacyFilterValue(),
 		Source:      query.Source,
 		Timeframe:   query.Timeframe,
 		Since:       sinceTime,
@@ -159,7 +159,7 @@ func (uc *GetCrossSessionPairingUseCase) Execute(ctx context.Context, query Cros
 			sessUntil = untilTime.Unix()
 		}
 
-		chains, qErr := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, sessSince, sessUntil, crossSessionDefaultLimit)
+		chains, qErr := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, sessSince, sessUntil, crossSessionDefaultLimit)
 		if qErr != nil {
 			uc.logger.Warn("chain query failed for session",
 				"session_id", sess.SessionID, "error", qErr)
@@ -230,7 +230,7 @@ func (uc *GetCrossSessionPairingUseCase) Execute(ctx context.Context, query Cros
 	elapsed := time.Since(start)
 
 	uc.logger.Info("cross-session pairing completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"sessions", len(sessionIDs), "chains", totalChains, "legs", len(allLegs),
 		"round_trips", len(views), "resolved", continuity.ResolvedCount,
 		"cross_session_pairs", continuity.CrossSessionPairedCount,

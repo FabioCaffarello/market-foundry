@@ -52,6 +52,11 @@ func instrumentFromVenue(venueSym string) instrument.CanonicalInstrument {
 // OBS-1: Cross-surface consistency — funnel stage counts match chain counts
 // ---------------------------------------------------------------------------
 
+func s303InstrumentFor(label string) instrument.CanonicalInstrument {
+	base := map[string]string{"btcusdt": "BTC", "ethusdt": "ETH", "solusdt": "SOL"}[label]
+	return instrument.CanonicalInstrument{Base: instrument.BaseAsset(base), Quote: "USDT", Contract: instrument.ContractPerpetual}
+}
+
 func TestS303_OBS1_FunnelChainConsistency(t *testing.T) {
 	// Scenario: 3 symbols, each with a known number of complete/partial chains.
 	// Funnel must reflect the exact per-symbol counts.
@@ -88,7 +93,7 @@ func TestS303_OBS1_FunnelChainConsistency(t *testing.T) {
 
 			funnelUC := analyticalclient.NewGetPipelineFunnelUseCase(funnelReader, slog.Default())
 			funnelReply, prob := funnelUC.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-				Type: "rsi", Source: "binancef", Symbol: sc.symbol, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: s303InstrumentFor(sc.symbol), Timeframe: 60,
 			})
 			if prob != nil {
 				t.Fatalf("funnel query failed: %v", prob)
@@ -119,7 +124,7 @@ func TestS303_OBS1_FunnelChainConsistency(t *testing.T) {
 			// Disposition total must equal risk stage count.
 			dispUC := analyticalclient.NewGetDispositionBreakdownUseCase(funnelReader, slog.Default())
 			dispReply, prob := dispUC.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-				Type: "rsi", Source: "binancef", Symbol: sc.symbol, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: s303InstrumentFor(sc.symbol), Timeframe: 60,
 			})
 			if prob != nil {
 				t.Fatalf("disposition query failed: %v", prob)
@@ -160,7 +165,7 @@ func TestS303_OBS2_DispositionAttributionCoherence(t *testing.T) {
 	for _, sym := range symbols {
 		t.Run("coherence_"+sym, func(t *testing.T) {
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: "s303-obs2-" + sym, Symbol: sym,
+				CorrelationID: "s303-obs2-" + sym, Instrument: s303InstrumentFor(sym),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem: %v", prob)
@@ -219,7 +224,7 @@ func TestS303_OBS3_CausalMetadataIntegrity(t *testing.T) {
 	for _, sym := range symbols {
 		t.Run("causal_"+sym, func(t *testing.T) {
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: "s303-obs3-" + sym, Symbol: sym,
+				CorrelationID: "s303-obs3-" + sym, Instrument: s303InstrumentFor(sym),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem: %v", prob)
@@ -319,7 +324,7 @@ func TestS303_OBS4_FilterSpecificity(t *testing.T) {
 	for _, sym := range []string{"btcusdt", "ethusdt", "solusdt"} {
 		t.Run("filter_"+sym, func(t *testing.T) {
 			fReply, fProb := funnelUC.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-				Type: "rsi", Source: "binancef", Symbol: sym, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: s303InstrumentFor(sym), Timeframe: 60,
 			})
 			if fProb != nil {
 				t.Fatalf("funnel: %v", fProb)
@@ -332,7 +337,7 @@ func TestS303_OBS4_FilterSpecificity(t *testing.T) {
 			}
 
 			dReply, dProb := dispUC.Execute(context.Background(), analyticalclient.DispositionBreakdownQuery{
-				Type: "rsi", Source: "binancef", Symbol: sym, Timeframe: 60,
+				Type: "rsi", Source: "binancef", Instrument: s303InstrumentFor(sym), Timeframe: 60,
 			})
 			if dProb != nil {
 				t.Fatalf("disposition: %v", dProb)
@@ -408,7 +413,7 @@ func TestS303_OBS5_AttributionReadability(t *testing.T) {
 			uc := analyticalclient.NewGetCompositeChainUseCase(reader, slog.Default())
 
 			reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-				CorrelationID: corrID, Symbol: ac.symbol,
+				CorrelationID: corrID, Instrument: s303InstrumentFor(ac.symbol),
 			})
 			if prob != nil {
 				t.Fatalf("unexpected problem: %v", prob)
@@ -486,7 +491,7 @@ func TestS303_OBS6_BatchExplainability(t *testing.T) {
 	// BTC batch: 2 chains, both with attribution, different dispositions.
 	t.Run("batch_btcusdt", func(t *testing.T) {
 		reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+			Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 		})
 		if prob != nil {
 			t.Fatalf("unexpected problem: %v", prob)
@@ -520,7 +525,7 @@ func TestS303_OBS6_BatchExplainability(t *testing.T) {
 	// ETH batch: 1 rejected chain, no execution.
 	t.Run("batch_ethusdt", func(t *testing.T) {
 		reply, prob := uc.Execute(context.Background(), analyticalclient.CompositeChainQuery{
-			Source: "binancef", Symbol: "ethusdt", Timeframe: 60,
+			Source: "binancef", Instrument: s303InstrumentFor("ethusdt"), Timeframe: 60,
 		})
 		if prob != nil {
 			t.Fatalf("unexpected problem: %v", prob)
@@ -637,15 +642,15 @@ type s303FunnelStubReader struct {
 	dispPerSymbol   map[string][]analyticalclient.DispositionCount
 }
 
-func (r *s303FunnelStubReader) QueryPipelineFunnel(_ context.Context, _, _, symbol string, _ int, _, _ int64) ([]analyticalclient.StageFunnelCount, error) {
-	if stages, ok := r.funnelPerSymbol[symbol]; ok {
+func (r *s303FunnelStubReader) QueryPipelineFunnel(_ context.Context, _, _ string, symbol instrument.CanonicalInstrument, _ int, _, _ int64) ([]analyticalclient.StageFunnelCount, error) {
+	if stages, ok := r.funnelPerSymbol[symbol.LegacyFilterValue()]; ok {
 		return stages, nil
 	}
 	return nil, nil
 }
 
-func (r *s303FunnelStubReader) QueryDispositionBreakdown(_ context.Context, _, _, symbol string, _ int, _, _ int64) ([]analyticalclient.DispositionCount, error) {
-	if disps, ok := r.dispPerSymbol[symbol]; ok {
+func (r *s303FunnelStubReader) QueryDispositionBreakdown(_ context.Context, _, _ string, symbol instrument.CanonicalInstrument, _ int, _, _ int64) ([]analyticalclient.DispositionCount, error) {
+	if disps, ok := r.dispPerSymbol[symbol.LegacyFilterValue()]; ok {
 		return disps, nil
 	}
 	return nil, nil

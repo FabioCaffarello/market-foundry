@@ -74,6 +74,7 @@ EOF
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
 SOURCE="${SOURCE:-binancef}"
+CONTRACT="${CONTRACT:-perpetual}"
 read -ra SYMBOLS <<< "${SMOKE_SYMBOLS:-btcusdt ethusdt}"
 read -ra TIMEFRAMES <<< "${SMOKE_TIMEFRAMES:-60 300 900 3600}"
 WAIT_SECONDS="${SMOKE_WAIT:-90}"
@@ -139,7 +140,7 @@ POLL_INTERVAL=5
 
 while [[ $ELAPSED -lt $WAIT_SECONDS ]]; do
     for sym in "${SYMBOLS[@]}"; do
-        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${sym}&timeframe=60")
+        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
         CANDLE=$(echo "$RESPONSE" | grep -o '"candle":{' 2>/dev/null || true)
         if [[ -n "$CANDLE" ]]; then
             CANDLE_FOUND=true
@@ -167,8 +168,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -215,8 +216,8 @@ info "Verifying symbols produce independent candle data..."
 
 ISOLATION_OK=true
 for tf in "${TIMEFRAMES[@]}"; do
-    CANDLE_A=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    CANDLE_B=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    CANDLE_A=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    CANDLE_B=$(curl -s "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     # Check that candles (when present) have different symbols
     RESULT=$(python3 -c "
@@ -255,8 +256,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking signal RSI ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "signal rsi ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -300,8 +301,8 @@ section "Step 6: Cross-symbol signal isolation"
 info "Verifying signal RSI produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    SIG_A=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    SIG_B=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    SIG_A=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    SIG_B=$(curl -s "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -339,8 +340,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking signal ema_crossover ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "signal ema_crossover ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -390,8 +391,8 @@ section "Step 6b: Cross-symbol EMA Crossover signal isolation (CC-02)"
 info "Verifying signal EMA Crossover produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    SIG_A=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    SIG_B=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    SIG_A=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    SIG_B=$(curl -s "${BASE_URL}/signal/ema_crossover/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -426,8 +427,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking decision rsi_oversold ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "decision rsi_oversold ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -472,8 +473,8 @@ section "Step 8: Cross-symbol decision isolation"
 info "Verifying decision RSI Oversold produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    DEC_A=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    DEC_B=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    DEC_A=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    DEC_B=$(curl -s "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -514,8 +515,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking decision ema_crossover ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "decision ema_crossover ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -564,8 +565,8 @@ section "Step 8a: Cross-symbol ema_crossover decision isolation (Breadth S241)"
 info "Verifying decision EMA Crossover produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    DEC_A=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    DEC_B=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    DEC_A=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    DEC_B=$(curl -s "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -606,8 +607,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking strategy mean_reversion_entry ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "strategy mean_reversion_entry ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -655,8 +656,8 @@ section "Step 10: Cross-symbol strategy isolation"
 info "Verifying strategy Mean Reversion Entry produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    STRAT_A=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    STRAT_B=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    STRAT_A=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    STRAT_B=$(curl -s "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -697,8 +698,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking strategy trend_following_entry ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "strategy trend_following_entry ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -746,8 +747,8 @@ section "Step 10a: Cross-symbol trend_following_entry strategy isolation (Breadt
 info "Verifying strategy Trend Following Entry produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    STRAT_A=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    STRAT_B=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    STRAT_A=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    STRAT_B=$(curl -s "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -788,8 +789,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking risk position_exposure ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "risk position_exposure ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -838,8 +839,8 @@ section "Step 12: Cross-symbol risk isolation"
 info "Verifying risk Position Exposure produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    RISK_A=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    RISK_B=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    RISK_A=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    RISK_B=$(curl -s "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -880,8 +881,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking risk drawdown_limit ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "risk drawdown_limit ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -930,8 +931,8 @@ section "Step 12a: Cross-symbol drawdown_limit risk isolation (Breadth S243)"
 info "Verifying risk Drawdown Limit produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    RISK_A=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    RISK_B=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    RISK_A=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    RISK_B=$(curl -s "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -972,8 +973,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking execution paper_order ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "execution paper_order ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -1041,8 +1042,8 @@ section "Step 14: Cross-symbol execution isolation"
 info "Verifying execution Paper Order produces independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    EXEC_A=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    EXEC_B=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    EXEC_A=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    EXEC_B=$(curl -s "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -1194,8 +1195,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking execution venue_market_order ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "execution venue_market_order ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -1250,8 +1251,8 @@ section "Step 18: Cross-symbol fill isolation"
 info "Verifying venue market order fills produce independent data per symbol..."
 
 for tf in "${TIMEFRAMES[@]}"; do
-    FILL_A=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=${tf}")
-    FILL_B=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${SYMBOLS[1]}&timeframe=${tf}")
+    FILL_A=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+    FILL_B=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&base=${SYMBOLS[1]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
     RESULT=$(python3 -c "
 import sys, json
@@ -1292,8 +1293,8 @@ for sym in "${SYMBOLS[@]}"; do
         info "Checking execution status ${SOURCE}/${sym}/${tf}s..."
 
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
-        RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=${tf}")
+            "${BASE_URL}/execution/status/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
+        RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=${tf}")
 
         if [[ "$HTTP_CODE" != "200" ]]; then
             fail "execution status ${sym}/${tf}s → HTTP ${HTTP_CODE} (expected 200)"
@@ -1355,7 +1356,7 @@ fi
 # 20b: Verify halt via status endpoint — gate should show halted.
 sleep 1
 for sym in "${SYMBOLS[@]}"; do
-    STATUS_RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${sym}&timeframe=60")
+    STATUS_RESPONSE=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
     RESULT=$(echo "$STATUS_RESPONSE" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -1386,7 +1387,7 @@ fi
 
 # 20d: Verify resume via status endpoint.
 sleep 1
-VERIFY_RESUME=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+VERIFY_RESUME=$(curl -s "${BASE_URL}/execution/status/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 RESULT=$(echo "$VERIFY_RESUME" | python3 -c "
 import sys, json
 gate = json.load(sys.stdin).get('gate', {})
@@ -1405,7 +1406,7 @@ info "Verifying correlation_id and causation_id persist in venue fill events..."
 
 TRACE_VERIFIED=0
 for sym in "${SYMBOLS[@]}"; do
-    FILL_RESP=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&symbol=${sym}&timeframe=60")
+    FILL_RESP=$(curl -s "${BASE_URL}/execution/venue_market_order/latest?source=${SOURCE}&base=${sym%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
     RESULT=$(echo "$FILL_RESP" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -1449,49 +1450,49 @@ fi
 # ---------- Step 22: Error handling ----------
 section "Step 22: Error handling"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Missing timeframe → 400" || info "Missing timeframe → $HTTP_CODE"
 
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest")
 [[ "$HTTP_CODE" == "400" ]] && pass "No params → 400" || info "No params → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/signal/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/signal/unknown/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown signal type → 400" || info "Unknown signal type → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/signal/rsi/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Signal missing timeframe → 400" || info "Signal missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/unknown/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown decision type → 400" || info "Unknown decision type → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/rsi_oversold/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Decision rsi_oversold missing timeframe → 400" || info "Decision rsi_oversold missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/decision/ema_crossover/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Decision ema_crossover missing timeframe → 400" || info "Decision ema_crossover missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/unknown/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown strategy type → 400" || info "Unknown strategy type → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/mean_reversion_entry/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Strategy mean_reversion_entry missing timeframe → 400" || info "Strategy mean_reversion_entry missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/strategy/trend_following_entry/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Strategy trend_following_entry missing timeframe → 400" || info "Strategy trend_following_entry missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/unknown/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown risk type → 400" || info "Unknown risk type → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/position_exposure/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Risk position_exposure missing timeframe → 400" || info "Risk position_exposure missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/risk/drawdown_limit/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Risk drawdown_limit missing timeframe → 400" || info "Risk drawdown_limit missing timeframe → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/unknown/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}&timeframe=60")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/unknown/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}&timeframe=60")
 [[ "$HTTP_CODE" == "400" ]] && pass "Unknown execution type → 400" || info "Unknown execution type → $HTTP_CODE"
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOLS[0]}")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/execution/paper_order/latest?source=${SOURCE}&base=${SYMBOLS[0]%usdt}&quote=usdt&contract=${CONTRACT}")
 [[ "$HTTP_CODE" == "400" ]] && pass "Execution missing timeframe → 400" || info "Execution missing timeframe → $HTTP_CODE"
 
 # ---------- Summary ----------

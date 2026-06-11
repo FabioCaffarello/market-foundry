@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"time"
 
 	"internal/domain/decision"
@@ -23,12 +25,12 @@ type CompositeChainQuery struct {
 	CorrelationID string `json:"correlation_id,omitempty"` // single-chain lookup
 
 	// Batch lookup filters (all required for batch mode).
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive
-	Limit     int    `json:"limit,omitempty"` // default 20, max 100
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive
+	Limit      int                            `json:"limit,omitempty"` // default 20, max 100
 }
 
 // CompositeChainReply is the response contract for composite execution chain queries.
@@ -51,26 +53,26 @@ type CompositeQueryMeta struct {
 // Each stage is optional — a chain may be incomplete if events are still propagating
 // or if the chain was terminated early (e.g., risk rejected).
 type CompositeExecutionChain struct {
-	CorrelationID string               `json:"correlation_id"`
-	Signal        *SignalWithTrace     `json:"signal,omitempty"`
-	Decision      *DecisionWithTrace   `json:"decision,omitempty"`
-	Strategy      *StrategyWithTrace   `json:"strategy,omitempty"`
-	Risk          *RiskWithTrace       `json:"risk,omitempty"`
-	Execution     *ExecutionWithTrace  `json:"execution,omitempty"`
-	Attribution   *RiskAttribution     `json:"attribution,omitempty"`    // computed from risk stage (S298)
-	StageCount    int                  `json:"stage_count"`              // how many stages are present (0-5)
-	ChainComplete bool                 `json:"chain_complete"`           // true when all 5 stages are present
-	MissingStages []string             `json:"missing_stages,omitempty"` // e.g., ["signal", "execution"]
+	CorrelationID string              `json:"correlation_id"`
+	Signal        *SignalWithTrace    `json:"signal,omitempty"`
+	Decision      *DecisionWithTrace  `json:"decision,omitempty"`
+	Strategy      *StrategyWithTrace  `json:"strategy,omitempty"`
+	Risk          *RiskWithTrace      `json:"risk,omitempty"`
+	Execution     *ExecutionWithTrace `json:"execution,omitempty"`
+	Attribution   *RiskAttribution    `json:"attribution,omitempty"`    // computed from risk stage (S298)
+	StageCount    int                 `json:"stage_count"`              // how many stages are present (0-5)
+	ChainComplete bool                `json:"chain_complete"`           // true when all 5 stages are present
+	MissingStages []string            `json:"missing_stages,omitempty"` // e.g., ["signal", "execution"]
 }
 
 // RiskAttribution is a read-side projection computed from the risk stage of a composite chain.
 // It surfaces the risk gate outcome at the chain level so that Q2 (why was execution X
 // rejected or modified?) is answerable without traversing the nested risk stage.
 type RiskAttribution struct {
-	Disposition       string                      `json:"disposition"`                  // approved/modified/rejected
-	Rationale         string                      `json:"rationale"`                    // human-readable explanation
-	ActiveConstraints risk.Constraints            `json:"active_constraints"`           // constraints active at assessment time
-	StrategyContext   []AttributionStrategyContext `json:"strategy_context,omitempty"`   // contributing strategies with decision context
+	Disposition       string                       `json:"disposition"`                // approved/modified/rejected
+	Rationale         string                       `json:"rationale"`                  // human-readable explanation
+	ActiveConstraints risk.Constraints             `json:"active_constraints"`         // constraints active at assessment time
+	StrategyContext   []AttributionStrategyContext `json:"strategy_context,omitempty"` // contributing strategies with decision context
 }
 
 // AttributionStrategyContext captures the strategy and decision context that was
@@ -87,12 +89,12 @@ type AttributionStrategyContext struct {
 // PipelineFunnelQuery is the request for stage-by-stage event counts (Q7, Q5).
 // Queries all 5 domain tables independently to produce a pipeline conversion funnel.
 type PipelineFunnelQuery struct {
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive
 }
 
 // PipelineFunnelReply is the response for the pipeline funnel query.
@@ -110,12 +112,12 @@ type StageFunnelCount struct {
 
 // DispositionBreakdownQuery is the request for risk disposition distribution (Q6).
 type DispositionBreakdownQuery struct {
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive
 }
 
 // DispositionBreakdownReply is the response for the disposition breakdown query.

@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -12,7 +14,7 @@ import (
 // SignalReader is the local interface for reading historical signals
 // from the analytical store.
 type SignalReader interface {
-	QuerySignalHistory(ctx context.Context, signalType, source, symbol string, timeframe int, since, until int64, limit int) ([]signal.Signal, error)
+	QuerySignalHistory(ctx context.Context, signalType, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]signal.Signal, error)
 }
 
 // GetSignalHistoryUseCase queries the analytical store for historical signals.
@@ -39,8 +41,8 @@ func (uc *GetSignalHistoryUseCase) Execute(ctx context.Context, query SignalHist
 	if query.Source == "" {
 		return SignalHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return SignalHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return SignalHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return SignalHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -63,12 +65,12 @@ func (uc *GetSignalHistoryUseCase) Execute(ctx context.Context, query SignalHist
 	}
 
 	start := time.Now()
-	signals, err := uc.reader.QuerySignalHistory(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	signals, err := uc.reader.QuerySignalHistory(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical signal query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return SignalHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical signal query failed")
@@ -82,7 +84,7 @@ func (uc *GetSignalHistoryUseCase) Execute(ctx context.Context, query SignalHist
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical signal query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"rows", rowCount, "query_ms", queryMs,
 	)
 

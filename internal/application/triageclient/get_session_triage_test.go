@@ -144,7 +144,7 @@ func TestGetSessionTriage_SeverityFilter(t *testing.T) {
 						Bundle: &execution.SessionAuditBundle{
 							Session:     execution.Session{Status: execution.SessionClosed},
 							Consistency: execution.AuditConsistency{OverallVerdict: "inconsistent"},
-							CheckIndex: execution.AuditCheckIndex{Failed: []string{"PO-1"}},
+							CheckIndex:  execution.AuditCheckIndex{Failed: []string{"PO-1"}},
 						},
 					},
 					{
@@ -152,7 +152,7 @@ func TestGetSessionTriage_SeverityFilter(t *testing.T) {
 						Bundle: &execution.SessionAuditBundle{
 							Session:     execution.Session{Status: execution.SessionClosed},
 							Consistency: execution.AuditConsistency{OverallVerdict: "degraded"},
-							CheckIndex: execution.AuditCheckIndex{Warnings: []string{"PO-5"}},
+							CheckIndex:  execution.AuditCheckIndex{Warnings: []string{"PO-5"}},
 						},
 					},
 				},

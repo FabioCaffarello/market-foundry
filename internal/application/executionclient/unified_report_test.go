@@ -21,15 +21,15 @@ func (s *stubMonitoringReader) GetOperationalState(_ context.Context) (string, s
 
 // stubTriageReader implements UnifiedReportTriageReader for testing.
 type stubTriageReader struct {
-	total     int
-	sCrit     int
-	sWarn     int
-	dCrit     int
-	dWarn     int
-	rtCrit    int
-	rtWarn    int
-	findings  []string
-	err       *problem.Problem
+	total    int
+	sCrit    int
+	sWarn    int
+	dCrit    int
+	dWarn    int
+	rtCrit   int
+	rtWarn   int
+	findings []string
+	err      *problem.Problem
 }
 
 func (s *stubTriageReader) GetTriageSummary(_ context.Context) (int, int, int, int, int, int, int, []string, *problem.Problem) {

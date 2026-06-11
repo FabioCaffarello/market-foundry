@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -12,7 +14,7 @@ import (
 // ExecutionReader is the local interface for reading historical executions
 // from the analytical store.
 type ExecutionReader interface {
-	QueryExecutionHistory(ctx context.Context, execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
+	QueryExecutionHistory(ctx context.Context, execType, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
 }
 
 // GetExecutionHistoryUseCase queries the analytical store for historical executions.
@@ -39,8 +41,8 @@ func (uc *GetExecutionHistoryUseCase) Execute(ctx context.Context, query Executi
 	if query.Source == "" {
 		return ExecutionHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return ExecutionHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return ExecutionHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return ExecutionHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -63,12 +65,12 @@ func (uc *GetExecutionHistoryUseCase) Execute(ctx context.Context, query Executi
 	}
 
 	start := time.Now()
-	executions, err := uc.reader.QueryExecutionHistory(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
+	executions, err := uc.reader.QueryExecutionHistory(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical execution query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"side", query.Side, "status", query.Status, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return ExecutionHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical execution query failed")
@@ -82,7 +84,7 @@ func (uc *GetExecutionHistoryUseCase) Execute(ctx context.Context, query Executi
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical execution query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"side", query.Side, "status", query.Status, "rows", rowCount, "query_ms", queryMs,
 	)
 

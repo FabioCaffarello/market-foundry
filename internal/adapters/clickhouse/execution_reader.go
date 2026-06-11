@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -33,7 +35,8 @@ func NewExecutionReader(client *Client, logger *slog.Logger) *ExecutionReader {
 
 // QueryExecutionHistory queries executions from ClickHouse with filters.
 // Results are ordered newest-first (DESC by timestamp).
-func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+func (r *ExecutionReader) QueryExecutionHistory(ctx context.Context, execType, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildExecutionQuery(execType, source, symbol, timeframe, side, status, since, until, limit)
 
 	start := time.Now()
@@ -150,7 +153,8 @@ func BuildExecutionQuery(execType, source, symbol string, timeframe int, side, s
 //
 // S453A: This is the core historical read model query that enables lifecycle reconstruction
 // without requiring separate per-type queries or reliance on latest-only KV surfaces.
-func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+func (r *ExecutionReader) QueryLifecycleHistory(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildLifecycleHistoryQuery(source, symbol, timeframe, side, status, since, until, limit)
 
 	start := time.Now()
@@ -269,7 +273,8 @@ func BuildLifecycleHistoryQuery(source, symbol string, timeframe int, side, stat
 //
 // S454A: Enables operational list queries like "show all rejected orders" or
 // "show all fills in the last hour" without requiring full partition key foreknowledge.
-func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+func (r *ExecutionReader) QueryExecutionList(ctx context.Context, execType, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args, err := BuildExecutionListQuery(execType, source, symbol, timeframe, side, status, since, until, limit)
 	if err != nil {
 		return nil, err
@@ -428,7 +433,8 @@ func BuildExecutionListQuery(execType, source, symbol string, timeframe int, sid
 //
 // S454A: Enables operational overview queries like "how many rejected vs filled?"
 // without fetching individual rows.
-func (r *ExecutionReader) QueryExecutionSummary(ctx context.Context, source, symbol string, timeframe int, since, until int64) ([]analyticalclient.ExecutionSummaryRawRow, error) {
+func (r *ExecutionReader) QueryExecutionSummary(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]analyticalclient.ExecutionSummaryRawRow, error) {
+	symbol := inst.LegacyFilterValue()
 	q, args, err := BuildExecutionSummaryQuery(source, symbol, timeframe, since, until)
 	if err != nil {
 		return nil, err

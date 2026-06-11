@@ -236,8 +236,8 @@ func TestS418_FillReadPath_FuturesRealFillCarriesSegmentAndAudit(t *testing.T) {
 
 	// Partition key carries Futures segment
 	key := receipt.Intent.PartitionKey()
-	if key != "binancef.btcusdt.60" {
-		t.Errorf("partition_key: expected binancef.btcusdt.60, got %s", key)
+	if key != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("partition_key: expected binancef.btc_usdt_perpetual.60, got %s", key)
 	}
 }
 

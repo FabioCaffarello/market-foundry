@@ -66,23 +66,23 @@ type ChainSnapshot struct {
 	StrategyDecisionRef string // type of decision referenced by strategy
 
 	// Risk stage.
-	HasRisk          bool
-	RiskDisposition  string // approved, modified, rejected
-	RiskConfidence   string
-	RiskSymbol       string
-	RiskSource       string
-	RiskTimeframe    int
-	RiskStrategyRef  string // type of strategy referenced by risk
-	RiskStrategyDir  string // direction of strategy as seen by risk
+	HasRisk         bool
+	RiskDisposition string // approved, modified, rejected
+	RiskConfidence  string
+	RiskSymbol      string
+	RiskSource      string
+	RiskTimeframe   int
+	RiskStrategyRef string // type of strategy referenced by risk
+	RiskStrategyDir string // direction of strategy as seen by risk
 
 	// Execution stage.
-	HasExecution      bool
-	ExecutionSide     string // buy, sell, none
-	ExecutionQuantity string
-	ExecutionSymbol   string
-	ExecutionSource   string
+	HasExecution       bool
+	ExecutionSide      string // buy, sell, none
+	ExecutionQuantity  string
+	ExecutionSymbol    string
+	ExecutionSource    string
 	ExecutionTimeframe int
-	ExecutionRiskDisp string // disposition as seen by execution
+	ExecutionRiskDisp  string // disposition as seen by execution
 }
 
 // Check runs all cross-domain consistency checks on the given chain snapshot

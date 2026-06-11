@@ -57,14 +57,14 @@ func (uc *GetTriageOverviewUseCase) Execute(ctx context.Context, query TriageOve
 	}
 
 	// Decision triage — requires source/symbol/timeframe.
-	if uc.decisionTriage != nil && query.Source != "" && query.Symbol != "" && query.Timeframe > 0 {
+	if uc.decisionTriage != nil && query.Source != "" && !query.Instrument.IsZero() && query.Timeframe > 0 {
 		decisionReply, prob := uc.decisionTriage.Execute(ctx, DecisionTriageQuery{
-			Source:    query.Source,
-			Symbol:    query.Symbol,
-			Timeframe: query.Timeframe,
-			Since:     query.Since,
-			Until:     query.Until,
-			Limit:     decisionTriageMaxLimit,
+			Source:     query.Source,
+			Instrument: query.Instrument,
+			Timeframe:  query.Timeframe,
+			Since:      query.Since,
+			Until:      query.Until,
+			Limit:      decisionTriageMaxLimit,
 		})
 		if prob == nil {
 			overview.DecisionSummary = decisionReply.Summary
@@ -76,14 +76,14 @@ func (uc *GetTriageOverviewUseCase) Execute(ctx context.Context, query TriageOve
 	}
 
 	// Round-trip triage — requires source/symbol/timeframe.
-	if uc.roundTripTriage != nil && query.Source != "" && query.Symbol != "" && query.Timeframe > 0 {
+	if uc.roundTripTriage != nil && query.Source != "" && !query.Instrument.IsZero() && query.Timeframe > 0 {
 		rtReply, prob := uc.roundTripTriage.Execute(ctx, RoundTripTriageQuery{
-			Source:    query.Source,
-			Symbol:    query.Symbol,
-			Timeframe: query.Timeframe,
-			Since:     query.Since,
-			Until:     query.Until,
-			Limit:     roundTripTriageMaxLimit,
+			Source:     query.Source,
+			Instrument: query.Instrument,
+			Timeframe:  query.Timeframe,
+			Since:      query.Since,
+			Until:      query.Until,
+			Limit:      roundTripTriageMaxLimit,
 		})
 		if prob == nil {
 			overview.RoundTripSummary = rtReply.Summary

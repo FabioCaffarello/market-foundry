@@ -51,7 +51,7 @@ func TestStrategyRoutesRegisterHandler(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -82,7 +82,7 @@ func TestDefaultRoutesIncludesStrategyWhenProvided(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -110,7 +110,7 @@ func TestDefaultRoutesOmitsStrategyWhenNil(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

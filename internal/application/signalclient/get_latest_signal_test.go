@@ -36,11 +36,11 @@ func TestGetLatestSignalUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query signalclient.SignalLatestQuery
 	}{
-		{"empty type", signalclient.SignalLatestQuery{Type: "", Source: "binancef", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty source", signalclient.SignalLatestQuery{Type: "rsi", Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty type", signalclient.SignalLatestQuery{Type: "", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"empty source", signalclient.SignalLatestQuery{Type: "rsi", Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", signalclient.SignalLatestQuery{Type: "rsi", Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -68,10 +68,10 @@ func TestGetLatestSignalUseCase_ReturnsSignal(t *testing.T) {
 
 	uc := signalclient.NewGetLatestSignalUseCase(&mockSignalGateway{sig: sig})
 	reply, prob := uc.Execute(context.Background(), signalclient.SignalLatestQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -90,10 +90,10 @@ func TestGetLatestSignalUseCase_ReturnsSignal(t *testing.T) {
 func TestGetLatestSignalUseCase_NilGateway(t *testing.T) {
 	var uc *signalclient.GetLatestSignalUseCase
 	_, prob := uc.Execute(context.Background(), signalclient.SignalLatestQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

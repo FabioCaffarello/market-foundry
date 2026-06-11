@@ -111,7 +111,7 @@ func TestS317_VenueFill_PersistenceRoundTrip(t *testing.T) {
 
 	// 5. Partition key and dedup key (required for NATS JetStream and KV).
 	pk := x.PartitionKey()
-	if pk != "binancef.btcusdt.60" {
+	if pk != "binancef.btc_usdt_perpetual.60" {
 		t.Fatalf("S317: unexpected partition key %q", pk)
 	}
 	dk := x.DeduplicationKey()

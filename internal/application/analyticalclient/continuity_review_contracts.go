@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"internal/domain/effectiveness"
 	"internal/domain/pairing"
 )
@@ -17,12 +19,12 @@ import (
 // summaries that answer: "what was carried, what resolved, and what remains open?"
 type ContinuityReviewQuery struct {
 	// Window filters — all required.
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 
 	// Time range — Since is required. Until defaults to now.
-	Since int64 `json:"since"`          // unix seconds, inclusive
+	Since int64 `json:"since"`           // unix seconds, inclusive
 	Until int64 `json:"until,omitempty"` // unix seconds, inclusive (0 = now)
 
 	// MaxSessions limits the number of sessions to include (most recent first).
@@ -32,18 +34,18 @@ type ContinuityReviewQuery struct {
 	// Post-computation filters.
 	Continuity string `json:"continuity,omitempty"` // resolved, open, genuine_unresolved, artificial_unresolved
 	CrossOnly  bool   `json:"cross_only,omitempty"` // only cross-session round-trips
-	Flagged    bool   `json:"flagged,omitempty"`     // only round-trips with reconciliation flags
-	Outcome    string `json:"outcome,omitempty"`     // win, loss, breakeven, unresolved
+	Flagged    bool   `json:"flagged,omitempty"`    // only round-trips with reconciliation flags
+	Outcome    string `json:"outcome,omitempty"`    // win, loss, breakeven, unresolved
 }
 
 // ContinuityReviewReply is the response contract for the continuity review surface.
 type ContinuityReviewReply struct {
-	Reviews    []ContinuityReviewItem             `json:"reviews"`
-	Continuity pairing.ContinuitySummary          `json:"continuity"`
+	Reviews        []ContinuityReviewItem                  `json:"reviews"`
+	Continuity     pairing.ContinuitySummary               `json:"continuity"`
 	Reconciliation pairing.ContinuityReconciliationSummary `json:"reconciliation"`
-	Effectiveness  ContinuityEffectivenessSummary  `json:"effectiveness"`
-	Source     string                              `json:"source"` // always "clickhouse+kv"
-	Meta       ContinuityReviewMeta               `json:"meta"`
+	Effectiveness  ContinuityEffectivenessSummary          `json:"effectiveness"`
+	Source         string                                  `json:"source"` // always "clickhouse+kv"
+	Meta           ContinuityReviewMeta                    `json:"meta"`
 }
 
 // ContinuityReviewItem is a single cross-session round-trip enriched with
@@ -66,9 +68,9 @@ type ContinuityEffectivenessSummary struct {
 	TotalPaired int `json:"total_paired"`
 
 	// Outcome counts.
-	WinCount       int `json:"win_count"`
-	LossCount      int `json:"loss_count"`
-	BreakevenCount int `json:"breakeven_count"`
+	WinCount        int `json:"win_count"`
+	LossCount       int `json:"loss_count"`
+	BreakevenCount  int `json:"breakeven_count"`
 	UnresolvedCount int `json:"unresolved_count"`
 
 	// P&L aggregates.

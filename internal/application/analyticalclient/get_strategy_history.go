@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -12,7 +14,7 @@ import (
 // StrategyReader is the local interface for reading historical strategies
 // from the analytical store.
 type StrategyReader interface {
-	QueryStrategyHistory(ctx context.Context, strategyType, source, symbol string, timeframe int, direction string, since, until int64, limit int) ([]strategy.Strategy, error)
+	QueryStrategyHistory(ctx context.Context, strategyType, source string, inst instrument.CanonicalInstrument, timeframe int, direction string, since, until int64, limit int) ([]strategy.Strategy, error)
 }
 
 // GetStrategyHistoryUseCase queries the analytical store for historical strategies.
@@ -39,8 +41,8 @@ func (uc *GetStrategyHistoryUseCase) Execute(ctx context.Context, query Strategy
 	if query.Source == "" {
 		return StrategyHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return StrategyHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return StrategyHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return StrategyHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -63,12 +65,12 @@ func (uc *GetStrategyHistoryUseCase) Execute(ctx context.Context, query Strategy
 	}
 
 	start := time.Now()
-	strategies, err := uc.reader.QueryStrategyHistory(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Direction, query.Since, query.Until, query.Limit)
+	strategies, err := uc.reader.QueryStrategyHistory(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Direction, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical strategy query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"direction", query.Direction, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return StrategyHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical strategy query failed")
@@ -82,7 +84,7 @@ func (uc *GetStrategyHistoryUseCase) Execute(ctx context.Context, query Strategy
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical strategy query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"direction", query.Direction, "rows", rowCount, "query_ms", queryMs,
 	)
 

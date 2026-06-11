@@ -84,9 +84,9 @@ func TestSurfaceAvailability_DegradedFamilies(t *testing.T) {
 			want: 0,
 		},
 		{
-			name: "none available",
+			name:     "none available",
 			surfaces: monitoring.SurfaceAvailability{},
-			want: 9,
+			want:     9,
 		},
 		{
 			name: "partial",

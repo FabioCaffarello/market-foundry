@@ -14,3 +14,13 @@ scan_root = "internal/adapters/nats"
 file_suffix = "publisher.go"
 subject_marker = "subject := fmt.Sprintf("
 forbidden_call = "VenueSymbol()"
+
+# H-6.e.2: KV partition-key invariant. PartitionKey() implementations
+# compose {source}.{SubjectToken()}.{timeframe} — the transitory
+# VenueSymbol() is forbidden in key composition from this sub-wave on
+# (it remains legal in dedup keys and log labels until H-6.f).
+[keys]
+scan_root = "internal/domain"
+func_marker = ") PartitionKey() string {"
+forbidden_call = "VenueSymbol()"
+required_call = "SubjectToken()"

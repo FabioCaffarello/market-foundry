@@ -139,7 +139,7 @@ func TestDecision_Validate_EmptySeverityValid(t *testing.T) {
 func TestDecision_PartitionKey(t *testing.T) {
 	d := validDecision(t)
 	key := d.PartitionKey()
-	expected := "binancef.btcusdt.60"
+	expected := "binancef.btc_usdt_perpetual.60"
 	if key != expected {
 		t.Fatalf("expected %q, got %q", expected, key)
 	}

@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -16,7 +18,7 @@ func TestGetDecisionReview_SingleChain_FullBundle(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-review-001",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -105,7 +107,7 @@ func TestGetDecisionReview_SingleChain_NoDecision_EmptyResult(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-nodec-001",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -143,10 +145,10 @@ func TestGetDecisionReview_Batch_OutcomeFilter(t *testing.T) {
 
 	// Filter for triggered only.
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Outcome:   "triggered",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Outcome:    "triggered",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -167,9 +169,9 @@ func TestGetDecisionReview_Batch_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.DecisionReviewQuery
 	}{
-		{"missing source", analyticalclient.DecisionReviewQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"missing source", analyticalclient.DecisionReviewQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"missing symbol", analyticalclient.DecisionReviewQuery{Source: "binance", Timeframe: 60}},
-		{"missing timeframe", analyticalclient.DecisionReviewQuery{Source: "binance", Symbol: "btcusdt"}},
+		{"missing timeframe", analyticalclient.DecisionReviewQuery{Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}}},
 	}
 
 	for _, tt := range tests {
@@ -187,7 +189,7 @@ func TestGetDecisionReview_Batch_ValidationErrors(t *testing.T) {
 
 func TestGetDecisionReview_NilReader(t *testing.T) {
 	uc := analyticalclient.NewGetDecisionReviewUseCase(nil, slog.Default())
-	_, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{CorrelationID: "x", Symbol: "y"})
+	_, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{CorrelationID: "x"})
 	if prob == nil {
 		t.Fatal("expected problem for nil reader")
 	}
@@ -211,7 +213,7 @@ func TestGetDecisionReview_PartialChain_DecisionOnly(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-partial",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

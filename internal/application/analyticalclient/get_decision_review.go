@@ -48,15 +48,15 @@ func (uc *GetDecisionReviewUseCase) Execute(ctx context.Context, query DecisionR
 }
 
 func (uc *GetDecisionReviewUseCase) executeSingle(ctx context.Context, query DecisionReviewQuery, start time.Time) (DecisionReviewReply, *problem.Problem) {
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return DecisionReviewReply{}, problem.New(problem.InvalidArgument, "symbol is required for single-decision review (S301 isolation)")
 	}
 
-	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Symbol)
+	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Instrument)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("decision review query failed",
-			"correlation_id", query.CorrelationID, "symbol", query.Symbol, "elapsed_ms", elapsed.Milliseconds(), "error", err,
+			"correlation_id", query.CorrelationID, "instrument", query.Instrument.Symbol(), "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return DecisionReviewReply{}, problem.Wrap(err, problem.Unavailable, "decision review query failed")
 	}
@@ -85,7 +85,7 @@ func (uc *GetDecisionReviewUseCase) executeBatch(ctx context.Context, query Deci
 	if query.Source == "" {
 		return DecisionReviewReply{}, problem.New(problem.InvalidArgument, "source is required for batch decision review")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return DecisionReviewReply{}, problem.New(problem.InvalidArgument, "symbol is required for batch decision review")
 	}
 	if query.Timeframe <= 0 {
@@ -109,11 +109,11 @@ func (uc *GetDecisionReviewUseCase) executeBatch(ctx context.Context, query Deci
 		}
 	}
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, fetchLimit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, fetchLimit)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("decision review batch query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return DecisionReviewReply{}, problem.Wrap(err, problem.Unavailable, "decision review batch query failed")
@@ -136,7 +136,7 @@ func (uc *GetDecisionReviewUseCase) executeBatch(ctx context.Context, query Deci
 	}
 
 	uc.logger.Info("decision review batch completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"chains_fetched", len(chains), "reviews_returned", len(reviews), "total_ms", elapsed.Milliseconds(),
 	)
 

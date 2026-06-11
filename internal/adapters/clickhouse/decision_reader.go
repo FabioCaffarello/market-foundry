@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,7 +34,8 @@ func NewDecisionReader(client *Client, logger *slog.Logger) *DecisionReader {
 
 // QueryDecisionHistory queries decisions from ClickHouse with filters.
 // Results are ordered newest-first (DESC by timestamp).
-func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType, source, symbol string, timeframe int, outcome string, since, until int64, limit int) ([]decision.Decision, error) {
+func (r *DecisionReader) QueryDecisionHistory(ctx context.Context, decisionType, source string, inst instrument.CanonicalInstrument, timeframe int, outcome string, since, until int64, limit int) ([]decision.Decision, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildDecisionQuery(decisionType, source, symbol, timeframe, outcome, since, until, limit)
 
 	start := time.Now()

@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -12,7 +14,7 @@ import (
 // RiskReader is the local interface for reading historical risk assessments
 // from the analytical store.
 type RiskReader interface {
-	QueryRiskHistory(ctx context.Context, riskType, source, symbol string, timeframe int, disposition string, since, until int64, limit int) ([]risk.RiskAssessment, error)
+	QueryRiskHistory(ctx context.Context, riskType, source string, inst instrument.CanonicalInstrument, timeframe int, disposition string, since, until int64, limit int) ([]risk.RiskAssessment, error)
 }
 
 // GetRiskHistoryUseCase queries the analytical store for historical risk assessments.
@@ -39,8 +41,8 @@ func (uc *GetRiskHistoryUseCase) Execute(ctx context.Context, query RiskHistoryQ
 	if query.Source == "" {
 		return RiskHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return RiskHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return RiskHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return RiskHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -63,12 +65,12 @@ func (uc *GetRiskHistoryUseCase) Execute(ctx context.Context, query RiskHistoryQ
 	}
 
 	start := time.Now()
-	assessments, err := uc.reader.QueryRiskHistory(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Disposition, query.Since, query.Until, query.Limit)
+	assessments, err := uc.reader.QueryRiskHistory(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Disposition, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical risk query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"disposition", query.Disposition, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return RiskHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical risk query failed")
@@ -82,7 +84,7 @@ func (uc *GetRiskHistoryUseCase) Execute(ctx context.Context, query RiskHistoryQ
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical risk query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"disposition", query.Disposition, "rows", rowCount, "query_ms", queryMs,
 	)
 

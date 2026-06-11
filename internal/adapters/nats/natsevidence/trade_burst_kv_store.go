@@ -1,6 +1,8 @@
 package natsevidence
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -64,7 +66,7 @@ func (s *TradeBurstKVStore) Put(ctx context.Context, burst evidence.EvidenceTrad
 		return natskit.PutWritten, problem.New(problem.Unavailable, "trade burst KV store is unavailable")
 	}
 
-	key := tradeBurstKey(burst.Source, burst.VenueSymbol(), burst.Timeframe)
+	key := tradeBurstKey(burst.Source, burst.Instrument.SubjectToken(), burst.Timeframe)
 
 	existing, err := s.kv.Get(ctx, key)
 	if err == nil {
@@ -91,12 +93,12 @@ func (s *TradeBurstKVStore) Put(ctx context.Context, burst evidence.EvidenceTrad
 	return natskit.PutWritten, nil
 }
 
-func (s *TradeBurstKVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*evidence.EvidenceTradeBurst, *problem.Problem) {
+func (s *TradeBurstKVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*evidence.EvidenceTradeBurst, *problem.Problem) {
 	if s == nil || s.kv == nil {
 		return nil, problem.New(problem.Unavailable, "trade burst KV store is unavailable")
 	}
 
-	key := tradeBurstKey(source, symbol, timeframe)
+	key := tradeBurstKey(source, inst.SubjectToken(), timeframe)
 
 	entry, err := s.kv.Get(ctx, key)
 	if err != nil {

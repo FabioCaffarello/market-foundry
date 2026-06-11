@@ -169,14 +169,14 @@ var knownSignalFamilies = map[string]bool{
 }
 
 var knownDecisionFamilies = map[string]bool{
-	"rsi_oversold":     true,
+	"rsi_oversold":      true,
 	"bollinger_squeeze": true,
 }
 
 var knownStrategyFamilies = map[string]bool{
-	"mean_reversion_entry":    true,
-	"trend_following_entry":   true,
-	"squeeze_breakout_entry":  true,
+	"mean_reversion_entry":   true,
+	"trend_following_entry":  true,
+	"squeeze_breakout_entry": true,
 }
 
 var knownRiskFamilies = map[string]bool{
@@ -186,11 +186,11 @@ var knownRiskFamilies = map[string]bool{
 
 // knownExecutionFamilies lists the two execution families with distinct ownership:
 //
-//   paper_order:        Paper family — derive-owned intent events (simulated evaluation).
-//                       Stream: EXECUTION_EVENTS. KV: EXECUTION_PAPER_ORDER_LATEST.
+//	paper_order:        Paper family — derive-owned intent events (simulated evaluation).
+//	                    Stream: EXECUTION_EVENTS. KV: EXECUTION_PAPER_ORDER_LATEST.
 //
-//   venue_market_order: Venue family — execute-owned fill events (venue submission results).
-//                       Stream: EXECUTION_FILL_EVENTS. KV: EXECUTION_VENUE_MARKET_ORDER_LATEST.
+//	venue_market_order: Venue family — execute-owned fill events (venue submission results).
+//	                    Stream: EXECUTION_FILL_EVENTS. KV: EXECUTION_VENUE_MARKET_ORDER_LATEST.
 //
 // Both families can be enabled simultaneously. Enabling venue_market_order does NOT
 // disable paper_order — they coexist with independent streams, consumers, and projections.
@@ -241,11 +241,11 @@ var executionDependsOnRisk = map[string][]string{
 type VenueType string
 
 const (
-	VenueTypePaperSimulator         VenueType = "paper_simulator"
-	VenueTypeBinanceFuturesTestnet  VenueType = "binance_futures_testnet"
-	VenueTypeBinanceSpotTestnet     VenueType = "binance_spot_testnet"
-	VenueTypeBinanceFuturesMainnet  VenueType = "binance_futures_mainnet"
-	VenueTypeBinanceSpotMainnet     VenueType = "binance_spot_mainnet"
+	VenueTypePaperSimulator        VenueType = "paper_simulator"
+	VenueTypeBinanceFuturesTestnet VenueType = "binance_futures_testnet"
+	VenueTypeBinanceSpotTestnet    VenueType = "binance_spot_testnet"
+	VenueTypeBinanceFuturesMainnet VenueType = "binance_futures_mainnet"
+	VenueTypeBinanceSpotMainnet    VenueType = "binance_spot_mainnet"
 )
 
 var knownVenueTypes = map[VenueType]bool{
@@ -366,21 +366,21 @@ var adapterSegmentCompatibility = map[VenueType]MarketSegment{
 //     adapter config. Supports Spot, Futures, or both in one config.
 //     When segments are present, Type must be empty or paper_simulator.
 type VenueConfig struct {
-	Type            VenueType      `json:"type,omitempty"`
-	StalenessMaxAge string         `json:"staleness_max_age,omitempty"`
-	SubmitTimeout   string         `json:"submit_timeout,omitempty"`
+	Type            VenueType `json:"type,omitempty"`
+	StalenessMaxAge string    `json:"staleness_max_age,omitempty"`
+	SubmitTimeout   string    `json:"submit_timeout,omitempty"`
 	// DryRun governs whether the execution pipeline may submit real orders.
 	// When true (the default), a DryRunSubmitter intercepts all venue calls
 	// and produces auditable dry-run receipts instead of reaching the venue.
 	// Fail-closed: omitted or null is treated as true.
 	// S379: Setting this to false requires venue.type != paper_simulator.
 	// S399: Applies uniformly to all enabled segments.
-	DryRun          *bool          `json:"dry_run,omitempty"`
+	DryRun *bool `json:"dry_run,omitempty"`
 	// Segments maps market segment names to their adapter configuration.
 	// S399: When present and at least one segment is enabled, segments govern
 	// adapter selection. Each segment carries its own adapter type and enabled flag.
 	// Fail-closed: absent map means no segments active — only paper_simulator allowed.
-	Segments        map[MarketSegment]*SegmentVenueConfig `json:"segments,omitempty"`
+	Segments map[MarketSegment]*SegmentVenueConfig `json:"segments,omitempty"`
 	// CredentialProvider selects the backend for credential resolution.
 	// S439: Allowed values: "env" (default), "file".
 	// "env"  — reads MF_VENUE_{TYPE}_{KEY} from environment variables.
@@ -692,11 +692,11 @@ func (v VenueConfig) SubmitTimeoutDuration() time.Duration {
 
 // PipelineConfig holds optional processing parameters used by derive and store.
 type PipelineConfig struct {
-	Timeframes       []int    `json:"timeframes"`
-	Families         []string `json:"families"`
-	SignalFamilies   []string `json:"signal_families"`
-	DecisionFamilies []string `json:"decision_families"`
-	StrategyFamilies []string `json:"strategy_families"`
+	Timeframes        []int    `json:"timeframes"`
+	Families          []string `json:"families"`
+	SignalFamilies    []string `json:"signal_families"`
+	DecisionFamilies  []string `json:"decision_families"`
+	StrategyFamilies  []string `json:"strategy_families"`
 	RiskFamilies      []string `json:"risk_families"`
 	ExecutionFamilies []string `json:"execution_families"`
 }
@@ -1394,10 +1394,10 @@ const (
 
 // FamilyDependency describes one family and the upstream families it requires.
 type FamilyDependency struct {
-	Domain       PipelineDomain
-	Family       string
-	DependsOn    []string          // upstream families (in the immediately preceding domain)
-	DependsDomain PipelineDomain   // domain of the dependencies
+	Domain        PipelineDomain
+	Family        string
+	DependsOn     []string       // upstream families (in the immediately preceding domain)
+	DependsDomain PipelineDomain // domain of the dependencies
 }
 
 // KnownFamilies returns the canonical set of recognized family names for the given domain.

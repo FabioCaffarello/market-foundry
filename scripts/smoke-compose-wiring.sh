@@ -326,7 +326,7 @@ else
 fi
 
 # 5b: Gateway → store (via NATS request/reply) — may return null data but 200 if wired.
-STORE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60" 2>/dev/null || echo "000")
+STORE_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60" 2>/dev/null || echo "000")
 if [[ "$STORE_CODE" == "200" ]]; then
     pass "gateway → store (NATS request/reply) → HTTP ${STORE_CODE}"
 else

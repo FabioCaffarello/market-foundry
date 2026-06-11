@@ -65,14 +65,15 @@ func (s Signal) Validate() *problem.Problem {
 }
 
 // PartitionKey returns the key used for KV bucket entries:
-// "{source}.{venuesymbol}.{timeframe}".
+// "{source}.{subject_token}.{timeframe}" — canonical token via
+// SubjectToken() since H-6.e.2 (read side composes the same shape).
 //
 // Per ADR-0021 H-6.b: the partition key shape is preserved
 // (venue-native symbol form) via VenueSymbol() so the existing
 // KV bucket layout stays back-compatible. H-6.e decides whether
 // the canonical form replaces the venue-native form here.
 func (s Signal) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", s.Source, s.VenueSymbol(), s.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", s.Source, s.Instrument.SubjectToken(), s.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.

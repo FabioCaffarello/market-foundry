@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -38,7 +40,7 @@ func TestGetEffectiveness_Single_FilledChain(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
 		CorrelationID: "corr-eff-001",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -79,7 +81,7 @@ func TestGetEffectiveness_Single_RejectedExcluded(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
 		CorrelationID: "corr-rej",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -100,7 +102,7 @@ func TestGetEffectiveness_Single_NoExecution(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
 		CorrelationID: "corr-noexec",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -131,9 +133,9 @@ func TestGetEffectiveness_Batch_Success(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -156,10 +158,10 @@ func TestGetEffectiveness_Batch_SeverityFilter(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Severity:  "high",
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Severity:   "high",
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -183,7 +185,7 @@ func TestGetEffectiveness_Batch_StrategyTypeFilter(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
 		Source:       "binance",
-		Symbol:       "btcusdt",
+		Instrument:   instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 		Timeframe:    60,
 		StrategyType: "trend_following",
 	})
@@ -205,9 +207,9 @@ func TestGetEffectiveness_Batch_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.EffectivenessQuery
 	}{
-		{"missing source", analyticalclient.EffectivenessQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"missing source", analyticalclient.EffectivenessQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"missing symbol", analyticalclient.EffectivenessQuery{Source: "binance", Timeframe: 60}},
-		{"invalid timeframe", analyticalclient.EffectivenessQuery{Source: "binance", Symbol: "btcusdt", Timeframe: 0}},
+		{"invalid timeframe", analyticalclient.EffectivenessQuery{Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
 	}
 
 	for _, tt := range tests {
@@ -226,7 +228,7 @@ func TestGetEffectiveness_Batch_ValidationErrors(t *testing.T) {
 func TestGetEffectiveness_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetEffectivenessUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		CorrelationID: "x", Symbol: "y",
+		CorrelationID: "x", Instrument: instrumentFromVenue("btcusdt"),
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")
@@ -245,9 +247,9 @@ func TestGetEffectiveness_Batch_MixedRejectedAndFilled(t *testing.T) {
 	uc := analyticalclient.NewGetEffectivenessUseCase(reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.EffectivenessQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -269,7 +271,7 @@ func TestGetDecisionReview_EffectivenessSection_FilledExecution(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-eff-review",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -311,7 +313,7 @@ func TestGetDecisionReview_EffectivenessSection_NoExecution(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-noexec-review",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -333,7 +335,7 @@ func TestGetDecisionReview_EffectivenessSection_RejectedExecution(t *testing.T) 
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-rej-review",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -353,7 +355,7 @@ func TestGetDecisionReview_ExplanationIncludesEffectiveness(t *testing.T) {
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.DecisionReviewQuery{
 		CorrelationID: "corr-expl-eff",
-		Symbol:        "btcusdt",
+		Instrument:    instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

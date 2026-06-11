@@ -55,7 +55,7 @@ func TestStrategyWebHandler_GetLatestStrategy(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/strategy/:type/latest", handler.GetLatestStrategy)
 
-	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -78,7 +78,7 @@ func TestStrategyWebHandler_GetLatestStrategy_Unavailable(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/strategy/:type/latest", handler.GetLatestStrategy)
 
-	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -95,7 +95,7 @@ func TestStrategyWebHandler_GetLatestStrategy_MissingTimeframe(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/strategy/:type/latest", handler.GetLatestStrategy)
 
-	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt")
+	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -144,7 +144,7 @@ func TestStrategyWebHandler_GetLatestStrategy_MultiSymbol_NoBleed(t *testing.T) 
 		router := httprouter.New()
 		router.HandlerFunc(http.MethodGet, "/strategy/:type/latest", handler.GetLatestStrategy)
 
-		req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol="+tc.symbol+"&timeframe=60")
+		req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base="+strings.TrimSuffix(tc.symbol, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60")
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 
@@ -189,7 +189,7 @@ func TestStrategyWebHandler_GetLatestStrategy_NullStrategy(t *testing.T) {
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/strategy/:type/latest", handler.GetLatestStrategy)
 
-	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60")
+	req := strategyRequest(http.MethodGet, "/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

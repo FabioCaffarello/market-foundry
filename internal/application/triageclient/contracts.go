@@ -1,6 +1,10 @@
 package triageclient
 
-import "internal/domain/triage"
+import (
+	"internal/domain/instrument"
+
+	"internal/domain/triage"
+)
 
 // SessionTriageQuery is the request contract for session triage.
 //
@@ -32,12 +36,12 @@ type SessionTriageReply struct {
 // S487: Surfaces decisions with consistency violations, incomplete chains,
 // or poor effectiveness outcomes ranked by severity for operator review.
 type DecisionTriageQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
-	Limit     int    `json:"limit,omitempty"` // default 20, max 100
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
+	Limit      int                            `json:"limit,omitempty"` // default 20, max 100
 
 	// SeverityFilter narrows to items at or above this severity.
 	SeverityFilter string `json:"severity,omitempty"` // critical, warning
@@ -55,12 +59,12 @@ type DecisionTriageReply struct {
 //
 // S487: Surfaces round-trips with data quality issues ranked by severity.
 type RoundTripTriageQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
-	Limit     int    `json:"limit,omitempty"` // default 50, max 200
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
+	Limit      int                            `json:"limit,omitempty"` // default 50, max 200
 
 	// SeverityFilter narrows to items at or above this severity.
 	SeverityFilter string `json:"severity,omitempty"` // critical, warning
@@ -82,22 +86,22 @@ type TriageOverviewQuery struct {
 	SessionStatus string `json:"session_status,omitempty"`
 
 	// Decision/round-trip triage parameters.
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
 }
 
 // TriageOverviewReply is the response for the cross-domain triage overview.
 type TriageOverviewReply struct {
 	Overview triage.TriageOverview `json:"overview"`
-	Meta     TriageMeta           `json:"meta"`
+	Meta     TriageMeta            `json:"meta"`
 }
 
 // TriageMeta carries diagnostic signals for triage queries.
 type TriageMeta struct {
-	TotalMs    int64 `json:"total_ms"`
-	Scanned    int   `json:"scanned"`    // total items scanned before filtering
-	Returned   int   `json:"returned"`   // items returned after filtering
+	TotalMs  int64 `json:"total_ms"`
+	Scanned  int   `json:"scanned"`  // total items scanned before filtering
+	Returned int   `json:"returned"` // items returned after filtering
 }

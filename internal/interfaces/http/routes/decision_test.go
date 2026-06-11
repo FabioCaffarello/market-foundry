@@ -53,7 +53,7 @@ func TestDecisionRoutesRegisterHandler(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -84,7 +84,7 @@ func TestDefaultRoutesIncludesDecisionWhenProvided(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
@@ -112,7 +112,7 @@ func TestDefaultRoutesOmitsDecisionWhenNil(t *testing.T) {
 		router.HandlerFunc(route.Method, route.Path, route.Handler)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&symbol=btcusdt&timeframe=60", nil)
+	req := httptest.NewRequest(http.MethodGet, "/decision/rsi_oversold/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 

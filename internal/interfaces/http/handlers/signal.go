@@ -47,10 +47,10 @@ func (h *SignalWebHandler) GetLatestSignal(w http.ResponseWriter, r *http.Reques
 	}
 
 	result, prob := h.getLatestSignal.Execute(r.Context(), signalclient.SignalLatestQuery{
-		Type:      signalType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Type:       signalType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)

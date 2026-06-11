@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -16,7 +18,7 @@ import (
 // S453A: This interface enables the historical lifecycle read model without
 // coupling the use case to the ClickHouse adapter directly.
 type LifecycleHistoryReader interface {
-	QueryLifecycleHistory(ctx context.Context, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
+	QueryLifecycleHistory(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
 }
 
 // GetLifecycleHistoryUseCase queries the analytical store for the historical
@@ -41,8 +43,8 @@ func (uc *GetLifecycleHistoryUseCase) Execute(ctx context.Context, query Lifecyc
 	if query.Source == "" {
 		return LifecycleHistoryReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return LifecycleHistoryReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return LifecycleHistoryReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return LifecycleHistoryReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")
@@ -65,12 +67,12 @@ func (uc *GetLifecycleHistoryUseCase) Execute(ctx context.Context, query Lifecyc
 	}
 
 	start := time.Now()
-	intents, err := uc.reader.QueryLifecycleHistory(ctx, query.Source, query.Symbol, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
+	intents, err := uc.reader.QueryLifecycleHistory(ctx, query.Source, query.Instrument, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical lifecycle query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"side", query.Side, "status", query.Status, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return LifecycleHistoryReply{}, problem.Wrap(err, problem.Unavailable, "analytical lifecycle query failed")
@@ -85,7 +87,7 @@ func (uc *GetLifecycleHistoryUseCase) Execute(ctx context.Context, query Lifecyc
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical lifecycle query completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"side", query.Side, "status", query.Status, "rows", rowCount, "query_ms", queryMs,
 	)
 

@@ -1,6 +1,8 @@
 package executionclient
 
 import (
+	"internal/domain/instrument"
+
 	"time"
 
 	"internal/domain/execution"
@@ -8,10 +10,10 @@ import (
 
 // ExecutionLatestQuery is the request contract for querying the latest execution intent of a given type.
 type ExecutionLatestQuery struct {
-	Type      string `json:"type"`
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Type       string                         `json:"type"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 }
 
 // ExecutionLatestReply is the response contract for the latest execution intent query.
@@ -42,9 +44,9 @@ type ExecutionRejectionReply struct {
 // ExecutionStatusQuery is the request contract for the composite execution status query.
 // It returns intent (paper_order), result (venue_market_order), gate, and derived propagation.
 type ExecutionStatusQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 }
 
 // ExecutionStatusReply is the composite response showing end-to-end execution status.
@@ -74,25 +76,25 @@ type ExecutionStatusReply struct {
 // S466: Optional Source/Symbol filters for operator ergonomics — when set, only
 // entries matching the filter(s) are returned.
 type LifecycleListQuery struct {
-	Source string `json:"source,omitempty"`
-	Symbol string `json:"symbol,omitempty"`
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
 }
 
 // LifecycleEntry summarizes the lifecycle state for a single partition key
 // (source/symbol/timeframe combination) by reading across the three execution
 // KV buckets (paper_order, venue_fill, venue_rejection).
 type LifecycleEntry struct {
-	Key             string         `json:"key"`
-	Source          string         `json:"source"`
-	Symbol          string         `json:"symbol"`
-	Timeframe       int            `json:"timeframe"`
-	IntentStatus    string         `json:"intent_status"`
-	IntentTimestamp *time.Time     `json:"intent_timestamp,omitempty"`
-	FillStatus      string         `json:"fill_status"`
-	FillTimestamp   *time.Time     `json:"fill_timestamp,omitempty"`
-	RejectionStatus string         `json:"rejection_status"`
-	RejectionTimestamp *time.Time  `json:"rejection_timestamp,omitempty"`
-	Propagation     string         `json:"propagation"`
+	Key                string     `json:"key"`
+	Source             string     `json:"source"`
+	Symbol             string     `json:"symbol"`
+	Timeframe          int        `json:"timeframe"`
+	IntentStatus       string     `json:"intent_status"`
+	IntentTimestamp    *time.Time `json:"intent_timestamp,omitempty"`
+	FillStatus         string     `json:"fill_status"`
+	FillTimestamp      *time.Time `json:"fill_timestamp,omitempty"`
+	RejectionStatus    string     `json:"rejection_status"`
+	RejectionTimestamp *time.Time `json:"rejection_timestamp,omitempty"`
+	Propagation        string     `json:"propagation"`
 }
 
 // LifecycleListReply is the response contract for the lifecycle list query.

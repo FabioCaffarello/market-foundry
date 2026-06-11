@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"time"
 
 	"internal/domain/decision"
@@ -21,12 +23,12 @@ import (
 // When Since and Until are both set, only candles whose open_time falls
 // within [since, until] are returned. Results are always newest-first.
 type CandleHistoryQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // QueryMeta carries lightweight diagnostic signals from the analytical read path.
@@ -54,13 +56,13 @@ type CandleHistoryReply struct {
 // When Since and Until are both set, only signals whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type SignalHistoryQuery struct {
-	Type      string `json:"type"` // signal type (e.g., "rsi")
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Type       string                         `json:"type"` // signal type (e.g., "rsi")
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // SignalHistoryReply is the response contract for the analytical signal history query.
@@ -81,14 +83,14 @@ type SignalHistoryReply struct {
 // When Since and Until are both set, only decisions whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type DecisionHistoryQuery struct {
-	Type      string `json:"type"` // decision type (e.g., "rsi_oversold")
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Outcome   string `json:"outcome,omitempty"` // optional outcome filter
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Type       string                         `json:"type"` // decision type (e.g., "rsi_oversold")
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Outcome    string                         `json:"outcome,omitempty"` // optional outcome filter
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // DecisionHistoryReply is the response contract for the analytical decision history query.
@@ -109,14 +111,14 @@ type DecisionHistoryReply struct {
 // When Since and Until are both set, only strategies whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type StrategyHistoryQuery struct {
-	Type      string `json:"type"` // strategy type (e.g., "mean_reversion_entry")
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Direction string `json:"direction,omitempty"` // optional direction filter
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Type       string                         `json:"type"` // strategy type (e.g., "mean_reversion_entry")
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Direction  string                         `json:"direction,omitempty"` // optional direction filter
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // StrategyHistoryReply is the response contract for the analytical strategy history query.
@@ -137,14 +139,14 @@ type StrategyHistoryReply struct {
 // When Since and Until are both set, only risk assessments whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type RiskHistoryQuery struct {
-	Type        string `json:"type"` // risk type (e.g., "position_exposure")
-	Source      string `json:"source"`
-	Symbol      string `json:"symbol"`
-	Timeframe   int    `json:"timeframe"`
-	Disposition string `json:"disposition,omitempty"` // optional disposition filter
-	Limit       int    `json:"limit"`
-	Since       int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until       int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Type        string                         `json:"type"` // risk type (e.g., "position_exposure")
+	Source      string                         `json:"source"`
+	Instrument  instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe   int                            `json:"timeframe"`
+	Disposition string                         `json:"disposition,omitempty"` // optional disposition filter
+	Limit       int                            `json:"limit"`
+	Since       int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until       int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // RiskHistoryReply is the response contract for the analytical risk history query.
@@ -166,15 +168,15 @@ type RiskHistoryReply struct {
 // When Since and Until are both set, only executions whose timestamp falls
 // within [since, until] are returned. Results are always newest-first.
 type ExecutionHistoryQuery struct {
-	Type      string `json:"type"` // execution type (e.g., "paper_order")
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Side      string `json:"side,omitempty"`   // optional side filter
-	Status    string `json:"status,omitempty"` // optional status filter
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
-	Until     int64  `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
+	Type       string                         `json:"type"` // execution type (e.g., "paper_order")
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Side       string                         `json:"side,omitempty"`   // optional side filter
+	Status     string                         `json:"status,omitempty"` // optional status filter
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"` // unix seconds, inclusive lower bound (0 = unset)
+	Until      int64                          `json:"until,omitempty"` // unix seconds, inclusive upper bound (0 = unset)
 }
 
 // ExecutionHistoryReply is the response contract for the analytical execution history query.
@@ -201,14 +203,14 @@ type ExecutionHistoryReply struct {
 //   - Status: optional filter (e.g., "filled", "rejected").
 //   - Side: optional filter (e.g., "buy", "sell").
 type LifecycleHistoryQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Status    string `json:"status,omitempty"`
-	Side      string `json:"side,omitempty"`
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Status     string                         `json:"status,omitempty"`
+	Side       string                         `json:"side,omitempty"`
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
 }
 
 // LifecycleHistoryEntry represents a single historical event in the execution
@@ -277,15 +279,15 @@ type LifecycleHistoryReply struct {
 // S454A: Enables "show all rejected orders" or "show all fills in the last hour"
 // without requiring full source/symbol/timeframe foreknowledge.
 type ExecutionListQuery struct {
-	Type      string `json:"type,omitempty"`
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Side      string `json:"side,omitempty"`
-	Status    string `json:"status,omitempty"`
-	Limit     int    `json:"limit"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
+	Type       string                         `json:"type,omitempty"`
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Side       string                         `json:"side,omitempty"`
+	Status     string                         `json:"status,omitempty"`
+	Limit      int                            `json:"limit"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
 }
 
 // ExecutionListReply is the response contract for the execution list query.
@@ -300,11 +302,11 @@ type ExecutionListReply struct {
 //
 // S454A: Enables operational overview like "how many rejected vs filled?"
 type ExecutionSummaryQuery struct {
-	Source    string `json:"source,omitempty"`
-	Symbol    string `json:"symbol,omitempty"`
-	Timeframe int    `json:"timeframe,omitempty"`
-	Since     int64  `json:"since,omitempty"`
-	Until     int64  `json:"until,omitempty"`
+	Source     string                         `json:"source,omitempty"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe,omitempty"`
+	Since      int64                          `json:"since,omitempty"`
+	Until      int64                          `json:"until,omitempty"`
 }
 
 // ExecutionSummaryEntry represents a single group in the summary.
@@ -329,10 +331,10 @@ type ExecutionSummaryReply struct {
 // S455A: Introduced to provide a single surface for operational explainability —
 // answering "what happened with this order?" without querying multiple endpoints.
 type SessionExplainQuery struct {
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
-	Limit     int    `json:"limit"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
+	Limit      int                            `json:"limit"`
 }
 
 // ConsistencyCheck captures a single cross-surface consistency finding.

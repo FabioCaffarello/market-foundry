@@ -1,6 +1,8 @@
 package executionclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"fmt"
 	"strings"
@@ -19,7 +21,7 @@ type AuditLifecycleReader interface {
 // AuditCHFillReader reads fill records from ClickHouse for fee analysis.
 // S485: Accepts since/until bounds for session-scoped queries.
 type AuditCHFillReader interface {
-	List(ctx context.Context, symbol, execType, status string, limit int, since, until int64) ([]VerifyCHListResult, *problem.Problem)
+	List(ctx context.Context, inst instrument.CanonicalInstrument, execType, status string, limit int, since, until int64) ([]VerifyCHListResult, *problem.Problem)
 }
 
 // AuditSessionUseCase assembles the canonical session audit bundle.
@@ -147,7 +149,7 @@ func (uc *AuditSessionUseCase) computeFeeSummary(ctx context.Context, session ex
 		until = session.ClosedAt.Add(5 * time.Minute).Unix()
 	}
 
-	rows, prob := uc.fillReader.List(ctx, "", "", "filled", 100, since, until)
+	rows, prob := uc.fillReader.List(ctx, instrument.CanonicalInstrument{}, "", "filled", 100, since, until)
 	if prob != nil || len(rows) == 0 {
 		return execution.AuditFeeSummary{FeeCoverageRatio: "0/0"}
 	}

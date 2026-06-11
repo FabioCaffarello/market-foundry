@@ -7,6 +7,8 @@ package handlers
 // the use case layer tests in analyticalclient/multi_symbol_scenario_test.go.
 
 import (
+	"strings"
+
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -69,7 +71,7 @@ func TestS302_HTTP_SequentialSymbolChainQueries(t *testing.T) {
 			}
 			handler := newTestHandler(uc, nil, nil)
 
-			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s302-http-"+sym+"&symbol="+sym, nil)
+			req := httptest.NewRequest(http.MethodGet, "/analytical/composite/chain?correlation_id=s302-http-"+sym+"&base="+strings.TrimSuffix(sym, "usdt")+"&quote=usdt&contract=perpetual", nil)
 			w := httptest.NewRecorder()
 			handler.GetChain(w, req)
 
@@ -131,7 +133,7 @@ func TestS302_HTTP_FunnelPerSymbol(t *testing.T) {
 			handler := newTestHandler(nil, uc, nil)
 
 			req := httptest.NewRequest(http.MethodGet,
-				"/analytical/composite/funnel?type=rsi&source=binancef&symbol="+tc.symbol+"&timeframe=60", nil)
+				"/analytical/composite/funnel?type=rsi&source=binancef&base="+strings.TrimSuffix(tc.symbol, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w := httptest.NewRecorder()
 			handler.GetFunnel(w, req)
 
@@ -162,10 +164,10 @@ func TestS302_HTTP_FunnelPerSymbol(t *testing.T) {
 
 func TestS302_HTTP_DispositionsPerSymbol(t *testing.T) {
 	type dispCase struct {
-		symbol    string
-		approved  int64
-		rejected  int64
-		modified  int64
+		symbol   string
+		approved int64
+		rejected int64
+		modified int64
 	}
 	cases := []dispCase{
 		{symbol: "btcusdt", approved: 40, rejected: 5, modified: 5},
@@ -207,7 +209,7 @@ func TestS302_HTTP_DispositionsPerSymbol(t *testing.T) {
 			handler := newTestHandler(nil, nil, uc)
 
 			req := httptest.NewRequest(http.MethodGet,
-				"/analytical/composite/dispositions?type=position_exposure&source=binancef&symbol="+tc.symbol+"&timeframe=60", nil)
+				"/analytical/composite/dispositions?type=position_exposure&source=binancef&base="+strings.TrimSuffix(tc.symbol, "usdt")+"&quote=usdt&contract=perpetual"+"&timeframe=60", nil)
 			w := httptest.NewRecorder()
 			handler.GetDispositions(w, req)
 

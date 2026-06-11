@@ -8,10 +8,10 @@ import (
 
 	actorcommon "internal/actors/common"
 	natsconfigctl "internal/adapters/nats/natsconfigctl"
-	appingest "internal/application/ingest"
 	"internal/application/configctl/contracts"
-	configdomain "internal/domain/configctl"
+	appingest "internal/application/ingest"
 	"internal/application/ports"
+	configdomain "internal/domain/configctl"
 
 	"github.com/anthdm/hollywood/actor"
 )

@@ -1,6 +1,8 @@
 package executionclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"encoding/json"
 	"testing"
 
@@ -9,8 +11,8 @@ import (
 
 func TestS466_LifecycleListQuery_SerializesFilters(t *testing.T) {
 	q := executionclient.LifecycleListQuery{
-		Source: "binancef",
-		Symbol: "btcusdt",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
 	}
 
 	data, err := json.Marshal(q)
@@ -26,8 +28,8 @@ func TestS466_LifecycleListQuery_SerializesFilters(t *testing.T) {
 	if decoded.Source != "binancef" {
 		t.Fatalf("Source = %q, want %q", decoded.Source, "binancef")
 	}
-	if decoded.Symbol != "btcusdt" {
-		t.Fatalf("Symbol = %q, want %q", decoded.Symbol, "btcusdt")
+	if decoded.Instrument.SubjectToken() != "btc_usdt_perpetual" {
+		t.Fatalf("Instrument token = %q, want %q", decoded.Instrument.SubjectToken(), "btc_usdt_perpetual")
 	}
 }
 

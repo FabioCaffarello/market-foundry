@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"internal/application/evidenceclient"
 	configctlcontracts "internal/application/configctl/contracts"
+	"internal/application/evidenceclient"
 	"internal/shared/problem"
 	"internal/shared/settings"
 )

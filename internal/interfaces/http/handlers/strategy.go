@@ -46,10 +46,10 @@ func (h *StrategyWebHandler) GetLatestStrategy(w http.ResponseWriter, r *http.Re
 	}
 
 	result, prob := h.getLatestStrategy.Execute(r.Context(), strategyclient.StrategyLatestQuery{
-		Type:      strategyType,
-		Source:    key.Source,
-		Symbol:    key.Symbol,
-		Timeframe: key.Timeframe,
+		Type:       strategyType,
+		Source:     key.Source,
+		Instrument: key.Instrument,
+		Timeframe:  key.Timeframe,
 	})
 	if prob != nil {
 		writeProblemResponse(w, prob)

@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"internal/domain/effectiveness"
 	"internal/domain/pairing"
 )
@@ -18,12 +20,12 @@ import (
 // Requires both ClickHouse (chains) and SessionGateway (session metadata).
 type CrossSessionPairingQuery struct {
 	// Window filters — all required.
-	Source    string `json:"source"`
-	Symbol    string `json:"symbol"`
-	Timeframe int    `json:"timeframe"`
+	Source     string                         `json:"source"`
+	Instrument instrument.CanonicalInstrument `json:"instrument"`
+	Timeframe  int                            `json:"timeframe"`
 
 	// Time range — Since is required. Until defaults to now.
-	Since int64 `json:"since"`          // unix seconds, inclusive
+	Since int64 `json:"since"`           // unix seconds, inclusive
 	Until int64 `json:"until,omitempty"` // unix seconds, inclusive (0 = now)
 
 	// MaxSessions limits the number of sessions to include (most recent first).
@@ -77,11 +79,11 @@ type CrossSessionPairingSummary struct {
 
 // CrossSessionPairingMeta carries diagnostic signals for cross-session pairing queries.
 type CrossSessionPairingMeta struct {
-	TotalMs        int64 `json:"total_ms"`
-	SessionsFetched int  `json:"sessions_fetched"`
-	ChainsScanned  int   `json:"chains_scanned"`
-	LegsProduced   int   `json:"legs_produced"`
-	LegsCarried    int   `json:"legs_carried"`    // legs eligible for carry-forward
-	LegsExcluded   int   `json:"legs_excluded"`   // legs excluded by carry-forward rules
-	RoundTrips     int   `json:"round_trips"`
+	TotalMs         int64 `json:"total_ms"`
+	SessionsFetched int   `json:"sessions_fetched"`
+	ChainsScanned   int   `json:"chains_scanned"`
+	LegsProduced    int   `json:"legs_produced"`
+	LegsCarried     int   `json:"legs_carried"`  // legs eligible for carry-forward
+	LegsExcluded    int   `json:"legs_excluded"` // legs excluded by carry-forward rules
+	RoundTrips      int   `json:"round_trips"`
 }

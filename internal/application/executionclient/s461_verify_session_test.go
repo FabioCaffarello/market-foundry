@@ -1,6 +1,8 @@
 package executionclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 
@@ -33,7 +35,7 @@ type stubCHSummary struct {
 	total int64
 }
 
-func (s *stubCHSummary) Summary(_ context.Context, _ string, _, _ int64) (int64, *problem.Problem) {
+func (s *stubCHSummary) Summary(_ context.Context, _ instrument.CanonicalInstrument, _, _ int64) (int64, *problem.Problem) {
 	return s.total, nil
 }
 
@@ -41,7 +43,7 @@ type stubCHLister struct {
 	rows []executionclient.VerifyCHListResult
 }
 
-func (s *stubCHLister) List(_ context.Context, _, _, _ string, _ int, _, _ int64) ([]executionclient.VerifyCHListResult, *problem.Problem) {
+func (s *stubCHLister) List(_ context.Context, _ instrument.CanonicalInstrument, _, _ string, _ int, _, _ int64) ([]executionclient.VerifyCHListResult, *problem.Problem) {
 	return s.rows, nil
 }
 
@@ -50,7 +52,7 @@ type stubConsistency struct {
 	evidence   map[string]any
 }
 
-func (s *stubConsistency) CheckConsistency(_ context.Context, _, _ string, _ int) (bool, map[string]any, *problem.Problem) {
+func (s *stubConsistency) CheckConsistency(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int) (bool, map[string]any, *problem.Problem) {
 	return s.consistent, s.evidence, nil
 }
 
@@ -142,7 +144,7 @@ func TestVerifySession_ScopeContainmentPass(t *testing.T) {
 	uc := executionclient.NewVerifySessionUseCase(
 		nil, nil, nil,
 		&stubCHLister{rows: []executionclient.VerifyCHListResult{
-			{Symbol: "BTCUSDT", Type: "venue_market_order"},
+			{Symbol: "btcusdt", Type: "venue_market_order"},
 		}},
 		nil,
 	)
@@ -161,7 +163,7 @@ func TestVerifySession_ScopeContainmentFail(t *testing.T) {
 	uc := executionclient.NewVerifySessionUseCase(
 		nil, nil, nil,
 		&stubCHLister{rows: []executionclient.VerifyCHListResult{
-			{Symbol: "BTCUSDT", Type: "venue_market_order"},
+			{Symbol: "btcusdt", Type: "venue_market_order"},
 			{Symbol: "ETHUSDT", Type: "venue_market_order"},
 		}},
 		nil,
@@ -179,7 +181,7 @@ func TestVerifySession_FeeFieldsPass(t *testing.T) {
 		nil, nil, nil,
 		&stubCHLister{rows: []executionclient.VerifyCHListResult{
 			{
-				Symbol: "BTCUSDT", Status: "filled",
+				Symbol: "btcusdt", Status: "filled",
 				Fills: []execution.FillRecord{
 					{Fee: "0.001", FeeAsset: "BNB"},
 				},

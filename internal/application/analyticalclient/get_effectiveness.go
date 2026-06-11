@@ -47,15 +47,15 @@ func (uc *GetEffectivenessUseCase) Execute(ctx context.Context, query Effectiven
 }
 
 func (uc *GetEffectivenessUseCase) executeSingle(ctx context.Context, query EffectivenessQuery, start time.Time) (EffectivenessReply, *problem.Problem) {
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return EffectivenessReply{}, problem.New(problem.InvalidArgument, "symbol is required for single-chain effectiveness lookup (S301 isolation)")
 	}
 
-	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Symbol)
+	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Instrument)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("effectiveness single query failed",
-			"correlation_id", query.CorrelationID, "symbol", query.Symbol,
+			"correlation_id", query.CorrelationID, "instrument", query.Instrument.Symbol(),
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return EffectivenessReply{}, problem.Wrap(err, problem.Unavailable, "effectiveness query failed")
@@ -91,7 +91,7 @@ func (uc *GetEffectivenessUseCase) executeBatch(ctx context.Context, query Effec
 	if query.Source == "" {
 		return EffectivenessReply{}, problem.New(problem.InvalidArgument, "source is required for batch effectiveness evaluation")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return EffectivenessReply{}, problem.New(problem.InvalidArgument, "symbol is required for batch effectiveness evaluation")
 	}
 	if query.Timeframe <= 0 {
@@ -114,11 +114,11 @@ func (uc *GetEffectivenessUseCase) executeBatch(ctx context.Context, query Effec
 		}
 	}
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, fetchLimit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, fetchLimit)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("effectiveness batch query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return EffectivenessReply{}, problem.Wrap(err, problem.Unavailable, "effectiveness batch query failed")
@@ -223,7 +223,7 @@ func (uc *GetEffectivenessUseCase) executeBatch(ctx context.Context, query Effec
 	pairedCount := len(pairedCorrs) / 2 // each pair contributes 2 correlation IDs
 
 	uc.logger.Info("effectiveness batch completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"chains_scanned", len(chains), "evaluations", len(evaluations), "excluded", excluded,
 		"paired_round_trips", pairedCount,
 		"total_ms", elapsed.Milliseconds(),

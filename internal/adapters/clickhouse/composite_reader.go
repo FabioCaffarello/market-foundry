@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"fmt"
 	"log/slog"
@@ -51,7 +53,8 @@ func NewCompositeReader(client *Client, logger *slog.Logger) *CompositeReader {
 // QueryChainByCorrelationID reconstructs a single composite chain for the given correlation_id,
 // scoped to the specified symbol. The symbol filter ensures that correlation-based lookups
 // never return events belonging to a different symbol (S301 isolation fix).
-func (r *CompositeReader) QueryChainByCorrelationID(ctx context.Context, correlationID, symbol string) (*analyticalclient.CompositeExecutionChain, error) {
+func (r *CompositeReader) QueryChainByCorrelationID(ctx context.Context, correlationID string, inst instrument.CanonicalInstrument) (*analyticalclient.CompositeExecutionChain, error) {
+	symbol := inst.LegacyFilterValue()
 	chain := &analyticalclient.CompositeExecutionChain{
 		CorrelationID: correlationID,
 	}
@@ -100,7 +103,8 @@ func (r *CompositeReader) QueryChainByCorrelationID(ctx context.Context, correla
 // QueryChainsBatch queries executions matching the given filters, collects their
 // correlation_ids, and enriches each with the full causal chain. Returns at most
 // `limit` chains, ordered by execution timestamp DESC.
-func (r *CompositeReader) QueryChainsBatch(ctx context.Context, source, symbol string, timeframe int, since, until int64, limit int) ([]analyticalclient.CompositeExecutionChain, error) {
+func (r *CompositeReader) QueryChainsBatch(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]analyticalclient.CompositeExecutionChain, error) {
+	symbol := inst.LegacyFilterValue()
 	// Step 1: query executions table for correlation_ids.
 	corrIDs, err := r.queryExecutionCorrelationIDs(ctx, source, symbol, timeframe, since, until, limit)
 	if err != nil {
@@ -113,7 +117,7 @@ func (r *CompositeReader) QueryChainsBatch(ctx context.Context, source, symbol s
 	// Step 2: enrich each correlation_id into a full chain.
 	chains := make([]analyticalclient.CompositeExecutionChain, 0, len(corrIDs))
 	for _, corrID := range corrIDs {
-		chain, err := r.QueryChainByCorrelationID(ctx, corrID, symbol)
+		chain, err := r.QueryChainByCorrelationID(ctx, corrID, inst)
 		if err != nil {
 			r.logger.Warn("chain enrichment failed", "correlation_id", corrID, "error", err)
 			continue
@@ -518,7 +522,8 @@ ORDER BY timestamp DESC LIMIT 1`
 // QueryPipelineFunnel counts events per stage across all five domain tables for
 // the given type/source/symbol/timeframe. This powers the Q7 (conversion rate)
 // and Q5 (pipeline health) aggregation endpoints.
-func (r *CompositeReader) QueryPipelineFunnel(ctx context.Context, typ, source, symbol string, timeframe int, since, until int64) ([]analyticalclient.StageFunnelCount, error) {
+func (r *CompositeReader) QueryPipelineFunnel(ctx context.Context, typ, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]analyticalclient.StageFunnelCount, error) {
+	symbol := inst.LegacyFilterValue()
 	tables := []struct {
 		stage string
 		table string
@@ -567,7 +572,8 @@ func (r *CompositeReader) QueryPipelineFunnel(ctx context.Context, typ, source, 
 
 // QueryDispositionBreakdown counts risk assessments grouped by disposition for
 // the given type/source/symbol/timeframe. This powers Q6 (blocked vs approved).
-func (r *CompositeReader) QueryDispositionBreakdown(ctx context.Context, typ, source, symbol string, timeframe int, since, until int64) ([]analyticalclient.DispositionCount, error) {
+func (r *CompositeReader) QueryDispositionBreakdown(ctx context.Context, typ, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]analyticalclient.DispositionCount, error) {
+	symbol := inst.LegacyFilterValue()
 	q := "SELECT disposition, count() as cnt FROM risk_assessments WHERE type = ? AND source = ? AND symbol = ? AND timeframe = ?"
 	args := []any{typ, source, symbol, uint32(timeframe)}
 

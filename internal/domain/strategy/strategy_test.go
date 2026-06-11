@@ -136,7 +136,7 @@ func TestStrategy_Validate_AllDirections(t *testing.T) {
 
 func TestStrategy_PartitionKey(t *testing.T) {
 	s := strategy.Strategy{Source: "binancef", Instrument: btcUSDTPerp(t), Timeframe: 60}
-	expected := "binancef.btcusdt.60"
+	expected := "binancef.btc_usdt_perpetual.60"
 	if got := s.PartitionKey(); got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
 	}

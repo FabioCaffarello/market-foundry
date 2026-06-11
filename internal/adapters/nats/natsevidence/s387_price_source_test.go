@@ -31,7 +31,7 @@ type stubPriceSource struct {
 	prob  *problem.Problem
 }
 
-func (s *stubPriceSource) LastPrice(_ context.Context, _, _ string, _ int) (string, *problem.Problem) {
+func (s *stubPriceSource) LastPrice(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int) (string, *problem.Problem) {
 	return s.price, s.prob
 }
 
@@ -40,7 +40,7 @@ func (s *stubPriceSource) LastPrice(_ context.Context, _, _ string, _ int) (stri
 func TestCandleKVPriceSource_Contract(t *testing.T) {
 	t.Run("returns_0_when_store_is_nil", func(t *testing.T) {
 		ps := natsevidence.NewCandleKVPriceSource(nil, nil)
-		price, prob := ps.LastPrice(context.Background(), "binancef", "btcusdt", 60)
+		price, prob := ps.LastPrice(context.Background(), "binancef", instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, 60)
 		// With nil store, Get returns an error — PriceSource returns "0" + problem.
 		if price != "0" {
 			t.Fatalf("expected fallback price '0', got %q", price)
@@ -110,7 +110,7 @@ func TestPriceSource_FallbackSemantics(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ps := &stubPriceSource{price: tc.price, prob: tc.prob}
-			price, _ := ps.LastPrice(context.Background(), "binancef", "btcusdt", 60)
+			price, _ := ps.LastPrice(context.Background(), "binancef", instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, 60)
 			if price != tc.wantPrice {
 				t.Fatalf("expected %q, got %q", tc.wantPrice, price)
 			}

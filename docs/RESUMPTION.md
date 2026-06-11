@@ -67,7 +67,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.c.2** | Fechada (PR #31 mergeada em `main` em `0bce6f6`, 2026-05-27) | Application-layer pass-through migration: execute scope + ClickHouse composite_reader treatment. 8 commits eliminating the last source-string reconstruction sites in the execution package + uniformizing the ClickHouse `reconstructInstrumentFromLegacy` error-handling pattern. Commit 1 migrates ~28 paper_order_evaluator test sites to ForInstrument constructor. Commit 2 converts the 5 silent error-discard sites in `composite_reader.go` to warn-and-emit-zero (matches the 8 existing sister sites' pattern; all 13 ClickHouse readers now uniform). Commit 3 declares `ReviewTransform` as `string_filter` + adds inline godoc to ReviewTransform.Symbol + DecisionTriageItem.Symbol fields. Commit 4 migrates the 2 testnet adapters to use `BindingTarget.Instrument()` boundary helper per Decisão #2 (b). Commit 5 deletes the legacy `NewPaperOrderEvaluator` ctor + `instrumentFromBinding` helper file + dead `symbol` field + migrates 8 cross-scope stragglers. Commit 6 adds the explicit 37f8ddd canary in execute scope (2 tests / 2 passes). Commit 7 shrinks `anti_patterns.toml` exception list 11→8. Commit 8 closes docs. ADR-0021 permanece `Proposed`; **5 dos 6 helpers eliminados; apenas executionclient remanesce para H-6.f**. |
 | **H-6.d.1** | Fechada (PR #32 mergeada em `main` em `fac12ac`, 2026-05-28) | ClickHouse schema migration + writer canonical column population end-to-end. 5 commits + 1 fix: (1) 6 migrations `008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql` adicionam `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (split per-table após Decisão #1 (A)). (2) Codegen self-consistency atomic bundle — 14 YAML specs + 14 golden snapshots + 17 INSERT SQL strings + 8 mappers + ~120 test row position shifts. (3a) Integration fixture migration — 34 positional INSERTs para explicit column lists + 20 pre-H-6.b drift fixes (3-month-undetected tagged-build invisibility lesson). (3b) Writer canary — `Client.Exec()` para DDL via native protocol + novo `canonical_columns_integration_test.go` (6 tests / 1 per table). (4) Docs closure. (5) G7 flake registry (TestS380 compose-execute interference, pre-existing). CI-fix commit (3d53e32): `restart_recovery_test.go` execution row column count 20→23 — caught by CI integration tests, reinforced lesson #1 (scan ALL files for positional row access on schema change). ADR-0021 permaneceu `Proposed`. |
 | **H-6.d.2** | Fechada (PR #33 mergeada em `main` em `51bc76e`, 2026-06-10) | ClickHouse reader-side cutover para canonical columns com legacy fallback. 4 commits: (1) Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada + `instrumentFromCanonicalColumns(base, quote, contract)` — sentinel pattern per Decisão #3, validation delegada a `instrument.New`. 4 unit tests / 9 sub-cases lock-in o contrato. (2) Reader dual-path migration — 7 reader files / 13 instrument-resolution sites / 13 SELECT column lists atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme validado em pré-flight 3. Per-reader test files atualizados (expectedCols + column counts). (3) Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1. (4) Docs closure. `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1 (correctness-driven through 90-day TTL window; deletion deferida para H-6.f post-operational-verification). **Critério #4b end-to-end LANDED** (writer em H-6.d.1 + reader em H-6.d.2). ADR-0021 permanece `Proposed`; promoção atómica em H-6.f post-TTL + helper deletion. |
-| **H-6.e** | **Atual** (esta entrega — branch `feat/h-6-e-subject-canonical-cutover` aberta após merge de H-6.d.2 em PR #33) | NATS subject canonical cutover (subjects only). Pause-and-report como primeiro ato; **owner decide opção (i)**; enumeração D = zero parsers do token de symbol → **cutover atômico**, sem dual-publish (mixed-state até TTL 72h, precedente H-6.d). 6 commits: (0) errata dupla — ADR-0009 (token canônico `base_quote_contract`, slot `[_expiry]` dormente) + ADR-0021 critério #2 (fechamento literal desloca para **H-6.e.2**, cadeia e → e.2 → f) + PRD (sub-onda e.2 criada: KV keys + contrato HTTP + extensão do analyzer; débito de modelagem do expiry). (1) `CanonicalInstrument.SubjectToken()` + testes de lock-in (3/3). (2) Cutover dos **10 builders com symbol** (o 11º, session-lifecycle, não tem symbol); dedup keys e log labels intactos por design; teste de simulação natsstrategy migrado para a derivação real. (3) Analyzer `check subjects` (block-scoped, subjects-only per Decisão #4) + `policies/subjects.toml` + gate step 10 (drift-detect→11, runtime-smoke→12); 8 unit tests. (4) Canário integration `subject_cutover_canary_test.go`: canonical + legacy lado a lado pelo mesmo filtro wildcard — PASS contra NATS vivo. (5) Docs closure. **ADR-0021 permanece `Proposed`.** |
+| **H-6.e** | Fechada (PR #42 mergeada em `main` em `f8543b7`, 2026-06-10) | NATS subject canonical cutover (subjects only). Pause-and-report como primeiro ato; **owner decide opção (i)**; enumeração D = zero parsers do token de symbol → **cutover atômico**, sem dual-publish (mixed-state até TTL 72h, precedente H-6.d). 6 commits: (0) errata dupla — ADR-0009 (token canônico `base_quote_contract`, slot `[_expiry]` dormente) + ADR-0021 critério #2 (fechamento literal desloca para **H-6.e.2**, cadeia e → e.2 → f) + PRD (sub-onda e.2 criada: KV keys + contrato HTTP + extensão do analyzer; débito de modelagem do expiry). (1) `CanonicalInstrument.SubjectToken()` + testes de lock-in (3/3). (2) Cutover dos **10 builders com symbol** (o 11º, session-lifecycle, não tem symbol); dedup keys e log labels intactos por design; teste de simulação natsstrategy migrado para a derivação real. (3) Analyzer `check subjects` (block-scoped, subjects-only per Decisão #4) + `policies/subjects.toml` + gate step 10 (drift-detect→11, runtime-smoke→12); 8 unit tests. (4) Canário integration `subject_cutover_canary_test.go`: canonical + legacy lado a lado pelo mesmo filtro wildcard — PASS contra NATS vivo. (5) Docs closure. **ADR-0021 permanece `Proposed`.** |
+| **H-6.e.2** | **Atual** (esta entrega — branch `feat/h-6-e-2-read-contract-canonical` aberta após merge de H-6.e em PR #42) | Read-contract canonical cutover (**pacote B**, owner 2026-06-11). Contrato HTTP `(source, symbol, timeframe)` → trio canônico `base/quote/contract` (validação via `instrument.New`); 8 client packages `Symbol string` → `CanonicalInstrument`; KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` (mesmo commit; órfãos inertes + janela de miss documentados); ClickHouse `WHERE … symbol = ?` **inalterado** com valor derivado via helper transitório `LegacyFilterValue()` (= `lower(base+quote)`, direção legítima canonical→venue; sunset H-6.f com o flip do WHERE pós-TTL). Analyzer `check subjects` estendido com seção `[keys]`. Expiry (G10) deferido a H-7. **Critério #2 do ADR-0021 fecha literalmente aqui.** **ADR-0021 permanece `Proposed`** (promoção em f). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -224,6 +225,59 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-6.e.2 (esta sessão):
+
+- **Commit 0**: PRD registra as decisões do pacote B (trio canônico
+  `base/quote/contract`; KV keys write+read juntos; ClickHouse WHERE
+  inalterado com valor derivado; analyzer `[keys]`; expiry → H-7) e
+  o RESUMPTION fecha a linha H-6.e (convenção declarada).
+- **Commit 1**: `CanonicalInstrument.LegacyFilterValue()` transitório
+  (= `lower(base+quote)`, o valor exato da coluna legacy `symbol`)
+  + lock-in 2/2 — sunset em H-6.f com o flip do WHERE pós-TTL.
+- **Commit 2 (bundle atômico, 231 arquivos)**: contrato HTTP → trio
+  via `instrument.New` (31 sites `parseQueryKeyParams` + 9 extrações
+  diretas; S301 preservado; opcional = all-or-none); 8 client
+  packages `Symbol string` → `CanonicalInstrument` (DTOs/replies
+  ficam string per string_filter); ports flipados (13 readers
+  analíticos, 8 KV Gets, PriceSource, Verify*/Audit*, consistency)
+  com zero-inst = sem filtro; builders ClickHouse **byte-idênticos**
+  (arg derivado no port method); 5 `PartitionKey()` + composers
+  read-side → `{source}.{SubjectToken()}.{timeframe}`; novo
+  `KVStore.GetByKey` para o lifecycle list; `scopeInstrument` via
+  BindingTarget com Skip honesto; `DefaultVerificationScope` →
+  source real (`binances`/`btcusdt` — o default antigo "BTCUSDT" era
+  case-mismatched contra a coluna lowercase); ~60 test files
+  compiler-driven incl. tagged builds; 14 smokes → trio; HTTP-API.md
+  (incl. correção do pointer `evidence.go`). **MEA CULPA do
+  executor**: a enumeração da abertura declarou as chaves
+  parser-free; `parsePartitionKey` (query_responder_actor) É um
+  parser que o sweep perdeu — sobrevive intacto ao cutover (token
+  sem pontos), o pacote B fica de pé, mas a claim estava errada.
+- **Commit 3**: `check subjects` ganha seção `[keys]` (block-scoped
+  a corpos de `PartitionKey()`; proíbe `VenueSymbol()`, exige
+  `SubjectToken()`); fix estrutural do early-return que pulava o
+  check; 12/12 unit tests; gate `--profile ci` GREEN.
+- **Commit 4**: canário `key_cutover_canary_test.go` (shape literal
+  da chave + ausência de escrita legacy) PASS contra NATS vivo;
+  canários de reader d.2 — agora via ports canônicos com arg
+  derivado — 6/6 PASS contra ClickHouse vivo (mixed-state lido
+  identicamente).
+- **Commit 5**: docs closure (esta seção, G10, TRUTH-MAP, PRD).
+
+**Critério #2 do ADR-0021 literalmente satisfeito nesta entrega**
+(per erratum 2026-06-10); promoção do ADR permanece atômica em
+H-6.f. Nota operacional: chaves KV pré-cutover são órfãs inertes
+(purge manual opcional); janela de miss por tipo até a primeira
+escrita pós-deploy.
+
+**Próxima sub-onda destravada após merge**: **H-6.f** — cleanup
+final (sunset VenueSymbol + LegacyFilterValue + flip do WHERE
+pós-TTL ~2026-08-26 + reconstructInstrumentFromLegacy deletion) +
+**promoção ADR-0021 → Accepted**. Sequencing estrito: H-6.f abre
+branch APENAS após merge desta PR (H-6.e.2) em `main`.
 
 ---
 
@@ -1928,8 +1982,8 @@ e o ingest não os habilita.
 
 **Tratamento registrado**: o token de subject (H-6.e) carrega o
 slot `[_expiry]` dormente (erratum ao ADR-0009); a modelagem do
-expiry entra em **H-6.e.2 ou H-7** (decisão do owner na abertura
-da sub-onda — registrado no escopo da H-6.e.2 no PROGRAM-0004).
+expiry entra em **H-7** (decidido pelo owner na abertura de
+H-6.e.2, 2026-06-11 — registrado no PROGRAM-0004).
 Habilitar delivery futures no ingest **antes** da modelagem é
 bloqueado por este gap.
 

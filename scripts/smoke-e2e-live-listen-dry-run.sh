@@ -375,7 +375,7 @@ phase "Phase 8: Store Materialization — Read Path from Dry-Run Fills"
 # ══════════════════════════════════════════════════════════════════════
 
 # Check store for strategy materialization (proves full pipeline).
-STRATEGY_LATEST_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&symbol=btcusdt&timeframe=60")
+STRATEGY_LATEST_CODE=$(http_code "${BASE_URL}/strategy/mean_reversion_entry/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$STRATEGY_LATEST_CODE" == "200" ]]; then
     pass "Strategy latest → 200 (derive → store read path confirmed)"
 else
@@ -383,7 +383,7 @@ else
 fi
 
 # Check evidence candle (proves ingest → derive → store path with live data).
-CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&symbol=btcusdt&timeframe=60")
+CANDLE_CODE=$(http_code "${BASE_URL}/evidence/candles/latest?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60")
 if [[ "$CANDLE_CODE" == "200" ]]; then
     pass "Evidence candle latest → 200 (live data → evidence path confirmed)"
 else
@@ -429,7 +429,7 @@ info "ClickHouse executions: ${EXEC_CH} rows"
 phase "Phase 10: Correlation Chain Audit — End-to-End Traceability"
 # ══════════════════════════════════════════════════════════════════════
 
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60&limit=5"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60&limit=5"
 CHAINS_CODE=$(curl -s -o /tmp/s380_chains.json -w "%{http_code}" "$CHAINS_URL" 2>/dev/null || echo "000")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then

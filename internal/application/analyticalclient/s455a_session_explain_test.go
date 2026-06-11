@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -17,7 +19,7 @@ type s455aLifecycleReader struct {
 	err     error
 }
 
-func (s *s455aLifecycleReader) QueryLifecycleHistory(_ context.Context, _, _ string, _ int, _, _ string, _, _ int64, _ int) ([]execution.ExecutionIntent, error) {
+func (s *s455aLifecycleReader) QueryLifecycleHistory(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int, _, _ string, _, _ int64, _ int) ([]execution.ExecutionIntent, error) {
 	return s.intents, s.err
 }
 
@@ -55,7 +57,7 @@ func TestSessionExplain_ConsistentFilled(t *testing.T) {
 
 	uc := analyticalclient.NewGetSessionExplainUseCase(chReader, kvReader, nil)
 	reply, prob := uc.Execute(context.Background(), analyticalclient.SessionExplainQuery{
-		Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 	})
 
 	if prob != nil {
@@ -114,7 +116,7 @@ func TestSessionExplain_Divergent(t *testing.T) {
 
 	uc := analyticalclient.NewGetSessionExplainUseCase(chReader, kvReader, nil)
 	reply, prob := uc.Execute(context.Background(), analyticalclient.SessionExplainQuery{
-		Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 	})
 
 	if prob != nil {
@@ -149,7 +151,7 @@ func TestSessionExplain_KVUnavailable(t *testing.T) {
 
 	uc := analyticalclient.NewGetSessionExplainUseCase(chReader, kvReader, nil)
 	reply, prob := uc.Execute(context.Background(), analyticalclient.SessionExplainQuery{
-		Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 	})
 
 	if prob != nil {
@@ -179,7 +181,7 @@ func TestSessionExplain_NilKVReader(t *testing.T) {
 
 	uc := analyticalclient.NewGetSessionExplainUseCase(chReader, nil, nil)
 	reply, prob := uc.Execute(context.Background(), analyticalclient.SessionExplainQuery{
-		Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 	})
 
 	if prob != nil {
@@ -200,9 +202,9 @@ func TestSessionExplain_ValidationErrors(t *testing.T) {
 		name  string
 		query analyticalclient.SessionExplainQuery
 	}{
-		{"missing source", analyticalclient.SessionExplainQuery{Symbol: "BTCUSDT", Timeframe: 60}},
+		{"missing source", analyticalclient.SessionExplainQuery{Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60}},
 		{"missing symbol", analyticalclient.SessionExplainQuery{Source: "binance_spot", Timeframe: 60}},
-		{"invalid timeframe", analyticalclient.SessionExplainQuery{Source: "binance_spot", Symbol: "BTCUSDT"}},
+		{"invalid timeframe", analyticalclient.SessionExplainQuery{Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt")}},
 	}
 
 	for _, tt := range tests {
@@ -240,7 +242,7 @@ func TestSessionExplain_RejectionConsistency(t *testing.T) {
 
 	uc := analyticalclient.NewGetSessionExplainUseCase(chReader, kvReader, nil)
 	reply, prob := uc.Execute(context.Background(), analyticalclient.SessionExplainQuery{
-		Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+		Source: "binance_spot", Instrument: instrumentFromVenue("btcusdt"), Timeframe: 60,
 	})
 
 	if prob != nil {

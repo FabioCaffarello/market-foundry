@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	memoryrepo "internal/application/configctl/memoryrepo"
 	"internal/application/configctl/contracts"
+	memoryrepo "internal/application/configctl/memoryrepo"
 	configdomain "internal/domain/configctl"
 	"internal/shared/events"
 	"internal/shared/problem"

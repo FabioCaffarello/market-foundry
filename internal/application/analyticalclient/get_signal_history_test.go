@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"testing"
@@ -14,16 +16,16 @@ type stubSignalReader struct {
 	err     error
 }
 
-func (s *stubSignalReader) QuerySignalHistory(_ context.Context, _, _, _ string, _ int, _, _ int64, _ int) ([]signal.Signal, error) {
+func (s *stubSignalReader) QuerySignalHistory(_ context.Context, _, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64, _ int) ([]signal.Signal, error) {
 	return s.signals, s.err
 }
 
 func TestGetSignalHistoryUseCase_MissingType(t *testing.T) {
 	uc := analyticalclient.NewGetSignalHistoryUseCase(&stubSignalReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing type")
@@ -33,9 +35,9 @@ func TestGetSignalHistoryUseCase_MissingType(t *testing.T) {
 func TestGetSignalHistoryUseCase_MissingSource(t *testing.T) {
 	uc := analyticalclient.NewGetSignalHistoryUseCase(&stubSignalReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing source")
@@ -57,10 +59,10 @@ func TestGetSignalHistoryUseCase_MissingSymbol(t *testing.T) {
 func TestGetSignalHistoryUseCase_InvalidTimeframe(t *testing.T) {
 	uc := analyticalclient.NewGetSignalHistoryUseCase(&stubSignalReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 0,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  0,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for zero timeframe")
@@ -70,12 +72,12 @@ func TestGetSignalHistoryUseCase_InvalidTimeframe(t *testing.T) {
 func TestGetSignalHistoryUseCase_SinceAfterUntil(t *testing.T) {
 	uc := analyticalclient.NewGetSignalHistoryUseCase(&stubSignalReader{}, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     2000,
-		Until:     1000,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      2000,
+		Until:      1000,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for since > until")
@@ -86,10 +88,10 @@ func TestGetSignalHistoryUseCase_DefaultLimit(t *testing.T) {
 	reader := &stubSignalReader{signals: []signal.Signal{}}
 	uc := analyticalclient.NewGetSignalHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -103,11 +105,11 @@ func TestGetSignalHistoryUseCase_LimitClamped(t *testing.T) {
 	reader := &stubSignalReader{signals: []signal.Signal{}}
 	uc := analyticalclient.NewGetSignalHistoryUseCase(reader, nil)
 	result, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Limit:     9999,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Limit:      9999,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -121,10 +123,10 @@ func TestGetSignalHistoryUseCase_ReaderError(t *testing.T) {
 	reader := &stubSignalReader{err: errors.New("connection refused")}
 	uc := analyticalclient.NewGetSignalHistoryUseCase(reader, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -134,10 +136,10 @@ func TestGetSignalHistoryUseCase_ReaderError(t *testing.T) {
 func TestGetSignalHistoryUseCase_NilReader(t *testing.T) {
 	uc := analyticalclient.NewGetSignalHistoryUseCase(nil, nil)
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil reader")
@@ -147,10 +149,10 @@ func TestGetSignalHistoryUseCase_NilReader(t *testing.T) {
 func TestGetSignalHistoryUseCase_NilUseCaseExecute(t *testing.T) {
 	var uc *analyticalclient.GetSignalHistoryUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.SignalHistoryQuery{
-		Type:      "rsi",
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Type:       "rsi",
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")

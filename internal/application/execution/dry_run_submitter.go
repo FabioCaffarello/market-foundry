@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -108,7 +110,7 @@ func (d *DryRunSubmitter) SubmitOrder(_ context.Context, req ports.VenueOrderReq
 	// the upstream call was cancelled), so a stalled PriceSource is bounded
 	// here independently.
 	priceCtx, priceCancel := context.WithTimeout(context.Background(), priceLookupTimeout)
-	fillPrice := d.resolvePrice(priceCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	fillPrice := d.resolvePrice(priceCtx, intent.Source, intent.Instrument, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
 	priceCancel()
 
 	filled := intent
@@ -155,15 +157,15 @@ func newDryRunOrderID() string {
 
 // resolvePrice returns the best-effort last price for the symbol.
 // Falls back to defaultFillPrice ("0") when no PriceSource is configured or on error.
-func (d *DryRunSubmitter) resolvePrice(ctx context.Context, source, symbol string, timeframe int) string {
+func (d *DryRunSubmitter) resolvePrice(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) string {
 	if d.priceSource == nil {
 		return defaultFillPrice
 	}
-	price, prob := d.priceSource.LastPrice(ctx, source, symbol, timeframe)
+	price, prob := d.priceSource.LastPrice(ctx, source, inst, timeframe)
 	if prob != nil || price == "" {
 		d.log("price lookup failed, using default",
 			"source", source,
-			"symbol", symbol,
+			"instrument", inst.Symbol(),
 			"timeframe", timeframe,
 			"fallback", defaultFillPrice,
 		)

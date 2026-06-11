@@ -32,8 +32,8 @@ func (uc *GetLatestStrategyUseCase) Execute(ctx context.Context, query StrategyL
 	if query.Source == "" {
 		return StrategyLatestReply{}, problem.New(problem.InvalidArgument, "source is required")
 	}
-	if query.Symbol == "" {
-		return StrategyLatestReply{}, problem.New(problem.InvalidArgument, "symbol is required")
+	if query.Instrument.IsZero() {
+		return StrategyLatestReply{}, problem.New(problem.InvalidArgument, "instrument is required")
 	}
 	if query.Timeframe <= 0 {
 		return StrategyLatestReply{}, problem.New(problem.InvalidArgument, "timeframe must be positive")

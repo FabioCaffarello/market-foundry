@@ -52,12 +52,12 @@ func (uc *GetDecisionTriageUseCase) Execute(ctx context.Context, query DecisionT
 	}
 
 	reviewReply, prob := uc.reviewer.Execute(ctx, analyticalclient.DecisionReviewQuery{
-		Source:    query.Source,
-		Symbol:    query.Symbol,
-		Timeframe: query.Timeframe,
-		Since:     query.Since,
-		Until:     query.Until,
-		Limit:     fetchLimit,
+		Source:     query.Source,
+		Instrument: query.Instrument,
+		Timeframe:  query.Timeframe,
+		Since:      query.Since,
+		Until:      query.Until,
+		Limit:      fetchLimit,
 	})
 	if prob != nil {
 		return DecisionTriageReply{}, prob

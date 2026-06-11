@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"testing"
@@ -37,8 +39,8 @@ func TestGetContinuityReview_MissingRequiredFields(t *testing.T) {
 	uc := analyticalclient.NewGetContinuityReviewUseCase(sessions, reader, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.ContinuityReviewQuery{
-		Source: "binance_spot",
-		Symbol: "BTCUSDT",
+		Source:     "binance_spot",
+		Instrument: instrumentFromVenue("btcusdt"),
 		// Missing Timeframe and Since
 	})
 	if prob == nil {
@@ -52,10 +54,10 @@ func TestGetContinuityReview_NoSessionsReturnsEmpty(t *testing.T) {
 	uc := analyticalclient.NewGetContinuityReviewUseCase(sessions, reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.ContinuityReviewQuery{
-		Source:    "binance_spot",
-		Symbol:    "BTCUSDT",
-		Timeframe: 60,
-		Since:     time.Now().Add(-24 * time.Hour).Unix(),
+		Source:     "binance_spot",
+		Instrument: instrumentFromVenue("btcusdt"),
+		Timeframe:  60,
+		Since:      time.Now().Add(-24 * time.Hour).Unix(),
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -94,11 +96,11 @@ func TestGetContinuityReview_IntraSessionPaired(t *testing.T) {
 	uc := analyticalclient.NewGetContinuityReviewUseCase(sessions, reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.ContinuityReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     sessStart.Add(-1 * time.Minute).Unix(),
-		Until:     now.Unix(),
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      sessStart.Add(-1 * time.Minute).Unix(),
+		Until:      now.Unix(),
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -177,11 +179,11 @@ func TestGetContinuityReview_CrossSessionPaired(t *testing.T) {
 	uc := analyticalclient.NewGetContinuityReviewUseCase(sessions, reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.ContinuityReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     sessAStart.Add(-1 * time.Minute).Unix(),
-		Until:     now.Unix(),
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      sessAStart.Add(-1 * time.Minute).Unix(),
+		Until:      now.Unix(),
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -238,12 +240,12 @@ func TestGetContinuityReview_FlaggedFilter(t *testing.T) {
 	uc := analyticalclient.NewGetContinuityReviewUseCase(sessions, reader, slog.Default())
 
 	result, prob := uc.Execute(context.Background(), analyticalclient.ContinuityReviewQuery{
-		Source:    "binance",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
-		Since:     sessStart.Add(-1 * time.Minute).Unix(),
-		Until:     now.Unix(),
-		Flagged:   true,
+		Source:     "binance",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
+		Since:      sessStart.Add(-1 * time.Minute).Unix(),
+		Until:      now.Unix(),
+		Flagged:    true,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)

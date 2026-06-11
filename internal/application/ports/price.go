@@ -1,6 +1,8 @@
 package ports
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 
 	"internal/shared/problem"
@@ -16,5 +18,5 @@ import (
 //   - Returns ("0", problem) on infrastructure errors — callers must not fail on error.
 //   - Implementations must be safe for concurrent use.
 type PriceSource interface {
-	LastPrice(ctx context.Context, source, symbol string, timeframe int) (string, *problem.Problem)
+	LastPrice(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (string, *problem.Problem)
 }

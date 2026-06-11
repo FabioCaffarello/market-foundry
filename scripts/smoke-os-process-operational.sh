@@ -76,6 +76,11 @@ require_positive_integer "--wait" "${FLUSH_WAIT}"
 ERRORS=0
 SYMBOL="${SYMBOL:-btcusdt}"
 SOURCE="${SOURCE:-binancef}"
+# H-6.e.2: read contract is the canonical trio; CONTRACT defaults to
+# perpetual matching the binancef default SOURCE (spot for binances).
+CONTRACT="${CONTRACT:-perpetual}"
+BASE="${SYMBOL%usdt}"
+INSTRUMENT_QS="base=${BASE}&quote=usdt&contract=${CONTRACT}"
 TIMEFRAME="${TIMEFRAME:-60}"
 
 smoke_banner "OS-Process Operational Smoke" "make smoke-operational" "${SETUP_HINT}" "flush-wait" "${FLUSH_WAIT}"
@@ -367,8 +372,8 @@ phase "Phase 5: KV Projection Queryability via Gateway HTTP (OP-6)"
 
 # Query execution latest (paper_order)
 info "Querying KV projection: /execution/paper_order/latest..."
-kv_resp=$(curl -sf "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}" 2>/dev/null || echo '{"error":"unreachable"}')
-kv_http_code=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}" 2>/dev/null || echo "000")
+kv_resp=$(curl -sf "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}" 2>/dev/null || echo '{"error":"unreachable"}')
+kv_http_code=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/execution/paper_order/latest?source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}" 2>/dev/null || echo "000")
 
 if [[ "$kv_http_code" == "200" ]]; then
     kv_has_intent=$(echo "$kv_resp" | python3 -c "
@@ -395,8 +400,8 @@ fi
 
 # Query composite execution status
 info "Querying KV projection: /execution/status/latest..."
-status_resp=$(curl -sf "${GATEWAY_URL}/execution/status/latest?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}" 2>/dev/null || echo '{"error":"unreachable"}')
-status_http_code=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/execution/status/latest?source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}" 2>/dev/null || echo "000")
+status_resp=$(curl -sf "${GATEWAY_URL}/execution/status/latest?source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}" 2>/dev/null || echo '{"error":"unreachable"}')
+status_http_code=$(curl -s -o /dev/null -w "%{http_code}" "${GATEWAY_URL}/execution/status/latest?source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}" 2>/dev/null || echo "000")
 
 if [[ "$status_http_code" == "200" || "$status_http_code" == "404" ]]; then
     pass "KV status/latest: endpoint responding (HTTP $status_http_code)"
@@ -422,12 +427,12 @@ pass "OP-6: KV projection queryable via gateway HTTP API"
 phase "Phase 6: Analytical Layer Verification (OP-7)"
 
 ANALYTICAL_FAMILIES=(
-    "evidence/candles:candles:source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
-    "signal/history:signals:type=rsi&source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
-    "decision/history:decisions:type=rsi_oversold&source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
-    "strategy/history:strategies:type=mean_reversion_entry&source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
-    "risk/history:risk_assessments:type=position_exposure&source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
-    "execution/history:executions:type=paper_order&source=${SOURCE}&symbol=${SYMBOL}&timeframe=${TIMEFRAME}"
+    "evidence/candles:candles:source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
+    "signal/history:signals:type=rsi&source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
+    "decision/history:decisions:type=rsi_oversold&source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
+    "strategy/history:strategies:type=mean_reversion_entry&source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
+    "risk/history:risk_assessments:type=position_exposure&source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
+    "execution/history:executions:type=paper_order&source=${SOURCE}&${INSTRUMENT_QS}&timeframe=${TIMEFRAME}"
 )
 
 ANALYTICAL_DEPTH=0

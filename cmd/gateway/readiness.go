@@ -1,11 +1,13 @@
 package main
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 
-	"internal/application/evidenceclient"
 	configctlcontracts "internal/application/configctl/contracts"
+	"internal/application/evidenceclient"
 	"internal/application/ports"
 	"internal/interfaces/http/handlers"
 	"internal/shared/problem"
@@ -30,9 +32,12 @@ func newGatewayReadinessChecker(config settings.AppConfig, configctl ports.Confi
 		// but the gateway itself remains ready to serve configctl routes.
 		if evidence != nil {
 			if _, prob := evidence.GetLatestCandle(ctx, evidenceclient.CandleLatestQuery{
-				Source:    "readiness-probe",
-				Symbol:    "readiness-probe",
-				Timeframe: 1,
+				Source: "readiness-probe",
+				// Synthetic probe identity: never collides with real
+				// keys; only store availability matters (missing key
+				// returns nil, nil).
+				Instrument: instrument.CanonicalInstrument{Base: "READINESS", Quote: "PROBE", Contract: instrument.ContractSpot},
+				Timeframe:  1,
 			}); prob != nil {
 				slog.Warn("evidence store probe failed during readiness check",
 					"error", prob.Message,

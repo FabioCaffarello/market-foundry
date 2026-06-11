@@ -42,10 +42,10 @@ type Registry struct {
 	PaperOrderLatest    natskit.ControlSpec
 
 	// ── Venue Family ─────────────────────────────────────────────
-	VenueMarketOrderFilled    natskit.EventSpec
-	VenueMarketOrderRejected  natskit.EventSpec
-	VenueMarketOrderLatest    natskit.ControlSpec
-	VenueRejectionLatest      natskit.ControlSpec // S407: dedicated rejection query route
+	VenueMarketOrderFilled   natskit.EventSpec
+	VenueMarketOrderRejected natskit.EventSpec
+	VenueMarketOrderLatest   natskit.ControlSpec
+	VenueRejectionLatest     natskit.ControlSpec // S407: dedicated rejection query route
 
 	// ── Cross-Family (shared) ────────────────────────────────────
 	StatusLatest         natskit.ControlSpec

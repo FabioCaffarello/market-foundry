@@ -37,10 +37,10 @@ func TestGetLatestVolumeUseCase_Validation(t *testing.T) {
 		name  string
 		query VolumeLatestQuery
 	}{
-		{"empty source", VolumeLatestQuery{Symbol: "btcusdt", Timeframe: 60}},
+		{"empty source", VolumeLatestQuery{Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
 		{"empty symbol", VolumeLatestQuery{Source: "binancef", Timeframe: 60}},
-		{"zero timeframe", VolumeLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", VolumeLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"zero timeframe", VolumeLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", VolumeLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tt := range tests {
@@ -69,7 +69,7 @@ func TestGetLatestVolumeUseCase_ReturnsVolume(t *testing.T) {
 
 	uc := NewGetLatestVolumeUseCase(volumeGatewayStub2{vol: vol})
 	reply, prob := uc.Execute(context.Background(), VolumeLatestQuery{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %s", prob.Message)
@@ -87,7 +87,7 @@ func TestGetLatestVolumeUseCase_NilGateway(t *testing.T) {
 
 	uc := NewGetLatestVolumeUseCase(nil)
 	_, prob := uc.Execute(context.Background(), VolumeLatestQuery{
-		Source: "binancef", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected error for nil gateway")

@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"log/slog"
@@ -18,11 +20,11 @@ type stubAggregationReader struct {
 	dispErr      error
 }
 
-func (s *stubAggregationReader) QueryPipelineFunnel(_ context.Context, _, _, _ string, _ int, _, _ int64) ([]analyticalclient.StageFunnelCount, error) {
+func (s *stubAggregationReader) QueryPipelineFunnel(_ context.Context, _, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64) ([]analyticalclient.StageFunnelCount, error) {
 	return s.funnel, s.funnelErr
 }
 
-func (s *stubAggregationReader) QueryDispositionBreakdown(_ context.Context, _, _, _ string, _ int, _, _ int64) ([]analyticalclient.DispositionCount, error) {
+func (s *stubAggregationReader) QueryDispositionBreakdown(_ context.Context, _, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64) ([]analyticalclient.DispositionCount, error) {
 	return s.dispositions, s.dispErr
 }
 
@@ -39,7 +41,7 @@ func TestGetPipelineFunnel_Success(t *testing.T) {
 	uc := analyticalclient.NewGetPipelineFunnelUseCase(reader, slog.Default())
 
 	reply, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Type: "ema_crossover", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "ema_crossover", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected problem: %v", prob)
@@ -56,7 +58,7 @@ func TestGetPipelineFunnel_MissingType(t *testing.T) {
 	uc := analyticalclient.NewGetPipelineFunnelUseCase(&stubAggregationReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing type")
@@ -70,7 +72,7 @@ func TestGetPipelineFunnel_MissingSource(t *testing.T) {
 	uc := analyticalclient.NewGetPipelineFunnelUseCase(&stubAggregationReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Type: "ema", Symbol: "btcusdt", Timeframe: 60,
+		Type: "ema", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for missing source")
@@ -81,7 +83,7 @@ func TestGetPipelineFunnel_InvalidTimeframe(t *testing.T) {
 	uc := analyticalclient.NewGetPipelineFunnelUseCase(&stubAggregationReader{}, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Type: "ema", Source: "binance", Symbol: "btcusdt", Timeframe: -1,
+		Type: "ema", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for invalid timeframe")
@@ -93,7 +95,7 @@ func TestGetPipelineFunnel_ReaderError(t *testing.T) {
 	uc := analyticalclient.NewGetPipelineFunnelUseCase(reader, slog.Default())
 
 	_, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Type: "ema", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "ema", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for reader error")
@@ -106,7 +108,7 @@ func TestGetPipelineFunnel_ReaderError(t *testing.T) {
 func TestGetPipelineFunnel_NilUseCase(t *testing.T) {
 	var uc *analyticalclient.GetPipelineFunnelUseCase
 	_, prob := uc.Execute(context.Background(), analyticalclient.PipelineFunnelQuery{
-		Type: "ema", Source: "binance", Symbol: "btcusdt", Timeframe: 60,
+		Type: "ema", Source: "binance", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60,
 	})
 	if prob == nil {
 		t.Fatal("expected problem for nil use case")

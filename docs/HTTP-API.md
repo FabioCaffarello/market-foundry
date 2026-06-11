@@ -51,12 +51,20 @@ Query parameters use `?name=value` and are extracted via
 otherwise. Common query params across read endpoints:
 
 - `source` — venue/segment identifier (e.g., `binance_spot`, `binance_futures`)
-- `symbol` — trading pair in lowercase (e.g., `btcusdt`, `ethusdt`)
+- `base`, `quote`, `contract` — the canonical instrument trio
+  (e.g., `base=btc&quote=usdt&contract=perpetual`; contract ∈
+  `{spot, perpetual, usdtfutures, coinfutures}`), validated by
+  `instrument.New`. **The venue-native `base`+`quote`+`contract` parameter was
+  retired in H-6.e.2** (read-contract canonical cutover; zero
+  external consumers at the time — see ADR-0021 criterion #2
+  erratum). Where the instrument is an optional filter, the trio
+  is all-or-none.
 - `timeframe` — candle interval in seconds (e.g., `60` for 1m, `300` for 5m)
 
-The triplet `(source, symbol, timeframe)` is the partition key for
+The tuple `(source, instrument, timeframe)` is the partition key for
 operational reads; most `*_LATEST` endpoints parse it via a shared
-helper (`parseQueryKeyParams` in `handlers/common.go`).
+helper (`parseQueryKeyParams` in `handlers/evidence.go` — this doc
+previously pointed at `handlers/common.go`, corrected in H-6.e.2).
 
 ### Authentication
 
@@ -141,10 +149,10 @@ on its own dep (`GetLatestCandle`, `GetCandleHistory`,
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
-| GET | `/evidence/candles/latest` | — | `source`, `symbol`, `timeframe` | Latest candle for the partition |
-| GET | `/evidence/candles/history` | — | `source`, `symbol`, `timeframe`, `limit`, `since`, `until` | Candle history within an optional time range |
-| GET | `/evidence/tradeburst/latest` | — | `source`, `symbol`, `timeframe` | Latest trade-burst aggregate |
-| GET | `/evidence/volume/latest` | — | `source`, `symbol`, `timeframe` | Latest volume aggregate |
+| GET | `/evidence/candles/latest` | — | `source`, `base`+`quote`+`contract`, `timeframe` | Latest candle for the partition |
+| GET | `/evidence/candles/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `limit`, `since`, `until` | Candle history within an optional time range |
+| GET | `/evidence/tradeburst/latest` | — | `source`, `base`+`quote`+`contract`, `timeframe` | Latest trade-burst aggregate |
+| GET | `/evidence/volume/latest` | — | `source`, `base`+`quote`+`contract`, `timeframe` | Latest volume aggregate |
 
 The `latest` endpoints have low latency (NATS KV lookup); the
 `history` endpoint touches ClickHouse and has higher latency.
@@ -159,10 +167,10 @@ dep (`GetLatestSignal`, `GetLatestDecision`, `GetLatestStrategy`,
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
-| GET | `/signal/:type/latest` | `:type` ∈ `{ema_crossover, rsi, macd, bollinger, atr, vwap}` | `source`, `symbol`, `timeframe` | Latest signal value of `:type` for partition |
-| GET | `/decision/:type/latest` | `:type` ∈ `{rsi_oversold, ema_crossover, bollinger_squeeze}` | `source`, `symbol`, `timeframe` | Latest decision evaluation of `:type` |
-| GET | `/strategy/:type/latest` | `:type` ∈ `{mean_reversion_entry, squeeze_breakout_entry, trend_following_entry}` | `source`, `symbol`, `timeframe` | Latest strategy resolution of `:type` |
-| GET | `/risk/:type/latest` | `:type` ∈ `{position_exposure, drawdown_limit}` | `source`, `symbol`, `timeframe` | Latest risk assessment of `:type` |
+| GET | `/signal/:type/latest` | `:type` ∈ `{ema_crossover, rsi, macd, bollinger, atr, vwap}` | `source`, `base`+`quote`+`contract`, `timeframe` | Latest signal value of `:type` for partition |
+| GET | `/decision/:type/latest` | `:type` ∈ `{rsi_oversold, ema_crossover, bollinger_squeeze}` | `source`, `base`+`quote`+`contract`, `timeframe` | Latest decision evaluation of `:type` |
+| GET | `/strategy/:type/latest` | `:type` ∈ `{mean_reversion_entry, squeeze_breakout_entry, trend_following_entry}` | `source`, `base`+`quote`+`contract`, `timeframe` | Latest strategy resolution of `:type` |
+| GET | `/risk/:type/latest` | `:type` ∈ `{position_exposure, drawdown_limit}` | `source`, `base`+`quote`+`contract`, `timeframe` | Latest risk assessment of `:type` |
 
 Note: not every domain `:type` has a corresponding KV bucket. Some
 types flow through the stream and persist only in ClickHouse without
@@ -177,7 +185,7 @@ on its value.
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
-| GET | `/execution/:type/latest` | `:type` (execution intent type, or `status` for status query) | `source`, `symbol`, `timeframe` | Latest execution intent for the partition. When `:type == "status"`, the handler dispatches to `GetExecutionStatus`. Gated on `GetLatestExecution \|\| GetExecutionStatus`. |
+| GET | `/execution/:type/latest` | `:type` (execution intent type, or `status` for status query) | `source`, `base`+`quote`+`contract`, `timeframe` | Latest execution intent for the partition. When `:type == "status"`, the handler dispatches to `GetExecutionStatus`. Gated on `GetLatestExecution \|\| GetExecutionStatus`. |
 | GET | `/execution/:type` | `:type == "control"` (required) | — | Read the execution control gate state. Gated on `GetExecutionControl`. |
 | PUT | `/execution/:type` | `:type == "control"` (required) | — (body) | Set the execution control gate state from JSON body. Gated on `SetExecutionControl`. |
 
@@ -198,11 +206,11 @@ verify the overall activation surface. Gated on `GetActivationSurface`.
 ### 7. Execution source explain (1 route)
 
 Composite explainability endpoint aggregating activation, gate,
-config, and status for a given source/symbol/timeframe.
+config, and status for a given source/instrument/timeframe partition.
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
-| GET | `/execution-source-explain` | — | `source`, `symbol`, `timeframe` | Aggregate explainability for a partition |
+| GET | `/execution-source-explain` | — | `source`, `base`+`quote`+`contract`, `timeframe` | Aggregate explainability for a partition |
 
 **Path note:** This used to be `/execution/source-explain` but was
 renamed in P0.6 to avoid an httprouter trie conflict with
@@ -222,16 +230,16 @@ gated on its own dep (`GetCandleHistory`, `GetSignalHistory`, etc.).
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
-| GET | `/analytical/evidence/candles` | — | `source`, `symbol`, `timeframe`, `limit`, `since`, `until` | Historical candles within an optional time range |
-| GET | `/analytical/signal/history` | — | `source`, `symbol`, `timeframe`, `type`, `limit`, `since`, `until` | Historical signal events filtered by `type` |
-| GET | `/analytical/decision/history` | — | `source`, `symbol`, `timeframe`, `type`, `outcome`, `limit`, `since`, `until` | Historical decision events filtered by `type` / `outcome` |
-| GET | `/analytical/strategy/history` | — | `source`, `symbol`, `timeframe`, `type`, `direction`, `limit`, `since`, `until` | Historical strategy resolutions filtered by `type` / `direction` |
-| GET | `/analytical/risk/history` | — | `source`, `symbol`, `timeframe`, `type`, `disposition`, `limit`, `since`, `until` | Historical risk assessments filtered by `type` / `disposition` |
-| GET | `/analytical/execution/history` | — | `source`, `symbol`, `timeframe`, `type`, `side`, `status`, `limit`, `since`, `until` | Historical execution intents and fills |
-| GET | `/analytical/execution/lifecycle` | — | `source`, `symbol`, `timeframe`, `side`, `status`, `limit`, `since`, `until` | Execution lifecycle events as a time series |
-| GET | `/analytical/execution/list` | — | `source`, `symbol`, `timeframe`, `limit`, `since`, `until` | List of execution intents |
-| GET | `/analytical/execution/summary` | — | `source`, `symbol`, `timeframe`, `since`, `until` | Aggregated execution summary statistics |
-| GET | `/analytical/execution/explain` | — | `type`, `source`, `symbol`, `side`, `status` | Per-intent explainability bundle for a session |
+| GET | `/analytical/evidence/candles` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `limit`, `since`, `until` | Historical candles within an optional time range |
+| GET | `/analytical/signal/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `type`, `limit`, `since`, `until` | Historical signal events filtered by `type` |
+| GET | `/analytical/decision/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `type`, `outcome`, `limit`, `since`, `until` | Historical decision events filtered by `type` / `outcome` |
+| GET | `/analytical/strategy/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `type`, `direction`, `limit`, `since`, `until` | Historical strategy resolutions filtered by `type` / `direction` |
+| GET | `/analytical/risk/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `type`, `disposition`, `limit`, `since`, `until` | Historical risk assessments filtered by `type` / `disposition` |
+| GET | `/analytical/execution/history` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `type`, `side`, `status`, `limit`, `since`, `until` | Historical execution intents and fills |
+| GET | `/analytical/execution/lifecycle` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `side`, `status`, `limit`, `since`, `until` | Execution lifecycle events as a time series |
+| GET | `/analytical/execution/list` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `limit`, `since`, `until` | List of execution intents |
+| GET | `/analytical/execution/summary` | — | `source`, `base`+`quote`+`contract`, `timeframe`, `since`, `until` | Aggregated execution summary statistics |
+| GET | `/analytical/execution/explain` | — | `type`, `source`, `base`+`quote`+`contract`, `side`, `status` | Per-intent explainability bundle for a session |
 
 `limit` defaults to a backend-defined value when omitted. `since`/`until`
 take UNIX timestamps (seconds) and bound the query window.
@@ -247,8 +255,8 @@ effectiveness summaries). All gated under a single envelope check
 
 | Method | Path | Query params | Purpose |
 |---|---|---|---|
-| GET | `/analytical/composite/chain` | `correlation_id`, `symbol` | Full event chain for a correlation id |
-| GET | `/analytical/composite/chains` | `correlation_id`, `symbol` | List of chains matching the filters |
+| GET | `/analytical/composite/chain` | `correlation_id`, `base`+`quote`+`contract` | Full event chain for a correlation id |
+| GET | `/analytical/composite/chains` | `correlation_id`, `base`+`quote`+`contract` | List of chains matching the filters |
 | GET | `/analytical/composite/funnel` | `type` | Pipeline funnel breakdown by stage |
 | GET | `/analytical/composite/dispositions` | `type` | Disposition (final outcome) breakdown |
 
@@ -256,9 +264,9 @@ effectiveness summaries). All gated under a single envelope check
 
 | Method | Path | Query params | Purpose |
 |---|---|---|---|
-| GET | `/analytical/composite/decision/review` | `correlation_id`, `symbol`, `outcome` | One-decision review bundle |
+| GET | `/analytical/composite/decision/review` | `correlation_id`, `base`+`quote`+`contract`, `outcome` | One-decision review bundle |
 | GET | `/analytical/composite/decision/reviews` | `outcome` | List of decision review bundles |
-| GET | `/analytical/composite/decision/effectiveness` | `correlation_id`, `symbol` | Effectiveness for a specific decision chain |
+| GET | `/analytical/composite/decision/effectiveness` | `correlation_id`, `base`+`quote`+`contract` | Effectiveness for a specific decision chain |
 | GET | `/analytical/composite/decision/effectiveness/batch` | `decision_type`, `strategy_type`, `severity`, `effectiveness` (filters) | Batch effectiveness across many decisions |
 | GET | `/analytical/composite/decision/effectiveness/summary` | `group_by`, `decision_type`, `strategy_type`, `severity` | Aggregated effectiveness summary by group |
 
@@ -284,7 +292,7 @@ Each route gated on its respective dep.
 | GET | `/analytical/triage/sessions` | `limit`, `status`, `check`, `severity` | Sessions filtered by triage status / check name / severity |
 | GET | `/analytical/triage/decisions` | `limit`, `severity` | Decisions flagged for operational review |
 | GET | `/analytical/triage/roundtrips` | `limit`, `severity` | Round-trip pairings flagged for review |
-| GET | `/analytical/triage/overview` | `timeframe`, `since`, `until`, `session_status`, `source`, `symbol` | Overview snapshot across triage categories |
+| GET | `/analytical/triage/overview` | `timeframe`, `since`, `until`, `session_status`, `source`, `base`+`quote`+`contract` | Overview snapshot across triage categories |
 
 ### 11. Sessions (6 routes)
 
@@ -372,7 +380,7 @@ from route group to handler file(s):
 | 12. Monitoring | `monitoring.go` |
 
 A shared helper `parseQueryKeyParams(r)` in `handlers/common.go`
-extracts `source` / `symbol` / `timeframe` for `*_LATEST` endpoints.
+extracts `source` / `base`+`quote`+`contract` / `timeframe` for `*_LATEST` endpoints.
 The path param helper `pathParam(r, "name")` extracts httprouter
 params.
 

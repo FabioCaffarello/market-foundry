@@ -88,4 +88,3 @@ func lookupSeverityFactor(severity string, factorMap map[string]float64) float64
 	}
 	return 1.0
 }
-

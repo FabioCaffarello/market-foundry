@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,7 +34,8 @@ func NewSignalReader(client *Client, logger *slog.Logger) *SignalReader {
 
 // QuerySignalHistory queries signals from ClickHouse with filters.
 // Results are ordered newest-first (DESC by timestamp).
-func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, source, symbol string, timeframe int, since, until int64, limit int) ([]signal.Signal, error) {
+func (r *SignalReader) QuerySignalHistory(ctx context.Context, signalType, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64, limit int) ([]signal.Signal, error) {
+	symbol := inst.LegacyFilterValue()
 	query, args := BuildSignalQuery(signalType, source, symbol, timeframe, since, until, limit)
 
 	start := time.Now()

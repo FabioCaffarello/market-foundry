@@ -190,11 +190,11 @@ func TestS407_PartitionKey_SegmentIsolation(t *testing.T) {
 	if spotKey == futuresKey {
 		t.Fatalf("partition keys must differ: spot=%s futures=%s", spotKey, futuresKey)
 	}
-	if spotKey != "binances.btcusdt.60" {
-		t.Errorf("spot partition key: expected binances.btcusdt.60, got %s", spotKey)
+	if spotKey != "binances.btc_usdt_spot.60" {
+		t.Errorf("spot partition key: expected binances.btc_usdt_spot.60, got %s", spotKey)
 	}
-	if futuresKey != "binancef.btcusdt.60" {
-		t.Errorf("futures partition key: expected binancef.btcusdt.60, got %s", futuresKey)
+	if futuresKey != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("futures partition key: expected binancef.btc_usdt_perpetual.60, got %s", futuresKey)
 	}
 }
 

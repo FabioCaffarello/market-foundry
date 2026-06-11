@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -19,7 +21,7 @@ type ExecutionSummaryRawRow struct {
 // ExecutionSummaryReader is the local interface for reading execution summary
 // (counts by type/status) from the analytical store.
 type ExecutionSummaryReader interface {
-	QueryExecutionSummary(ctx context.Context, source, symbol string, timeframe int, since, until int64) ([]ExecutionSummaryRawRow, error)
+	QueryExecutionSummary(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int, since, until int64) ([]ExecutionSummaryRawRow, error)
 }
 
 // GetExecutionSummaryUseCase queries the analytical store for execution counts
@@ -41,7 +43,7 @@ func (uc *GetExecutionSummaryUseCase) Execute(ctx context.Context, query Executi
 		return ExecutionSummaryReply{}, problem.New(problem.Unavailable, "analytical execution summary reader is unavailable")
 	}
 
-	hasFilter := query.Source != "" || query.Symbol != "" || query.Timeframe > 0 || query.Since > 0 || query.Until > 0
+	hasFilter := query.Source != "" || !query.Instrument.IsZero() || query.Timeframe > 0 || query.Since > 0 || query.Until > 0
 	if !hasFilter {
 		return ExecutionSummaryReply{}, problem.New(problem.InvalidArgument, "at least one filter is required (source, symbol, timeframe, since, or until)")
 	}
@@ -57,12 +59,12 @@ func (uc *GetExecutionSummaryUseCase) Execute(ctx context.Context, query Executi
 	}
 
 	start := time.Now()
-	rows, err := uc.reader.QueryExecutionSummary(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until)
+	rows, err := uc.reader.QueryExecutionSummary(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical execution summary query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return ExecutionSummaryReply{}, problem.Wrap(err, problem.Unavailable, "analytical execution summary query failed")
@@ -81,7 +83,7 @@ func (uc *GetExecutionSummaryUseCase) Execute(ctx context.Context, query Executi
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical execution summary query completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"groups", len(entries), "query_ms", queryMs,
 	)
 

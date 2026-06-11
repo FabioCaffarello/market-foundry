@@ -36,10 +36,10 @@ func TestGetLatestCandleUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query evidenceclient.CandleLatestQuery
 	}{
-		{"empty source", evidenceclient.CandleLatestQuery{Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", evidenceclient.CandleLatestQuery{Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", evidenceclient.CandleLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", evidenceclient.CandleLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty source", evidenceclient.CandleLatestQuery{Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", evidenceclient.CandleLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", evidenceclient.CandleLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", evidenceclient.CandleLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -71,9 +71,9 @@ func TestGetLatestCandleUseCase_ReturnsCandle(t *testing.T) {
 
 	uc := evidenceclient.NewGetLatestCandleUseCase(&mockEvidenceGateway{candle: candle})
 	reply, prob := uc.Execute(context.Background(), evidenceclient.CandleLatestQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -89,9 +89,9 @@ func TestGetLatestCandleUseCase_ReturnsCandle(t *testing.T) {
 func TestGetLatestCandleUseCase_NilGateway(t *testing.T) {
 	var uc *evidenceclient.GetLatestCandleUseCase
 	_, prob := uc.Execute(context.Background(), evidenceclient.CandleLatestQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

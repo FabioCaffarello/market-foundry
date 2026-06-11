@@ -149,7 +149,7 @@ phase "Phase 4: HTTP Composite Surface"
 # ══════════════════════════════════════════════════════════════════════
 
 info "Querying composite chains endpoint..."
-CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&symbol=btcusdt&timeframe=60"
+CHAINS_URL="${BASE_URL}/analytical/composite/chains?source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
 CHAINS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${CHAINS_URL}&limit=5")
 
 if [[ "$CHAINS_CODE" == "200" ]]; then
@@ -198,7 +198,7 @@ else
 fi
 
 info "Querying pipeline funnel endpoint..."
-FUNNEL_URL="${BASE_URL}/analytical/composite/funnel?type=paper_order&source=binancef&symbol=btcusdt&timeframe=60"
+FUNNEL_URL="${BASE_URL}/analytical/composite/funnel?type=paper_order&source=binancef&base=btc&quote=usdt&contract=perpetual&timeframe=60"
 FUNNEL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$FUNNEL_URL")
 
 if [[ "$FUNNEL_CODE" == "200" ]]; then

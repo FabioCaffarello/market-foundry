@@ -21,7 +21,7 @@ type Tracker struct {
 	eventCount  atomic.Int64
 	errorCount  atomic.Int64
 
-	mu      sync.Mutex
+	mu       sync.Mutex
 	counters map[string]*atomic.Int64
 }
 
@@ -138,9 +138,9 @@ type statusResponse struct {
 
 // Health server defaults.
 const (
-	DefaultIdleThreshold      = 2 * time.Minute
-	DefaultHeartbeatInterval  = 30 * time.Second
-	DefaultStartingThreshold  = 30 * time.Second
+	DefaultIdleThreshold     = 2 * time.Minute
+	DefaultHeartbeatInterval = 30 * time.Second
+	DefaultStartingThreshold = 30 * time.Second
 )
 
 // HealthServer provides /healthz, /readyz, /statusz, and /diagz endpoints.

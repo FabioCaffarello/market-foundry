@@ -19,7 +19,8 @@ import (
 // S491: Extended to also produce the unified operational report after
 // verification, closing G-OA2 (unified report artifact) and G-OA5
 // (end-to-end automation proof). The chain is:
-//   session halt → lifecycle event → trigger → verify → unified report → log
+//
+//	session halt → lifecycle event → trigger → verify → unified report → log
 //
 // Fail-closed semantics:
 //   - If verification fails: log error, do not retry (same inputs would fail again).

@@ -275,7 +275,7 @@ func TestRestartRecovery_KVProjection_PersistsAcrossRestart(t *testing.T) {
 	}
 	defer store2.Close()
 
-	got, prob := store2.Get(context.Background(), "binancef", "btcusdt", 60)
+	got, prob := store2.Get(context.Background(), "binancef", btcUSDTPerpKV(t), 60)
 	if prob != nil {
 		t.Fatalf("get after restart: %s", prob.Message)
 	}

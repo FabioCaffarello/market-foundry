@@ -25,6 +25,8 @@ package clickhouse_test
 //   Skipped when CLICKHOUSE_DSN is not set.
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"fmt"
 	"log/slog"
@@ -217,6 +219,15 @@ func ethFixture() liveExecFixture {
 	}
 }
 
+func compInstForLive(t *testing.T, base string) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New(base, "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("instrument.New(%s/USDT): %v", base, prob)
+	}
+	return inst
+}
+
 // TestLiveAnalyticalExecution_FullRoundTrip proves the complete write→read cycle
 // against a real ClickHouse instance. This is the S277 live analytical execution proof.
 func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
@@ -242,7 +253,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-1 + LAE-2: Basic queryability and field coherence ──
 	t.Run("LAE-1/LAE-2_BasicQueryAndFieldCoherence", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query: %v", err)
 		}
@@ -263,7 +274,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 	// ── LAE-3: Side and status filters ──
 	t.Run("LAE-3_SideAndStatusFilters", func(t *testing.T) {
 		// Filter by side=buy
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query side=buy: %v", err)
 		}
@@ -273,7 +284,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 		assertField(t, "side", string(results[0].Side), "buy")
 
 		// Filter by status=partially_filled
-		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "", "partially_filled", 0, 0, 50)
+		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "", "partially_filled", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query status=partially_filled: %v", err)
 		}
@@ -283,7 +294,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 		assertField(t, "status", string(results[0].Status), "partially_filled")
 
 		// Combined: side=buy + status=filled
-		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "filled", 0, 0, 50)
+		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "filled", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query side=buy+status=filled: %v", err)
 		}
@@ -296,7 +307,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 	t.Run("LAE-4_TimeRangeFilters", func(t *testing.T) {
 		// Since = buy's timestamp → should include both buy and sell
 		since := laeTime.Unix()
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "", "", since, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "", "", since, 0, 50)
 		if err != nil {
 			t.Fatalf("query since: %v", err)
 		}
@@ -306,7 +317,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 		// Until = buy's timestamp → should include only buy
 		until := laeTime.Unix()
-		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "", "", 0, until, 50)
+		results, err = reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "", "", 0, until, 50)
 		if err != nil {
 			t.Fatalf("query until: %v", err)
 		}
@@ -318,7 +329,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-5: RiskInput JSON round-trip ──
 	t.Run("LAE-5_RiskInputRoundTrip", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query: %v", err)
 		}
@@ -338,7 +349,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-6: FillRecord array round-trip ──
 	t.Run("LAE-6_FillRecordRoundTrip", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query: %v", err)
 		}
@@ -356,7 +367,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-7: Parameters and metadata maps ──
 	t.Run("LAE-7_ParametersAndMetadataRoundTrip", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query: %v", err)
 		}
@@ -374,7 +385,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-8: Multi-symbol partition isolation ──
 	t.Run("LAE-8_MultiSymbolIsolation", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "ethusdt", 300, "", "", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "ETH"), 300, "", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query ethusdt: %v", err)
 		}
@@ -391,7 +402,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 		}
 
 		// btcusdt query should NOT return ethusdt
-		btcResults, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 300, "", "", 0, 0, 50)
+		btcResults, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 300, "", "", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query btcusdt/300: %v", err)
 		}
@@ -402,7 +413,7 @@ func TestLiveAnalyticalExecution_FullRoundTrip(t *testing.T) {
 
 	// ── LAE-9: Full field-level coherence between emitted and queried ──
 	t.Run("LAE-9_FullCoherenceCheck", func(t *testing.T) {
-		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", "btcusdt", 60, "buy", "filled", 0, 0, 50)
+		results, err := reader.QueryExecutionHistory(ctx, "paper_order", "binancef", compInstForLive(t, "BTC"), 60, "buy", "filled", 0, 0, 50)
 		if err != nil {
 			t.Fatalf("query: %v", err)
 		}

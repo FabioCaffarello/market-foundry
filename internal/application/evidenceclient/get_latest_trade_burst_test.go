@@ -1,6 +1,8 @@
 package evidenceclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -26,10 +28,10 @@ func TestGetLatestTradeBurstUseCase_ValidatesInput(t *testing.T) {
 		name  string
 		query evidenceclient.TradeBurstLatestQuery
 	}{
-		{"empty source", evidenceclient.TradeBurstLatestQuery{Source: "", Symbol: "btcusdt", Timeframe: 60}},
-		{"empty symbol", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Symbol: "", Timeframe: 60}},
-		{"zero timeframe", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: 0}},
-		{"negative timeframe", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Symbol: "btcusdt", Timeframe: -1}},
+		{"empty source", evidenceclient.TradeBurstLatestQuery{Source: "", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 60}},
+		{"zero instrument", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{}, Timeframe: 60}},
+		{"zero timeframe", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: 0}},
+		{"negative timeframe", evidenceclient.TradeBurstLatestQuery{Source: "binancef", Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual}, Timeframe: -1}},
 	}
 
 	for _, tc := range tests {
@@ -59,9 +61,9 @@ func TestGetLatestTradeBurstUseCase_ReturnsTradeBurst(t *testing.T) {
 
 	uc := evidenceclient.NewGetLatestTradeBurstUseCase(&mockTradeBurstGateway{burst: burst})
 	reply, prob := uc.Execute(context.Background(), evidenceclient.TradeBurstLatestQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob != nil {
 		t.Fatalf("unexpected error: %v", prob)
@@ -77,9 +79,9 @@ func TestGetLatestTradeBurstUseCase_ReturnsTradeBurst(t *testing.T) {
 func TestGetLatestTradeBurstUseCase_NilGateway(t *testing.T) {
 	var uc *evidenceclient.GetLatestTradeBurstUseCase
 	_, prob := uc.Execute(context.Background(), evidenceclient.TradeBurstLatestQuery{
-		Source:    "binancef",
-		Symbol:    "btcusdt",
-		Timeframe: 60,
+		Source:     "binancef",
+		Instrument: instrument.CanonicalInstrument{Base: "BTC", Quote: "USDT", Contract: instrument.ContractPerpetual},
+		Timeframe:  60,
 	})
 	if prob == nil {
 		t.Fatal("expected unavailable error")

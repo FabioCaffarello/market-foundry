@@ -147,7 +147,7 @@ func (a *FillProjectionActor) onFill(msg fillReceivedMessage) {
 	// Gate RC-1: Fill-to-intent correlation (orphan detection).
 	if a.intentStore != nil {
 		rcCtx, rcCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		matchingIntent, _ := a.intentStore.Get(rcCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe)
+		matchingIntent, _ := a.intentStore.Get(rcCtx, intent.Source, intent.Instrument, intent.Timeframe)
 		rcCancel()
 		if matchingIntent == nil {
 			a.stats.orphaned.Add(1)

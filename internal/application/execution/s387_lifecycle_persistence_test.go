@@ -1,6 +1,8 @@
 package execution_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"testing"
 	"time"
@@ -188,7 +190,7 @@ type s387MockPriceSource struct {
 
 var _ ports.PriceSource = (*s387MockPriceSource)(nil)
 
-func (m *s387MockPriceSource) LastPrice(_ context.Context, _, _ string, _ int) (string, *problem.Problem) {
+func (m *s387MockPriceSource) LastPrice(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int) (string, *problem.Problem) {
 	return m.price, m.prob
 }
 

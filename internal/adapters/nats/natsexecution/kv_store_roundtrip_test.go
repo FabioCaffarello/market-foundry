@@ -17,6 +17,15 @@ import (
 	"internal/domain/instrument"
 )
 
+func mustPerpKV(t *testing.T, base string) instrument.CanonicalInstrument {
+	t.Helper()
+	inst, prob := instrument.New(base, "USDT", instrument.ContractPerpetual)
+	if prob != nil {
+		t.Fatalf("setup %s/USDT: %v", base, prob)
+	}
+	return inst
+}
+
 func btcUSDTPerpKV(t *testing.T) instrument.CanonicalInstrument {
 	t.Helper()
 	inst, prob := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
@@ -123,7 +132,7 @@ func TestKVRoundTrip_AllFieldsSurvive(t *testing.T) {
 		t.Fatalf("expected PutWritten, got %s", result)
 	}
 
-	got, prob := store.Get(ctx, "binancef", "btcusdt", 60)
+	got, prob := store.Get(ctx, "binancef", btcUSDTPerpKV(t), 60)
 	if prob != nil {
 		t.Fatalf("get: %s", prob.Message)
 	}
@@ -245,7 +254,7 @@ func TestKVRoundTrip_MonotonicityGuard_RejectsStale(t *testing.T) {
 	}
 
 	// Verify the stored value is still the newer one.
-	got, prob := store.Get(ctx, "binancef", "btcusdt", 60)
+	got, prob := store.Get(ctx, "binancef", btcUSDTPerpKV(t), 60)
 	if prob != nil {
 		t.Fatalf("get: %s", prob.Message)
 	}
@@ -328,7 +337,11 @@ func TestKVRoundTrip_MultiSymbol_Isolation(t *testing.T) {
 	// Verify each symbol is independently readable.
 	for _, b := range bases {
 		sym := b.venueSym
-		got, prob := store.Get(ctx, "binancef", sym, 60)
+		inst, prob := instrument.New(b.base, "USDT", instrument.ContractPerpetual)
+		if prob != nil {
+			t.Fatalf("setup %s: %v", b.base, prob)
+		}
+		got, prob := store.Get(ctx, "binancef", inst, 60)
 		if prob != nil {
 			t.Fatalf("get %s: %s", sym, prob.Message)
 		}
@@ -356,7 +369,7 @@ func TestKVRoundTrip_GetMissing_ReturnsNil(t *testing.T) {
 	defer store.Close()
 
 	ctx := context.Background()
-	got, prob := store.Get(ctx, "binancef", "nonexistent", 60)
+	got, prob := store.Get(ctx, "binancef", instrument.CanonicalInstrument{Base: "NONE", Quote: "USDT", Contract: instrument.ContractPerpetual}, 60)
 	if prob != nil {
 		t.Fatalf("get missing: unexpected error: %s", prob.Message)
 	}
@@ -401,7 +414,7 @@ func TestKVRoundTrip_Overwrite_AdvancesToNewer(t *testing.T) {
 	}
 
 	// Verify latest is t2.
-	got, prob := store.Get(ctx, "binancef", "btcusdt", 60)
+	got, prob := store.Get(ctx, "binancef", btcUSDTPerpKV(t), 60)
 	if prob != nil {
 		t.Fatalf("get: %s", prob.Message)
 	}
@@ -445,7 +458,7 @@ func TestKVRoundTrip_NoActionIntent_SurvivesRoundTrip(t *testing.T) {
 		t.Fatalf("expected PutWritten, got %s", result)
 	}
 
-	got, prob := store.Get(ctx, "binancef", "btcusdt", 60)
+	got, prob := store.Get(ctx, "binancef", btcUSDTPerpKV(t), 60)
 	if prob != nil {
 		t.Fatalf("get: %s", prob.Message)
 	}

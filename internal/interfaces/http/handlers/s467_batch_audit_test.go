@@ -25,21 +25,25 @@ func (m *mockBatchAuditUseCase) Execute(_ context.Context, _ executionclient.Ses
 }
 
 type mockGetSession struct{}
+
 func (m *mockGetSession) Execute(_ context.Context, q executionclient.SessionGetQuery) (executionclient.SessionGetReply, *problem.Problem) {
 	return executionclient.SessionGetReply{}, nil
 }
 
 type mockListSessions struct{}
+
 func (m *mockListSessions) Execute(_ context.Context, _ executionclient.SessionListQuery) (executionclient.SessionListReply, *problem.Problem) {
 	return executionclient.SessionListReply{}, nil
 }
 
 type mockVerifySession struct{}
+
 func (m *mockVerifySession) Execute(_ context.Context, _ executionclient.SessionVerifyQuery) (executionclient.SessionVerifyReply, *problem.Problem) {
 	return executionclient.SessionVerifyReply{}, nil
 }
 
 type mockAuditSession struct{}
+
 func (m *mockAuditSession) Execute(_ context.Context, _ executionclient.SessionAuditQuery) (executionclient.SessionAuditReply, *problem.Problem) {
 	return executionclient.SessionAuditReply{}, nil
 }

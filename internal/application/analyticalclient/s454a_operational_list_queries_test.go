@@ -1,6 +1,8 @@
 package analyticalclient_test
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"errors"
 	"testing"
@@ -17,7 +19,7 @@ type stubExecutionListReader struct {
 	err     error
 }
 
-func (s *stubExecutionListReader) QueryExecutionList(_ context.Context, _, _, _ string, _ int, _, _ string, _, _ int64, _ int) ([]execution.ExecutionIntent, error) {
+func (s *stubExecutionListReader) QueryExecutionList(_ context.Context, _, _ string, _ instrument.CanonicalInstrument, _ int, _, _ string, _, _ int64, _ int) ([]execution.ExecutionIntent, error) {
 	return s.intents, s.err
 }
 
@@ -122,7 +124,7 @@ type stubExecutionSummaryReader struct {
 	err  error
 }
 
-func (s *stubExecutionSummaryReader) QueryExecutionSummary(_ context.Context, _, _ string, _ int, _, _ int64) ([]analyticalclient.ExecutionSummaryRawRow, error) {
+func (s *stubExecutionSummaryReader) QueryExecutionSummary(_ context.Context, _ string, _ instrument.CanonicalInstrument, _ int, _, _ int64) ([]analyticalclient.ExecutionSummaryRawRow, error) {
 	return s.rows, s.err
 }
 

@@ -55,15 +55,15 @@ func (uc *GetPairingUseCase) Execute(ctx context.Context, query PairingQuery) (P
 }
 
 func (uc *GetPairingUseCase) executeSingle(ctx context.Context, query PairingQuery, start time.Time) (PairingReply, *problem.Problem) {
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return PairingReply{}, problem.New(problem.InvalidArgument, "symbol is required for single-chain pairing lookup (S301 isolation)")
 	}
 
-	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Symbol)
+	chain, err := uc.reader.QueryChainByCorrelationID(ctx, query.CorrelationID, query.Instrument)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("pairing single query failed",
-			"correlation_id", query.CorrelationID, "symbol", query.Symbol,
+			"correlation_id", query.CorrelationID, "instrument", query.Instrument.Symbol(),
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return PairingReply{}, problem.Wrap(err, problem.Unavailable, "pairing query failed")
@@ -100,7 +100,7 @@ func (uc *GetPairingUseCase) executeBatch(ctx context.Context, query PairingQuer
 	if query.Source == "" {
 		return PairingReply{}, problem.New(problem.InvalidArgument, "source is required for batch pairing")
 	}
-	if query.Symbol == "" {
+	if query.Instrument.IsZero() {
 		return PairingReply{}, problem.New(problem.InvalidArgument, "symbol is required for batch pairing")
 	}
 	if query.Timeframe <= 0 {
@@ -114,11 +114,11 @@ func (uc *GetPairingUseCase) executeBatch(ctx context.Context, query PairingQuer
 		query.Limit = pairingMaxLimit
 	}
 
-	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Symbol, query.Timeframe, query.Since, query.Until, query.Limit)
+	chains, err := uc.reader.QueryChainsBatch(ctx, query.Source, query.Instrument, query.Timeframe, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 	if err != nil {
 		uc.logger.Warn("pairing batch query failed",
-			"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return PairingReply{}, problem.Wrap(err, problem.Unavailable, "pairing batch query failed")
@@ -151,7 +151,7 @@ func (uc *GetPairingUseCase) executeBatch(ctx context.Context, query PairingQuer
 	summary := buildPairingSummary(roundTrips, views)
 
 	uc.logger.Info("pairing batch completed",
-		"source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"chains_scanned", len(chains), "legs_produced", len(legs),
 		"round_trips", len(views), "paired", summary.PairedCount,
 		"resolved_rate", summary.ResolvedRate,

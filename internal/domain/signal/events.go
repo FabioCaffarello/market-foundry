@@ -12,5 +12,5 @@ type SignalGeneratedEvent struct {
 	Signal   Signal          `json:"signal"`
 }
 
-func (e SignalGeneratedEvent) EventName() events.Name        { return EventSignalGenerated }
+func (e SignalGeneratedEvent) EventName() events.Name         { return EventSignalGenerated }
 func (e SignalGeneratedEvent) EventMetadata() events.Metadata { return e.Metadata }

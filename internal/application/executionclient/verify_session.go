@@ -1,6 +1,9 @@
 package executionclient
 
 import (
+	appingest "internal/application/ingest"
+	"internal/domain/instrument"
+
 	"context"
 	"time"
 
@@ -22,7 +25,7 @@ type VerifySessionReader interface {
 // VerifyCHSummary returns execution summary from ClickHouse.
 // S485: Accepts since/until bounds for session-scoped queries.
 type VerifyCHSummary interface {
-	Summary(ctx context.Context, symbol string, since, until int64) (total int64, err *problem.Problem)
+	Summary(ctx context.Context, inst instrument.CanonicalInstrument, since, until int64) (total int64, err *problem.Problem)
 }
 
 // VerifyCHListResult is a minimal representation of a ClickHouse execution row
@@ -37,12 +40,12 @@ type VerifyCHListResult struct {
 // VerifyCHLister queries ClickHouse for execution records.
 // S485: Accepts since/until bounds for session-scoped queries.
 type VerifyCHLister interface {
-	List(ctx context.Context, symbol, execType, status string, limit int, since, until int64) ([]VerifyCHListResult, *problem.Problem)
+	List(ctx context.Context, inst instrument.CanonicalInstrument, execType, status string, limit int, since, until int64) ([]VerifyCHListResult, *problem.Problem)
 }
 
 // VerifyConsistencyChecker performs CH-vs-KV lifecycle consistency checks.
 type VerifyConsistencyChecker interface {
-	CheckConsistency(ctx context.Context, source, symbol string, timeframe int) (consistent bool, evidence map[string]any, err *problem.Problem)
+	CheckConsistency(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (consistent bool, evidence map[string]any, err *problem.Problem)
 }
 
 // VerifySessionUseCase runs the automated subset of PO checks for a session.
@@ -230,8 +233,14 @@ func (uc *VerifySessionUseCase) checkIntentRecords(ctx context.Context, scope ex
 		return result
 	}
 
-	symbol := scopeSymbol(scope)
-	total, prob := uc.chSummary.Summary(ctx, symbol, scope.Since.Unix(), scope.Until.Unix())
+	inst, instErr := scopeInstrument(scope)
+	if instErr != nil {
+		result.Verdict = execution.VerdictSkip
+		result.Detail = "Cannot derive canonical instrument from scope: " + instErr.Error()
+		result.DurationMs = time.Since(start).Milliseconds()
+		return result
+	}
+	total, prob := uc.chSummary.Summary(ctx, inst, scope.Since.Unix(), scope.Until.Unix())
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	if prob != nil {
@@ -240,7 +249,7 @@ func (uc *VerifySessionUseCase) checkIntentRecords(ctx context.Context, scope ex
 		return result
 	}
 
-	result.Evidence = map[string]any{"total_records": total, "symbol": symbol}
+	result.Evidence = map[string]any{"total_records": total, "instrument": inst.Symbol()}
 
 	if total > 0 {
 		result.Verdict = execution.VerdictPass
@@ -268,8 +277,14 @@ func (uc *VerifySessionUseCase) checkVenueResponses(ctx context.Context, scope e
 		return result
 	}
 
-	symbol := scopeSymbol(scope)
-	rows, prob := uc.chLister.List(ctx, symbol, "venue_market_order", "", 10, scope.Since.Unix(), scope.Until.Unix())
+	inst, instErr := scopeInstrument(scope)
+	if instErr != nil {
+		result.Verdict = execution.VerdictSkip
+		result.Detail = "Cannot derive canonical instrument from scope: " + instErr.Error()
+		result.DurationMs = time.Since(start).Milliseconds()
+		return result
+	}
+	rows, prob := uc.chLister.List(ctx, inst, "venue_market_order", "", 10, scope.Since.Unix(), scope.Until.Unix())
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	if prob != nil {
@@ -278,7 +293,7 @@ func (uc *VerifySessionUseCase) checkVenueResponses(ctx context.Context, scope e
 		return result
 	}
 
-	result.Evidence = map[string]any{"count": len(rows), "symbol": symbol}
+	result.Evidence = map[string]any{"count": len(rows), "instrument": inst.Symbol()}
 
 	if len(rows) > 0 {
 		result.Verdict = execution.VerdictPass
@@ -328,8 +343,14 @@ func (uc *VerifySessionUseCase) checkFeeFields(ctx context.Context, scope execut
 		return result
 	}
 
-	symbol := scopeSymbol(scope)
-	rows, prob := uc.chLister.List(ctx, symbol, "", "filled", 10, scope.Since.Unix(), scope.Until.Unix())
+	inst, instErr := scopeInstrument(scope)
+	if instErr != nil {
+		result.Verdict = execution.VerdictSkip
+		result.Detail = "Cannot derive canonical instrument from scope: " + instErr.Error()
+		result.DurationMs = time.Since(start).Milliseconds()
+		return result
+	}
+	rows, prob := uc.chLister.List(ctx, inst, "", "filled", 10, scope.Since.Unix(), scope.Until.Unix())
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	if prob != nil {
@@ -370,7 +391,7 @@ func (uc *VerifySessionUseCase) checkFeeFields(ctx context.Context, scope execut
 		"fills_with_fee":      fillsWithFee,
 		"fills_expected_zero": fillsExpectedZero,
 		"fills_fallback":      fillsFallback,
-		"symbol":              symbol,
+		"instrument":          inst.Symbol(),
 	}
 
 	if totalFills == 0 {
@@ -409,8 +430,14 @@ func (uc *VerifySessionUseCase) checkLifecycleConsistency(ctx context.Context, s
 	if source == "" {
 		source = "binance_spot"
 	}
-	symbol := scopeSymbol(scope)
-	consistent, evidence, prob := uc.consistency.CheckConsistency(ctx, source, symbol, 60)
+	inst, instErr := scopeInstrument(scope)
+	if instErr != nil {
+		result.Verdict = execution.VerdictSkip
+		result.Detail = "Cannot derive canonical instrument from scope: " + instErr.Error()
+		result.DurationMs = time.Since(start).Milliseconds()
+		return result
+	}
+	consistent, evidence, prob := uc.consistency.CheckConsistency(ctx, source, inst, 60)
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	if prob != nil {
@@ -448,7 +475,7 @@ func (uc *VerifySessionUseCase) checkScopeContainment(ctx context.Context, scope
 	}
 
 	// Query ALL venue orders (all symbols) in session window to detect scope leakage.
-	rows, prob := uc.chLister.List(ctx, "", "venue_market_order", "", 100, scope.Since.Unix(), scope.Until.Unix())
+	rows, prob := uc.chLister.List(ctx, instrument.CanonicalInstrument{}, "venue_market_order", "", 100, scope.Since.Unix(), scope.Until.Unix())
 	result.DurationMs = time.Since(start).Milliseconds()
 
 	if prob != nil {
@@ -487,6 +514,19 @@ func (uc *VerifySessionUseCase) checkScopeContainment(ctx context.Context, scope
 }
 
 // scopeSymbol returns the primary symbol from a verification scope.
+// scopeInstrument derives the canonical instrument for a verification
+// scope via the sanctioned config-boundary helper (H-6.c
+// BindingTarget); checks that need an instrument filter Skip
+// gracefully when the scope's source/symbol cannot be mapped —
+// venue→canonical string inference is banned (H-6.c).
+func scopeInstrument(scope execution.VerificationScope) (instrument.CanonicalInstrument, error) {
+	source := scope.VenueType
+	if source == "" {
+		source = "binance_spot"
+	}
+	return appingest.BindingTarget{Source: source, Symbol: scopeSymbol(scope)}.Instrument()
+}
+
 func scopeSymbol(scope execution.VerificationScope) string {
 	if len(scope.Symbols) > 0 {
 		return scope.Symbols[0]

@@ -35,6 +35,21 @@ const SUBJECTS_POLICY_PATH: &str = "tools/raccoon-cli/policies/subjects.toml";
 #[derive(Debug, Deserialize)]
 struct SubjectsPolicy {
     subjects: SubjectsSection,
+    /// H-6.e.2: KV partition-key invariant (optional until the
+    /// section ships with the e.2 policy).
+    keys: Option<KeysSection>,
+}
+
+#[derive(Debug, Deserialize)]
+struct KeysSection {
+    /// Directory walked for domain files (e.g. "internal/domain").
+    scan_root: String,
+    /// Line marker that opens a PartitionKey implementation.
+    func_marker: String,
+    /// Call that must NOT appear inside the function body.
+    forbidden_call: String,
+    /// Call that MUST appear inside the function body.
+    required_call: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -83,18 +98,21 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     };
 
     let scan_root = project_root.join(&policy.subjects.scan_root);
-    if !scan_root.is_dir() {
+    let subjects_root_ok = scan_root.is_dir();
+    if subjects_root_ok {
+        report.add(CheckResult::pass("scan-root"));
+    } else {
         report.add(CheckResult::skip(
             "scan-root",
             format!("{} not found", scan_root.display()),
         ));
-        return Ok(report);
     }
-    report.add(CheckResult::pass("scan-root"));
 
     let mut files: Vec<PathBuf> = Vec::new();
-    collect_publisher_files(&scan_root, &policy.subjects.file_suffix, &mut files)?;
-    files.sort();
+    if subjects_root_ok {
+        collect_publisher_files(&scan_root, &policy.subjects.file_suffix, &mut files)?;
+        files.sort();
+    }
 
     let mut findings: Vec<Finding> = Vec::new();
     let mut blocks_scanned: usize = 0;
@@ -143,7 +161,7 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
         }
     }
 
-    if findings.is_empty() {
+    if findings.is_empty() && subjects_root_ok {
         report.add(CheckResult::pass("subject-composition"));
         report.add(CheckResult::pass(format!(
             "subject-blocks-scanned ({} blocks in {} publisher files)",
@@ -154,7 +172,124 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
         report.add(CheckResult::from_findings("subject-composition", findings));
     }
 
+    if let Some(keys) = &policy.keys {
+        check_partition_keys(project_root, keys, &mut report)?;
+    }
+
     Ok(report)
+}
+
+/// H-6.e.2 invariant: every `PartitionKey()` implementation under the
+/// declared scan_root composes via the canonical `SubjectToken()` and
+/// never via the transitory `VenueSymbol()`. Block-scoped by brace
+/// depth from the function marker, mirroring the subjects scan —
+/// `VenueSymbol()` elsewhere in domain files (dedup keys, the helper
+/// definitions themselves) is legal until H-6.f and must not flag.
+fn check_partition_keys(
+    project_root: &Path,
+    keys: &KeysSection,
+    report: &mut Report,
+) -> Result<()> {
+    let scan_root = project_root.join(&keys.scan_root);
+    if !scan_root.is_dir() {
+        report.add(CheckResult::skip(
+            "partition-keys-scan-root",
+            format!("{} not found", scan_root.display()),
+        ));
+        return Ok(());
+    }
+
+    let mut files: Vec<PathBuf> = Vec::new();
+    collect_publisher_files(&scan_root, ".go", &mut files)?;
+    files.sort();
+
+    let mut findings: Vec<Finding> = Vec::new();
+    let mut funcs_scanned: usize = 0;
+
+    for file in &files {
+        let content = fs::read_to_string(file)?;
+        let rel = file
+            .strip_prefix(project_root)
+            .unwrap_or(file)
+            .display()
+            .to_string();
+
+        let mut depth: i64 = 0;
+        let mut in_func = false;
+        let mut has_required = false;
+        let mut func_line = 0usize;
+
+        for (idx, line) in content.lines().enumerate() {
+            let lineno = idx + 1;
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+
+            if !in_func && line.contains(&keys.func_marker) {
+                in_func = true;
+                funcs_scanned += 1;
+                has_required = false;
+                func_line = lineno;
+                depth = 1;
+                continue;
+            }
+
+            if in_func {
+                if line.contains(&keys.forbidden_call) {
+                    findings.push(Finding::error(
+                        "partition-key-composition",
+                        format!(
+                            "{rel}:{lineno}: PartitionKey composed via {} — keys use                              Instrument.SubjectToken() since H-6.e.2 (ADR-0021                              criterion #2 erratum)",
+                            keys.forbidden_call
+                        ),
+                    ));
+                }
+                if line.contains(&keys.required_call) {
+                    has_required = true;
+                }
+                depth += paren_brace_delta(line);
+                if depth <= 0 {
+                    if !has_required {
+                        findings.push(Finding::error(
+                            "partition-key-composition",
+                            format!(
+                                "{rel}:{func_line}: PartitionKey does not call {} —                                  keys compose {{source}}.{{subject_token}}.{{timeframe}}                                  since H-6.e.2",
+                                keys.required_call
+                            ),
+                        ));
+                    }
+                    in_func = false;
+                }
+            }
+        }
+    }
+
+    if findings.is_empty() {
+        report.add(CheckResult::pass("partition-key-composition"));
+        report.add(CheckResult::pass(format!(
+            "partition-keys-scanned ({funcs_scanned} composers)"
+        )));
+    } else {
+        report.add(CheckResult::from_findings(
+            "partition-key-composition",
+            findings,
+        ));
+    }
+    Ok(())
+}
+
+/// Net brace depth for function-body tracking.
+fn paren_brace_delta(line: &str) -> i64 {
+    let mut delta: i64 = 0;
+    for ch in line.chars() {
+        match ch {
+            '{' => delta += 1,
+            '}' => delta -= 1,
+            _ => {}
+        }
+    }
+    delta
 }
 
 /// Net parenthesis depth contributed by a line. The subject block
@@ -324,6 +459,111 @@ forbidden_call = "VenueSymbol()"
             tmp.path(),
             "natsdecision",
             "package natsdecision\nfunc f() {\n\tsubject := fmt.Sprintf(\"%s\", tok)\n\tx := event.D.VenueSymbol()\n\t_ = x\n}\n",
+        );
+        let report = analyze(tmp.path()).unwrap();
+        assert!(report_passed(&report), "expected pass: {report:?}");
+    }
+
+    fn write_policy_with_keys(root: &Path) {
+        let dir = root.join("tools/raccoon-cli/policies");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("subjects.toml"),
+            r#"[subjects]
+scan_root = "internal/adapters/nats"
+file_suffix = "publisher.go"
+subject_marker = "subject := fmt.Sprintf("
+forbidden_call = "VenueSymbol()"
+
+[keys]
+scan_root = "internal/domain"
+func_marker = ") PartitionKey() string {"
+forbidden_call = "VenueSymbol()"
+required_call = "SubjectToken()"
+"#,
+        )
+        .unwrap();
+    }
+
+    fn write_domain(root: &Path, pkg: &str, body: &str) {
+        let dir = root.join("internal/domain").join(pkg);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("type.go"), body).unwrap();
+    }
+
+    #[test]
+    fn partition_key_with_subject_token_passes() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_policy_with_keys(tmp.path());
+        write_domain(
+            tmp.path(),
+            "signal",
+            "package signal
+
+func (s Signal) PartitionKey() string {
+	return fmt.Sprintf(\"%s.%s.%d\", s.Source, s.Instrument.SubjectToken(), s.Timeframe)
+}
+",
+        );
+        let report = analyze(tmp.path()).unwrap();
+        assert!(report_passed(&report), "expected pass: {report:?}");
+    }
+
+    #[test]
+    fn partition_key_with_venue_symbol_is_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_policy_with_keys(tmp.path());
+        write_domain(
+            tmp.path(),
+            "signal",
+            "package signal
+
+func (s Signal) PartitionKey() string {
+	return fmt.Sprintf(\"%s.%s.%d\", s.Source, s.VenueSymbol(), s.Timeframe)
+}
+",
+        );
+        let report = analyze(tmp.path()).unwrap();
+        assert!(!report_passed(&report), "expected failure: {report:?}");
+    }
+
+    #[test]
+    fn partition_key_missing_subject_token_is_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        write_policy_with_keys(tmp.path());
+        write_domain(
+            tmp.path(),
+            "signal",
+            "package signal
+
+func (s Signal) PartitionKey() string {
+	return s.Source
+}
+",
+        );
+        let report = analyze(tmp.path()).unwrap();
+        assert!(!report_passed(&report), "expected failure: {report:?}");
+    }
+
+    #[test]
+    fn venue_symbol_outside_partition_key_is_tolerated() {
+        // Dedup keys and the transitory helper itself stay legal
+        // until H-6.f.
+        let tmp = tempfile::tempdir().unwrap();
+        write_policy_with_keys(tmp.path());
+        write_domain(
+            tmp.path(),
+            "signal",
+            "package signal
+
+func (s Signal) PartitionKey() string {
+	return s.Instrument.SubjectToken()
+}
+
+func (s Signal) DeduplicationKey() string {
+	return s.VenueSymbol()
+}
+",
         );
         let report = analyze(tmp.path()).unwrap();
         assert!(report_passed(&report), "expected pass: {report:?}");

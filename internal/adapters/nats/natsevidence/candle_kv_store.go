@@ -1,6 +1,8 @@
 package natsevidence
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -82,7 +84,7 @@ func (s *CandleKVStore) Put(ctx context.Context, candle evidence.EvidenceCandle)
 		return natskit.PutWritten, problem.New(problem.Unavailable, "candle KV store is unavailable")
 	}
 
-	key := candleKey(candle.Source, candle.VenueSymbol(), candle.Timeframe)
+	key := candleKey(candle.Source, candle.Instrument.SubjectToken(), candle.Timeframe)
 
 	existing, err := s.kv.Get(ctx, key)
 	if err == nil {
@@ -109,12 +111,12 @@ func (s *CandleKVStore) Put(ctx context.Context, candle evidence.EvidenceCandle)
 	return natskit.PutWritten, nil
 }
 
-func (s *CandleKVStore) Get(ctx context.Context, source, symbol string, timeframe int) (*evidence.EvidenceCandle, *problem.Problem) {
+func (s *CandleKVStore) Get(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (*evidence.EvidenceCandle, *problem.Problem) {
 	if s == nil || s.kv == nil {
 		return nil, problem.New(problem.Unavailable, "candle KV store is unavailable")
 	}
 
-	key := candleKey(source, symbol, timeframe)
+	key := candleKey(source, inst.SubjectToken(), timeframe)
 
 	entry, err := s.kv.Get(ctx, key)
 	if err != nil {
@@ -137,7 +139,7 @@ func (s *CandleKVStore) PutHistory(ctx context.Context, candle evidence.Evidence
 		return problem.New(problem.Unavailable, "candle history KV store is unavailable")
 	}
 
-	key := candleHistoryKey(candle.Source, candle.VenueSymbol(), candle.Timeframe, candle.OpenTime)
+	key := candleHistoryKey(candle.Source, candle.Instrument.SubjectToken(), candle.Timeframe, candle.OpenTime)
 
 	data, err := json.Marshal(candle)
 	if err != nil {
@@ -151,12 +153,12 @@ func (s *CandleKVStore) PutHistory(ctx context.Context, candle evidence.Evidence
 	return nil
 }
 
-func (s *CandleKVStore) GetHistory(ctx context.Context, source, symbol string, timeframe, limit int, since, until int64) ([]evidence.EvidenceCandle, *problem.Problem) {
+func (s *CandleKVStore) GetHistory(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe, limit int, since, until int64) ([]evidence.EvidenceCandle, *problem.Problem) {
 	if s == nil || s.history == nil {
 		return nil, problem.New(problem.Unavailable, "candle history KV store is unavailable")
 	}
 
-	prefix := candleKey(source, symbol, timeframe)
+	prefix := candleKey(source, inst.SubjectToken(), timeframe)
 
 	keys, err := s.history.Keys(ctx, jetstream.MetaOnly())
 	if err != nil {

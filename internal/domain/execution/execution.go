@@ -216,10 +216,11 @@ func (e ExecutionIntent) Validate() *problem.Problem {
 }
 
 // PartitionKey returns the key used for KV bucket entries:
-// "{source}.{venuesymbol}.{timeframe}". Composes via VenueSymbol()
-// to preserve the H-6.b' KV bucket layout back-compat per ADR-0021.
+// "{source}.{subject_token}.{timeframe}" — the canonical token via
+// SubjectToken() since H-6.e.2 (read side composes the same shape;
+// pre-cutover keys in the old venue-native shape are inert orphans).
 func (e ExecutionIntent) PartitionKey() string {
-	return fmt.Sprintf("%s.%s.%d", e.Source, e.VenueSymbol(), e.Timeframe)
+	return fmt.Sprintf("%s.%s.%d", e.Source, e.Instrument.SubjectToken(), e.Timeframe)
 }
 
 // DeduplicationKey returns a unique key for JetStream deduplication.

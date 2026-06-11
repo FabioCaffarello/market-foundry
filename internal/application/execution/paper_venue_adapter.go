@@ -1,6 +1,8 @@
 package execution
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -61,7 +63,7 @@ func (a *PaperVenueAdapter) SubmitOrder(_ context.Context, req ports.VenueOrderR
 	// adapter must not fail just because upstream was cancelled); the
 	// price-source read is bounded here independently.
 	priceCtx, priceCancel := context.WithTimeout(context.Background(), paperPriceLookupTimeout)
-	fillPrice := a.resolvePrice(priceCtx, intent.Source, intent.VenueSymbol(), intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
+	fillPrice := a.resolvePrice(priceCtx, intent.Source, intent.Instrument, intent.Timeframe) //nolint:contextcheck // deliberate fresh ctx — see comment above
 	priceCancel()
 
 	filled := intent
@@ -87,11 +89,11 @@ func (a *PaperVenueAdapter) SubmitOrder(_ context.Context, req ports.VenueOrderR
 
 // resolvePrice returns the best-effort last price for the symbol.
 // Falls back to paperDefaultFillPrice ("0") when no PriceSource is configured or on error.
-func (a *PaperVenueAdapter) resolvePrice(ctx context.Context, source, symbol string, timeframe int) string {
+func (a *PaperVenueAdapter) resolvePrice(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) string {
 	if a.priceSource == nil {
 		return paperDefaultFillPrice
 	}
-	price, prob := a.priceSource.LastPrice(ctx, source, symbol, timeframe)
+	price, prob := a.priceSource.LastPrice(ctx, source, inst, timeframe)
 	if prob != nil || price == "" {
 		return paperDefaultFillPrice
 	}

@@ -579,11 +579,11 @@ func TestS424_SegmentParity_PartitionKeyIsolation(t *testing.T) {
 	if spotKey == futKey {
 		t.Fatalf("partition keys must differ: spot=%s futures=%s", spotKey, futKey)
 	}
-	if spotKey != "binances.btcusdt.60" {
-		t.Errorf("spot key: got %s, want binances.btcusdt.60", spotKey)
+	if spotKey != "binances.btc_usdt_spot.60" {
+		t.Errorf("spot key: got %s, want binances.btc_usdt_spot.60", spotKey)
 	}
-	if futKey != "binancef.btcusdt.60" {
-		t.Errorf("futures key: got %s, want binancef.btcusdt.60", futKey)
+	if futKey != "binancef.btc_usdt_perpetual.60" {
+		t.Errorf("futures key: got %s, want binancef.btc_usdt_perpetual.60", futKey)
 	}
 }
 
@@ -612,7 +612,7 @@ func TestS424_LifecycleList_ConsolidatedMixedSegments(t *testing.T) {
 			Propagation: executionclient.DeriveEffectivePropagation(nil, &futFill, nil),
 		},
 		{
-			Key: "binancef.ethusdt.60", Source: "binancef", Symbol: "ethusdt", Timeframe: 60,
+			Key: "binancef.eth_usdt_perpetual.60", Source: "binancef", Symbol: "ethusdt", Timeframe: 60,
 			RejectionStatus: "rejected", RejectionTimestamp: &now,
 			Propagation: executionclient.DeriveEffectivePropagation(nil, nil, &futRej),
 		},

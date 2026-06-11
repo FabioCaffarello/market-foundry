@@ -1,6 +1,8 @@
 package natsevidence
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 
@@ -33,13 +35,13 @@ func NewCandleKVPriceSource(store *CandleKVStore, logger *slog.Logger) *CandleKV
 
 // LastPrice returns the most recent Close price for the given source/symbol/timeframe
 // from the CANDLE_LATEST KV bucket. Falls back to "0" when unavailable.
-func (p *CandleKVPriceSource) LastPrice(ctx context.Context, source, symbol string, timeframe int) (string, *problem.Problem) {
-	candle, prob := p.store.Get(ctx, source, symbol, timeframe)
+func (p *CandleKVPriceSource) LastPrice(ctx context.Context, source string, inst instrument.CanonicalInstrument, timeframe int) (string, *problem.Problem) {
+	candle, prob := p.store.Get(ctx, source, inst, timeframe)
 	if prob != nil {
 		if p.logger != nil {
 			p.logger.Warn("price source: candle KV lookup failed",
 				"source", source,
-				"symbol", symbol,
+				"instrument", inst.Symbol(),
 				"timeframe", timeframe,
 				"error", prob.Message,
 			)

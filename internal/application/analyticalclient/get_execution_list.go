@@ -1,6 +1,8 @@
 package analyticalclient
 
 import (
+	"internal/domain/instrument"
+
 	"context"
 	"log/slog"
 	"time"
@@ -14,7 +16,7 @@ import (
 // S454A: Unlike ExecutionReader (which requires type+source+symbol+timeframe),
 // this reader accepts any combination of filters with at least one required.
 type ExecutionListReader interface {
-	QueryExecutionList(ctx context.Context, execType, source, symbol string, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
+	QueryExecutionList(ctx context.Context, execType, source string, inst instrument.CanonicalInstrument, timeframe int, side, status string, since, until int64, limit int) ([]execution.ExecutionIntent, error)
 }
 
 // GetExecutionListUseCase queries the analytical store for executions with relaxed filters.
@@ -36,7 +38,7 @@ func (uc *GetExecutionListUseCase) Execute(ctx context.Context, query ExecutionL
 	}
 
 	// At least one filter must be provided.
-	hasFilter := query.Type != "" || query.Source != "" || query.Symbol != "" || query.Timeframe > 0 ||
+	hasFilter := query.Type != "" || query.Source != "" || !query.Instrument.IsZero() || query.Timeframe > 0 ||
 		query.Side != "" || query.Status != "" || query.Since > 0 || query.Until > 0
 	if !hasFilter {
 		return ExecutionListReply{}, problem.New(problem.InvalidArgument, "at least one filter is required (type, source, symbol, timeframe, side, status, since, or until)")
@@ -60,12 +62,12 @@ func (uc *GetExecutionListUseCase) Execute(ctx context.Context, query ExecutionL
 	}
 
 	start := time.Now()
-	intents, err := uc.reader.QueryExecutionList(ctx, query.Type, query.Source, query.Symbol, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
+	intents, err := uc.reader.QueryExecutionList(ctx, query.Type, query.Source, query.Instrument, query.Timeframe, query.Side, query.Status, query.Since, query.Until, query.Limit)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		uc.logger.Warn("analytical execution list query failed",
-			"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+			"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 			"side", query.Side, "status", query.Status, "elapsed_ms", elapsed.Milliseconds(), "error", err,
 		)
 		return ExecutionListReply{}, problem.Wrap(err, problem.Unavailable, "analytical execution list query failed")
@@ -80,7 +82,7 @@ func (uc *GetExecutionListUseCase) Execute(ctx context.Context, query ExecutionL
 	queryMs := elapsed.Milliseconds()
 
 	uc.logger.Info("analytical execution list query completed",
-		"type", query.Type, "source", query.Source, "symbol", query.Symbol, "timeframe", query.Timeframe,
+		"type", query.Type, "source", query.Source, "instrument", query.Instrument.Symbol(), "timeframe", query.Timeframe,
 		"side", query.Side, "status", query.Status, "rows", rowCount, "query_ms", queryMs,
 	)
 

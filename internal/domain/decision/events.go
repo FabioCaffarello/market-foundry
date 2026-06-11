@@ -12,5 +12,5 @@ type DecisionEvaluatedEvent struct {
 	Decision Decision        `json:"decision"`
 }
 
-func (e DecisionEvaluatedEvent) EventName() events.Name        { return EventDecisionEvaluated }
+func (e DecisionEvaluatedEvent) EventName() events.Name         { return EventDecisionEvaluated }
 func (e DecisionEvaluatedEvent) EventMetadata() events.Metadata { return e.Metadata }

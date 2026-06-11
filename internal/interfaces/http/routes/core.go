@@ -14,8 +14,8 @@ import (
 	"internal/application/strategyclient"
 	"internal/interfaces/http/handlers"
 	"internal/shared/metrics"
-	"internal/shared/webserver"
 	"internal/shared/problem"
+	"internal/shared/webserver"
 )
 
 // EvidenceFamilyDeps groups evidence query use cases by projection family.
