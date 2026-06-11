@@ -435,6 +435,27 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-11 (closure H-6.f.1)** — Entrega completa em 7 commits.
+  Regressão da auditoria FIXADA: `instrument.FromSubjectToken`
+  (premissa de não-ambiguidade verificada mais forte que a
+  declarada — assets só admitem A-Z0-9, além de contract types sem
+  underscore; lock-in dos dois lados) + **6º/último
+  `instrumentFromBinding` deletado** (grep: zero call sites/
+  definições) + canários unit não-zero + entry do anti_patterns
+  flipped severity=error com exception list vazia. Dedup keys:
+  recontagem confirmou 11 sites declarados / **9 com token de
+  instrument** (caveat previsto na Decisão #4) — todos migrados;
+  janela de dedup verificada = **2min** (default JetStream, sem
+  `Duplicates` explícito); analyzer `[dedup]` (P5) com 6 unit
+  tests, 7 composers + 12 blocks varridos no live run. Migration
+  runner: `SplitStatements` ;-aware + 14 shapes reais pinned.
+  Test-hardening: **G8 resolvido** (FixedClock, -count=20 PASS,
+  entrada movida para Recently resolved); G7/G9 investigados e NÃO
+  absorvidos (G7 = refactor de infra de teste, pause trigger da
+  onda; G9 = ambiental sob carga de CI) — rationale no registry.
+  **ADR-0021 permanece `Proposed`** (promoção em f.2 pós-TTL).
+  Pós-merge: H-7 destravada ∥ f.2 agendada ~2026-08-26.
+
 - **2026-06-11 (abertura H-6.f.1)** — Pause-and-report da abertura
   de H-6.f revelou **regressão silent-zero na auditoria**: audit
   bundles com `Instrument` zerado desde o merge de H-6.e.2 —

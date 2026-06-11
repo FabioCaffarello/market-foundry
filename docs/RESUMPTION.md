@@ -233,7 +233,79 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.e.2 (esta sessão):
+Entregas H-6.f.1 (esta sessão):
+
+- **Commit 0**: PRD split f.1/f.2 (Decisão #1, gate temporal
+  ~2026-08-26) + erratum de sequenciamento (Decisão #2, cadeia
+  `e → e.2 → f.1 → {H-7 ∥ f.2}`) + wave rows (Decisão #7) + fix do
+  drift do header deste documento (dizia "H-6.d.2 fechada", duas
+  ondas atrás).
+- **Commit 1**: `instrument.FromSubjectToken(token)` — parser
+  canonical→canonical do token `base_quote_contract`, espelhando o
+  par `Symbol()`/`FromSymbol()`. Premissa de não-ambiguidade
+  verificada MAIS FORTE que a declarada: nenhum ContractType tem
+  `_` E asset tickers só admitem `A-Z0-9` — lock-in test
+  `TestFromSubjectToken_NoUnderscoreInComponents` cobre ambos os
+  lados; roundtrip 4/4 contract types + 10 rejeições.
+- **Commit 2 (fix da regressão)**: `audit_session.go` adota
+  FromSubjectToken (a regressão: desde a e.2, `LifecycleEntry.Symbol`
+  carrega o token canônico, mas `instrumentFromBinding` exigia
+  sufixo `USDT` venue-native → todo audit bundle saía com
+  `Instrument` zerado, sem nenhum teste assertando o contrário).
+  **`instrument_binding.go` DELETADO** — 6º/último; grep: zero call
+  sites e zero definições (restam só comments narrativos e a
+  policy). `anti_patterns.toml`: exception retirada (lista vazia) +
+  severity da entry flipped warning→**error** (endgame documentado
+  da própria entry — canário incondicional contra reintrodução) +
+  help-text stale do reconstructor ClickHouse ("removed in H-6.d")
+  corrigido para RETAINED-até-f.2. Canários:
+  `TestAuditSession_LifecycleInstrumentCanary` (não-zero +
+  igualdade) e `LegacyOrphanIsZero` (mixed-state de órfãos
+  pré-cutover documentado).
+- **Commit 3 (dedup keys, Decisão #4)**: recontagem confirmou os 11
+  sites declarados, dos quais **9 carregam token de instrument**
+  (caveat previsto: SessionLifecycleEvent e ObservationTrade compõem
+  de outra identidade) — 5 composers de domínio + 4 inline
+  (natsevidence candle/burst/vol + natsexecution rejection)
+  migrados `VenueSymbol()` → `SubjectToken()`; 7 test assertions
+  atualizadas; varredura de tagged builds limpa (lição d.1).
+  **Janela de dedup verificada: 2 minutos** (default JetStream;
+  `natskit.StreamSpec.Config()` não seta `Duplicates`) — a troca do
+  texto da chave quebra a janela UMA vez no deploy; duplicatas
+  dentro de 2min através do cutover seriam aceitas; risco aceito
+  single-operator. Per P5: `check subjects` ganha seção `[dedup]`
+  (composers func-scoped com `required_receivers` declarando os 5
+  que exigem token + inline assignments statement-scoped); 6 unit
+  tests; live 7 composers + 12 blocks varridos.
+- **Commit 4 (migration runner, Decisão #5)**: `SplitStatements`
+  `;`-aware (strings/identifiers/comments) em
+  `cmd/migrate/engine/splitter.go`; runner executa statement a
+  statement com erro indexado; retry seguro por idempotência (DDL
+  não-transacional, comentado inline). Pin contra os 14 shapes
+  reais 000–013 (1 statement cada) + sintético multi-statement.
+- **Commit 5 (test-hardening, Decisão #6)**: **G8 fixado** —
+  TestS460 com `FixedClock{now+1s}` e assertion determinística
+  (`Duration()==1s`), `-count=20` PASS; entrada movida para
+  "Recently resolved". **G7/G9 investigados e NÃO absorvidos**
+  (rationale nas entradas do registry): G7 exige refactor de
+  infraestrutura de teste (NATS dedicado / injeção de durables) —
+  o pause trigger de não-absorção da onda; G9 é ambiental sob carga
+  de CI, sem fix mecânico sem reprodução.
+- **Commit 6**: docs closure (esta seção, TRUTH-MAP, PRD, registry).
+
+**Ponteiro duplo pós-merge desta PR**: (1) **H-7 destravada**
+(Bybit adapter + ADR-0022; expiry/G10 entra lá) — abre branch
+APENAS após merge desta PR em `main`; (2) **H-6.f.2 agendada
+pós-TTL (~2026-08-26)** — flip do WHERE, deleções
+reconstructInstrumentFromLegacy/LegacyFilterValue/VenueSymbol
+(133 sites), postura da coluna legacy nos writers, exception list
+ClickHouse (7), verificação operacional, **promoção
+ADR-0021 → Accepted**. **ADR-0021 permanece `Proposed` nesta
+entrega.**
+
+---
+
+Entregas H-6.e.2 (sessão anterior):
 
 - **Commit 0**: PRD registra as decisões do pacote B (trio canônico
   `base/quote/contract`; KV keys write+read juntos; ClickHouse WHERE
@@ -1750,7 +1822,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 6 active quality-gate analyzers green; 84 checks, 0 errors. |
+| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 11 active quality-gate analyzers green; 112 checks, 0 errors (count atualizado em H-6.f.1 — o texto anterior "6 analyzers / 84 checks" predatava check-instruments/subjects e as extensões `[keys]`/`[dedup]`). |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |
@@ -1838,46 +1910,6 @@ dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
 
-### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake
-
-> **Remissão:** anteriormente registrado como **G6** (H-6.b'',
-> 2026-05-26); renomeado para G8 na FASE 3.2 (2026-06-10) por
-> colisão com o G6 histórico de `drift_detect` (Phase 1D.4, ver
-> "Recently resolved"). Referências a "G6 flake" em narrativa
-> histórica (wave table H-6.b'', mensagens de commit) apontam para
-> esta entrada.
-
-`internal/application/execution/s460_session_metadata_test.go:104`
-asserts `Session.Duration() != 0` after `Session.Close()`.
-`Duration() = ClosedAt.Sub(StartedAt)` returns zero when both
-timestamps fall in the same nanosecond — the test sets
-`StartedAt: time.Now()` and immediately calls
-`Close(clock.SystemClock{}, ...)` which does `now := clk.Now()`.
-Under batch test load (`make test-integration`), the two
-`time.Now()` calls occasionally land on the same nanosecond and
-the assertion trips. Isolated re-run (`go test -count=3 -run
-TestS460_SessionLifecycleTransitions`) consistently PASS.
-
-Observed during H-6.b'' pre-push validation (2026-05-26). Not a
-regression of H-6.b''; the test file dates from commit `218a010`
-(H-4, 2026-05-25) and has zero overlap with files modified by
-H-6.b''.
-
-**Fix candidates** (any of):
-
-1. Inject a `FixedClock` with an explicit time delta into the
-   test setup, instead of relying on `clock.SystemClock{}`.
-2. Have `Session.Close()` enforce `ClosedAt >= StartedAt + 1ns`
-   (or use a monotonic counter for ordering).
-3. Change the assertion to `Duration() >= 0` if zero is
-   semantically valid (probably not — duration of a closed
-   session should be strictly positive).
-
-**Deferred to:** H-6.f cleanup wave or a dedicated test-
-hardening sub-wave. Workaround: re-run the failing test
-isolated via `go test -count=3 -run TestS460_…` to confirm
-flake before treating as a regression.
-
 ### G7 — `TestS380_LiveListenDryRun_*` compose-interference flake
 
 Tests:
@@ -1932,13 +1964,27 @@ regression.
    the hypothesis is wrong and root-cause is elsewhere.
 
 **Pattern alignment:** Consistent with G8
-(`TestS460_SessionLifecycleTransitions` time-resolution flake)
-in being a pre-existing flake that surfaces under batch
+(`TestS460_SessionLifecycleTransitions` time-resolution flake,
+**resolved in H-6.f.1** — see "Recently resolved") in being a
+pre-existing flake that surfaces under batch
 `make test-integration` loads, with zero overlap to the
 in-flight onda's changes.
 
-**Status:** Deferred to H-6.f cleanup wave or a dedicated
-test-hardening sub-wave (same disposition as G8). Workaround:
+**Status:** Investigado em H-6.f.1 (Decisão #6) e **NÃO
+absorvido**: o teste spawna um `ExecuteSupervisor` completo contra
+o NATS compartilhado, e o fix real (candidate #1 — NATS dedicado
+por teste ou injeção de durable names via config do supervisor) é
+refactor de infraestrutura de teste, exatamente o pause trigger de
+não-absorção declarado no wave prompt da f.1 (~3 arquivos).
+**Hipótese confirmada empiricamente em escala no pre-push da f.1
+(2026-06-11)**: com compose-execute (e derive) UP, 19 testes do
+escopo execute falham (TestS380 ×2 + ControlledActivation ×3 +
+RealVenueActivation ×5 + LiveConsumerFlow ×4 + EndToEndSlice ×4 +
+S373 ×2 — todos spawnam supervisors contra os mesmos durables);
+com os containers parados, o escopo inteiro passa (`ok` 45s,
+zero FAILs, mesmo working tree). O mecanismo do G7 afeta a
+família toda, não só o TestS380. Re-deferred para sub-wave
+dedicada de test-hardening. Workaround:
 either rerun the suite isolated (`go test -count=1 -run
 TestS380_LiveListenDryRun_FullPipeline` after stopping
 compose-execute) or trust CI to confirm green.
@@ -1965,12 +2011,15 @@ arquivos `.go` no diff (PR docs/harness-only) — flake confirmado
 empiricamente.
 
 **Workaround:** rerun do job falho (`gh run rerun <id> --failed`);
-localmente, rerun isolado do teste. **Deferred to:** mesma
-disposição de G7/G8 — H-6.f cleanup ou sub-wave de
-test-hardening.
+localmente, rerun isolado do teste. **Deferred to:** investigado
+em H-6.f.1 (Decisão #6) e **NÃO absorvido** — flake ambiental sob
+carga paralela de CI (FAIL→PASS em rerun, zero `.go` no diff do
+PR #38); sem reprodução determinística local, qualquer ajuste de
+timeout seria especulativo, não mecânico. Re-deferred para
+sub-wave dedicada de test-hardening, junto com G7.
 
 Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
-G6→G8.
+G6→G8 (G8 resolvido em H-6.f.1 — ver "Recently resolved").
 
 ### G10 — `CanonicalInstrument` sem campo de expiry (delivery futures colidem em identidade canônica)
 
@@ -2070,6 +2119,29 @@ archaeology.
 ---
 
 ## Recently resolved
+
+### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake (resolvido em H-6.f.1)
+
+> **Remissão:** anteriormente registrado como **G6** (H-6.b'',
+> 2026-05-26); renomeado para G8 na FASE 3.2 (2026-06-10) por
+> colisão com o G6 histórico de `drift_detect` (Phase 1D.4,
+> abaixo). Referências a "G6 flake" em narrativa histórica
+> (wave table H-6.b'', mensagens de commit) apontam para esta
+> entrada.
+
+`internal/application/execution/s460_session_metadata_test.go`
+assertava `Session.Duration() != 0` após `Close()` com
+`clock.SystemClock{}` imediatamente depois de
+`StartedAt: time.Now()` — sob carga de batch os dois `time.Now()`
+ocasionalmente caíam no mesmo nanossegundo e a assertion disparava.
+
+**Resolvido em H-6.f.1 commit 5 (2026-06-11)** pelo candidate #1
+do registro original: `Close()` recebe
+`clock.FixedClock{Instant: now.Add(time.Second)}` e a assertion
+virou determinística (`Duration() == time.Second`, mais forte que
+o `!= 0` anterior). Validado com `go test -count=20 -run TestS460`
+PASS. Qualquer recorrência DESTE teste a partir de agora é
+regressão do fix, não flake (protocolo da onda f.1).
 
 ### Phase 4.1 wave — CI restoration + quality gate cleanup
 
