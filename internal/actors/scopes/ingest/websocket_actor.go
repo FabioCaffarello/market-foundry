@@ -8,7 +8,7 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 	"internal/domain/observation"
 	"internal/shared/metrics"
 
@@ -159,7 +159,7 @@ func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol st
 // Capabilities() is silently rejected (no publish) and counted —
 // a non-zero counter means the declaration is out of date with the
 // adapter's parsing reality.
-func (a *WebSocketAdapterActor) declared(caps capabilities.Capabilities, event observation.TradeReceivedEvent) bool {
+func (a *WebSocketAdapterActor) declared(caps ports.Capabilities, event observation.TradeReceivedEvent) bool {
 	contract := event.Trade.Instrument.Contract
 	if caps.Allows(eventTypeTrade, contract) {
 		return true

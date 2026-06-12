@@ -1,13 +1,4 @@
-// Package capabilities defines the declarative capabilities
-// contract every venue adapter ships, per ADR-0022 R1 (multi-venue
-// normalization policy, Onda H-7.a).
-//
-// The declaration is explicit and static: it is not inferred from
-// runtime traffic, and an adapter that publishes events outside its
-// declared Capabilities() is an architectural bug (enforced
-// statically by `raccoon-cli check venue-parity` per R4, and at the
-// producer boundary by the R3 guard + undeclared-event counter).
-package capabilities
+package ports
 
 import (
 	"internal/domain/instrument"
@@ -15,7 +6,19 @@ import (
 )
 
 // Capabilities is the structured declaration of which event types a
-// venue adapter supports for which contract types (ADR-0022 R1).
+// venue adapter supports for which contract types — the declarative
+// capabilities contract every venue adapter ships per ADR-0022 R1
+// (multi-venue normalization policy, Onda H-7.a). It lives in
+// application/ports — like VenuePort — because it is the adapter
+// boundary contract that inner layers consume without importing
+// adapters (interfaces: the /venues/capabilities introspection;
+// actors: the R3 producer guard).
+//
+// The declaration is explicit and static: it is not inferred from
+// runtime traffic, and an adapter that publishes events outside its
+// declared Capabilities() is an architectural bug (enforced
+// statically by `raccoon-cli check venue-parity` per R4, and at the
+// producer boundary by the R3 guard + undeclared-event counter).
 type Capabilities struct {
 	// Venue identifies the adapter family (e.g. VenueBinance).
 	Venue instrument.Venue `json:"venue"`

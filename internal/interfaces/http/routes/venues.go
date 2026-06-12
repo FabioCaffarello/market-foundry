@@ -3,7 +3,7 @@ package routes
 import (
 	"net/http"
 
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 	"internal/interfaces/http/handlers"
 	"internal/shared/webserver"
 )
@@ -12,7 +12,7 @@ import (
 // (ADR-0022 R2, H-7.a). Capabilities carries the union of all
 // shipping adapters' static declarations, resolved at boot.
 type VenuesFamilyDeps struct {
-	Capabilities []capabilities.Capabilities
+	Capabilities []ports.Capabilities
 }
 
 // HasAny reports whether at least one venue declaration is wired.

@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 )
 
 // VenuesWebHandler serves the multi-venue capabilities introspection
@@ -11,12 +11,12 @@ import (
 // at boot from each shipping adapter's Capabilities(); capabilities
 // change only on deploy, so no refresh path exists by design.
 type VenuesWebHandler struct {
-	capabilities []capabilities.Capabilities
+	capabilities []ports.Capabilities
 }
 
 // NewVenuesWebHandler builds the handler over the union of all
 // shipping adapters' declarations (wired in cmd/gateway).
-func NewVenuesWebHandler(caps []capabilities.Capabilities) *VenuesWebHandler {
+func NewVenuesWebHandler(caps []ports.Capabilities) *VenuesWebHandler {
 	return &VenuesWebHandler{capabilities: caps}
 }
 

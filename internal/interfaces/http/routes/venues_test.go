@@ -9,7 +9,7 @@ import (
 
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -18,7 +18,7 @@ func TestVenuesRoutesServeCapabilitiesUnion(t *testing.T) {
 	t.Parallel()
 
 	routes := Venues(VenuesFamilyDeps{
-		Capabilities: []capabilities.Capabilities{
+		Capabilities: []ports.Capabilities{
 			binances.Capabilities(),
 			binancef.Capabilities(),
 		},
@@ -41,7 +41,7 @@ func TestVenuesRoutesServeCapabilitiesUnion(t *testing.T) {
 	}
 
 	var body struct {
-		Venues []capabilities.Capabilities `json:"venues"`
+		Venues []ports.Capabilities `json:"venues"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("response is not valid JSON: %v", err)
@@ -67,7 +67,7 @@ func TestVenuesFamilyDeps_HasAny(t *testing.T) {
 	if (VenuesFamilyDeps{}).HasAny() {
 		t.Error("empty deps must report HasAny=false (route not registered)")
 	}
-	deps := VenuesFamilyDeps{Capabilities: []capabilities.Capabilities{binances.Capabilities()}}
+	deps := VenuesFamilyDeps{Capabilities: []ports.Capabilities{binances.Capabilities()}}
 	if !deps.HasAny() {
 		t.Error("non-empty deps must report HasAny=true")
 	}

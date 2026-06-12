@@ -1,7 +1,7 @@
 package binancef
 
 import (
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 	"internal/domain/instrument"
 )
 
@@ -17,10 +17,10 @@ import (
 // describes the adapter, not the deployment: enabling delivery
 // futures at ingest stays gated by G10 (expiry is not yet a model
 // field; modeling lands in H-7.c). See the note below.
-func Capabilities() capabilities.Capabilities {
-	return capabilities.Capabilities{
+func Capabilities() ports.Capabilities {
+	return ports.Capabilities{
 		Venue: instrument.VenueBinanceFutures,
-		EventTypes: []capabilities.EventTypeSupport{
+		EventTypes: []ports.EventTypeSupport{
 			{Type: "observation.trade", Contracts: []instrument.ContractType{
 				instrument.ContractPerpetual,
 				instrument.ContractUSDTFutures,

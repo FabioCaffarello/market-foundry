@@ -1,7 +1,7 @@
 package binances
 
 import (
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 	"internal/domain/instrument"
 )
 
@@ -11,10 +11,10 @@ import (
 // surface (ParseAggTrade + Normalize → observation.trade only);
 // `raccoon-cli check venue-parity` enforces presence and coherence,
 // and the ingest R3 guard rejects (and counts) anything outside it.
-func Capabilities() capabilities.Capabilities {
-	return capabilities.Capabilities{
+func Capabilities() ports.Capabilities {
+	return ports.Capabilities{
 		Venue: instrument.VenueBinance,
-		EventTypes: []capabilities.EventTypeSupport{
+		EventTypes: []ports.EventTypeSupport{
 			{Type: "observation.trade", Contracts: []instrument.ContractType{
 				instrument.ContractSpot,
 			}},

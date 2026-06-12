@@ -1,16 +1,16 @@
-package capabilities_test
+package ports_test
 
 import (
 	"testing"
 
-	"internal/adapters/exchanges/capabilities"
+	"internal/application/ports"
 	"internal/domain/instrument"
 )
 
-func validDecl() capabilities.Capabilities {
-	return capabilities.Capabilities{
+func validDecl() ports.Capabilities {
+	return ports.Capabilities{
 		Venue: instrument.VenueBinanceFutures,
-		EventTypes: []capabilities.EventTypeSupport{
+		EventTypes: []ports.EventTypeSupport{
 			{Type: "observation.trade", Contracts: []instrument.ContractType{
 				instrument.ContractPerpetual,
 				instrument.ContractUSDTFutures,
@@ -63,18 +63,18 @@ func TestValidate_CoherentDeclarationPasses(t *testing.T) {
 func TestValidate_Incoherencies(t *testing.T) {
 	cases := []struct {
 		name   string
-		mutate func(*capabilities.Capabilities)
+		mutate func(*ports.Capabilities)
 	}{
-		{"invalid_venue", func(c *capabilities.Capabilities) { c.Venue = "nyse" }},
-		{"empty_event_type_name", func(c *capabilities.Capabilities) { c.EventTypes[0].Type = "" }},
-		{"event_type_without_contracts", func(c *capabilities.Capabilities) { c.EventTypes[0].Contracts = nil }},
-		{"event_contract_not_in_top_level", func(c *capabilities.Capabilities) {
+		{"invalid_venue", func(c *ports.Capabilities) { c.Venue = "nyse" }},
+		{"empty_event_type_name", func(c *ports.Capabilities) { c.EventTypes[0].Type = "" }},
+		{"event_type_without_contracts", func(c *ports.Capabilities) { c.EventTypes[0].Contracts = nil }},
+		{"event_contract_not_in_top_level", func(c *ports.Capabilities) {
 			c.EventTypes[0].Contracts = append(c.EventTypes[0].Contracts, instrument.ContractSpot)
 		}},
-		{"declared_contract_with_zero_event_types", func(c *capabilities.Capabilities) {
+		{"declared_contract_with_zero_event_types", func(c *ports.Capabilities) {
 			c.Contracts = append(c.Contracts, instrument.ContractSpot)
 		}},
-		{"invalid_contract", func(c *capabilities.Capabilities) {
+		{"invalid_contract", func(c *ports.Capabilities) {
 			c.Contracts[0] = "swap"
 			c.EventTypes[0].Contracts[0] = "swap"
 		}},
@@ -94,7 +94,7 @@ func TestValidate_Incoherencies(t *testing.T) {
 // requires a justifying comment at the declaration site instead —
 // ADR-0022 R4).
 func TestValidate_EmptyDeclarationPermitted(t *testing.T) {
-	c := capabilities.Capabilities{Venue: instrument.VenueBinance}
+	c := ports.Capabilities{Venue: instrument.VenueBinance}
 	if prob := c.Validate(); prob != nil {
 		t.Fatalf("empty declaration must be permitted at runtime: %v", prob)
 	}
