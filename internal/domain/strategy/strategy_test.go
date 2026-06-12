@@ -222,7 +222,7 @@ func TestStrategy_DeduplicationKey(t *testing.T) {
 		Timestamp:  ts,
 	}
 	got := s.DeduplicationKey()
-	prefix := "strat:mean_reversion_entry:binancef:btcusdt:60:"
+	prefix := "strat:mean_reversion_entry:binancef:btc_usdt_perpetual:60:"
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}

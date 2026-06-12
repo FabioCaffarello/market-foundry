@@ -123,6 +123,7 @@ func (r RiskAssessment) PartitionKey() string {
 
 // DeduplicationKey returns a unique key for JetStream deduplication.
 // Nanosecond precision (see P4.1.10 — Strategy.DeduplicationKey doc).
+// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 func (r RiskAssessment) DeduplicationKey() string {
-	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.VenueSymbol(), r.Timeframe, r.Timestamp.UnixNano())
+	return fmt.Sprintf("risk:%s:%s:%s:%d:%d", r.Type, r.Source, r.Instrument.SubjectToken(), r.Timeframe, r.Timestamp.UnixNano())
 }

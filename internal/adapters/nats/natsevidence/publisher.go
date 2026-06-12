@@ -72,8 +72,9 @@ func (p *Publisher) PublishCandle(ctx context.Context, event evidence.CandleSamp
 		return prob
 	}
 
+	// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 	dedupKey := event.Candle.Source + ":" +
-		event.Candle.VenueSymbol() + ":" +
+		event.Candle.Instrument.SubjectToken() + ":" +
 		strconv.Itoa(event.Candle.Timeframe) + ":" +
 		strconv.FormatInt(event.Candle.OpenTime.Unix(), 10)
 
@@ -102,8 +103,9 @@ func (p *Publisher) PublishTradeBurst(ctx context.Context, event evidence.TradeB
 		return prob
 	}
 
+	// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 	dedupKey := "burst:" + event.TradeBurst.Source + ":" +
-		event.TradeBurst.VenueSymbol() + ":" +
+		event.TradeBurst.Instrument.SubjectToken() + ":" +
 		strconv.Itoa(event.TradeBurst.Timeframe) + ":" +
 		strconv.FormatInt(event.TradeBurst.OpenTime.Unix(), 10)
 
@@ -132,8 +134,9 @@ func (p *Publisher) PublishVolume(ctx context.Context, event evidence.VolumeSamp
 		return prob
 	}
 
+	// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 	dedupKey := "vol:" + event.Volume.Source + ":" +
-		event.Volume.VenueSymbol() + ":" +
+		event.Volume.Instrument.SubjectToken() + ":" +
 		strconv.Itoa(event.Volume.Timeframe) + ":" +
 		strconv.FormatInt(event.Volume.OpenTime.Unix(), 10)
 

@@ -167,9 +167,10 @@ func (p *Publisher) PublishRejection(ctx context.Context, event execution.VenueO
 		return prob
 	}
 
+	// Canonical SubjectToken() since H-6.f.1 (Decisão #4).
 	dedupKey := fmt.Sprintf("rejection:%s:%s:%d:%d",
 		event.ExecutionIntent.Source,
-		event.ExecutionIntent.VenueSymbol(),
+		event.ExecutionIntent.Instrument.SubjectToken(),
 		event.ExecutionIntent.Timeframe,
 		event.ExecutionIntent.Timestamp.Unix(),
 	)

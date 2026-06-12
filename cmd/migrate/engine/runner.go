@@ -97,9 +97,18 @@ func (r *Runner) Up(ctx context.Context, dryRun bool) error {
 		}
 
 		fmt.Printf("  applying %s ... ", m.Name)
-		if _, err := r.db.ExecContext(ctx, string(content)); err != nil {
-			fmt.Println("FAILED")
-			return fmt.Errorf("apply %s: %w", m.Name, err)
+		// One ExecContext per statement: clickhouse-go/v2 rejects
+		// multi-statement payloads (code 62) — see SplitStatements.
+		// No transactional rollback across statements (ClickHouse DDL
+		// is non-transactional); a mid-file failure stops the run
+		// before the migration is recorded, and idempotent statements
+		// (IF NOT EXISTS) make the retry safe.
+		stmts := SplitStatements(string(content))
+		for i, stmt := range stmts {
+			if _, err := r.db.ExecContext(ctx, stmt); err != nil {
+				fmt.Println("FAILED")
+				return fmt.Errorf("apply %s (statement %d/%d): %w", m.Name, i+1, len(stmts), err)
+			}
 		}
 
 		if _, err := r.db.ExecContext(ctx,

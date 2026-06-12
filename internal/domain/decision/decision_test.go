@@ -151,7 +151,7 @@ func TestDecision_DeduplicationKey(t *testing.T) {
 	d.Timestamp = ts
 	key := d.DeduplicationKey()
 	// P4.1.11.a: dedup key precision raised to UnixNano (see decision.go doc).
-	want := "dec:rsi_oversold:binancef:btcusdt:60:" + fmt.Sprintf("%d", ts.UnixNano())
+	want := "dec:rsi_oversold:binancef:btc_usdt_perpetual:60:" + fmt.Sprintf("%d", ts.UnixNano())
 	if key != want {
 		t.Fatalf("DeduplicationKey() = %q, want %q", key, want)
 	}

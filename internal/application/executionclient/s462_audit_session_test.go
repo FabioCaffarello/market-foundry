@@ -109,7 +109,9 @@ func TestAuditSession_FullBundle(t *testing.T) {
 		&stubSessionReader{session: session},
 		&stubVerifyExecutor{report: passingVerifyReport()},
 		&stubLifecycleReader{entries: []LifecycleEntry{
-			{Key: "binance_spot.BTCUSDT.60", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60,
+			// Post-H-6.e.2 key shape: Symbol carries the canonical
+			// subject token, not the venue-native symbol.
+			{Key: "binances.btc_usdt_spot.60", Source: "binances", Symbol: "btc_usdt_spot", Timeframe: 60,
 				IntentStatus: "submitted", FillStatus: "filled", Propagation: "filled"},
 		}},
 		&stubFillReader{rows: []VerifyCHListResult{
@@ -143,6 +145,8 @@ func TestAuditSession_FullBundle(t *testing.T) {
 	// Lifecycle
 	if len(b.Lifecycle) != 1 {
 		t.Errorf("expected 1 lifecycle entry, got %d", len(b.Lifecycle))
+	} else if b.Lifecycle[0].Instrument.IsZero() {
+		t.Error("lifecycle entry Instrument is zero — H-6.f.1 audit regression shape")
 	}
 
 	// Order activity from session counters
@@ -267,5 +271,50 @@ func TestAuditSession_NilSessionReader(t *testing.T) {
 	}
 	if prob.Code != problem.Unavailable {
 		t.Errorf("expected Unavailable, got %s", prob.Code)
+	}
+}
+
+// ── H-6.f.1 regression canaries ──────────────────────────────────
+//
+// The H-6.e.2 KV key cutover made LifecycleEntry.Symbol carry the
+// canonical subject token ("btc_usdt_spot"), while
+// convertLifecycleEntries still reconstructed via the venue-native
+// instrumentFromBinding helper — every audit bundle shipped a zero
+// Instrument and no test asserted otherwise. These canaries pin the
+// non-zero contract; their absence is what let the regression land.
+
+func TestAuditSession_LifecycleInstrumentCanary(t *testing.T) {
+	converted := convertLifecycleEntries([]LifecycleEntry{
+		{Key: "binances.btc_usdt_spot.60", Source: "binances", Symbol: "btc_usdt_spot", Timeframe: 60,
+			IntentStatus: "submitted", FillStatus: "filled", Propagation: "filled"},
+	})
+	if len(converted) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(converted))
+	}
+	got := converted[0].Instrument
+	if got.IsZero() {
+		t.Fatal("AuditLifecycleEntry.Instrument is zero for a canonical token — H-6.f.1 regression shape")
+	}
+	want, prob := instrument.New("BTC", "USDT", instrument.ContractSpot)
+	if prob != nil {
+		t.Fatalf("New: %v", prob)
+	}
+	if got != want {
+		t.Errorf("Instrument = %+v, want %+v", got, want)
+	}
+}
+
+// Pre-cutover orphan keys carry the venue-native shape; they fail
+// the canonical parse and yield a zero Instrument — the tolerated
+// mixed-state until purge (H-6.e.2 closure note), not an error.
+func TestAuditSession_LifecycleInstrumentLegacyOrphanIsZero(t *testing.T) {
+	converted := convertLifecycleEntries([]LifecycleEntry{
+		{Key: "binance_spot.BTCUSDT.60", Source: "binance_spot", Symbol: "BTCUSDT", Timeframe: 60},
+	})
+	if len(converted) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(converted))
+	}
+	if !converted[0].Instrument.IsZero() {
+		t.Errorf("expected zero Instrument for legacy orphan token, got %+v", converted[0].Instrument)
 	}
 }

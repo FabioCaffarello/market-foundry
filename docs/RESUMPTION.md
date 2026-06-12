@@ -7,16 +7,20 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-6.d.2 fechada (2026-06-10)** —
-ClickHouse reader canonical-column cutover mergeado (PR #33,
-`51bc76e`); critério #4b do ADR-0021 fechado end-to-end
-(writer H-6.d.1 + reader H-6.d.2). Em paralelo, **P5.6 (harness
-FASE 2)** entregue via PRs #37/#38 no mesmo dia: enforcement
-mecânico de P2/P9 via Claude Code hooks (ADR-0026), dedup de
-protocolos para fontes canônicas, wave-prompt-skill. **26 ADRs
-total (0001–0026)**. Próxima onda destravada: **H-6.e** (NATS
-subject composition decision; primeiro ato é pause-and-report
-obrigatório) — ver a wave table abaixo.
+Last meaningful state change: **H-6.e.2 fechada (2026-06-11)** —
+read-contract canonical cutover mergeado (PR #43, `c8a547d`);
+critério #2 do ADR-0021 fechado literalmente (per erratum
+2026-06-10; subjects em H-6.e, PR #42 `f8543b7`, mergeada no
+mesmo dia). Onda atual: **H-6.f.1** — cleanup não-TTL-gated +
+fix da regressão silent-zero da auditoria descoberta na abertura
+de H-6.f (split f.1/f.2 pela Decisão #1 do owner, 2026-06-11;
+**f.2 TTL-gated ~2026-08-26** fecha a promoção do ADR-0021).
+**26 ADRs total (0001–0026)**. Ver a wave table abaixo.
+
+(Nota de drift, 2026-06-11: este parágrafo dizia "H-6.d.2
+fechada / próxima onda H-6.e" — duas ondas atrás do estado real;
+os closures de H-6.e/e.2 atualizaram as seções de entregas e a
+wave table mas não este header. Corrigido na abertura de f.1.)
 
 `make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
 since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
@@ -58,7 +62,7 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-3.b** | Fechada (PR #23 mergeada em `main` em `32d1792`, 2026-05-25) | Code generation + converters + analyzer. `internal/shared/contracts/envelope/v1/envelope.pb.go` + `marketdata/v1/trade.pb.go` tracked (gitignore G removed); `CanonicalEvent` foundry-native domain projection + converter; raccoon-cli `check proto` analyzer integrado em `make verify` (via quality-gate); `make proto-lint` adicionado a verify; bootstrap valida `protoc-gen-go v1.36.8` (pinned matching runtime). Promove ADR-0017 e ADR-0018 a `Accepted` — primeira promoção de ADR Proposed→Accepted da Fase Harvest. |
 | **H-4** | Fechada (PR #24 mergeada em `main` em `218a010`, 2026-05-25) | Replay + Sequencer + determinism analyzer + dual ADR promotion + PRD closure. 14 commits: clock/random ports, replay recorder+player, sequencer, KV bucket+Store, gap counter, Clock plumbing through cmd/* + actor configs, 5 domain migrations (DefaultVerificationScope, DefaultControlGate, NewActivationSurface, Session.Close, Session.Halt), check determinism analyzer + gate integration, golden test + N=50 byte-stability, ADR-0019 + ADR-0020 → Accepted, PROGRAM-0002 → Closed. **Fase Wire fechada.** |
 | **H-5** | Fechada (PR #25 mergeada em `main` em `6df8e66`, 2026-05-25) | PROGRAM-0003 (Observability) opening + delivery. 11 commits: PRD-0003, ADR-0024 metrics-policy, ADR-0025 alerting-strategy, refactor `consumer_seq_gap_total` (drop instrument label per ADR-0024 MP-2), prometheus+grafana opt-in compose profile, prometheus scrape + recording rules (44 rules, 4 SLO groups + runtime-aggregates), burn-rate alerts (13 rules — 8 SLO at ticket severity per Observing taxonomy + 5 runtime-safety), 5 Grafana dashboards provisioning (ingest/derive/store/gateway/determinism-health), raccoon-cli `check metrics` analyzer with declarative `tools/raccoon-cli/policies/binaries.toml` allowlist, SLOs F1–F4 flipped `Proposed`→`Observing`, `docs/operations/observability.md` operator guide, ADR-0024 + ADR-0025 → Accepted, PROGRAM-0003 opened Active. **Observability stack ativo.** |
-| **H-6** | Sub-dividida em H-6.a/b/b'/b''/c/d/e/f por cascade discovery (pré-flight H-6.a: 342 `.Symbol` refs em 106 production files em 31 packages; pré-flight H-6.b: 15 domain types em 174 test files → split por dependency order em b/b'/b''). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md). Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main`. | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f. |
+| **H-6** | Sub-dividida em H-6.a/b/b'/b''/c/d/e/e.2/f.1/f.2 por cascade discovery (pré-flight H-6.a: 342 `.Symbol` refs em 106 production files em 31 packages; pré-flight H-6.b: 15 domain types em 174 test files → split por dependency order em b/b'/b''; e.2 split 2026-06-10; f.1/f.2 split 2026-06-11). Ver [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md). Sub-onda sequencing policy estrita: próxima abre APENAS após merge da anterior em `main` — com erratum 2026-06-11: após f.1, H-7 ∥ f.2 (f.2 TTL-gated). | PROGRAM-0004 (Multi-venue) implementation. ADR-0021 promotion é atômica em H-6.f.2. |
 | **H-6.a** | Fechada (PR #26 mergeada em `main` em `ac7fb8f`, 2026-05-26) | PROGRAM-0004 opening + canonical instrument domain root. 8 commits incl. ADR-0021 erratum (criterion #4 split em #4a/#4b), PRD-0004, `internal/domain/instrument/` package, atomic `ObservationTrade.Symbol` → `Instrument` + `VenueSymbol()`, ambos Binance adapters com regex `_\d{6}$` para delivery futures, raccoon-cli `check instruments` analyzer (4 checks). ADR-0021 permanece `Proposed`. |
 | **H-6.b** | Fechada (PR #27 mergeada em `main` em `d7fae4c`, 2026-05-26) | Layer 1+2 dependency order: 7 domain types migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 7 commits: PRD-0004 sub-onda b/b'/b'' refinement, EvidenceCandle atomic, EvidenceTradeBurst+Volume consolidado, Signal+Decision pair (PartitionKey via VenueSymbol), Strategy+Risk pair, check-instruments analyzer estendido via `policies/domain_types.toml` declarando migration_state per type (6 checks total, +2 do domain-type check), docs closure. 6 application samplers + 3 decision evaluators + 3 strategy resolvers + 2 risk evaluators gain `instrumentFromBinding` transitory helper (sunset H-6.c). ClickHouse readers reuse `reconstructInstrumentFromLegacy` da H-6.a. ADR-0021 permanece `Proposed`. |
 | **H-6.b'** | Fechada (PR #28 mergeada em `main` em `6b62d89`, 2026-05-26) | Layer 3+3' dependency order: 3 domain types da execution chain migrados Symbol → Instrument + VenueSymbol() per ADR-0021. 5 commits + fix(execute) pull-forward 37f8ddd (descoberto via CI Integration Tests em PR #28: silent zero Instrument por reconstrução source-string em `instrumentFromBinding`; fix via `NewPaperOrderEvaluatorForInstrument` passthrough). check-instruments analyzer 6 checks PASS. **Triage drop closure note** (zero migration sites nesta sub-wave): DecisionTriageItem buffered pelo ReviewTransform DTO; ExecutionTriageItem não existe; RoundTripTriageItem deferido para H-6.b''. ADR-0021 permanece `Proposed`. |
@@ -68,7 +72,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.d.1** | Fechada (PR #32 mergeada em `main` em `fac12ac`, 2026-05-28) | ClickHouse schema migration + writer canonical column population end-to-end. 5 commits + 1 fix: (1) 6 migrations `008_add_canonical_columns_evidence_candles.sql` → `013_add_canonical_columns_executions.sql` adicionam `base`/`quote`/`contract LowCardinality(String) DEFAULT '' AFTER symbol/base/quote` idempotently (split per-table após Decisão #1 (A)). (2) Codegen self-consistency atomic bundle — 14 YAML specs + 14 golden snapshots + 17 INSERT SQL strings + 8 mappers + ~120 test row position shifts. (3a) Integration fixture migration — 34 positional INSERTs para explicit column lists + 20 pre-H-6.b drift fixes (3-month-undetected tagged-build invisibility lesson). (3b) Writer canary — `Client.Exec()` para DDL via native protocol + novo `canonical_columns_integration_test.go` (6 tests / 1 per table). (4) Docs closure. (5) G7 flake registry (TestS380 compose-execute interference, pre-existing). CI-fix commit (3d53e32): `restart_recovery_test.go` execution row column count 20→23 — caught by CI integration tests, reinforced lesson #1 (scan ALL files for positional row access on schema change). ADR-0021 permaneceu `Proposed`. |
 | **H-6.d.2** | Fechada (PR #33 mergeada em `main` em `51bc76e`, 2026-06-10) | ClickHouse reader-side cutover para canonical columns com legacy fallback. 4 commits: (1) Novo helper `internal/adapters/clickhouse/canonical_instrument_columns.go` com `ErrLegacyRow` sentinel exportada + `instrumentFromCanonicalColumns(base, quote, contract)` — sentinel pattern per Decisão #3, validation delegada a `instrument.New`. 4 unit tests / 9 sub-cases lock-in o contrato. (2) Reader dual-path migration — 7 reader files / 13 instrument-resolution sites / 13 SELECT column lists atualizados uniformemente (8 query builders + 5 composite inline SELECTs); pattern uniforme validado em pré-flight 3. Per-reader test files atualizados (expectedCols + column counts). (3) Reader canary integration test `canonical_columns_reader_integration_test.go` (~714 LoC, `//go:build requireclickhouse`) com 6 tests / 18 subtests (canonical_path / fallback_path / mixed_state per table) — mixed_state subtest é a prova literal da Resolução 1. (4) Docs closure. `reconstructInstrumentFromLegacy` **RETAINED** per Resolução 1 (correctness-driven through 90-day TTL window; deletion deferida para H-6.f post-operational-verification). **Critério #4b end-to-end LANDED** (writer em H-6.d.1 + reader em H-6.d.2). ADR-0021 permanece `Proposed`; promoção atómica em H-6.f post-TTL + helper deletion. |
 | **H-6.e** | Fechada (PR #42 mergeada em `main` em `f8543b7`, 2026-06-10) | NATS subject canonical cutover (subjects only). Pause-and-report como primeiro ato; **owner decide opção (i)**; enumeração D = zero parsers do token de symbol → **cutover atômico**, sem dual-publish (mixed-state até TTL 72h, precedente H-6.d). 6 commits: (0) errata dupla — ADR-0009 (token canônico `base_quote_contract`, slot `[_expiry]` dormente) + ADR-0021 critério #2 (fechamento literal desloca para **H-6.e.2**, cadeia e → e.2 → f) + PRD (sub-onda e.2 criada: KV keys + contrato HTTP + extensão do analyzer; débito de modelagem do expiry). (1) `CanonicalInstrument.SubjectToken()` + testes de lock-in (3/3). (2) Cutover dos **10 builders com symbol** (o 11º, session-lifecycle, não tem symbol); dedup keys e log labels intactos por design; teste de simulação natsstrategy migrado para a derivação real. (3) Analyzer `check subjects` (block-scoped, subjects-only per Decisão #4) + `policies/subjects.toml` + gate step 10 (drift-detect→11, runtime-smoke→12); 8 unit tests. (4) Canário integration `subject_cutover_canary_test.go`: canonical + legacy lado a lado pelo mesmo filtro wildcard — PASS contra NATS vivo. (5) Docs closure. **ADR-0021 permanece `Proposed`.** |
-| **H-6.e.2** | **Atual** (esta entrega — branch `feat/h-6-e-2-read-contract-canonical` aberta após merge de H-6.e em PR #42) | Read-contract canonical cutover (**pacote B**, owner 2026-06-11). Contrato HTTP `(source, symbol, timeframe)` → trio canônico `base/quote/contract` (validação via `instrument.New`); 8 client packages `Symbol string` → `CanonicalInstrument`; KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` (mesmo commit; órfãos inertes + janela de miss documentados); ClickHouse `WHERE … symbol = ?` **inalterado** com valor derivado via helper transitório `LegacyFilterValue()` (= `lower(base+quote)`, direção legítima canonical→venue; sunset H-6.f com o flip do WHERE pós-TTL). Analyzer `check subjects` estendido com seção `[keys]`. Expiry (G10) deferido a H-7. **Critério #2 do ADR-0021 fecha literalmente aqui.** **ADR-0021 permanece `Proposed`** (promoção em f). |
+| **H-6.e.2** | Fechada (PR #43 mergeada em `main` em `c8a547d`, 2026-06-11) | Read-contract canonical cutover (**pacote B**, owner 2026-06-11). Contrato HTTP `(source, symbol, timeframe)` → trio canônico `base/quote/contract` (validação via `instrument.New`); 8 client packages `Symbol string` → `CanonicalInstrument`; KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` (mesmo commit; órfãos inertes + janela de miss documentados); ClickHouse `WHERE … symbol = ?` **inalterado** com valor derivado via helper transitório `LegacyFilterValue()` (= `lower(base+quote)`, direção legítima canonical→venue; sunset H-6.f com o flip do WHERE pós-TTL). Analyzer `check subjects` estendido com seção `[keys]`. Expiry (G10) deferido a H-7. **Critério #2 do ADR-0021 fecha literalmente aqui.** **ADR-0021 permanece `Proposed`** (promoção em f). |
+| **H-6.f.1** | **Atual** (esta entrega — branch `feat/h-6-f-1-cleanup-now` aberta após merge de H-6.e.2 em PR #43) | Cleanup não-TTL-gated + fix da regressão de auditoria (split f.1/f.2 da Decisão #1, owner 2026-06-11, opção A). Fix da **regressão silent-zero** descoberta na abertura de H-6.f (audit bundles com `Instrument` zerado desde o merge de e.2: `audit_session.go` usa `instrumentFromBinding`, que exige sufixo `USDT` venue-native, contra o token canônico que `e.Symbol` passou a carregar): novo parser `instrument.FromSubjectToken` (canonical→canonical, premissa "contract sem underscore" com lock-in) + **deleção do 6º/último `instrumentFromBinding`** (executionclient) + canário unit não-zero. Dedup keys canonicalizam (7 domain composers + 4 inline) + analyzer `[dedup]` (P5); janela de dedup JetStream quebrada na transição — documentada. Migration runner multi-statement (deferral d.1). Test-hardening G8 (FixedClock; G7/G9 só se mecânico). **Erratum de sequenciamento (Decisão #2)**: cadeia `e → e.2 → f.1 → {H-7 ∥ f.2}`; **f.2 TTL-gated ~2026-08-26** fecha a promoção. **ADR-0021 permanece `Proposed`.** |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -228,7 +233,79 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.e.2 (esta sessão):
+Entregas H-6.f.1 (esta sessão):
+
+- **Commit 0**: PRD split f.1/f.2 (Decisão #1, gate temporal
+  ~2026-08-26) + erratum de sequenciamento (Decisão #2, cadeia
+  `e → e.2 → f.1 → {H-7 ∥ f.2}`) + wave rows (Decisão #7) + fix do
+  drift do header deste documento (dizia "H-6.d.2 fechada", duas
+  ondas atrás).
+- **Commit 1**: `instrument.FromSubjectToken(token)` — parser
+  canonical→canonical do token `base_quote_contract`, espelhando o
+  par `Symbol()`/`FromSymbol()`. Premissa de não-ambiguidade
+  verificada MAIS FORTE que a declarada: nenhum ContractType tem
+  `_` E asset tickers só admitem `A-Z0-9` — lock-in test
+  `TestFromSubjectToken_NoUnderscoreInComponents` cobre ambos os
+  lados; roundtrip 4/4 contract types + 10 rejeições.
+- **Commit 2 (fix da regressão)**: `audit_session.go` adota
+  FromSubjectToken (a regressão: desde a e.2, `LifecycleEntry.Symbol`
+  carrega o token canônico, mas `instrumentFromBinding` exigia
+  sufixo `USDT` venue-native → todo audit bundle saía com
+  `Instrument` zerado, sem nenhum teste assertando o contrário).
+  **`instrument_binding.go` DELETADO** — 6º/último; grep: zero call
+  sites e zero definições (restam só comments narrativos e a
+  policy). `anti_patterns.toml`: exception retirada (lista vazia) +
+  severity da entry flipped warning→**error** (endgame documentado
+  da própria entry — canário incondicional contra reintrodução) +
+  help-text stale do reconstructor ClickHouse ("removed in H-6.d")
+  corrigido para RETAINED-até-f.2. Canários:
+  `TestAuditSession_LifecycleInstrumentCanary` (não-zero +
+  igualdade) e `LegacyOrphanIsZero` (mixed-state de órfãos
+  pré-cutover documentado).
+- **Commit 3 (dedup keys, Decisão #4)**: recontagem confirmou os 11
+  sites declarados, dos quais **9 carregam token de instrument**
+  (caveat previsto: SessionLifecycleEvent e ObservationTrade compõem
+  de outra identidade) — 5 composers de domínio + 4 inline
+  (natsevidence candle/burst/vol + natsexecution rejection)
+  migrados `VenueSymbol()` → `SubjectToken()`; 7 test assertions
+  atualizadas; varredura de tagged builds limpa (lição d.1).
+  **Janela de dedup verificada: 2 minutos** (default JetStream;
+  `natskit.StreamSpec.Config()` não seta `Duplicates`) — a troca do
+  texto da chave quebra a janela UMA vez no deploy; duplicatas
+  dentro de 2min através do cutover seriam aceitas; risco aceito
+  single-operator. Per P5: `check subjects` ganha seção `[dedup]`
+  (composers func-scoped com `required_receivers` declarando os 5
+  que exigem token + inline assignments statement-scoped); 6 unit
+  tests; live 7 composers + 12 blocks varridos.
+- **Commit 4 (migration runner, Decisão #5)**: `SplitStatements`
+  `;`-aware (strings/identifiers/comments) em
+  `cmd/migrate/engine/splitter.go`; runner executa statement a
+  statement com erro indexado; retry seguro por idempotência (DDL
+  não-transacional, comentado inline). Pin contra os 14 shapes
+  reais 000–013 (1 statement cada) + sintético multi-statement.
+- **Commit 5 (test-hardening, Decisão #6)**: **G8 fixado** —
+  TestS460 com `FixedClock{now+1s}` e assertion determinística
+  (`Duration()==1s`), `-count=20` PASS; entrada movida para
+  "Recently resolved". **G7/G9 investigados e NÃO absorvidos**
+  (rationale nas entradas do registry): G7 exige refactor de
+  infraestrutura de teste (NATS dedicado / injeção de durables) —
+  o pause trigger de não-absorção da onda; G9 é ambiental sob carga
+  de CI, sem fix mecânico sem reprodução.
+- **Commit 6**: docs closure (esta seção, TRUTH-MAP, PRD, registry).
+
+**Ponteiro duplo pós-merge desta PR**: (1) **H-7 destravada**
+(Bybit adapter + ADR-0022; expiry/G10 entra lá) — abre branch
+APENAS após merge desta PR em `main`; (2) **H-6.f.2 agendada
+pós-TTL (~2026-08-26)** — flip do WHERE, deleções
+reconstructInstrumentFromLegacy/LegacyFilterValue/VenueSymbol
+(133 sites), postura da coluna legacy nos writers, exception list
+ClickHouse (7), verificação operacional, **promoção
+ADR-0021 → Accepted**. **ADR-0021 permanece `Proposed` nesta
+entrega.**
+
+---
+
+Entregas H-6.e.2 (sessão anterior):
 
 - **Commit 0**: PRD registra as decisões do pacote B (trio canônico
   `base/quote/contract`; KV keys write+read juntos; ClickHouse WHERE
@@ -278,6 +355,10 @@ final (sunset VenueSymbol + LegacyFilterValue + flip do WHERE
 pós-TTL ~2026-08-26 + reconstructInstrumentFromLegacy deletion) +
 **promoção ADR-0021 → Accepted**. Sequencing estrito: H-6.f abre
 branch APENAS após merge desta PR (H-6.e.2) em `main`.
+*(Erratum 2026-06-11, abertura de f.1: H-6.f foi dividida em
+**f.1** (não-TTL-gated, agora) e **f.2** (TTL-gated ~2026-08-26,
+fecha a promoção) — ver PRD-0004 → "Erratum de sequenciamento";
+este ponteiro descreve o plano pré-split.)*
 
 ---
 
@@ -1741,7 +1822,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 6 active quality-gate analyzers green; 84 checks, 0 errors. |
+| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 11 active quality-gate analyzers green; 112 checks, 0 errors (count atualizado em H-6.f.1 — o texto anterior "6 analyzers / 84 checks" predatava check-instruments/subjects e as extensões `[keys]`/`[dedup]`). |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |
@@ -1829,46 +1910,6 @@ dependencies. But the silent 404 is operator-hostile and could be
 improved (e.g., a `/debug/routes` endpoint listing actually-registered
 routes). Future enhancement.
 
-### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake
-
-> **Remissão:** anteriormente registrado como **G6** (H-6.b'',
-> 2026-05-26); renomeado para G8 na FASE 3.2 (2026-06-10) por
-> colisão com o G6 histórico de `drift_detect` (Phase 1D.4, ver
-> "Recently resolved"). Referências a "G6 flake" em narrativa
-> histórica (wave table H-6.b'', mensagens de commit) apontam para
-> esta entrada.
-
-`internal/application/execution/s460_session_metadata_test.go:104`
-asserts `Session.Duration() != 0` after `Session.Close()`.
-`Duration() = ClosedAt.Sub(StartedAt)` returns zero when both
-timestamps fall in the same nanosecond — the test sets
-`StartedAt: time.Now()` and immediately calls
-`Close(clock.SystemClock{}, ...)` which does `now := clk.Now()`.
-Under batch test load (`make test-integration`), the two
-`time.Now()` calls occasionally land on the same nanosecond and
-the assertion trips. Isolated re-run (`go test -count=3 -run
-TestS460_SessionLifecycleTransitions`) consistently PASS.
-
-Observed during H-6.b'' pre-push validation (2026-05-26). Not a
-regression of H-6.b''; the test file dates from commit `218a010`
-(H-4, 2026-05-25) and has zero overlap with files modified by
-H-6.b''.
-
-**Fix candidates** (any of):
-
-1. Inject a `FixedClock` with an explicit time delta into the
-   test setup, instead of relying on `clock.SystemClock{}`.
-2. Have `Session.Close()` enforce `ClosedAt >= StartedAt + 1ns`
-   (or use a monotonic counter for ordering).
-3. Change the assertion to `Duration() >= 0` if zero is
-   semantically valid (probably not — duration of a closed
-   session should be strictly positive).
-
-**Deferred to:** H-6.f cleanup wave or a dedicated test-
-hardening sub-wave. Workaround: re-run the failing test
-isolated via `go test -count=3 -run TestS460_…` to confirm
-flake before treating as a regression.
-
 ### G7 — `TestS380_LiveListenDryRun_*` compose-interference flake
 
 Tests:
@@ -1923,13 +1964,27 @@ regression.
    the hypothesis is wrong and root-cause is elsewhere.
 
 **Pattern alignment:** Consistent with G8
-(`TestS460_SessionLifecycleTransitions` time-resolution flake)
-in being a pre-existing flake that surfaces under batch
+(`TestS460_SessionLifecycleTransitions` time-resolution flake,
+**resolved in H-6.f.1** — see "Recently resolved") in being a
+pre-existing flake that surfaces under batch
 `make test-integration` loads, with zero overlap to the
 in-flight onda's changes.
 
-**Status:** Deferred to H-6.f cleanup wave or a dedicated
-test-hardening sub-wave (same disposition as G8). Workaround:
+**Status:** Investigado em H-6.f.1 (Decisão #6) e **NÃO
+absorvido**: o teste spawna um `ExecuteSupervisor` completo contra
+o NATS compartilhado, e o fix real (candidate #1 — NATS dedicado
+por teste ou injeção de durable names via config do supervisor) é
+refactor de infraestrutura de teste, exatamente o pause trigger de
+não-absorção declarado no wave prompt da f.1 (~3 arquivos).
+**Hipótese confirmada empiricamente em escala no pre-push da f.1
+(2026-06-11)**: com compose-execute (e derive) UP, 19 testes do
+escopo execute falham (TestS380 ×2 + ControlledActivation ×3 +
+RealVenueActivation ×5 + LiveConsumerFlow ×4 + EndToEndSlice ×4 +
+S373 ×2 — todos spawnam supervisors contra os mesmos durables);
+com os containers parados, o escopo inteiro passa (`ok` 45s,
+zero FAILs, mesmo working tree). O mecanismo do G7 afeta a
+família toda, não só o TestS380. Re-deferred para sub-wave
+dedicada de test-hardening. Workaround:
 either rerun the suite isolated (`go test -count=1 -run
 TestS380_LiveListenDryRun_FullPipeline` after stopping
 compose-execute) or trust CI to confirm green.
@@ -1956,12 +2011,15 @@ arquivos `.go` no diff (PR docs/harness-only) — flake confirmado
 empiricamente.
 
 **Workaround:** rerun do job falho (`gh run rerun <id> --failed`);
-localmente, rerun isolado do teste. **Deferred to:** mesma
-disposição de G7/G8 — H-6.f cleanup ou sub-wave de
-test-hardening.
+localmente, rerun isolado do teste. **Deferred to:** investigado
+em H-6.f.1 (Decisão #6) e **NÃO absorvido** — flake ambiental sob
+carga paralela de CI (FAIL→PASS em rerun, zero `.go` no diff do
+PR #38); sem reprodução determinística local, qualquer ajuste de
+timeout seria especulativo, não mecânico. Re-deferred para
+sub-wave dedicada de test-hardening, junto com G7.
 
 Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
-G6→G8.
+G6→G8 (G8 resolvido em H-6.f.1 — ver "Recently resolved").
 
 ### G10 — `CanonicalInstrument` sem campo de expiry (delivery futures colidem em identidade canônica)
 
@@ -2061,6 +2119,29 @@ archaeology.
 ---
 
 ## Recently resolved
+
+### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake (resolvido em H-6.f.1)
+
+> **Remissão:** anteriormente registrado como **G6** (H-6.b'',
+> 2026-05-26); renomeado para G8 na FASE 3.2 (2026-06-10) por
+> colisão com o G6 histórico de `drift_detect` (Phase 1D.4,
+> abaixo). Referências a "G6 flake" em narrativa histórica
+> (wave table H-6.b'', mensagens de commit) apontam para esta
+> entrada.
+
+`internal/application/execution/s460_session_metadata_test.go`
+assertava `Session.Duration() != 0` após `Close()` com
+`clock.SystemClock{}` imediatamente depois de
+`StartedAt: time.Now()` — sob carga de batch os dois `time.Now()`
+ocasionalmente caíam no mesmo nanossegundo e a assertion disparava.
+
+**Resolvido em H-6.f.1 commit 5 (2026-06-11)** pelo candidate #1
+do registro original: `Close()` recebe
+`clock.FixedClock{Instant: now.Add(time.Second)}` e a assertion
+virou determinística (`Duration() == time.Second`, mais forte que
+o `!= 0` anterior). Validado com `go test -count=20 -run TestS460`
+PASS. Qualquer recorrência DESTE teste a partir de agora é
+regressão do fix, não flake (protocolo da onda f.1).
 
 ### Phase 4.1 wave — CI restoration + quality gate cleanup
 

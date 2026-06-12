@@ -392,7 +392,7 @@ func TestTI_DeduplicationKey_DeterministicFromStrategy(t *testing.T) {
 	// P4.1.10: dedup key precision is nanoseconds (was seconds);
 	// prevents silent JetStream dedup drops under rapid same-second
 	// publishes.
-	wantKey := fmt.Sprintf("strat:mean_reversion_entry:binancef:btcusdt:60:%d", ts.UnixNano())
+	wantKey := fmt.Sprintf("strat:mean_reversion_entry:binancef:btc_usdt_perpetual:60:%d", ts.UnixNano())
 	gotKey := s.DeduplicationKey()
 	if gotKey != wantKey {
 		t.Errorf("TI-2: dedup key want %s, got %s", wantKey, gotKey)

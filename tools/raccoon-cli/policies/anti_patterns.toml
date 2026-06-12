@@ -20,10 +20,13 @@
 # This policy file declares the anti-pattern functions explicitly. The
 # `check instruments` analyzer scans production code for calls to these
 # functions and emits a Finding per call site. Severity is intentionally
-# `warning` during H-6.c migration so that the gate doesn't fail while
-# callers are being migrated to Instrument pass-through. After H-6.f closes
-# (when the helpers are eliminated and ADR-0021 is promoted to Accepted),
-# the severity flips to `error` and the gate fails on any remaining call.
+# `warning` while callers are being migrated to Instrument pass-through;
+# once a pattern's helpers are eliminated from the codebase its severity
+# flips to `error` and the gate fails on any reintroduction.
+# instrumentFromBinding flipped in H-6.f.1 (all 6 helpers deleted);
+# reconstructInstrumentFromLegacy flips in H-6.f.2 (helper retained
+# through the 90-day TTL window per H-6.d.2 Resolução 1, deletion
+# pós-TTL ~2026-08-26 with the ClickHouse WHERE flip).
 #
 # Per P5 of the Harvest protocol, every onda that adds an invariant also
 # adds the analyzer that enforces it. H-6.c.1 adds this policy so each
@@ -54,43 +57,38 @@
 [[anti_patterns]]
 name = "source-string-instrument-reconstructor"
 function = "instrumentFromBinding"
-severity = "warning"
+severity = "error"
 why = """
 Reconstructs CanonicalInstrument from a (source, venueNative) string pair via a hardcoded source-to-Contract mapping (binances→Spot, binancef→Perpetual, default→zero). Production Source values include strings outside this mapping ('binance', 'binance_spot', 'derive', 'clickhouse', 'unknown_exchange', 'execute.venue-adapter'); each call site is a potential silent-zero regression analogous to commit 37f8ddd in H-6.b'.
 
-Migration progress (H-6.c.2 closure, 2026-05-27):
+Migration progress (H-6.f.1 closure, 2026-06-11 — COMPLETE):
 - application/signal: helper deleted, 0 callers (H-6.c.1 commit 7a).
 - application/decision: helper deleted, 0 callers (H-6.c.1 commit 7b).
 - application/strategy: helper deleted, 0 callers (H-6.c.1 commit 7c).
 - application/risk: helper deleted, 0 callers (H-6.c.1 commit 7d).
 - application/execution: helper deleted, 0 callers (H-6.c.2 commit 5). Testnet adapters now use BindingTarget.Instrument() boundary helper with warn-and-emit-zero fallback (H-6.c.2 commit 4).
-- application/executionclient: 1 caller remaining (audit_session) — H-6.f scope, blocked by LifecycleEntry contract migration.
+- application/executionclient: helper deleted, 0 callers (H-6.f.1 commit 2). The audit_session caller was the silent-zero regression of the H-6.e.2 KV key cutover (LifecycleEntry.Symbol carries the canonical subject token; the helper expected venue-native and emitted zero); fixed via instrument.FromSubjectToken — canonical→canonical, no venue inference.
 
-Total expected after H-6.f closure: 0 callers, helper deleted entirely from codebase. ADR-0021 promotion to Accepted is gated on this state. The boundary-helper replacement is internal/application/ingest.BindingTarget.Instrument() (added in H-6.c.1 commit 6) with explicit error-returning signature — the canonical reconstruction point for legitimate (source, symbol) → Instrument boundaries.
+Final state reached in H-6.f.1: 0 callers, all 6 helpers deleted from the codebase; severity is `error` so any reintroduction fails the gate. ADR-0021 promotion (H-6.f.2, pós-TTL) is gated on the sibling reconstructInstrumentFromLegacy entry below. The boundary-helper replacement is internal/application/ingest.BindingTarget.Instrument() (added in H-6.c.1 commit 6) with explicit error-returning signature — the canonical reconstruction point for legitimate (source, symbol) → Instrument boundaries.
 """
 help = """
 Pass CanonicalInstrument directly from upstream type that already carries it (pattern: NewPaperOrderEvaluatorForInstrument in internal/application/execution/paper_order_evaluator.go). Use BindingTarget.Instrument() (in internal/application/ingest/binding.go) for legitimate boundary reconstruction with error-returning signature — no silent zero.
 
 H-6.c.1 commits 2-7d + H-6.c.2 commits 1-6 are the migration pattern reference: ForInstrument pass-through constructors per application package, derive + execute actors compute Instrument once at the BindingTarget boundary, legacy wrappers + helper + dead `symbol` struct field deleted. Testnet adapters in execution package use BindingTarget.Instrument() with warn-and-emit-zero fallback per the composite_reader treatment shape.
 """
-# Exceptions are the remaining production caller files deferred to
-# later sub-ondas. Each entry carries an inline sub-onda scope tag;
-# entries are removed when the corresponding sub-onda eliminates
-# the helper from that file. Auditable shrinkage = explicit progress
-# signal. The list is exhaustive — adding a NEW caller in any
-# non-listed file surfaces as a warning/error per the CI profile,
-# acting as the canary against regression-shape reintroduction.
-exceptions = [
-    # H-6.f scope — executionclient (blocked by LifecycleEntry contract migration)
-    "internal/application/executionclient/audit_session.go",
-]
+# Exception list emptied in H-6.f.1 (was: audit_session.go, the
+# last deferred caller). With severity=error and zero exceptions,
+# any new instrumentFromBinding call site anywhere in production
+# code fails the gate — the canary against regression-shape
+# reintroduction is now unconditional.
+exceptions = []
 
 [[anti_patterns]]
 name = "source-string-instrument-reconstructor-clickhouse"
 function = "reconstructInstrumentFromLegacy"
 severity = "warning"
 why = "ClickHouse-side reconstruction of CanonicalInstrument from legacy (source, venue_native_symbol) row columns. After H-6.c.2 commit 2, all 13 call sites uniformly use the warn-and-emit-zero pattern (the 5 silent-discard sites in composite_reader.go were converted to match the existing 8 sister sites; the 8/5 split is now history). The pattern documents a back-compat degradation per the H-6.b–H-6.d read window — operator-visible warn logs surface every reconstruction failure for monitoring."
-help = "All 13 callers are tolerable until H-6.d (ClickHouse schema migration adds canonical `base`/`quote`/`contract` columns, eliminating the need for source-string reconstruction entirely). The helper itself is removed in H-6.d; this entry is retired then. No further action needed in H-6.c.2 or H-6.f scopes."
+help = "All 13 callers are the dual-path fallback installed by H-6.d.2 (canonical columns preferred via instrumentFromCanonicalColumns; legacy fallback for pre-H-6.d.1 rows during the 90-day TTL window). The helper is RETAINED through the TTL window per H-6.d.2 Resolução 1 — original plan ('removed in H-6.d') was superseded; stale text fixed in H-6.f.1. Deletion + severity flip + entry retirement happen in H-6.f.2 (pós-TTL ~2026-08-26, atomic with the ClickHouse WHERE flip and operational verification)."
 exceptions = [
     # H-6.d scope — all 7 clickhouse reader files. Helper eliminated by ClickHouse schema migration with canonical columns.
     "internal/adapters/clickhouse/candle_reader.go",

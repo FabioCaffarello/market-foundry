@@ -229,6 +229,9 @@ func (e ExecutionIntent) PartitionKey() string {
 // when siblings publish within the same wall-clock second. Production
 // is safe (kline cadence ≥1s) but rapid-publish integration tests
 // (writerpipeline + natsexecution restart_recovery) require precision.
+// Canonical SubjectToken() since H-6.f.1 (Decisão #4) — last message
+// surface off VenueSymbol(); transition breaks the 2-minute JetStream
+// duplicate window once at deploy (documented, accepted).
 func (e ExecutionIntent) DeduplicationKey() string {
-	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.VenueSymbol(), e.Timeframe, e.Timestamp.UnixNano())
+	return fmt.Sprintf("exec:%s:%s:%s:%d:%d", e.Type, e.Source, e.Instrument.SubjectToken(), e.Timeframe, e.Timestamp.UnixNano())
 }

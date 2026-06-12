@@ -162,7 +162,7 @@ func TestRiskAssessment_DeduplicationKey(t *testing.T) {
 		Timestamp:  ts,
 	}
 	got := r.DeduplicationKey()
-	prefix := "risk:position_exposure:binancef:btcusdt:60:"
+	prefix := "risk:position_exposure:binancef:btc_usdt_perpetual:60:"
 	if got[:len(prefix)] != prefix {
 		t.Fatalf("expected prefix %q, got %q", prefix, got)
 	}
