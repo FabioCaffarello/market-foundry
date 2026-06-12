@@ -141,6 +141,7 @@ type Dependencies struct {
 	Session                      SessionFamilyDeps
 	Monitoring                   MonitoringFamilyDeps
 	Triage                       TriageFamilyDeps // S487
+	Venues                       VenuesFamilyDeps // ADR-0022 R2 (H-7.a)
 	Logger                       *slog.Logger
 }
 
@@ -340,6 +341,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Triage.HasAny() {
 		routes = append(routes, Triage(deps.Triage, deps.Logger)...)
+	}
+	if deps.Venues.HasAny() {
+		routes = append(routes, Venues(deps.Venues)...)
 	}
 	return routes
 }

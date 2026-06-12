@@ -97,7 +97,7 @@ group's table below where they are non-obvious.
 
 ## Endpoint groups
 
-The 60 registered routes (per `cmd/gateway/boot_test.go`) fall into 12
+The 61 registered routes (per `cmd/gateway/boot_test.go`) fall into 13
 functional groups. Each group is documented below with its routes,
 path/query params, and a one-line purpose.
 
@@ -328,6 +328,21 @@ Aggregate monitoring state of the runtime. Gated on `GetOperationalState`.
 |---|---|---|---|---|
 | GET | `/monitoring/state` | — | — | Aggregate operational health and runtime state |
 
+### 13. Venues (1 route)
+
+Multi-venue capabilities introspection (ADR-0022 R2, H-7.a). Returns
+the union of all shipping adapters' static `Capabilities()`
+declarations. Consumers MUST tolerate absence of undeclared event
+types (R3) and MAY query this surface at startup to confirm which
+venues will produce the event types they subscribe to.
+
+| Method | Path | Path params | Query params | Purpose |
+|---|---|---|---|---|
+| GET | `/venues/capabilities` | — | — | Union of adapter capability declarations: `{"venues": [{venue, event_types, contracts, notes?}, …]}` |
+
+Declarations change only on deploy (static per ADR-0022 R1), so the
+response is stable for the lifetime of the process.
+
 ---
 
 ## Conditional endpoints summary
@@ -352,6 +367,7 @@ check via `*FamilyDeps.HasAny()` in `internal/interfaces/http/routes/core.go`.
 | Session | `deps.Session.HasAny()` | per-route: `ListSessions`, `BatchAuditSession`, `VerifySession`, `AuditSession`, `UnifiedReport`, `GetSession` |
 | Monitoring | `deps.Monitoring.HasAny()` | `GetOperationalState` |
 | Triage | `deps.Triage.HasAny()` | `GetSessionTriage`, `GetDecisionTriage`, `GetRoundTripTriage`, `GetTriageOverview` |
+| Venues | `deps.Venues.HasAny()` | static `Capabilities` slice (always wired in production — ships with the binary) |
 
 A minimally-wired gateway responds only on `/healthz`, `/readyz`,
 `/metrics`, and the configctl group (always available because
@@ -378,6 +394,7 @@ from route group to handler file(s):
 | 10. Triage | `triage.go` |
 | 11. Sessions | `session.go` (single handler covers all 6 session routes) |
 | 12. Monitoring | `monitoring.go` |
+| 13. Venues | `venues.go` |
 
 A shared helper `parseQueryKeyParams(r)` in `handlers/common.go`
 extracts `source` / `base`+`quote`+`contract` / `timeframe` for `*_LATEST` endpoints.
@@ -399,7 +416,7 @@ If you add a new route, you **must** also add it to the test's
 `routes` slice. Without that, a future conflict will only be
 discovered when the gateway actually boots.
 
-The test currently registers 60 routes — matching the production
+The test currently registers 61 routes — matching the production
 registration count.
 
 ---
