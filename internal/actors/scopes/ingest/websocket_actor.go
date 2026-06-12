@@ -8,9 +8,16 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
+	"internal/adapters/exchanges/capabilities"
+	"internal/domain/observation"
+	"internal/shared/metrics"
 
 	"github.com/anthdm/hollywood/actor"
 )
+
+// eventTypeTrade is the canonical event-type name of the aggTrade
+// path, as declared in the adapters' Capabilities() (ADR-0022 R1).
+const eventTypeTrade = "observation.trade"
 
 // WebSocketAdapterConfig holds the configuration for a single WebSocket adapter.
 type WebSocketAdapterConfig struct {
@@ -107,6 +114,7 @@ func (a *WebSocketAdapterActor) start(c *actor.Context) {
 func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol string, publisherPID *actor.PID) func([]byte) {
 	switch source {
 	case "binancef":
+		caps := binancef.Capabilities()
 		return func(data []byte) {
 			agg, prob := binancef.ParseAggTrade(data)
 			if prob != nil {
@@ -118,9 +126,13 @@ func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol st
 				a.logger.Error("normalize trade", "error", prob.Message)
 				return
 			}
+			if !a.declared(caps, event) {
+				return
+			}
 			c.Send(publisherPID, publishTradeMessage{Event: event})
 		}
 	case "binances":
+		caps := binances.Capabilities()
 		return func(data []byte) {
 			agg, prob := binances.ParseAggTrade(data)
 			if prob != nil {
@@ -132,9 +144,31 @@ func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol st
 				a.logger.Error("normalize trade", "error", prob.Message)
 				return
 			}
+			if !a.declared(caps, event) {
+				return
+			}
 			c.Send(publisherPID, publishTradeMessage{Event: event})
 		}
 	default:
 		return nil
 	}
+}
+
+// declared is the ADR-0022 R3 producer-boundary guard: an event for
+// an (event_type, contract) pair outside the adapter's declared
+// Capabilities() is silently rejected (no publish) and counted —
+// a non-zero counter means the declaration is out of date with the
+// adapter's parsing reality.
+func (a *WebSocketAdapterActor) declared(caps capabilities.Capabilities, event observation.TradeReceivedEvent) bool {
+	contract := event.Trade.Instrument.Contract
+	if caps.Allows(eventTypeTrade, contract) {
+		return true
+	}
+	metrics.IncAdapterUndeclaredEvent(string(caps.Venue), eventTypeTrade, string(contract))
+	a.logger.Warn("undeclared event rejected at producer (ADR-0022 R3)",
+		"venue", string(caps.Venue),
+		"event_type", eventTypeTrade,
+		"contract", string(contract),
+	)
+	return false
 }

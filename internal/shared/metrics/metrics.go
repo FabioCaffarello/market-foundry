@@ -130,6 +130,24 @@ var (
 	)
 )
 
+// ── Adapter metrics (ADR-0022 R3, H-7.a) ──────────────────────────
+
+var (
+	adapterUndeclaredEventTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "adapter",
+			Name:      "undeclared_event_total",
+			Help: "Venue-native events received for an (event_type, contract) " +
+				"pair NOT declared in the adapter's Capabilities(). The event is " +
+				"silently rejected at the producer (no NATS publish — ADR-0022 R3); " +
+				"a non-zero rate means Capabilities() is out of date with adapter " +
+				"parsing reality: fix the declaration or fix the parser.",
+		},
+		[]string{"venue", "event_type", "contract"},
+	)
+)
+
 func init() {
 	prometheus.MustRegister(
 		httpRequestDuration,
@@ -142,6 +160,7 @@ func init() {
 		executionIntentsTotal,
 		executionGateStatus,
 		executionGateReadFailuresTotal,
+		adapterUndeclaredEventTotal,
 	)
 }
 
@@ -253,6 +272,21 @@ func GateReadFailureCount(reason string) float64 {
 // IncExecutionIntent increments the execution intent counter.
 func IncExecutionIntent(sourcePath, side string) {
 	executionIntentsTotal.WithLabelValues(sourcePath, side).Inc()
+}
+
+// IncAdapterUndeclaredEvent increments the undeclared-event counter
+// for an (event_type, contract) pair outside the adapter's declared
+// Capabilities() (ADR-0022 R3). Callers reject the event after
+// counting — never publish it.
+func IncAdapterUndeclaredEvent(venue, eventType, contract string) {
+	adapterUndeclaredEventTotal.WithLabelValues(venue, eventType, contract).Inc()
+}
+
+// AdapterUndeclaredEventCount returns the current counter value for
+// the given label triple. Exported so cross-module tests can verify
+// the R3 guard without taking a direct prometheus dependency.
+func AdapterUndeclaredEventCount(venue, eventType, contract string) float64 {
+	return testutil.ToFloat64(adapterUndeclaredEventTotal.WithLabelValues(venue, eventType, contract))
 }
 
 // SetGateActive sets the execution gate status gauge.
