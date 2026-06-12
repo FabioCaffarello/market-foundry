@@ -2,9 +2,33 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` when Onda H-7 ships the implementing code
-(see "Promoção para Accepted" below).
+Accepted (2026-06-12, Onda H-7.b — commit final da sub-onda, com os
+seis critérios da seção "Promoção para Accepted" literalmente
+verificados um a um):
+
+1. Adapter Bybit shipped com `Capabilities()` — como **dois**
+   packages, `internal/adapters/exchanges/bybits/` (spot) e
+   `…/bybitf/` (linear perpetual), espelhando a família
+   binances/binancef, em vez do path único `…/bybit/` que este ADR
+   esboçou ("typically Bybit"). O split preserva a bijeção
+   source→contract do `venueSourceContract` (Decisão #3 da abertura
+   de H-7, PROGRAM-0004 → "Sub-ondas H-7") — divergência de layout,
+   não de contrato; registrada aqui em vez de erratum separado.
+2. binances/binancef retrofitted com `Capabilities()` (H-7.a, PR #45).
+3. `GET /venues/capabilities` registrado retornando a união (4
+   venues); entry no `cmd/gateway/boot_test.go`; documentado em
+   HTTP-API.md grupo 13 (H-7.a).
+4. Counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}`
+   em `internal/shared/metrics/` + guard R3 no ingest (H-7.a).
+5. `raccoon-cli check venue-parity` no gate (step 11), validando
+   R1–R3 estaticamente (H-7.a).
+6. RUNTIME.md com o inventário de venue sources do
+   OBSERVATION_EVENTS; RESUMPTION refletindo a superfície
+   multi-venue (este commit).
+
+Histórico: foundation ADR delivered em Onda H-2 como `Proposed`;
+framework R1–R4 em H-7.a (PR #45); primeiro venue não-Binance e
+promoção em H-7.b.
 
 ## Date
 

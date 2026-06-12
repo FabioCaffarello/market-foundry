@@ -98,6 +98,28 @@ binary; consumer count varies.
 Stream definitions live in per-domain registry files under
 `internal/adapters/nats/nats<domain>/registry.go`.
 
+### Venue ingest sources (OBSERVATION_EVENTS)
+
+The `ingest` binary writes `OBSERVATION_EVENTS` from per-venue
+WebSocket adapters. Subjects are source-suffixed
+(`observation.events.market.trade.{source}`) under the stream's
+wildcard (`observation.events.market.>`), so adding a venue changes
+no stream definition. Sources shipped (H-7.b — multi-venue
+observation surface per ADR-0022):
+
+| Source | Venue family | Contract | Upstream |
+|---|---|---|---|
+| `binances` | Binance Spot | spot | `wss://stream.binance.com:9443/ws/{symbol}@aggTrade` |
+| `binancef` | Binance USDT-M Futures | perpetual (+usdtfutures parse, ingest gated by G10) | `wss://fstream.binance.com/ws/{symbol}@aggTrade` |
+| `bybits` | Bybit Spot | spot | `wss://stream.bybit.com/v5/public/spot`, topic `publicTrade.{SYMBOL}` |
+| `bybitf` | Bybit linear perpetual | perpetual (delivery rejected, G10) | `wss://stream.bybit.com/v5/public/linear`, topic `publicTrade.{SYMBOL}` |
+
+Each adapter declares its event-type surface via `Capabilities()`
+(ADR-0022 R1; introspectable at `GET /venues/capabilities`); the
+ingest producer guard rejects-and-counts undeclared pairs (R3).
+Execution remains Binance-only — the multi-venue surface is the
+observation plane.
+
 > **Note vs ARCHITECTURE.md:** `STRATEGY_EVENTS` and `EXECUTION_FILL_EVENTS`
 > have one more consumer each in reality than the simplified table in
 > ARCHITECTURE.md showed (STRATEGY_EVENTS is consumed by `execute` for the
@@ -190,8 +212,11 @@ have many readers (gateway plus other binaries).
 Naming convention: `{TYPE}_LATEST` for the current value per partition,
 `{TYPE}_HISTORY` for bounded history.
 
-Partition key pattern: `{source}.{symbol}.{timeframe}` (e.g.,
-`binance_spot.btcusdt.60` for 1-minute candles on Binance Spot BTC/USDT).
+Partition key pattern: `{source}.{subject_token}.{timeframe}` (e.g.,
+`binances.btc_usdt_spot.60` for 1-minute candles on Binance Spot
+BTC/USDT — canonical token via `SubjectToken()` since H-6.e.2; this
+doc carried the pre-cutover example `binance_spot.btcusdt.60` until
+H-7.b, fixed as doc drift).
 
 **17 buckets** are referenced in code, grouped by family:
 

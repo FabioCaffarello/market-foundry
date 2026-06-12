@@ -310,8 +310,11 @@ that don't exist. From [docs/RESUMPTION.md](docs/RESUMPTION.md):
   individual round-trips only.
 - **No portfolio-level position sizing.** Decisions are local per
   symbol.
-- **No multi-exchange surface.** Single venue family (Binance Spot +
-  Futures).
+- **No multi-exchange EXECUTION surface.** Execution (paper/testnet/
+  mainnet order flow, segment router, order lifecycle) is a single
+  venue family: Binance Spot + Futures. The **observation plane is
+  multi-venue since H-7.b** (Binance + Bybit per ADR-0022) — but
+  execution adapters stay Binance-only.
 - **No market-making primitives.**
 - **No machine learning pipeline.**
 - **No HTTP authentication.** Loopback binding is the access control.

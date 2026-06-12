@@ -231,7 +231,55 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-7.a (esta sessão):
+Entregas H-7.b (esta sessão):
+
+- **Commit 0**: PRD/RESUMPTION abertura (fecha linha H-7.a;
+  pré-flight da sub-onda registrado).
+- **Commit 1**: Venue enum +`VenueBybit`("bybit")/
+  +`VenueBybitFutures`("bybitf") — mesma assimetria intencional
+  venue-vs-source da família Binance; teste de inválidos atualizado
+  ("bybit" saiu da lista, "coinbase"/"BYBIT" entram).
+- **Commits 2–3**: packages `bybits` (spot) e `bybitf` (linear
+  perpetual). Diferenças intrínsecas do Bybit v5 vs o modelo
+  Binance, todas tratadas: subscribe por frame (não por URL),
+  ping app-level obrigatório a cada 20s, **`data[]` em batch**
+  (N trades/frame), frames de controle multiplexados no socket
+  (parser tri-state skipa sem error-spam), **taker side `S`**
+  (BuyerMaker = S=="Sell", inversão explícita). bybitf REJEITA
+  delivery futures (expiry dash-separated) — gate G10 até H-7.c,
+  com Note na Capabilities. 15 unit tests nos dois packages.
+- **Commit 4**: wiring — switch do websocket_actor (+2 cases com
+  loop por batch e guard R3 por evento), `venueSourceContract`
+  +2 (bijeção preservada — o motivo do split de sources),
+  adapters.toml allowlist (4), união do gateway (4 venues).
+- **Commit 5**: canário integration `bybit_ingest_canary_test.go`
+  vs NATS vivo — batch de 2 trades → 2 mensagens (DeduplicationKey
+  por TradeID não colapsa na janela de 2min) + ambos os sources
+  roteados com instrument canônico no payload. Duas lições do
+  draft corrigidas e comentadas no teste: payload é CBOR (asserts
+  raw) e TradeIDs fixos eram DEDUPLICADOS no rerun dentro da
+  janela (IDs únicos por run; validado ×2 runs consecutivos).
+- **Commit 6**: **promoção ADR-0022 → `Accepted`** com os 6
+  critérios verificados um a um na seção Status do ADR (incl. a
+  divergência de layout bybits/bybitf vs "bybit/" único,
+  registrada lá); RUNTIME.md → "Venue ingest sources" + fix do
+  exemplo stale de partition key (shape pré-e.2, doc drift);
+  CLAUDE.md + N4 re-escopados ("no multi-exchange EXECUTION
+  surface" — observação é multi-venue desde H-7.b); TRUTH-MAP
+  (row ADR-0022 → Implemented); PRD checkboxes.
+
+**Próxima sub-onda destravada após merge**: **H-7.c** — modelagem
+do expiry (G10): campo opcional `Expiry` + ativação do slot
+dormente `[_expiry]` do token (o lock-in de `FromSubjectToken` tem
+pause trigger armado para exatamente isso) + errata ADR-0009/0021;
+coluna ClickHouse deferida até habilitar delivery no ingest
+(Decisão #4 (A)). Sequencing estrito: H-7.c abre branch APENAS
+após merge desta PR em `main`. **ADR-0021 permanece `Proposed`**
+(promoção em H-6.f.2 pós-TTL ~2026-08-26).
+
+---
+
+Entregas H-7.a (sessão anterior):
 
 - **Commit 0**: PRD — split H-7 a/b/c + decisões #1–#5 da abertura
   (registradas em PROGRAM-0004 → "Sub-ondas H-7") + wave rows.
@@ -2847,12 +2895,15 @@ Decisions are local per symbol. The `risk` domain checks
 position-exposure and drawdown limits per assessment, but there is
 no central model managing aggregate exposure across the portfolio.
 
-### N4 — No multi-exchange surface
+### N4 — No multi-exchange EXECUTION surface
 
-A single venue family (Binance, with Spot and Futures sub-segments).
-Adding OKX, Bybit, or any other exchange would require a new adapter
-under `internal/adapters/exchanges/` and corresponding execution
-adapters. This is not currently scoped.
+Execution (paper/testnet/mainnet order flow, segment router, order
+lifecycle) is a single venue family: Binance Spot + Futures. The
+**observation plane became multi-venue in H-7.b** (Bybit spot +
+linear perpetual via `bybits`/`bybitf`, per the ADR-0022
+capabilities contract) — the non-feature now scopes execution only.
+Adding a venue to execution would require venue execution adapters
+and a venue-aware segment model; not currently scoped.
 
 ### N5 — No market-making primitives
 

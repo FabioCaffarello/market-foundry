@@ -356,8 +356,13 @@ verdadeiros simultaneamente:
 - [ ] Adapters `binances` + `binancef` emitem `CanonicalInstrument`
   via `Normalize`. Pattern detection no `binancef` para discriminar
   `ContractPerpetual` vs `ContractUSDTFutures` via symbol suffix.
-- [ ] Adapter Bybit (`bybit`) implementa `ToCanonical`/`FromCanonical`
-  per ADR-0021; emite `CanonicalInstrument` via `Normalize`.
+- [x] Adapter Bybit implementa a normalização canônica per ADR-0021
+  e emite `CanonicalInstrument` via `Normalize` — entregue em H-7.b
+  como packages `bybits`/`bybitf` no house pattern
+  (`parseBybit*Symbol` + `Normalize`, Decisão #5 (A); o naming
+  literal `ToCanonical`/`FromCanonical` ganha erratum de
+  equivalência na revisão da H-6.f.2, junto com os adapters
+  Binance que usam o mesmo shape desde H-6.a).
 - [ ] Todos os domain types migrados de `Symbol string` para
   `Instrument CanonicalInstrument` (ObservationTrade,
   EvidenceCandle, Signal, Decision, Strategy, Risk, Pairing's
@@ -376,13 +381,15 @@ verdadeiros simultaneamente:
   KV partition keys + contrato HTTP de leitura migrados em
   H-6.e.2 (critério #2 do ADR-0021 fecha literalmente em e.2,
   per erratum 2026-06-10).
-- [ ] raccoon-cli `check instruments` (H-6.a) e `check venue-parity`
-  (H-7) integrados em `make verify`.
+- [x] raccoon-cli `check instruments` (H-6.a) e `check venue-parity`
+  (H-7.a, gate step 11) integrados em `make verify`.
 - [ ] ADR-0021 promovido a `Accepted` no commit final de H-6.f.2
   (todos critérios literais satisfeitos; gate temporal pós-TTL
   ~2026-08-26 + verificação operacional — erratum 2026-06-11).
-- [ ] ADR-0022 promovido a `Accepted` no commit final de H-7
-  (cross-venue parity provada com Binance + Bybit).
+- [x] ADR-0022 promovido a `Accepted` no commit final de H-7.b
+  (2026-06-12; cross-venue parity provada com Binance + Bybit — 4
+  declarações de capabilities introspectáveis, analyzer no gate,
+  canário integration vs NATS vivo).
 - [ ] PROGRAM-0004 transita para `Closed` na entrega final de
   H-7; entrada Changelog correspondente.
 
@@ -393,7 +400,7 @@ verdadeiros simultaneamente:
 | ADR | Escopo | Status no início da Fase | Promovido por |
 |-----|--------|--------------------------|----------------|
 | 0021 | Canonical instrument & venue model | Proposed (entregue em H-2) | H-6.f.2 (após todos critérios literais; gate pós-TTL ~2026-08-26) |
-| 0022 | Multi-venue normalization policy | Proposed (entregue em H-2) | H-7 |
+| 0022 | Multi-venue normalization policy | Proposed (entregue em H-2) | **H-7.b ✓ (Accepted 2026-06-12** — framework em H-7.a, Bybit + promoção em H-7.b; 6 critérios verificados na seção Status do ADR) |
 
 Nenhuma ADR nova esperada nesta Fase. Se durante as sub-ondas
 surgir necessidade arquitetural não coberta, P6 (pause-and-report)
@@ -474,6 +481,27 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-06-12 (closure H-7.b)** — Adapter Bybit entregue em 7
+  commits; **ADR-0022 → `Accepted`** no commit final (6 critérios
+  verificados um a um na seção Status do ADR; divergência de layout
+  bybits/bybitf vs o path único "bybit/" esboçado registrada lá —
+  o split preserva a bijeção do venueSourceContract, Decisão #3).
+  Packages bybits (spot) + bybitf (linear perpetual): parser
+  tri-state (frames de controle v5 skipados), Normalize em batch
+  (data[]; BuyerMaker = taker S=="Sell"), delivery rejeitado no
+  parser (gate G10), WSClient subscribe-frame + ping app-level.
+  Wiring completo (+Venue enum, +switch ingest, +registry,
+  +allowlist, +união gateway 4 venues). Canário integration vs
+  NATS vivo prova batch-não-colapsa-no-dedup e roteamento dos dois
+  sources — duas lições do draft corrigidas e comentadas (payload
+  é CBOR; TradeIDs fixos eram deduplicados no rerun dentro da
+  janela de 2min). RUNTIME.md ganha "Venue ingest sources" + fix
+  do exemplo stale de partition key (pré-e.2); CLAUDE.md e
+  RESUMPTION N4 re-escopados para "no multi-exchange EXECUTION
+  surface" (observação é multi-venue desde aqui). **ADR-0021
+  permanece `Proposed`** (promoção em H-6.f.2 pós-TTL). Próxima:
+  **H-7.c (expiry/G10)** após merge.
 
 - **2026-06-12 (abertura H-7.b)** — H-7.a mergeada (PR #45 em
   `main` em `8d5bedd`) destrava H-7.b: adapter Bybit per Decisões

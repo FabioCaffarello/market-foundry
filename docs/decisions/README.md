@@ -96,7 +96,7 @@ ondas; 0021–0023 remain `Proposed`.
 | [0019](0019-deterministic-replay-time-invariants.md) | Deterministic replay and time invariants | Accepted | Onda H-4 (2026-05-25) |
 | [0020](0020-sequencing-and-time-normalization.md) | Sequencing and time normalization | Accepted | Onda H-4 (2026-05-25) |
 | [0021](0021-canonical-instrument-and-venue-model.md) | Canonical instrument and venue model | Proposed | Onda H-6 (atômica em H-6.f) |
-| [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Proposed | Onda H-7 |
+| [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Accepted (2026-06-12, H-7.b) | Onda H-7 |
 | [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
 
 ### Fase Harvest — Observability decisions (Onda H-5)
