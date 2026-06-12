@@ -475,6 +475,23 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-12 (abertura H-7.b)** — H-7.a mergeada (PR #45 em
+  `main` em `8d5bedd`) destrava H-7.b: adapter Bybit per Decisões
+  #2/#3/#5 da abertura de H-7. Pré-flight da sub-onda confirmou:
+  spawn do ingest é config-driven (supervisor cria scope por
+  `Target.Source`; único dispatch hardcoded é o switch do
+  websocket_actor) e os subjects do observation stream são
+  wildcard (`observation.events.market.>`) — sem mudança de
+  registry NATS. Surface enumerada: Venue enum (+bybit/+bybitf),
+  2 packages novos (bybits/bybitf, espelho da família Binance),
+  switch do websocket_actor (+2 cases com loop por `data[]`),
+  `venueSourceContract` (+2), `adapters.toml` (+2), união do
+  gateway (+2), RUNTIME.md, CLAUDE.md non-features. Achado: o
+  RUNTIME.md carrega exemplo stale de partition key
+  (`binance_spot.btcusdt.60`, shape pré-e.2) — fix no closure.
+  **Promoção ADR-0022 → Accepted no commit final desta sub-onda**
+  se os 6 critérios literais fecharem (verificação um a um).
+
 - **2026-06-12 (closure H-7.a)** — Capabilities framework entregue
   em 8 commits (0–6, com 5a/5b). Contrato `Capabilities` em
   `application/ports` (mea culpa estrutural registrado: o pré-flight
