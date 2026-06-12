@@ -7,13 +7,12 @@ import "internal/shared/problem"
 // inside CanonicalInstrument — the same instrument identity is
 // shared across venues to enable cross-venue capabilities.
 //
-// The enum is intentionally restricted in H-6.a to the venues
-// with shipping adapters (binance, binancef). Future venues
-// (bybit, coinbase, hyperliquid, kraken, krakenf — listed in
-// ADR-0021 design intent) gain their entries when their adapters
-// land in PROGRAM-0004 H-7 and beyond. This mirrors the
-// "declare what's in use" discipline from H-5's check metrics
-// allowlist.
+// The enum is intentionally restricted to the venues with
+// shipping adapters (binance + binancef since H-6.a; bybit +
+// bybitf since H-7.b). Future venues (coinbase, hyperliquid,
+// kraken, krakenf — listed in ADR-0021 design intent) gain their
+// entries when their adapters land. This mirrors the "declare
+// what's in use" discipline from H-5's check metrics allowlist.
 type Venue string
 
 const (
@@ -22,6 +21,14 @@ const (
 	// VenueBinanceFutures is Binance USDT-margined Futures
 	// (the `binancef` adapter family).
 	VenueBinanceFutures Venue = "binancef"
+	// VenueBybit is Bybit Spot (the `bybits` adapter; ADR-0021
+	// design intent lists the family as "bybit").
+	VenueBybit Venue = "bybit"
+	// VenueBybitFutures is Bybit USDT-margined linear perpetual
+	// (the `bybitf` adapter family). Inverse (coin-margined) and
+	// delivery contracts are out of scope until expiry modeling
+	// lands (G10 / H-7.c).
+	VenueBybitFutures Venue = "bybitf"
 )
 
 // ValidVenue reports whether v is a recognized venue value.
@@ -31,7 +38,7 @@ const (
 // acceptance.
 func ValidVenue(v Venue) bool {
 	switch v {
-	case VenueBinance, VenueBinanceFutures:
+	case VenueBinance, VenueBinanceFutures, VenueBybit, VenueBybitFutures:
 		return true
 	default:
 		return false
@@ -49,7 +56,7 @@ func (v Venue) Validate() *problem.Problem {
 			"venue is invalid",
 			problem.ValidationIssue{
 				Field:   "venue",
-				Message: "must be one of: binance, binancef",
+				Message: "must be one of: binance, binancef, bybit, bybitf",
 				Value:   string(v),
 			},
 		)
