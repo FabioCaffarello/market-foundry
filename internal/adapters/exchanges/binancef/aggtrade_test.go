@@ -324,6 +324,37 @@ func TestNormalize_DeliveryFuturesPattern(t *testing.T) {
 	if event.Trade.Instrument.Contract != instrument.ContractUSDTFutures {
 		t.Fatalf("expected contract usdtfutures, got %s", event.Trade.Instrument.Contract)
 	}
+	// H-7.c: the expiry digits are preserved into the canonical
+	// field — delivery futures no longer collapse in identity (G10).
+	if event.Trade.Instrument.Expiry != "240329" {
+		t.Fatalf("expected expiry 240329, got %q", event.Trade.Instrument.Expiry)
+	}
+	if got, want := event.Trade.Instrument.SubjectToken(), "btc_usdt_usdtfutures_240329"; got != want {
+		t.Fatalf("SubjectToken() = %q, want %q (4th component active)", got, want)
+	}
+}
+
+// Distinct delivery expiries normalize to distinct canonical
+// identities — the literal G10 collision, now fixed end-to-end at
+// the adapter boundary.
+func TestNormalize_DistinctExpiriesDistinctIdentities(t *testing.T) {
+	agg := binancef.AggTrade{
+		EventType: "aggTrade", EventTime: 1710000000000, AggTradeID: 1,
+		Price: "100.00", Quantity: "1.0", TradeTime: 1710000000000,
+	}
+	agg.Symbol = "BTCUSDT_240329"
+	march, prob := binancef.Normalize(agg, "btcusdt_240329")
+	if prob != nil {
+		t.Fatalf("normalize march: %v", prob)
+	}
+	agg.Symbol = "BTCUSDT_240628"
+	june, prob := binancef.Normalize(agg, "btcusdt_240628")
+	if prob != nil {
+		t.Fatalf("normalize june: %v", prob)
+	}
+	if march.Trade.Instrument == june.Trade.Instrument {
+		t.Error("distinct delivery expiries must be distinct canonical identities (G10)")
+	}
 }
 
 func TestNormalize_PerpetualClassification(t *testing.T) {
