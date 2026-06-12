@@ -100,7 +100,14 @@ func TestFromSubjectToken_Rejections(t *testing.T) {
 		{"empty", ""},
 		{"whitespace_only", "   "},
 		{"missing_components", "btc_usdt"},
-		{"too_many_components", "btc_usdt_spot_240329"},
+		// 4 parts parse since H-7.c, but expiry on a non-dated
+		// class is a validation rejection (was a shape rejection
+		// pre-H-7.c — same verdict, different reason).
+		{"expiry_on_spot", "btc_usdt_spot_240329"},
+		{"five_components", "btc_usdt_usdtfutures_240329_extra"},
+		{"non_digit_expiry", "btc_usdt_usdtfutures_24mar29"},
+		{"short_expiry", "btc_usdt_usdtfutures_2403"},
+		{"empty_expiry", "btc_usdt_usdtfutures_"},
 		{"empty_base", "_usdt_spot"},
 		{"empty_quote", "btc__spot"},
 		{"empty_contract", "btc_usdt_"},
@@ -121,13 +128,54 @@ func TestFromSubjectToken_Rejections(t *testing.T) {
 	}
 }
 
+// ── Expiry component (H-7.c — dormant slot activated) ────────────
+
+// Lock-in of the 4-component grammar: dated futures derive
+// "{base}_{quote}_{contract}_{expiry}" and roundtrip through
+// FromSubjectToken. The 3-component tokens stay byte-identical to
+// the pre-H-7.c grammar (asserted by the lock-in tests above).
+func TestSubjectToken_ExpiryComponentRoundtrip(t *testing.T) {
+	inst, prob := instrument.NewDelivery("BTC", "USDT", instrument.ContractUSDTFutures, "240329")
+	if prob != nil {
+		t.Fatalf("NewDelivery: %v", prob)
+	}
+	if got, want := inst.SubjectToken(), "btc_usdt_usdtfutures_240329"; got != want {
+		t.Fatalf("SubjectToken() = %q, want %q", got, want)
+	}
+	back, prob := instrument.FromSubjectToken(inst.SubjectToken())
+	if prob != nil {
+		t.Fatalf("FromSubjectToken: %v", prob)
+	}
+	if back != inst {
+		t.Errorf("roundtrip = %+v, want %+v", back, inst)
+	}
+}
+
+// Distinct expiries yield distinct tokens — the routing-layer half
+// of the G10 fix (the identity half is asserted in expiry_test.go).
+func TestSubjectToken_DistinctAcrossExpiries(t *testing.T) {
+	march, prob := instrument.NewDelivery("BTC", "USDT", instrument.ContractUSDTFutures, "240329")
+	if prob != nil {
+		t.Fatalf("NewDelivery: %v", prob)
+	}
+	june, prob := instrument.NewDelivery("BTC", "USDT", instrument.ContractUSDTFutures, "240628")
+	if prob != nil {
+		t.Fatalf("NewDelivery: %v", prob)
+	}
+	if march.SubjectToken() == june.SubjectToken() {
+		t.Error("distinct expiries must yield distinct subject tokens (G10)")
+	}
+}
+
 // Premise lock-in: the parser's non-ambiguity rests on no component
 // of a well-formed token containing '_' — no ContractType constant
-// has one, and asset tickers admit only ASCII letters and digits.
-// If this test fails, FromSubjectToken's Split-into-3 strategy is no
-// longer sound: pause-and-report before changing either side
-// (H-6.f.1 wave protocol; dormant "_{expiry}" slot per ADR-0009
-// erratum activates a 4th component and must revisit the parser).
+// has one, asset tickers admit only ASCII letters and digits, and
+// the expiry component (4th, active since H-7.c) is digits-only.
+// If this test fails, FromSubjectToken's split strategy is no
+// longer sound: pause-and-report before changing either side.
+// (The H-6.f.1 version of this comment armed a pause trigger for
+// the dormant "_{expiry}" slot activation; H-7.c executed that
+// revisit in the same commit that activated the component.)
 func TestFromSubjectToken_NoUnderscoreInComponents(t *testing.T) {
 	contracts := []instrument.ContractType{
 		instrument.ContractSpot,

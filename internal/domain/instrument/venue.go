@@ -27,7 +27,7 @@ const (
 	// VenueBybitFutures is Bybit USDT-margined linear perpetual
 	// (the `bybitf` adapter family). Inverse (coin-margined) and
 	// delivery contracts are out of scope until expiry modeling
-	// lands (G10 / H-7.c).
+	// lands (G11 enablement wave; modeling delivered in H-7.c).
 	VenueBybitFutures Venue = "bybitf"
 )
 

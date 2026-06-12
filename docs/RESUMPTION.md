@@ -7,16 +7,17 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-7.a fechada (2026-06-12)** —
-capabilities framework mergeado (PR #45, `8d5bedd`): contrato
-`ports.Capabilities` + retrofit binances/binancef + guard R3 +
-counter + `GET /venues/capabilities` + analyzer `check
-venue-parity` (gate 12 analyzers / 118 checks). Onda atual:
-**H-7.b** — adapter Bybit (spot + linear perpetual, observação
-apenas; sources `bybits`/`bybitf`) + **promoção ADR-0022 →
-Accepted** (fecha os 6 critérios). Em paralelo no gate temporal
-próprio: **H-6.f.2 TTL-gated ~2026-08-26** fecha a promoção do
-ADR-0021. **26 ADRs total (0001–0026)**. Ver a wave table abaixo.
+Last meaningful state change: **H-7.b fechada (2026-06-12)** —
+adapter Bybit mergeado (PR #46, `c561be2`): packages
+`bybits`/`bybitf`, wiring completo, canário vs NATS vivo, e
+**ADR-0022 promovido a `Accepted`** (6 critérios verificados um a
+um). Observação é multi-venue (Binance + Bybit); execução segue
+Binance-only. Onda atual: **H-7.c** — modelagem do expiry (G10):
+campo opcional `Expiry` (YYMMDD) + ativação do slot dormente
+`[_expiry]` do token + errata ADR-0009/0021; coluna ClickHouse
+deferida (Decisão #4 (A)). Em paralelo no gate temporal próprio:
+**H-6.f.2 TTL-gated ~2026-08-26** fecha a promoção do ADR-0021.
+**26 ADRs total (0001–0026)**. Ver a wave table abaixo.
 
 `make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
 since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
@@ -71,7 +72,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.e.2** | Fechada (PR #43 mergeada em `main` em `c8a547d`, 2026-06-11) | Read-contract canonical cutover (**pacote B**, owner 2026-06-11). Contrato HTTP `(source, symbol, timeframe)` → trio canônico `base/quote/contract` (validação via `instrument.New`); 8 client packages `Symbol string` → `CanonicalInstrument`; KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` (mesmo commit; órfãos inertes + janela de miss documentados); ClickHouse `WHERE … symbol = ?` **inalterado** com valor derivado via helper transitório `LegacyFilterValue()` (= `lower(base+quote)`, direção legítima canonical→venue; sunset H-6.f com o flip do WHERE pós-TTL). Analyzer `check subjects` estendido com seção `[keys]`. Expiry (G10) deferido a H-7. **Critério #2 do ADR-0021 fecha literalmente aqui.** **ADR-0021 permanece `Proposed`** (promoção em f). |
 | **H-6.f.1** | Fechada (PR #44 mergeada em `main` em `5195f8e`, 2026-06-12) | Cleanup não-TTL-gated + fix da regressão de auditoria (split f.1/f.2 da Decisão #1, owner 2026-06-11, opção A). Fix da **regressão silent-zero** descoberta na abertura de H-6.f (audit bundles com `Instrument` zerado desde o merge de e.2: `audit_session.go` usa `instrumentFromBinding`, que exige sufixo `USDT` venue-native, contra o token canônico que `e.Symbol` passou a carregar): novo parser `instrument.FromSubjectToken` (canonical→canonical, premissa "contract sem underscore" com lock-in) + **deleção do 6º/último `instrumentFromBinding`** (executionclient) + canário unit não-zero. Dedup keys canonicalizam (7 domain composers + 4 inline) + analyzer `[dedup]` (P5); janela de dedup JetStream quebrada na transição — documentada. Migration runner multi-statement (deferral d.1). Test-hardening G8 (FixedClock; G7/G9 só se mecânico). **Erratum de sequenciamento (Decisão #2)**: cadeia `e → e.2 → f.1 → {H-7 ∥ f.2}`; **f.2 TTL-gated ~2026-08-26** fecha a promoção. **ADR-0021 permanece `Proposed`.** |
 | **H-7.a** | Fechada (PR #45 mergeada em `main` em `8d5bedd`, 2026-06-12) | Capabilities framework (ADR-0022 R1–R4 **sem venue novo** — prova o contrato nos 2 venues existentes). Split H-7 a/b/c pela Decisão #1 (B) da abertura (owner, 2026-06-12; decisões #1–#5 registradas no [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-7"). Entrega: tipo `Capabilities` + retrofit `Capabilities()` em binances/binancef; counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}` + guard R3 no ingest (silently-reject + increment); gateway `GET /venues/capabilities` (+boot_test per protocolo #5 +HTTP-API.md); analyzer `check venue-parity` (P5) + policy. **ADR-0022 permanece `Proposed`** (critério 1 — adapter Bybit — pendente; promoção atômica em H-7.b). H-7.b (Bybit, observação apenas) e H-7.c (expiry/G10) abrem serialmente após merge. |
-| **H-7.b** | **Atual** (esta entrega — branch `feat/h-7-b-bybit-adapter` aberta após merge de H-7.a em PR #45) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
+| **H-7.b** | Fechada (PR #46 mergeada em `main` em `c561be2`, 2026-06-12) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
+| **H-7.c** | **Atual** (esta entrega — branch `feat/h-7-c-expiry-modeling` aberta após merge de H-7.b em PR #46) | Modelagem do expiry (G10, Decisão #4 (A) da abertura de H-7): campo opcional `Expiry string` (formato canônico **YYMMDD**, permitido apenas para contract classes com expiry — usdtfutures/coinfutures); zero impacto nos instruments sem expiry (lock-ins); `NewDelivery` constructor; `Symbol()`/`FromSymbol` estendidos; **ativação do slot dormente `[_expiry]`** do SubjectToken + `FromSubjectToken` aceita 4 componentes (revisita do pause trigger armado na f.1, no mesmo commit); errata ADR-0009 (slot ativado) + ADR-0021 (decisão futura tomada — campo entra no modelo); `binancef.parseFuturesSymbol` passa a POPULAR o expiry do sufixo `_YYMMDD` (delivery futures deixam de colapsar em identidade). **Coluna ClickHouse `expiry` DEFERIDA** até a onda que habilitar delivery no ingest — gap sucessor registrado no closure (G11). **ADR-0021 permanece `Proposed`** (promoção em H-6.f.2). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -231,7 +233,45 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-7.b (esta sessão):
+Entregas H-7.c (esta sessão):
+
+- **Commit 0 (documento primeiro)**: errata ADR-0021 (a "explicit
+  future decision" do campo Expiry foi tomada — formato canônico
+  YYMMDD, só classes datadas) + ADR-0009 (slot `[_expiry]`
+  ATIVADO) + wave rows.
+- **Commit 1**: campo opcional `Expiry` no CanonicalInstrument +
+  `NewDelivery` + `Symbol()` com `@expiry` + `FromSymbol`
+  roundtrip + `IsZero`. **Lock-in de zero impacto**: os 4 contract
+  types sem expiry produzem `Symbol()` byte-idêntico ao pré-H-7.c.
+  Expiries distintos = identidades canônicas distintas (o
+  collision literal do G10, com teste). Build sweep dos 7 módulos
+  consumidores limpo.
+- **Commit 2**: `SubjectToken()` appenda o 4º componente quando
+  não-vazio; `FromSubjectToken` aceita 3 ou 4 partes — **revisita
+  do pause trigger armado na f.1**, executada no mesmo commit da
+  ativação como o lock-in prescreve, com a premissa de
+  não-ambiguidade ESTENDIDA (expiry digits-only). Sem cutover/
+  mixed-state: zero expiry-bearing instruments circulavam.
+- **Commit 3**: `binancef.parseFuturesSymbol` PRESERVA os dígitos
+  do sufixo `_YYMMDD` (já é o formato canônico) via NewDelivery —
+  delivery futures deixam de colapsar no boundary do adapter.
+- **Commit 4**: **G10 → "Recently resolved"**; gap sucessor
+  **G11** registrado (enablement de delivery: coluna CH `expiry` +
+  param do read contract + mapeamento do formato dash do Bybit —
+  fechar os três juntos antes de configurar qualquer symbol de
+  delivery); sweep dos apontadores G10 no código/docs re-apontados
+  a G11; TRUTH-MAP/PRD.
+
+**H-7 (a+b+c) FECHA com o merge desta PR.** Pendências da Fase
+Multi-venue: **H-6.f.2** no gate temporal (~2026-08-26) fecha a
+promoção do ADR-0021 e o PROGRAM-0004. Ondas H-8+ pertencem a
+programas futuros (ver [programs Index](programs/README.md)) —
+abertura por decisão do owner. **ADR-0021 permanece `Proposed`;
+ADR-0022 `Accepted` desde H-7.b.**
+
+---
+
+Entregas H-7.b (sessão anterior):
 
 - **Commit 0**: PRD/RESUMPTION abertura (fecha linha H-7.a;
   pré-flight da sub-onda registrado).
@@ -2114,29 +2154,29 @@ sub-wave dedicada de test-hardening, junto com G7.
 Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
 G6→G8 (G8 resolvido em H-6.f.1 — ver "Recently resolved").
 
-### G10 — `CanonicalInstrument` sem campo de expiry (delivery futures colidem em identidade canônica)
+### G11 — Delivery futures: gaps de enablement no ingest (sucessor do G10)
 
-O modelo canônico é `Base/Quote/Contract` (ADR-0021); **expiry não
-é um campo**. Dois delivery futures do mesmo par com expiries
-distintos (ex.: `BTCUSDT_240329` vs `BTCUSDT_240628`) colidem em
-identidade canônica — e portanto em `Symbol()`, em
-`SubjectToken()` (H-6.e) e em qualquer chave derivada. A colisão
-vive na **camada de modelo**, não na formatação de token: nenhuma
-derivação a resolve sem modelagem.
+A **modelagem** do expiry foi entregue em H-7.c (G10 → "Recently
+resolved"): identidade, `Symbol()`, `SubjectToken()` e chaves
+derivadas discriminam expiries. O **enablement** de delivery
+futures no ingest segue gated pelos três gaps remanescentes:
 
-Descoberto no pré-flight de H-6.e (o executor verificou o modelo
-real; a prescrição original do arquiteto assumia expiry — mea
-culpa registrado no Changelog do PROGRAM-0004). Hoje **sem efeito
-operacional**: nenhum contrato delivery-futures circula no
-routing path (comentário literal do `VenueSymbol()` transitório),
-e o ingest não os habilita.
+1. **Persistência ClickHouse**: as canonical columns são
+   `base`/`quote`/`contract` (H-6.d.1) — sem coluna `expiry`. Um
+   delivery trade persistido hoje perderia o expiry na camada
+   analítica (deferral explícito da Decisão #4 (A) da abertura de
+   H-7: a cascade de codegen/goldens/positional da d.1 não se paga
+   enquanto zero delivery circula).
+2. **Read contract HTTP**: o trio `base/quote/contract` (H-6.e.2)
+   não tem parâmetro de expiry — leituras de delivery seriam
+   ambíguas entre expiries.
+3. **Formato dash do Bybit**: `bybitf` rejeita símbolos delivery
+   (`BTCUSDT-29MAR24`); o mapeamento `-29MAR24` → YYMMDD entra
+   com o enablement.
 
-**Tratamento registrado**: o token de subject (H-6.e) carrega o
-slot `[_expiry]` dormente (erratum ao ADR-0009); a modelagem do
-expiry entra em **H-7** (decidido pelo owner na abertura de
-H-6.e.2, 2026-06-11 — registrado no PROGRAM-0004).
-Habilitar delivery futures no ingest **antes** da modelagem é
-bloqueado por este gap.
+Configurar um symbol de delivery num binding ANTES de fechar (1) e
+(2) produziria persistência parcial — não fazer. A onda de
+enablement fecha os três juntos.
 
 ---
 
@@ -2212,6 +2252,26 @@ archaeology.
 ---
 
 ## Recently resolved
+
+### G10 — `CanonicalInstrument` sem campo de expiry (resolvido em H-7.c)
+
+O modelo canônico era `Base/Quote/Contract` sem expiry; dois
+delivery futures do mesmo par com expiries distintos
+(`BTCUSDT_240329` vs `BTCUSDT_240628`) colidiam em identidade
+canônica — e portanto em `Symbol()`, `SubjectToken()` e qualquer
+chave derivada. Descoberto no pré-flight de H-6.e (mea culpa do
+arquiteto registrado no PROGRAM-0004); slot `[_expiry]` dormente
+desde o erratum ao ADR-0009.
+
+**Resolvido em H-7.c (2026-06-12)** per Decisão #4 (A) da abertura
+de H-7: campo opcional `Expiry` (canonical YYMMDD, apenas classes
+datadas), `NewDelivery`, `Symbol()` com `@expiry`, **slot do token
+ativado** (4º componente), `FromSubjectToken` 4-parts (revisita do
+pause trigger da f.1 no mesmo commit), `binancef` preserva os
+dígitos do sufixo delivery. Zero impacto nos instruments sem
+expiry (lock-ins byte-idênticos); sem cutover (zero expiry-bearing
+circulava). O **enablement** de delivery no ingest segue gated —
+ver **G11** (sucessor) em Known gaps.
 
 ### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake (resolvido em H-6.f.1)
 

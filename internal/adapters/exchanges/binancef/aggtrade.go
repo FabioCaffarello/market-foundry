@@ -82,7 +82,15 @@ func Normalize(raw AggTrade, symbol string) (observation.TradeReceivedEvent, *pr
 // discriminated by the presence of a "_YYMMDD" expiry suffix:
 //
 //   - "btcusdt"           → ContractPerpetual
-//   - "btcusdt_240329"    → ContractUSDTFutures (suffix stripped)
+//   - "btcusdt_240329"    → ContractUSDTFutures, Expiry "240329"
+//
+// Since H-7.c (ADR-0021 erratum) the expiry digits are PRESERVED
+// into the canonical Expiry field — the venue suffix is already the
+// canonical YYMMDD form, so delivery futures with different expiries
+// no longer collapse into the same canonical identity (gap G10).
+// Enabling delivery symbols at ingest remains gated by the G11
+// enablement gaps (ClickHouse expiry persistence, read-contract
+// param).
 //
 // Anything without a USDT quote (after suffix stripping) is rejected:
 // `binancef` is the USDT-margined family by definition, and a
@@ -99,8 +107,10 @@ func parseFuturesSymbol(symbol string) (instrument.CanonicalInstrument, *problem
 	}
 
 	contract := instrument.ContractPerpetual
+	expiry := ""
 	if loc := deliverySuffix.FindStringIndex(s); loc != nil {
 		contract = instrument.ContractUSDTFutures
+		expiry = s[loc[0]+1:] // digits after the '_' — already canonical YYMMDD
 		s = s[:loc[0]]
 	}
 
@@ -117,6 +127,9 @@ func parseFuturesSymbol(symbol string) (instrument.CanonicalInstrument, *problem
 		)
 	}
 	base := s[:len(s)-len(quote)]
+	if expiry != "" {
+		return instrument.NewDelivery(base, quote, contract, expiry)
+	}
 	return instrument.New(base, quote, contract)
 }
 
