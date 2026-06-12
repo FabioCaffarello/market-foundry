@@ -264,14 +264,21 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 11: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 11: check-venue-parity (static — ADR-0022 R1–R3 capabilities contract, H-7.a)
+    if config.profile.includes_static() {
+        gate_step!("check-venue-parity", || {
+            analyzers::check_venue_parity::analyze(&config.project_root)
+        });
+    }
+
+    // Step 12: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)
         });
     }
 
-    // Step 12: runtime-smoke (only in Deep profile)
+    // Step 13: runtime-smoke (only in Deep profile)
     if let Some(ref failed_name) = blocker {
         steps.push(make_skip(
             "runtime-smoke",

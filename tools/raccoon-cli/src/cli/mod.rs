@@ -408,6 +408,28 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-subjects"
     )]
     Subjects,
+    /// Enforce ADR-0022 multi-venue normalization policy (R1–R3)
+    #[command(
+        name = "venue-parity",
+        visible_alias = "check-venue-parity",
+        long_about = "Statically enforce ADR-0022 (multi-venue \
+            normalization policy, Onda H-7.a) rules R1-R3; this analyzer \
+            is rule R4.\n\n\
+            R1: every venue adapter package under the declared \
+            adapters_root ships a static Capabilities() declaration \
+            (empty declarations require an explicit justifying comment). \
+            R2: the gateway registers GET /venues/capabilities. \
+            R3: the ingest producer-boundary guard rejects undeclared \
+            (event_type, contract) pairs observably — Allows() check + \
+            undeclared-event counter increment.\n\n\
+            Declarative algorithm: reads \
+            tools/raccoon-cli/policies/venue_parity.toml. A new venue \
+            adapter directory fail-stops until Capabilities() ships.",
+        after_help = "Examples:\n  \
+            raccoon-cli check venue-parity\n  \
+            raccoon-cli check-venue-parity"
+    )]
+    VenueParity,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

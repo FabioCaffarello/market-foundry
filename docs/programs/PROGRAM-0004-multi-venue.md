@@ -49,7 +49,7 @@ ADR-0022.
 | Onda | Escopo resumido | Entregas principais |
 |------|------------------|---------------------|
 | **H-6** | Canonical instrument model + Binance refactor | Distribuído em **sub-ondas H-6.a–H-6.f** por questão de cascade (descoberto em pré-flight de H-6.a: 342 `.Symbol` references em 106 production files em 31 packages). Ver "Sub-ondas H-6" abaixo. |
-| **H-7** | Bybit adapter + multi-venue parity policy | Adapter Bybit (3º venue), implementando `ToCanonical`/`FromCanonical` per ADR-0021. Promove **ADR-0022** (multi-venue normalization policy) — primeira prova real de paridade cross-venue. raccoon-cli `check venue-parity` analyzer (P5). |
+| **H-7** | Bybit adapter + multi-venue parity policy + expiry (G10) | Dividida em **sub-ondas H-7.a/b/c** na abertura (owner 2026-06-12, Decisão #1 (B) — mesmo rationale do split de H-6: escopo combinado produziria PR irrevisável). **H-7.a**: capabilities framework (ADR-0022 R1–R4 sem venue novo — tipo `Capabilities` + retrofit binances/binancef + gateway `/venues/capabilities` + counter + analyzer `check venue-parity`). **H-7.b**: adapter Bybit (spot + linear perpetual, plano de observação apenas — Decisão #2 (A)) + **promoção ADR-0022 → Accepted** (fecha os 6 critérios; atômica no commit final). **H-7.c**: modelagem do expiry (G10) — campo opcional + ativação do slot `[_expiry]` do token (Decisão #4 (A); coluna ClickHouse deferida até habilitar delivery futures no ingest). Ver "Sub-ondas H-7" abaixo. |
 
 H-6 e H-7 são **sequenciais e estritas** — H-7 só abre após
 **H-6.f.1 mergeada em main** (P9 + sub-onda sequencing policy
@@ -57,6 +57,41 @@ abaixo). Erratum 2026-06-11: o texto original dizia "após H-6.f";
 com o split f.1/f.2 (Decisão #1 da abertura de H-6.f.1), H-7
 destrava em f.1 e **H-6.f.2 fecha a promoção do ADR-0021** — ver
 "Erratum de sequenciamento" na sequencing policy abaixo.
+
+## Sub-ondas H-7 — decisões da abertura (owner, 2026-06-12)
+
+Pré-flight da abertura (main@5195f8e) grounded as cinco decisões;
+wave prompt auditado pelo owner em 2026-06-12:
+
+- **Decisão #1 (B) — split serial a/b/c.** H-7.a (capabilities
+  framework) → H-7.b (Bybit + promoção ADR-0022) → H-7.c (expiry).
+  Próxima sub-onda abre APENAS após merge da anterior (P4/P9).
+- **Decisão #2 (A) — escopo Bybit**: spot + linear perpetual,
+  **plano de observação apenas** (ingest → evidence/derive).
+  Inverse (coinfutures) e delivery futures FORA (delivery segue
+  gated por G10 até H-7.c). **Execução segue Binance-only** — o
+  segment model do execute (`settings.sourceForSegment`, S400) não
+  é tocado; Bybit na execução é non-scope desta Fase.
+- **Decisão #3 (A) — sources `bybits`/`bybitf`**, espelhando
+  binances/binancef. Rationale grounded no pré-flight: o registry
+  `venueSourceContract` (`application/ingest/binding.go`) é uma
+  bijeção source→contract; um source único "bybit" cobrindo
+  spot+linear quebraria a fundação do `BindingTarget.Instrument()`.
+- **Decisão #4 (A) — expiry como campo opcional** (`Expiry string`,
+  vazio = sem expiry; zero impacto nos 4 contract types atuais);
+  quando não-vazio ativa o 4º componente do SubjectToken (slot
+  dormente do erratum ADR-0009) e estende FromSubjectToken (o
+  lock-in test da f.1 tem pause trigger armado exatamente para
+  isso) + Symbol()/FromSymbol; errata ADR-0009/0021 na sub-onda.
+  **Coluna ClickHouse `expiry` deferida** até a onda que habilitar
+  delivery futures no ingest (nenhum circula hoje; a cascade de
+  codegen/goldens/positional da d.1 não se paga agora) — gap
+  sucessor do G10 registrado no closure da c.
+- **Decisão #5 (A) — house pattern no adapter Bybit**
+  (`parseBybitSymbol` + `Normalize`, coerente com os 2 adapters
+  existentes). O naming literal `ToCanonical`/`FromCanonical` do
+  ADR-0021 ganha **erratum de equivalência** na revisão da H-6.f.2
+  (criterion #2 já foi aceito com o shape house pattern na e.2).
 
 ---
 
@@ -198,6 +233,11 @@ pós-TTL (~2026-08-26)** e abre com verificação operacional como
 pré-condição da promoção. (H-6.e.2 inserida 2026-06-10 pelo split
 da Decisão #2 de H-6.e; H-6.f dividida em f.1/f.2 em 2026-06-11
 pela Decisão #1 da abertura de H-6.f.1.)
+
+Dentro de H-7: **H-7.a → H-7.b → H-7.c** executam estritamente
+serial entre si (split da Decisão #1 (B) da abertura de H-7,
+2026-06-12), independentes de H-6.f.2 (que corre em paralelo no
+gate temporal próprio).
 
 ### Erratum de sequenciamento (2026-06-11, Decisão #2 da abertura de H-6.f.1)
 
@@ -434,6 +474,38 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-06-12 (closure H-7.a)** — Capabilities framework entregue
+  em 8 commits (0–6, com 5a/5b). Contrato `Capabilities` em
+  `application/ports` (mea culpa estrutural registrado: o pré-flight
+  assumiu interfaces→adapters permitido; arch-guard acusou e o
+  contrato moveu para o home dos ports — mesmo package do
+  VenuePort); retrofit binances/binancef; guard R3 + counter no
+  ingest; `GET /venues/capabilities` (boot_test 60→61); analyzer
+  `check venue-parity` (gate step 11, 8 unit tests, live 6/6).
+  Segundo mea culpa menor: binaries.toml não precisa de entry para
+  counter (allowlist é de exposição /metrics). **ADR-0022 permanece
+  `Proposed`** — promoção atômica em H-7.b com o adapter Bybit
+  (critério #1, único pendente dos 6).
+
+- **2026-06-12 (abertura H-7 / H-7.a)** — H-6.f.1 mergeada (PR #44
+  em `main` em `5195f8e`, 2026-06-12) destrava H-7 per erratum.
+  Pré-flight da abertura produziu wave prompt auditado pelo owner;
+  **cinco decisões registradas** (ver "Sub-ondas H-7" acima):
+  split a/b/c; Bybit spot+linear perpetual em observação apenas;
+  sources `bybits`/`bybitf` (bijeção do venueSourceContract);
+  expiry como campo opcional com coluna CH deferida; house pattern
+  no adapter com erratum de equivalência ToCanonical/FromCanonical
+  agendado para a revisão da f.2. Achados do pré-flight que
+  moldaram as decisões: bijeção source→contract no binding
+  registry; segment model do execute é Binance-only por construção
+  (S400); Bybit v5 usa subscribe-frames + `data[]` array + taker
+  side `S` (shape de WSClient distinto do modelo URL-stream da
+  Binance); CLAUDE.md "No multi-exchange surface" precisa de
+  update quando o Bybit ship (H-7.b). **H-7.a aberta** (branch
+  `feat/h-7-a-capabilities-framework`): capabilities framework
+  ADR-0022 R1–R4 sem venue novo. **ADR-0022 permanece `Proposed`**
+  (promoção atômica em H-7.b).
 
 - **2026-06-11 (closure H-6.f.1)** — Entrega completa em 7 commits.
   Regressão da auditoria FIXADA: `instrument.FromSubjectToken`
