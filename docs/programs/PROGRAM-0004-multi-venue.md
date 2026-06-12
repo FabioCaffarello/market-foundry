@@ -482,6 +482,20 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-12 (closure H-7.c)** — Modelagem do expiry entregue em
+  5 commits; **G10 resolvido** (campo `Expiry` YYMMDD opcional,
+  `NewDelivery`, `Symbol()@expiry`, slot `[_expiry]` do token
+  ATIVO, `FromSubjectToken` 4-parts com a revisita do pause
+  trigger da f.1 executada no mesmo commit, `binancef` preservando
+  os dígitos do sufixo delivery). Zero impacto provado por lock-in
+  (Symbol/token byte-idênticos sem expiry; sem cutover). Gap
+  sucessor **G11** registrado: enablement de delivery exige coluna
+  CH `expiry` + param do read contract + mapeamento dash do Bybit
+  — juntos, antes de configurar qualquer binding de delivery.
+  **H-7 (a+b+c) fecha com o merge.** Restam na Fase: H-6.f.2
+  (TTL-gated ~2026-08-26, promoção ADR-0021 + closure do
+  PROGRAM-0004). **ADR-0021 permanece `Proposed`.**
+
 - **2026-06-12 (abertura H-7.c)** — H-7.b mergeada (PR #46 em
   `main` em `c561be2`) destrava H-7.c: modelagem do expiry (G10)
   per Decisão #4 (A) da abertura de H-7. Formato canônico fixado:

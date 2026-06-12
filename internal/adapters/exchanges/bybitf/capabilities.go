@@ -15,7 +15,7 @@ import (
 //
 // Only perpetual is declared: Bybit linear delivery futures
 // (dash-separated expiry symbols) are rejected by the parser until
-// expiry modeling lands (G10 / H-7.c), and inverse (coin-margined)
+// the G11 enablement wave, and inverse (coin-margined)
 // is a different v5 category outside this adapter. Bybit's
 // orderbook/ticker/liquidation topics are intentionally NOT
 // declared — the shipped parsing surface is trades only (declared
@@ -32,7 +32,7 @@ func Capabilities() ports.Capabilities {
 			instrument.ContractPerpetual,
 		},
 		Notes: map[string]string{
-			"delivery": "linear delivery futures rejected at the parser; gated by G10 until expiry modeling (H-7.c)",
+			"delivery": "linear delivery futures rejected at the parser; gated by G11 (dash-format mapping + enablement)",
 		},
 	}
 }

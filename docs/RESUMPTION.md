@@ -233,7 +233,45 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-7.b (esta sessão):
+Entregas H-7.c (esta sessão):
+
+- **Commit 0 (documento primeiro)**: errata ADR-0021 (a "explicit
+  future decision" do campo Expiry foi tomada — formato canônico
+  YYMMDD, só classes datadas) + ADR-0009 (slot `[_expiry]`
+  ATIVADO) + wave rows.
+- **Commit 1**: campo opcional `Expiry` no CanonicalInstrument +
+  `NewDelivery` + `Symbol()` com `@expiry` + `FromSymbol`
+  roundtrip + `IsZero`. **Lock-in de zero impacto**: os 4 contract
+  types sem expiry produzem `Symbol()` byte-idêntico ao pré-H-7.c.
+  Expiries distintos = identidades canônicas distintas (o
+  collision literal do G10, com teste). Build sweep dos 7 módulos
+  consumidores limpo.
+- **Commit 2**: `SubjectToken()` appenda o 4º componente quando
+  não-vazio; `FromSubjectToken` aceita 3 ou 4 partes — **revisita
+  do pause trigger armado na f.1**, executada no mesmo commit da
+  ativação como o lock-in prescreve, com a premissa de
+  não-ambiguidade ESTENDIDA (expiry digits-only). Sem cutover/
+  mixed-state: zero expiry-bearing instruments circulavam.
+- **Commit 3**: `binancef.parseFuturesSymbol` PRESERVA os dígitos
+  do sufixo `_YYMMDD` (já é o formato canônico) via NewDelivery —
+  delivery futures deixam de colapsar no boundary do adapter.
+- **Commit 4**: **G10 → "Recently resolved"**; gap sucessor
+  **G11** registrado (enablement de delivery: coluna CH `expiry` +
+  param do read contract + mapeamento do formato dash do Bybit —
+  fechar os três juntos antes de configurar qualquer symbol de
+  delivery); sweep dos apontadores G10 no código/docs re-apontados
+  a G11; TRUTH-MAP/PRD.
+
+**H-7 (a+b+c) FECHA com o merge desta PR.** Pendências da Fase
+Multi-venue: **H-6.f.2** no gate temporal (~2026-08-26) fecha a
+promoção do ADR-0021 e o PROGRAM-0004. Ondas H-8+ pertencem a
+programas futuros (ver [programs Index](programs/README.md)) —
+abertura por decisão do owner. **ADR-0021 permanece `Proposed`;
+ADR-0022 `Accepted` desde H-7.b.**
+
+---
+
+Entregas H-7.b (sessão anterior):
 
 - **Commit 0**: PRD/RESUMPTION abertura (fecha linha H-7.a;
   pré-flight da sub-onda registrado).
@@ -2116,29 +2154,29 @@ sub-wave dedicada de test-hardening, junto com G7.
 Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
 G6→G8 (G8 resolvido em H-6.f.1 — ver "Recently resolved").
 
-### G10 — `CanonicalInstrument` sem campo de expiry (delivery futures colidem em identidade canônica)
+### G11 — Delivery futures: gaps de enablement no ingest (sucessor do G10)
 
-O modelo canônico é `Base/Quote/Contract` (ADR-0021); **expiry não
-é um campo**. Dois delivery futures do mesmo par com expiries
-distintos (ex.: `BTCUSDT_240329` vs `BTCUSDT_240628`) colidem em
-identidade canônica — e portanto em `Symbol()`, em
-`SubjectToken()` (H-6.e) e em qualquer chave derivada. A colisão
-vive na **camada de modelo**, não na formatação de token: nenhuma
-derivação a resolve sem modelagem.
+A **modelagem** do expiry foi entregue em H-7.c (G10 → "Recently
+resolved"): identidade, `Symbol()`, `SubjectToken()` e chaves
+derivadas discriminam expiries. O **enablement** de delivery
+futures no ingest segue gated pelos três gaps remanescentes:
 
-Descoberto no pré-flight de H-6.e (o executor verificou o modelo
-real; a prescrição original do arquiteto assumia expiry — mea
-culpa registrado no Changelog do PROGRAM-0004). Hoje **sem efeito
-operacional**: nenhum contrato delivery-futures circula no
-routing path (comentário literal do `VenueSymbol()` transitório),
-e o ingest não os habilita.
+1. **Persistência ClickHouse**: as canonical columns são
+   `base`/`quote`/`contract` (H-6.d.1) — sem coluna `expiry`. Um
+   delivery trade persistido hoje perderia o expiry na camada
+   analítica (deferral explícito da Decisão #4 (A) da abertura de
+   H-7: a cascade de codegen/goldens/positional da d.1 não se paga
+   enquanto zero delivery circula).
+2. **Read contract HTTP**: o trio `base/quote/contract` (H-6.e.2)
+   não tem parâmetro de expiry — leituras de delivery seriam
+   ambíguas entre expiries.
+3. **Formato dash do Bybit**: `bybitf` rejeita símbolos delivery
+   (`BTCUSDT-29MAR24`); o mapeamento `-29MAR24` → YYMMDD entra
+   com o enablement.
 
-**Tratamento registrado**: o token de subject (H-6.e) carrega o
-slot `[_expiry]` dormente (erratum ao ADR-0009); a modelagem do
-expiry entra em **H-7** (decidido pelo owner na abertura de
-H-6.e.2, 2026-06-11 — registrado no PROGRAM-0004).
-Habilitar delivery futures no ingest **antes** da modelagem é
-bloqueado por este gap.
+Configurar um symbol de delivery num binding ANTES de fechar (1) e
+(2) produziria persistência parcial — não fazer. A onda de
+enablement fecha os três juntos.
 
 ---
 
@@ -2214,6 +2252,26 @@ archaeology.
 ---
 
 ## Recently resolved
+
+### G10 — `CanonicalInstrument` sem campo de expiry (resolvido em H-7.c)
+
+O modelo canônico era `Base/Quote/Contract` sem expiry; dois
+delivery futures do mesmo par com expiries distintos
+(`BTCUSDT_240329` vs `BTCUSDT_240628`) colidiam em identidade
+canônica — e portanto em `Symbol()`, `SubjectToken()` e qualquer
+chave derivada. Descoberto no pré-flight de H-6.e (mea culpa do
+arquiteto registrado no PROGRAM-0004); slot `[_expiry]` dormente
+desde o erratum ao ADR-0009.
+
+**Resolvido em H-7.c (2026-06-12)** per Decisão #4 (A) da abertura
+de H-7: campo opcional `Expiry` (canonical YYMMDD, apenas classes
+datadas), `NewDelivery`, `Symbol()` com `@expiry`, **slot do token
+ativado** (4º componente), `FromSubjectToken` 4-parts (revisita do
+pause trigger da f.1 no mesmo commit), `binancef` preserva os
+dígitos do sufixo delivery. Zero impacto nos instruments sem
+expiry (lock-ins byte-idênticos); sem cutover (zero expiry-bearing
+circulava). O **enablement** de delivery no ingest segue gated —
+ver **G11** (sucessor) em Known gaps.
 
 ### G8 — `TestS460_SessionLifecycleTransitions` time-resolution flake (resolvido em H-6.f.1)
 

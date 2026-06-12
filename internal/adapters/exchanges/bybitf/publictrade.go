@@ -120,8 +120,8 @@ func Normalize(frame PublicTradeFrame, symbol string) ([]observation.TradeReceiv
 // are perpetual swaps ("BTCUSDT" → BTC/USDT-perpetual). Bybit
 // linear DELIVERY futures carry a dash-separated expiry segment
 // ("BTCUSDT-29MAR24") and are rejected: expiry is not yet a model
-// field (G10) — enabling delivery at ingest is gated until the
-// modeling lands in H-7.c.
+// canonical mapping for the dash format lands with the G11
+// enablement wave.
 func parseBybitLinearSymbol(symbol string) (instrument.CanonicalInstrument, *problem.Problem) {
 	s := strings.ToUpper(strings.TrimSpace(symbol))
 	if s == "" {
@@ -138,7 +138,7 @@ func parseBybitLinearSymbol(symbol string) (instrument.CanonicalInstrument, *pro
 			"bybitf symbol is invalid",
 			problem.ValidationIssue{
 				Field:   "symbol",
-				Message: "delivery futures (dash-separated expiry) are gated until expiry modeling lands (G10 / H-7.c)",
+				Message: "delivery futures (dash-separated expiry) are gated until the G11 enablement wave maps the dash format to canonical YYMMDD",
 				Value:   symbol,
 			},
 		)

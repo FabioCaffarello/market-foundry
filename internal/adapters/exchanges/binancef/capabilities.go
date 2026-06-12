@@ -15,8 +15,8 @@ import (
 // usdtfutures is declared because parseFuturesSymbol normalizes
 // delivery-futures symbols (the `_YYMMDD` suffix) — the capability
 // describes the adapter, not the deployment: enabling delivery
-// futures at ingest stays gated by G10 (expiry is not yet a model
-// field; modeling lands in H-7.c). See the note below.
+// futures at ingest stays gated by G11 (enablement gaps: ClickHouse
+// expiry column + read-contract param). See the note below.
 func Capabilities() ports.Capabilities {
 	return ports.Capabilities{
 		Venue: instrument.VenueBinanceFutures,
@@ -31,7 +31,7 @@ func Capabilities() ports.Capabilities {
 			instrument.ContractUSDTFutures,
 		},
 		Notes: map[string]string{
-			"usdtfutures": "normalization supported; ingest enablement gated by G10 (expiry modeling, H-7.c)",
+			"usdtfutures": "normalization supported (expiry preserved since H-7.c); ingest enablement gated by G11",
 		},
 	}
 }

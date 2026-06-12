@@ -110,9 +110,9 @@ observation surface per ADR-0022):
 | Source | Venue family | Contract | Upstream |
 |---|---|---|---|
 | `binances` | Binance Spot | spot | `wss://stream.binance.com:9443/ws/{symbol}@aggTrade` |
-| `binancef` | Binance USDT-M Futures | perpetual (+usdtfutures parse, ingest gated by G10) | `wss://fstream.binance.com/ws/{symbol}@aggTrade` |
+| `binancef` | Binance USDT-M Futures | perpetual (+usdtfutures parse com expiry preservado desde H-7.c; ingest gated by G11) | `wss://fstream.binance.com/ws/{symbol}@aggTrade` |
 | `bybits` | Bybit Spot | spot | `wss://stream.bybit.com/v5/public/spot`, topic `publicTrade.{SYMBOL}` |
-| `bybitf` | Bybit linear perpetual | perpetual (delivery rejected, G10) | `wss://stream.bybit.com/v5/public/linear`, topic `publicTrade.{SYMBOL}` |
+| `bybitf` | Bybit linear perpetual | perpetual (delivery rejected, G11) | `wss://stream.bybit.com/v5/public/linear`, topic `publicTrade.{SYMBOL}` |
 
 Each adapter declares its event-type surface via `Capabilities()`
 (ADR-0022 R1; introspectable at `GET /venues/capabilities`); the
