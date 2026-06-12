@@ -135,6 +135,10 @@ fn execute(context: AppContext, command: Commands) -> Result<i32> {
             &context,
             analyzers::check_subjects::analyze(&context.project_root)?,
         ),
+        Commands::Check(CheckCommands::VenueParity) => emit_standard_report(
+            &context,
+            analyzers::check_venue_parity::analyze(&context.project_root)?,
+        ),
         Commands::Inspect(InspectCommands::Coverage) | Commands::CoverageMap => {
             emit_standard_report(
                 &context,

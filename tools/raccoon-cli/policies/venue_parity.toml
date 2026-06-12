@@ -1,0 +1,29 @@
+# Venue-parity policy — consumed by `raccoon-cli check venue-parity`.
+#
+# Enforces ADR-0022 (multi-venue normalization policy, Onda H-7.a)
+# rules R1–R3 statically; the analyzer itself is rule R4:
+#
+#   R1 — every venue adapter package directly under adapters_root
+#        ships a static Capabilities() declaration. Declarations with
+#        zero event types need an explicit justifying comment
+#        containing "empty" inside the function body.
+#   R2 — the gateway route file registers GET /venues/capabilities.
+#   R3 — the producer-boundary guard rejects undeclared
+#        (event_type, contract) pairs observably: the guard file must
+#        carry both the Allows() check and the undeclared-event
+#        counter increment.
+#
+# Adding a new venue adapter (H-7.b: bybit) requires no policy edit —
+# the directory scan picks it up and fail-stops until Capabilities()
+# ships, mirroring the check-instruments allowlist discipline.
+
+[venue_parity]
+adapters_root = "internal/adapters/exchanges"
+capabilities_marker = "func Capabilities() ports.Capabilities {"
+# Shared non-venue packages under adapters_root (types/helpers).
+exempt_packages = []
+event_type_marker = "Type:"
+guard_file = "internal/actors/scopes/ingest/websocket_actor.go"
+guard_calls = ["Allows(", "IncAdapterUndeclaredEvent("]
+route_file = "internal/interfaces/http/routes/venues.go"
+route_path = "/venues/capabilities"
