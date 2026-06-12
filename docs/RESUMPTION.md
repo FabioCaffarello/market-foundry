@@ -230,7 +230,54 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-6.f.1 (esta sessão):
+Entregas H-7.a (esta sessão):
+
+- **Commit 0**: PRD — split H-7 a/b/c + decisões #1–#5 da abertura
+  (registradas em PROGRAM-0004 → "Sub-ondas H-7") + wave rows.
+- **Commit 1**: contrato `Capabilities`/`EventTypeSupport` com
+  `Allows()` (check R3) e `Validate()` (coerência R4 em runtime);
+  declaração vazia permitida em runtime — o analyzer exige comment
+  justificativo no site.
+- **Commit 2**: retrofit `Capabilities()` em binances
+  (observation.trade/spot) e binancef (observation.trade/
+  perpetual+usdtfutures, com Note do gating G10 — a capability
+  descreve o adapter, não o deployment). Lock-in tests assertam
+  pares declarados E não-declarados.
+- **Commit 3**: counter
+  `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}`
+  + guard `declared()` no websocket_actor — par não declarado é
+  rejeitado ANTES do publish e contado+logado (rejeição observável).
+  Mea culpa: a abertura assumiu entry no binaries.toml para o
+  counter — errado, aquela allowlist é de exposição de /metrics.
+- **Commit 4**: gateway `GET /venues/capabilities` (união estática
+  wired no compose) + boot_test 60→61 (protocolo #5) + HTTP-API.md
+  (grupo 13).
+- **Commit 5a (MEA CULPA estrutural)**: o pré-flight assumiu
+  interfaces→adapters permitido; o arch-guard (interfaces-isolation)
+  acusou 4 errors no gate ci. Contrato movido para
+  `internal/application/ports/capabilities.go` (home natural, como
+  VenuePort) — resolve também o check-instruments (package novo sob
+  exchanges/ era "unknown adapter"). Gate ci voltou 12/12.
+- **Commit 5b**: analyzer `check venue-parity` (P5; R1–R3, sendo
+  ele próprio o R4) + `policies/venue_parity.toml` + gate step 11
+  (drift-detect→12, runtime-smoke→13); diretório de adapter novo
+  fail-stopa até Capabilities() shipar (H-7.b: bybit). 8 unit
+  tests; live 6/6.
+- **Commit 6**: docs closure (esta seção, TRUTH-MAP, PRD).
+
+**Próxima sub-onda destravada após merge**: **H-7.b** — adapter
+Bybit (spot + linear perpetual, plano de observação apenas; sources
+`bybits`/`bybitf`; subscribe-frames v5 + `data[]` array + inversão
+do taker side) + allowlists + RUNTIME.md + update do CLAUDE.md
+("No multi-exchange surface") + **promoção ADR-0022 → Accepted**
+(fecha os 6 critérios). H-7.c (expiry/G10) depois de b. Sequencing
+estrito: H-7.b abre branch APENAS após merge desta PR em `main`.
+**ADR-0022 permanece `Proposed` nesta entrega; ADR-0021 permanece
+`Proposed` (promoção em H-6.f.2 pós-TTL ~2026-08-26).**
+
+---
+
+Entregas H-6.f.1 (sessão anterior):
 
 - **Commit 0**: PRD split f.1/f.2 (Decisão #1, gate temporal
   ~2026-08-26) + erratum de sequenciamento (Decisão #2, cadeia
@@ -1819,7 +1866,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 11 active quality-gate analyzers green; 112 checks, 0 errors (count atualizado em H-6.f.1 — o texto anterior "6 analyzers / 84 checks" predatava check-instruments/subjects e as extensões `[keys]`/`[dedup]`). |
+| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 12 active quality-gate analyzers green; 118 checks, 0 errors (count atualizado em H-7.a com a entrada do `check-venue-parity`; antes 11/112 em H-6.f.1). |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |

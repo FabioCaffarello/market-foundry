@@ -475,6 +475,19 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-12 (closure H-7.a)** — Capabilities framework entregue
+  em 8 commits (0–6, com 5a/5b). Contrato `Capabilities` em
+  `application/ports` (mea culpa estrutural registrado: o pré-flight
+  assumiu interfaces→adapters permitido; arch-guard acusou e o
+  contrato moveu para o home dos ports — mesmo package do
+  VenuePort); retrofit binances/binancef; guard R3 + counter no
+  ingest; `GET /venues/capabilities` (boot_test 60→61); analyzer
+  `check venue-parity` (gate step 11, 8 unit tests, live 6/6).
+  Segundo mea culpa menor: binaries.toml não precisa de entry para
+  counter (allowlist é de exposição /metrics). **ADR-0022 permanece
+  `Proposed`** — promoção atômica em H-7.b com o adapter Bybit
+  (critério #1, único pendente dos 6).
+
 - **2026-06-12 (abertura H-7 / H-7.a)** — H-6.f.1 mergeada (PR #44
   em `main` em `5195f8e`, 2026-06-12) destrava H-7 per erratum.
   Pré-flight da abertura produziu wave prompt auditado pelo owner;
