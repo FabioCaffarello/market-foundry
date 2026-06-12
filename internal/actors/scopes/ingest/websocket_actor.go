@@ -8,6 +8,8 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
+	"internal/adapters/exchanges/bybitf"
+	"internal/adapters/exchanges/bybits"
 	"internal/application/ports"
 	"internal/domain/observation"
 	"internal/shared/metrics"
@@ -103,6 +105,28 @@ func (a *WebSocketAdapterActor) start(c *actor.Context) {
 				c.Engine().Poison(c.PID())
 			}
 		}()
+	case "bybits":
+		client := bybits.NewWSClient(symbol, handler, a.logger)
+		streamURL = client.StreamURL()
+		a.logger.Info("starting websocket adapter", "url", streamURL)
+		go func() {
+			client.Run(ctx)
+			if ctx.Err() == nil {
+				a.logger.Error("websocket adapter exited unexpectedly")
+				c.Engine().Poison(c.PID())
+			}
+		}()
+	case "bybitf":
+		client := bybitf.NewWSClient(symbol, handler, a.logger)
+		streamURL = client.StreamURL()
+		a.logger.Info("starting websocket adapter", "url", streamURL)
+		go func() {
+			client.Run(ctx)
+			if ctx.Err() == nil {
+				a.logger.Error("websocket adapter exited unexpectedly")
+				c.Engine().Poison(c.PID())
+			}
+		}()
 	default:
 		a.logger.Error("unsupported exchange source", "source", source)
 		c.Engine().Poison(c.PID())
@@ -148,6 +172,54 @@ func (a *WebSocketAdapterActor) buildHandler(c *actor.Context, source, symbol st
 				return
 			}
 			c.Send(publisherPID, publishTradeMessage{Event: event})
+		}
+	case "bybits":
+		caps := bybits.Capabilities()
+		return func(data []byte) {
+			frame, isTrade, prob := bybits.ParsePublicTrade(data)
+			if prob != nil {
+				a.logger.Warn("parse publicTrade", "error", prob.Message)
+				return
+			}
+			if !isTrade {
+				return // control frame / non-trade topic — expected v5 traffic
+			}
+			events, prob := bybits.Normalize(frame, symbol)
+			if prob != nil {
+				a.logger.Error("normalize trade", "error", prob.Message)
+				return
+			}
+			// Bybit batches N trades per frame — one publish each.
+			for _, event := range events {
+				if !a.declared(caps, event) {
+					continue
+				}
+				c.Send(publisherPID, publishTradeMessage{Event: event})
+			}
+		}
+	case "bybitf":
+		caps := bybitf.Capabilities()
+		return func(data []byte) {
+			frame, isTrade, prob := bybitf.ParsePublicTrade(data)
+			if prob != nil {
+				a.logger.Warn("parse publicTrade", "error", prob.Message)
+				return
+			}
+			if !isTrade {
+				return // control frame / non-trade topic — expected v5 traffic
+			}
+			events, prob := bybitf.Normalize(frame, symbol)
+			if prob != nil {
+				a.logger.Error("normalize trade", "error", prob.Message)
+				return
+			}
+			// Bybit batches N trades per frame — one publish each.
+			for _, event := range events {
+				if !a.declared(caps, event) {
+					continue
+				}
+				c.Send(publisherPID, publishTradeMessage{Event: event})
+			}
 		}
 	default:
 		return nil

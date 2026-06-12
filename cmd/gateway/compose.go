@@ -6,6 +6,8 @@ import (
 	"internal/adapters/clickhouse"
 	"internal/adapters/exchanges/binancef"
 	"internal/adapters/exchanges/binances"
+	"internal/adapters/exchanges/bybitf"
+	"internal/adapters/exchanges/bybits"
 	natsconfigctl "internal/adapters/nats/natsconfigctl"
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
@@ -433,11 +435,12 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 	// Venue capabilities introspection (ADR-0022 R2, H-7.a) —
 	// always wired: the declarations are static and ship with the
 	// adapters compiled into the binary, no connection required.
-	// H-7.b appends the Bybit declaration here.
 	deps.Venues = routes.VenuesFamilyDeps{
 		Capabilities: []ports.Capabilities{
 			binances.Capabilities(),
 			binancef.Capabilities(),
+			bybits.Capabilities(),
+			bybitf.Capabilities(),
 		},
 	}
 
