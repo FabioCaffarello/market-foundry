@@ -28,8 +28,8 @@
 # H-4) and check-metrics (ADR-0024 / H-5).
 
 [adapters]
-# H-6.a ships with the two Binance adapters; future venues
-# (bybit, coinbase, hyperliquid, kraken, krakenf — listed in
-# ADR-0021 design intent) land in PROGRAM-0004 H-7+ and gain their
-# entries here as their adapters ship.
-allowlist = ["binances", "binancef"]
+# H-6.a shipped the two Binance adapters; H-7.b ships the Bybit
+# family (bybits spot + bybitf linear perpetual). Future venues
+# (coinbase, hyperliquid, kraken, krakenf — listed in ADR-0021
+# design intent) gain their entries here as their adapters ship.
+allowlist = ["binances", "binancef", "bybits", "bybitf"]

@@ -7,16 +7,16 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-6.f.1 fechada (2026-06-12)** —
-cleanup não-TTL-gated mergeado (PR #44, `5195f8e`): regressão
-silent-zero da auditoria fixada via `instrument.FromSubjectToken`,
-6º/último `instrumentFromBinding` deletado, dedup keys canônicas
-(9 sites + analyzer `[dedup]`), migration runner multi-statement,
-G8 resolvido. Onda atual: **H-7.a** — capabilities framework
-(ADR-0022 R1–R4 sem venue novo; split H-7 a/b/c pela Decisão #1
-(B) do owner, 2026-06-12). Em paralelo no gate temporal próprio:
-**H-6.f.2 TTL-gated ~2026-08-26** fecha a promoção do ADR-0021.
-**26 ADRs total (0001–0026)**. Ver a wave table abaixo.
+Last meaningful state change: **H-7.a fechada (2026-06-12)** —
+capabilities framework mergeado (PR #45, `8d5bedd`): contrato
+`ports.Capabilities` + retrofit binances/binancef + guard R3 +
+counter + `GET /venues/capabilities` + analyzer `check
+venue-parity` (gate 12 analyzers / 118 checks). Onda atual:
+**H-7.b** — adapter Bybit (spot + linear perpetual, observação
+apenas; sources `bybits`/`bybitf`) + **promoção ADR-0022 →
+Accepted** (fecha os 6 critérios). Em paralelo no gate temporal
+próprio: **H-6.f.2 TTL-gated ~2026-08-26** fecha a promoção do
+ADR-0021. **26 ADRs total (0001–0026)**. Ver a wave table abaixo.
 
 `make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
 since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
@@ -70,7 +70,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-6.e** | Fechada (PR #42 mergeada em `main` em `f8543b7`, 2026-06-10) | NATS subject canonical cutover (subjects only). Pause-and-report como primeiro ato; **owner decide opção (i)**; enumeração D = zero parsers do token de symbol → **cutover atômico**, sem dual-publish (mixed-state até TTL 72h, precedente H-6.d). 6 commits: (0) errata dupla — ADR-0009 (token canônico `base_quote_contract`, slot `[_expiry]` dormente) + ADR-0021 critério #2 (fechamento literal desloca para **H-6.e.2**, cadeia e → e.2 → f) + PRD (sub-onda e.2 criada: KV keys + contrato HTTP + extensão do analyzer; débito de modelagem do expiry). (1) `CanonicalInstrument.SubjectToken()` + testes de lock-in (3/3). (2) Cutover dos **10 builders com symbol** (o 11º, session-lifecycle, não tem symbol); dedup keys e log labels intactos por design; teste de simulação natsstrategy migrado para a derivação real. (3) Analyzer `check subjects` (block-scoped, subjects-only per Decisão #4) + `policies/subjects.toml` + gate step 10 (drift-detect→11, runtime-smoke→12); 8 unit tests. (4) Canário integration `subject_cutover_canary_test.go`: canonical + legacy lado a lado pelo mesmo filtro wildcard — PASS contra NATS vivo. (5) Docs closure. **ADR-0021 permanece `Proposed`.** |
 | **H-6.e.2** | Fechada (PR #43 mergeada em `main` em `c8a547d`, 2026-06-11) | Read-contract canonical cutover (**pacote B**, owner 2026-06-11). Contrato HTTP `(source, symbol, timeframe)` → trio canônico `base/quote/contract` (validação via `instrument.New`); 8 client packages `Symbol string` → `CanonicalInstrument`; KV keys write+read → `{source}.{SubjectToken()}.{timeframe}` (mesmo commit; órfãos inertes + janela de miss documentados); ClickHouse `WHERE … symbol = ?` **inalterado** com valor derivado via helper transitório `LegacyFilterValue()` (= `lower(base+quote)`, direção legítima canonical→venue; sunset H-6.f com o flip do WHERE pós-TTL). Analyzer `check subjects` estendido com seção `[keys]`. Expiry (G10) deferido a H-7. **Critério #2 do ADR-0021 fecha literalmente aqui.** **ADR-0021 permanece `Proposed`** (promoção em f). |
 | **H-6.f.1** | Fechada (PR #44 mergeada em `main` em `5195f8e`, 2026-06-12) | Cleanup não-TTL-gated + fix da regressão de auditoria (split f.1/f.2 da Decisão #1, owner 2026-06-11, opção A). Fix da **regressão silent-zero** descoberta na abertura de H-6.f (audit bundles com `Instrument` zerado desde o merge de e.2: `audit_session.go` usa `instrumentFromBinding`, que exige sufixo `USDT` venue-native, contra o token canônico que `e.Symbol` passou a carregar): novo parser `instrument.FromSubjectToken` (canonical→canonical, premissa "contract sem underscore" com lock-in) + **deleção do 6º/último `instrumentFromBinding`** (executionclient) + canário unit não-zero. Dedup keys canonicalizam (7 domain composers + 4 inline) + analyzer `[dedup]` (P5); janela de dedup JetStream quebrada na transição — documentada. Migration runner multi-statement (deferral d.1). Test-hardening G8 (FixedClock; G7/G9 só se mecânico). **Erratum de sequenciamento (Decisão #2)**: cadeia `e → e.2 → f.1 → {H-7 ∥ f.2}`; **f.2 TTL-gated ~2026-08-26** fecha a promoção. **ADR-0021 permanece `Proposed`.** |
-| **H-7.a** | **Atual** (esta entrega — branch `feat/h-7-a-capabilities-framework` aberta após merge de H-6.f.1 em PR #44) | Capabilities framework (ADR-0022 R1–R4 **sem venue novo** — prova o contrato nos 2 venues existentes). Split H-7 a/b/c pela Decisão #1 (B) da abertura (owner, 2026-06-12; decisões #1–#5 registradas no [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-7"). Entrega: tipo `Capabilities` + retrofit `Capabilities()` em binances/binancef; counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}` + guard R3 no ingest (silently-reject + increment); gateway `GET /venues/capabilities` (+boot_test per protocolo #5 +HTTP-API.md); analyzer `check venue-parity` (P5) + policy. **ADR-0022 permanece `Proposed`** (critério 1 — adapter Bybit — pendente; promoção atômica em H-7.b). H-7.b (Bybit, observação apenas) e H-7.c (expiry/G10) abrem serialmente após merge. |
+| **H-7.a** | Fechada (PR #45 mergeada em `main` em `8d5bedd`, 2026-06-12) | Capabilities framework (ADR-0022 R1–R4 **sem venue novo** — prova o contrato nos 2 venues existentes). Split H-7 a/b/c pela Decisão #1 (B) da abertura (owner, 2026-06-12; decisões #1–#5 registradas no [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-7"). Entrega: tipo `Capabilities` + retrofit `Capabilities()` em binances/binancef; counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}` + guard R3 no ingest (silently-reject + increment); gateway `GET /venues/capabilities` (+boot_test per protocolo #5 +HTTP-API.md); analyzer `check venue-parity` (P5) + policy. **ADR-0022 permanece `Proposed`** (critério 1 — adapter Bybit — pendente; promoção atômica em H-7.b). H-7.b (Bybit, observação apenas) e H-7.c (expiry/G10) abrem serialmente após merge. |
+| **H-7.b** | **Atual** (esta entrega — branch `feat/h-7-b-bybit-adapter` aberta após merge de H-7.a em PR #45) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -230,7 +231,55 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-7.a (esta sessão):
+Entregas H-7.b (esta sessão):
+
+- **Commit 0**: PRD/RESUMPTION abertura (fecha linha H-7.a;
+  pré-flight da sub-onda registrado).
+- **Commit 1**: Venue enum +`VenueBybit`("bybit")/
+  +`VenueBybitFutures`("bybitf") — mesma assimetria intencional
+  venue-vs-source da família Binance; teste de inválidos atualizado
+  ("bybit" saiu da lista, "coinbase"/"BYBIT" entram).
+- **Commits 2–3**: packages `bybits` (spot) e `bybitf` (linear
+  perpetual). Diferenças intrínsecas do Bybit v5 vs o modelo
+  Binance, todas tratadas: subscribe por frame (não por URL),
+  ping app-level obrigatório a cada 20s, **`data[]` em batch**
+  (N trades/frame), frames de controle multiplexados no socket
+  (parser tri-state skipa sem error-spam), **taker side `S`**
+  (BuyerMaker = S=="Sell", inversão explícita). bybitf REJEITA
+  delivery futures (expiry dash-separated) — gate G10 até H-7.c,
+  com Note na Capabilities. 15 unit tests nos dois packages.
+- **Commit 4**: wiring — switch do websocket_actor (+2 cases com
+  loop por batch e guard R3 por evento), `venueSourceContract`
+  +2 (bijeção preservada — o motivo do split de sources),
+  adapters.toml allowlist (4), união do gateway (4 venues).
+- **Commit 5**: canário integration `bybit_ingest_canary_test.go`
+  vs NATS vivo — batch de 2 trades → 2 mensagens (DeduplicationKey
+  por TradeID não colapsa na janela de 2min) + ambos os sources
+  roteados com instrument canônico no payload. Duas lições do
+  draft corrigidas e comentadas no teste: payload é CBOR (asserts
+  raw) e TradeIDs fixos eram DEDUPLICADOS no rerun dentro da
+  janela (IDs únicos por run; validado ×2 runs consecutivos).
+- **Commit 6**: **promoção ADR-0022 → `Accepted`** com os 6
+  critérios verificados um a um na seção Status do ADR (incl. a
+  divergência de layout bybits/bybitf vs "bybit/" único,
+  registrada lá); RUNTIME.md → "Venue ingest sources" + fix do
+  exemplo stale de partition key (shape pré-e.2, doc drift);
+  CLAUDE.md + N4 re-escopados ("no multi-exchange EXECUTION
+  surface" — observação é multi-venue desde H-7.b); TRUTH-MAP
+  (row ADR-0022 → Implemented); PRD checkboxes.
+
+**Próxima sub-onda destravada após merge**: **H-7.c** — modelagem
+do expiry (G10): campo opcional `Expiry` + ativação do slot
+dormente `[_expiry]` do token (o lock-in de `FromSubjectToken` tem
+pause trigger armado para exatamente isso) + errata ADR-0009/0021;
+coluna ClickHouse deferida até habilitar delivery no ingest
+(Decisão #4 (A)). Sequencing estrito: H-7.c abre branch APENAS
+após merge desta PR em `main`. **ADR-0021 permanece `Proposed`**
+(promoção em H-6.f.2 pós-TTL ~2026-08-26).
+
+---
+
+Entregas H-7.a (sessão anterior):
 
 - **Commit 0**: PRD — split H-7 a/b/c + decisões #1–#5 da abertura
   (registradas em PROGRAM-0004 → "Sub-ondas H-7") + wave rows.
@@ -2846,12 +2895,15 @@ Decisions are local per symbol. The `risk` domain checks
 position-exposure and drawdown limits per assessment, but there is
 no central model managing aggregate exposure across the portfolio.
 
-### N4 — No multi-exchange surface
+### N4 — No multi-exchange EXECUTION surface
 
-A single venue family (Binance, with Spot and Futures sub-segments).
-Adding OKX, Bybit, or any other exchange would require a new adapter
-under `internal/adapters/exchanges/` and corresponding execution
-adapters. This is not currently scoped.
+Execution (paper/testnet/mainnet order flow, segment router, order
+lifecycle) is a single venue family: Binance Spot + Futures. The
+**observation plane became multi-venue in H-7.b** (Bybit spot +
+linear perpetual via `bybits`/`bybitf`, per the ADR-0022
+capabilities contract) — the non-feature now scopes execution only.
+Adding a venue to execution would require venue execution adapters
+and a venue-aware segment model; not currently scoped.
 
 ### N5 — No market-making primitives
 

@@ -40,6 +40,11 @@ func (b BindingTarget) Key() string {
 var venueSourceContract = map[string]instrument.ContractType{
 	"binances": instrument.ContractSpot,
 	"binancef": instrument.ContractPerpetual,
+	// H-7.b: Bybit family. The 1-source-1-contract bijection is why
+	// the family split into two sources (Decisão #3 da abertura de
+	// H-7) instead of a single "bybit" covering spot+linear.
+	"bybits": instrument.ContractSpot,
+	"bybitf": instrument.ContractPerpetual,
 }
 
 // Instrument resolves the BindingTarget into a canonical
@@ -72,7 +77,7 @@ func (b BindingTarget) Instrument() (instrument.CanonicalInstrument, error) {
 	}
 	contract, ok := venueSourceContract[b.Source]
 	if !ok {
-		return instrument.CanonicalInstrument{}, fmt.Errorf("binding target source %q is not a recognized venue identifier (registered: binances, binancef)", b.Source)
+		return instrument.CanonicalInstrument{}, fmt.Errorf("binding target source %q is not a recognized venue identifier (registered: binances, binancef, bybits, bybitf)", b.Source)
 	}
 	upper := strings.ToUpper(strings.TrimSpace(b.Symbol))
 	const quote = "USDT"

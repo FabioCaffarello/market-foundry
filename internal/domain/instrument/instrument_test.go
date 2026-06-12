@@ -83,10 +83,19 @@ func TestVenue_ValidEnumeration(t *testing.T) {
 	if !instrument.ValidVenue(instrument.VenueBinanceFutures) {
 		t.Error("VenueBinanceFutures should be valid")
 	}
+	// H-7.b: Bybit family ships.
+	if !instrument.ValidVenue(instrument.VenueBybit) {
+		t.Error("VenueBybit should be valid")
+	}
+	if !instrument.ValidVenue(instrument.VenueBybitFutures) {
+		t.Error("VenueBybitFutures should be valid")
+	}
 }
 
 func TestVenue_InvalidRejected(t *testing.T) {
-	cases := []instrument.Venue{"bybit", "BINANCE", "", "unknown"}
+	// "bybit" left this list in H-7.b when its adapter shipped;
+	// "coinbase" stays invalid until its own adapter lands.
+	cases := []instrument.Venue{"coinbase", "BINANCE", "BYBIT", "", "unknown"}
 	for _, v := range cases {
 		t.Run(v.String(), func(t *testing.T) {
 			if instrument.ValidVenue(v) {
