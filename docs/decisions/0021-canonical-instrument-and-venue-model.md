@@ -188,6 +188,27 @@ has different lot sizes on Bybit vs Binance USDM.
   carried in adapter-side metadata and may surface in `payload`
   fields per ADR-0017. Whether the canonical model later grows an
   `Expiry` field is an explicit future decision (not this ADR's).
+
+  > **Erratum (2026-06-12 — Onda H-7.c, Decisão #4 da abertura de
+  > H-7).** The future decision was made: `CanonicalInstrument`
+  > grows an **optional `Expiry string` field** — canonical format
+  > **YYMMDD** (six digits, e.g. `240329`; maps directly from the
+  > Binance delivery suffix `_YYMMDD`, sortable, subject-safe),
+  > permitted ONLY for the dated contract classes
+  > (`usdtfutures`/`coinfutures`; spot/perpetual with expiry is a
+  > validation error). Empty expiry remains legal for the dated
+  > classes (pre-H-7.c constructions), with the collapsed-identity
+  > caveat of G10 applying to those values only. Construction via
+  > `NewDelivery(base, quote, contract, expiry)`; `Symbol()` gains
+  > an `@{expiry}` suffix when non-empty
+  > (`BTC/USDT-usdtfutures@240329`) and `FromSymbol` parses it
+  > back; the subject token activates its dormant 4th component
+  > (see the ADR-0009 erratum of the same date). Instruments
+  > without expiry produce byte-identical `Symbol()` and
+  > `SubjectToken()` to the pre-H-7.c forms — zero-impact
+  > lock-ins in the instrument tests. ClickHouse persistence of
+  > expiry is intentionally deferred to the onda that enables
+  > delivery futures at ingest (gap G11 in RESUMPTION).
 - **Settlement currency separation for perpetuals.** For now,
   `BTC/USDT-perpetual` on Hyperliquid (USDC-settled) and on Binance
   USDM (USDT-settled) are distinct (`QuoteAsset` differs). If a

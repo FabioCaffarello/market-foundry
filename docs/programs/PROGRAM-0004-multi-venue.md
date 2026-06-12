@@ -482,6 +482,25 @@ no foundry com tipos fortes per ADR-0021 spec.
 
 ## Changelog
 
+- **2026-06-12 (abertura H-7.c)** — H-7.b mergeada (PR #46 em
+  `main` em `c561be2`) destrava H-7.c: modelagem do expiry (G10)
+  per Decisão #4 (A) da abertura de H-7. Formato canônico fixado:
+  **YYMMDD** (6 dígitos — mapeia direto do sufixo delivery da
+  Binance `_YYMMDD`, sortable, subject-safe; o formato dash do
+  Bybit `-29MAR24` mapeia para YYMMDD quando o enablement vier).
+  Expiry permitido APENAS para as contract classes datadas
+  (usdtfutures/coinfutures); vazio segue legal nelas (construções
+  pré-H-7.c, caveat G10 restrito a esses valores). Errata
+  ADR-0021 (decisão futura tomada — campo entra) + ADR-0009 (slot
+  `[_expiry]` ativado) neste commit 0, documento primeiro (P3).
+  Zero impacto declarado e lock-in-ável: instruments sem expiry
+  produzem Symbol()/SubjectToken() byte-idênticos; zero
+  expiry-bearing instruments circulam (sem cutover, sem
+  mixed-state). A revisita do `FromSubjectToken` aciona o pause
+  trigger armado na f.1 — tratada no mesmo commit da ativação,
+  como o lock-in prescreve. Coluna CH deferida → gap sucessor G11
+  no closure.
+
 - **2026-06-12 (closure H-7.b)** — Adapter Bybit entregue em 7
   commits; **ADR-0022 → `Accepted`** no commit final (6 critérios
   verificados um a um na seção Status do ADR; divergência de layout

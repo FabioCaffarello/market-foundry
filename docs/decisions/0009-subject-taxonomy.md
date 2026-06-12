@@ -61,6 +61,19 @@ Planes are: `events`, `event` (configctl singular legacy), `control`,
 > token-formatting concern. Subject builders MUST NOT format the
 > token themselves (enforced by raccoon-cli `check subjects`).
 >
+> **Erratum (2026-06-12 — Onda H-7.c.)** The dormant slot is
+> **active**: `CanonicalInstrument` gained the optional `Expiry`
+> field (YYMMDD — ADR-0021 erratum of the same date) and
+> `SubjectToken()` appends the 4th `_{expiry}` component when it
+> is non-empty (e.g. `btc_usdt_usdtfutures_240329`). Tokens for
+> instruments without expiry are byte-identical to the pre-H-7.c
+> grammar — no cutover, no mixed-state window: zero expiry-bearing
+> instruments circulate today (delivery futures remain
+> ingest-gated until the G11 enablement gaps close).
+> `FromSubjectToken` accepts three or four components; the
+> non-ambiguity premise extends (expiry is digits-only — no
+> underscore).
+>
 > Before H-6.e the token was the venue-native lowercase form
 > (e.g. `btcusdt`) derived via the transitory `VenueSymbol()`
 > helper — VenueSymbol-derived, **not** `CanonicalInstrument.Symbol()`-
