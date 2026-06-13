@@ -332,5 +332,19 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			startConsumer: writerpipeline.NewTPOStarter(reg.insights),
 		},
 		// codegen:end pipeline_entry family=tpo
+
+		// codegen:begin pipeline_entry family=cross_venue source=codegen/families/cross_venue.yaml
+		// ── Insights: cross_venue → insights_cross_venue ──
+		{
+			family:        "cross_venue",
+			consumerName:  "writer-cross-venue-consumer",
+			inserterName:  "writer-cross-venue-inserter",
+			table:         "insights_cross_venue",
+			insertSQL:     "INSERT INTO insights_cross_venue (event_id, occurred_at, correlation_id, causation_id, symbol, base, quote, contract, timeframe, venue_name, venue_trade_count, venue_notional, venue_last_price, venue_high_price, venue_low_price, spread_abs, spread_bps, mid_price, dominant_venue, trade_count, open_time, close_time, final)",
+			consumerSpec:  natsinsights.WriterCrossVenueConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsInsightsFamilyEnabled("cross_venue") },
+			startConsumer: writerpipeline.NewCrossVenueStarter(reg.insights),
+		},
+		// codegen:end pipeline_entry family=cross_venue
 	}
 }

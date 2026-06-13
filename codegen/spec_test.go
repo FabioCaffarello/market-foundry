@@ -132,6 +132,23 @@ func TestDerivedFields_TPO(t *testing.T) {
 	assertField(t, "RegistryField", d.RegistryField, "insights")
 }
 
+// TestDerivedFields_CrossVenue locks the H-8.c.1 naming: a third
+// insights family, evidence-style + own config namespace.
+func TestDerivedFields_CrossVenue(t *testing.T) {
+	spec := &FamilySpec{
+		Family: FamilyMeta{Name: "cross_venue", Layer: "insights", Tier: 1},
+		Writer: WriterSpec{Table: "insights_cross_venue"},
+	}
+	d := spec.Derived()
+
+	assertField(t, "ConsumerSpecFunc", d.ConsumerSpecFunc, "WriterCrossVenueConsumer")
+	assertField(t, "ConsumerName", d.ConsumerName, "writer-cross-venue-consumer")
+	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsInsightsFamilyEnabled")
+	assertField(t, "StarterFunc", d.StarterFunc, "NewCrossVenueStarter")
+	assertField(t, "PackageAlias", d.PackageAlias, "natsinsights")
+	assertField(t, "RegistryField", d.RegistryField, "insights")
+}
+
 func TestDerivedFields_InsertSQLWithColumns(t *testing.T) {
 	spec := &FamilySpec{
 		Family: FamilyMeta{Name: "rsi", Layer: "signal", Tier: 1},

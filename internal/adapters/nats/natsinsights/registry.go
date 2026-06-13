@@ -140,3 +140,23 @@ func WriterTPOConsumer() natskit.ConsumerSpec {
 }
 
 // codegen:end consumer_spec family=tpo
+
+// codegen:begin consumer_spec family=cross_venue source=codegen/families/cross_venue.yaml
+// WriterCrossVenueConsumer defines the durable consumer spec for writer consuming
+// cross_venue insights events.
+func WriterCrossVenueConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-cross-venue",
+		Event: natskit.EventSpec{
+			Subject: "insights.events.crossvenue.sampled.>",
+			Type:    "insights.events.v1.cross_venue_sampled",
+			Stream: natskit.StreamSpec{
+				Name: "INSIGHTS_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// codegen:end consumer_spec family=cross_venue

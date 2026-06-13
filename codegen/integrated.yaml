@@ -303,3 +303,21 @@ slices:
     marker: "codegen:begin pipeline_entry family=tpo"
     integrated_at: "2026-06-13"
     stage: H-8.b.1
+
+  - family: cross_venue
+    artifact: consumer_spec
+    spec: codegen/families/cross_venue.yaml
+    golden: codegen/golden-snapshots/cross_venue/consumer_spec.go.golden
+    target: internal/adapters/nats/natsinsights/registry.go
+    marker: "codegen:begin consumer_spec family=cross_venue"
+    integrated_at: "2026-06-13"
+    stage: H-8.c.1
+
+  - family: cross_venue
+    artifact: pipeline_entry
+    spec: codegen/families/cross_venue.yaml
+    golden: codegen/golden-snapshots/cross_venue/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=cross_venue"
+    integrated_at: "2026-06-13"
+    stage: H-8.c.1
