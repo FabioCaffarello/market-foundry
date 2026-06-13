@@ -7,15 +7,15 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **PROGRAM-0005 (Fase Insights) fechada
-(H-8.c.1, PR #54, `9be97a7`, 2026-06-13)** — VPVR + TPO + cross-venue,
-cada uma compute→KV→read + persistência ClickHouse. Onda atual:
-**H-11.a** — primeira sub-onda da **Fase Delivery (PROGRAM-0006)**:
-servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → clients`
-(skeleton + delivery de volume profile end-to-end). Documento-primeiro
-(P3): [ADR-0028](decisions/0028-delivery-websocket-protocol.md)
-(`Proposed`) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). Delivery
-é **read-only transport, loopback-only, backpressure bounded** (ADR-0028
+Last meaningful state change: **H-11.a fechada (PR #55, `aafb0bb`,
+2026-06-13)** — abriu a **Fase Delivery (PROGRAM-0006)**: servidor
+WebSocket no gateway (`GET /ws`) fazendo bridge `INSIGHTS_EVENTS →
+clients`, skeleton + delivery de volume profile end-to-end; ADR-0028
+`Accepted`. Onda atual: **H-11.b** — generaliza a delivery a **todas as
+famílias de insights** (widen do durable `deliver-insights` para
+`insights.events.>`, decode dispatched por subject: VP + TPO +
+cross-venue) + filtragem de subscrição por subject. Delivery é
+**read-only transport, loopback-only, backpressure bounded** (ADR-0028
 I1–I5). Rodando no **loop autônomo** — self-merge escopado **re-confirmado
 pelo owner para PROGRAM-0006** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
@@ -87,7 +87,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-8.b.1** | Fechada (PR #52 mergeada em `main` em `9d5b284`, 2026-06-13) | Persistência ClickHouse do TPO (T5; espelha a H-8.a.1). Tabela `insights_tpo` com **Array-columns paralelas**: períodos (`period_letter/period_high/period_low Array(String)`) + níveis (`level_price/level_letters Array(String)`, `level_count Array(Int32)`) + scalars POC/VAH/VAL/IB/range + canônicas base/quote/contract; 1-evento→1-row preservado. Reusa o layer codegen `insights` (family `tpo`); consumer writer-side `writer-tpo`; mapper `mapTPOProfileRow`; canário `requireclickhouse`; drift-detect `writer-tpo` + tabela. |
 | **H-8.c** | Fechada (PR #53 mergeada em `main` em `4381047`, 2026-06-13) | Cross-venue trade fusion — última capacidade da Fase Insights (escopo compute→publish→KV→read; ClickHouse → H-8.c.1). `CrossVenueSnapshot` por canonical instrument por janela de timeframe: linhas por-venue (trade_count, notional, last/high/low) + spread consolidado/mid/venue dominante. **Topologia nova (C1)**: fusion actor único no nível do `DeriveSupervisor` (não FamilyProcessor per-source — cada SourceScopeActor só vê seu source); funde por canonical instrument (venue = dimensão fundida; `CanonicalInstrument` exclui venue, ADR-0021). Windowed (C2, owner). Stream `INSIGHTS_EVENTS` + KV `INSIGHTS_CROSS_VENUE_LATEST` + read `GET /insights/cross-venue/latest` + drift-detect `store-cross-venue`. Decisões C1–C5 no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 | **H-8.c.1** | Fechada (PR #54 mergeada em `main` em `9be97a7`, 2026-06-13) — **fechou a Fase Insights / PROGRAM-0005** | Persistência ClickHouse do cross-venue — última sub-onda. Tabela `insights_cross_venue` com **Array-columns paralelas das venue rows** (`venue_name/trade_count/notional/last/high/low`) + scalars spread/mid/dominant + canônicas base/quote/contract (**sem source** — cross-venue cruza sources) + timeframe. Reusa o layer codegen `insights` (family `cross_venue`); consumer writer-side `writer-cross-venue`; mapper `mapCrossVenueRow`; canário `requireclickhouse`; drift-detect `writer-cross-venue` + tabela. Seu merge transitou PROGRAM-0005 → `Closed`. |
-| **H-11.a** | **Atual** (esta entrega — branch `feat/h-11-a-delivery-ws`; loop autônomo, 2026-06-13) | **Abre a Fase Delivery / PROGRAM-0006.** Servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → WS clients` (skeleton + delivery de volume profile end-to-end). Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`); `RouterActor` (fan-out) + `SessionActor` (1/conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; endpoint `GET /ws` (gorilla upgrade); canário integration (connect→subscribe→receber 1 volume profile); drift-detect ciente do durable `deliver-insights`. Documento-primeiro: [ADR-0028](decisions/0028-delivery-websocket-protocol.md) (`Proposed`) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). **Promove ADR-0028 → `Accepted`.** Decisões D1–D7 (gateway owner, gorilla, subscription por subject NATS, DropNewest bounded, insights-only, JSON, placement layer-sovereign) no PRD. Subscription multi-evento + filtragem → H-11.b; políticas de backpressure + métricas → H-11.c. |
+| **H-11.a** | Fechada (PR #55 mergeada em `main` em `aafb0bb`, 2026-06-13) — **abriu a Fase Delivery / PROGRAM-0006** | Servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → WS clients` (skeleton + delivery de volume profile end-to-end). Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`); `RouterActor` (fan-out) + `SessionActor` (1/conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; port `internal/application/ports/delivery.go` (interfaces/ sem importar actors/, ADR-0005); endpoint `GET /ws` (gorilla upgrade); canário integration; drift-detect ciente do durable `deliver-insights`. Documento-primeiro: [ADR-0028](decisions/0028-delivery-websocket-protocol.md) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). **ADR-0028 → `Accepted`.** |
+| **H-11.b** | **Atual** (esta entrega — branch `feat/h-11-b-delivery-multi-event`; loop autônomo, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON, mantendo snake_case via marshal tipado); filtragem de subscrição por subject (o matcher do domínio já suporta wildcards). Canários integration p/ TPO + cross-venue + subscrição wildcard `insights.events.>` recebendo múltiplas famílias. Sem novo ADR (ADR-0028 I3 já cobre todos os insights; H-11.a restringiu a VP por implementação). Políticas de backpressure configuráveis + métricas → H-11.c. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
