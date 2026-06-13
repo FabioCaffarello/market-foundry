@@ -162,6 +162,23 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (closure H-8.a.1)** — Persistência ClickHouse do
+  VolumeProfile entregue em 6 commits; **G12 resolvido** (write-path).
+  Migration 014 `insights_volume_profile` (Array-columns paralelas,
+  Decisão #6); codegen estendido p/ o layer `insights` evidence-style
+  (Decisão #7 — `validLayers` + `usesFamilySpecificNaming`, family
+  `volume_profile`, goldens, integrated.yaml); consumer writer-side
+  `writer-volume-profile` + `mapVolumeProfileRow` (1-evento→1-row
+  preservado); `IsInsightsFamilyEnabled` (backward-compat); canário
+  `requireclickhouse` (Array round-trip vs CH vivo) PASS; drift-detect
+  `insights-contracts-drift` (P5). Read de history CH fica fora (sem
+  consumidor; KV-latest atende). **Gotcha**: bloco codegen consumer_spec
+  deve vir após `DefaultRegistry` p/ o event-stream-coverage do
+  contract-audit (profile ci). Entregue no **loop autônomo** (self-merge
+  escopado — ADR-0026 errata). `make verify` GREEN (drift-detect 33 /
+  123 checks); `--profile ci` GREEN; `raccoon-test` GREEN. Próxima:
+  H-8.b (TPO).
+
 - **2026-06-13 (abertura H-8.a.1)** — Persistência ClickHouse do
   VolumeProfile aberta p/ completar G12 (deferido na H-8.a). Owner
   escolheu Opção B (Array-columns, 1 linha/janela — Decisão #6) e

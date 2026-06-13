@@ -237,6 +237,38 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-8.a.1 (loop autônomo — persistência ClickHouse do VPVR, resolve G12):
+
+- **Commit 0**: docs-first — PRD H-8.a.1 (Decisões #6 Array-columns /
+  #7 codegen-extend evidence-style + mea culpa) + RESUMPTION +
+  TRUTH-MAP + **errata P9** (delegação de self-merge ao agente no loop,
+  ADR-0026 + CLAUDE.md). **Commit 1**: migration `014_create_insights_
+  volume_profile.sql` — 3 colunas `Array(String)` paralelas + canônicas.
+  **Commit 2** (bundle atômico): codegen `validLayers += insights` +
+  helper `usesFamilySpecificNaming` (evidence-style p/ insights, mas
+  `IsInsightsFamilyEnabled` próprio); family `volume_profile.yaml` +
+  goldens + integrated.yaml; `WriterVolumeProfileConsumer`; settings
+  `InsightsFamilies`/`IsInsightsFamilyEnabled` (backward-compat);
+  `reg.insights` + pipeline entry; `NewVolumeProfileStarter` +
+  `mapVolumeProfileRow` (buckets→3 arrays paralelos, 1-evento→1-row);
+  `OverloadLevel.Label()`. **Commit 3**: canário `requireclickhouse`
+  (Array round-trip vs ClickHouse vivo) PASS. **Commit 4**: drift-detect
+  `insights-contracts-drift` (P5: durables writer/store + tabela em
+  migrations; novo `scan_sql_dir_for_string`) + fix de ordering do bloco
+  codegen no registry.go (event-stream-coverage no profile ci).
+  **Commit 5**: este closure.
+- **Gotcha registrado**: o bloco codegen `consumer_spec` (StreamSpec
+  inline sem Subjects) deve vir **depois** do `DefaultRegistry` (que
+  declara o stream com Subjects), senão o parser do contract-audit
+  (event-stream-coverage) vê a definição vazia primeiro — só pega no
+  `--profile ci`. Espelhar `natsevidence`.
+
+**Próxima sub-onda destravada após merge**: **H-8.b** (TPO profile) —
+reusa binning + stream `INSIGHTS_EVENTS` + a persistência CH (mesma
+família codegen evidence-style). Abre APENAS após merge da H-8.a.1.
+
+---
+
 Entregas H-8.a (esta sessão — abertura do PROGRAM-0005 / Fase Insights):
 
 - **Commit 0**: PROGRAM-0005 + ADR-0027 (insights decision-support
@@ -2220,20 +2252,23 @@ futures no ingest segue gated pelos três gaps remanescentes:
    (`BTCUSDT-29MAR24`); o mapeamento `-29MAR24` → YYMMDD entra
    com o enablement.
 
-### G12 — Persistência ClickHouse do volume profile (EM RESOLUÇÃO — H-8.a.1)
+### G12 — Persistência ClickHouse do volume profile (RESOLVIDO — H-8.a.1)
 
-**Status: em resolução pela onda H-8.a.1** (branch
-`feat/h-8-a-1-clickhouse-vpvr`). A H-8.a entregou o VPVR via
-**KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`) e deferiu a
+**Status: write-path RESOLVIDO na onda H-8.a.1.** A H-8.a entregou o
+VPVR via **KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`) e deferiu a
 persistência ClickHouse porque o `VolumeProfile` tem `buckets[]`
 aninhados. **Correção do framing (mea culpa):** o "não mapeia
 1-evento→1-row" vale só p/ multi-row — **Array-columns** mantêm 1-row.
-A H-8.a.1 resolve via Opção B (Array-columns, Decisão #6) + extensão
-do codegen p/ o layer `insights` evidence-style (Opção A, Decisão #7),
-preservando a invariante codegen + golden self-consistency. O **read**
-de history CH fica fora (KV-latest segue atendendo o read corrente);
-G12 cobre só o **write-path**. Move para "Recently resolved" no commit
-de closure da H-8.a.1.
+A H-8.a.1 resolveu via Opção B (Array-columns, Decisão #6) + extensão
+do codegen p/ o layer `insights` evidence-style (Opção A, Decisão #7):
+migration 014 `insights_volume_profile` (3 colunas `Array(String)`
+paralelas), family codegen `volume_profile`, consumer writer-side
+`writer-volume-profile`, mapper `mapVolumeProfileRow`, canário
+`requireclickhouse` (Array round-trip) PASS, e check `insights-contracts
+-drift`. Single-writer (ADR-0008): writer dono da tabela, store dono do
+KV. **Escopo residual (não-gap):** o **read** de history CH fica fora
+até existir um consumidor de history (KV-latest segue atendendo o read
+corrente); não há backfill retroativo dos profiles já em KV.
 
 Configurar um symbol de delivery num binding ANTES de fechar (1) e
 (2) produziria persistência parcial — não fazer. A onda de
