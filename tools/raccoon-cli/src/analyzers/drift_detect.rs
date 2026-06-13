@@ -493,6 +493,28 @@ const EXECUTION_DOMAIN_FILES: &[(&str, &str)] = &[
     ("internal/application/ports/venue.go", "VenuePort interface for venue adapter boundary"),
 ];
 
+/// Expected insights durable consumers (H-8.a.1). Insights persistence is
+/// a single-writer split (ADR-0008): the writer owns the ClickHouse table,
+/// the store owns the KV-latest bucket — two distinct durables on
+/// INSIGHTS_EVENTS.
+const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
+    (
+        "writer-volume-profile",
+        "writer persists volume profile events from INSIGHTS_EVENTS into the insights_volume_profile ClickHouse table (codegen-governed)",
+    ),
+    (
+        "store-volume-profile",
+        "store projects volume profile events from INSIGHTS_EVENTS into the KV latest bucket",
+    ),
+];
+
+/// Expected insights ClickHouse history tables that must appear in
+/// deploy/migrations (H-8.a.1).
+const INSIGHTS_EXPECTED_TABLES: &[(&str, &str)] = &[(
+    "insights_volume_profile",
+    "stores per-window volume profile (VPVR) history with parallel Array(String) bucket columns",
+)];
+
 // ── Public API ──────────────────────────────────────────────────────
 
 pub fn analyze(project_root: &Path) -> Result<Report> {
@@ -547,7 +569,66 @@ pub fn analyze(project_root: &Path) -> Result<Report> {
     report.add(check_execution_config_drift(&evidence));
     report.add(check_execution_contracts_drift(&evidence));
 
+    // Phase 8: Insights domain governance checks (H-8.a.1 — VPVR persistence)
+    report.add(check_insights_contracts_drift(&evidence));
+
     Ok(report)
+}
+
+/// Check insights-contracts-drift: verify the insights durable consumers and
+/// the ClickHouse history table exist in source (H-8.a.1). The writer durable
+/// is codegen-governed (volume_profile family); the store-side durable feeds
+/// the KV latest bucket. Single-writer split per ADR-0008.
+fn check_insights_contracts_drift(evidence: &Evidence) -> CheckResult {
+    let mut findings = Vec::new();
+
+    let source = match &evidence.source {
+        Some(s) => s,
+        None => return CheckResult::skip("insights-contracts-drift", "source not scanned"),
+    };
+
+    // Insights durable consumers (writer + store).
+    for (durable, purpose) in INSIGHTS_EXPECTED_DURABLES {
+        if source.durables.contains_key(*durable) {
+            findings.push(Finding::info(
+                "insights-durable-present",
+                format!("insights durable consumer found: {durable}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "insights-durable-missing",
+                    format!("insights durable consumer not found: {durable}"),
+                )
+                .with_why(*purpose)
+                .with_help(
+                    "check internal/adapters/nats/natsinsights/registry.go for consumer spec",
+                ),
+            );
+        }
+    }
+
+    // Insights ClickHouse history tables (declared in migrations).
+    let migrations_dir = evidence.project_root.join("deploy/migrations");
+    for (table, purpose) in INSIGHTS_EXPECTED_TABLES {
+        if scan_sql_dir_for_string(&migrations_dir, table) {
+            findings.push(Finding::info(
+                "insights-table-present",
+                format!("insights ClickHouse table found in migrations: {table}"),
+            ));
+        } else {
+            findings.push(
+                Finding::error(
+                    "insights-table-missing",
+                    format!("insights ClickHouse table not found in migrations: {table}"),
+                )
+                .with_why(*purpose)
+                .with_help("check deploy/migrations for the CREATE TABLE statement"),
+            );
+        }
+    }
+
+    CheckResult::from_findings("insights-contracts-drift", findings)
 }
 
 // ── Evidence gathering ──────────────────────────────────────────────
@@ -2238,6 +2319,30 @@ fn scan_dir_for_string(dir: &Path, pattern: &str) -> bool {
                 return true;
             }
         } else if path.extension().and_then(|e| e.to_str()) == Some("go") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if content.contains(pattern) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Like scan_dir_for_string but scans .sql files — used to verify a table is
+/// declared in deploy/migrations (the authoritative source for table DDL).
+fn scan_sql_dir_for_string(dir: &Path, pattern: &str) -> bool {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if scan_sql_dir_for_string(&path, pattern) {
+                return true;
+            }
+        } else if path.extension().and_then(|e| e.to_str()) == Some("sql") {
             if let Ok(content) = std::fs::read_to_string(&path) {
                 if content.contains(pattern) {
                     return true;
