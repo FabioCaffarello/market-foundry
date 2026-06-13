@@ -223,6 +223,13 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (abertura H-8.c.1)** — Persistência ClickHouse do
+  cross-venue aberta após H-8.c fechar (PR #53). Espelha a/a.1, b/b.1:
+  tabela `insights_cross_venue` com Array-columns das venue rows, family
+  codegen `cross_venue`, consumer `writer-cross-venue`, canário
+  `requireclickhouse`. **É a última sub-onda — seu merge fecha a Fase
+  Insights.** Loop autônomo (self-merge escopado — ADR-0026).
+
 - **2026-06-13 (closure H-8.c)** — Cross-venue trade fusion entregue (6
   commits; escopo compute→publish→KV→read). Domínio `CrossVenueSnapshot`
   (spread/mid/dominant puros) + **topologia nova C1**: `CrossVenueFusion`
