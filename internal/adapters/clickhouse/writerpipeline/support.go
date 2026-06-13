@@ -220,6 +220,28 @@ func NewVolumeProfileStarter(reg natsinsights.Registry) ConsumerStarter {
 	}
 }
 
+// NewTPOStarter creates a ConsumerStarter for insights TPO events
+// (H-8.b.1). Family-specific insights layer (like volume_profile);
+// reuses the natsinsights TPO consumer with the writer-tpo spec.
+func NewTPOStarter(reg natsinsights.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsinsights.NewTPOConsumer(natsURL, spec, reg,
+			func(event insights.TPOProfileSampledEvent) {
+				recordEvent(tracker)
+				emitRow(mapTPOProfileRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
 func recordEvent(tracker *healthz.Tracker) {
 	if tracker == nil {
 		return
@@ -548,6 +570,68 @@ func mapVolumeProfileRow(e insights.VolumeProfileSampledEvent) []any {
 		vp.OpenTime,
 		vp.CloseTime,
 		vp.Final,
+	}
+}
+
+// mapTPOProfileRow maps an insights TPO event to a single ClickHouse row
+// (H-8.b.1). Periods and price levels become two sets of PARALLEL,
+// index-aligned arrays (period_letter/high/low; level_price/letters/count),
+// preserving the codegen 1-event→1-row contract. Decimals stay as String;
+// level counts are int32. Column order matches the insertSQL in
+// cmd/writer/pipeline.go.
+func mapTPOProfileRow(e insights.TPOProfileSampledEvent) []any {
+	m := e.Metadata
+	tp := e.TPOProfile
+
+	periodLetters := make([]string, len(tp.Periods))
+	periodHighs := make([]string, len(tp.Periods))
+	periodLows := make([]string, len(tp.Periods))
+	for i, p := range tp.Periods {
+		periodLetters[i] = p.Letter
+		periodHighs[i] = p.HighPrice
+		periodLows[i] = p.LowPrice
+	}
+
+	levelPrices := make([]string, len(tp.Levels))
+	levelLetters := make([]string, len(tp.Levels))
+	levelCounts := make([]int32, len(tp.Levels))
+	for i, l := range tp.Levels {
+		levelPrices[i] = l.PriceLevel
+		levelLetters[i] = l.Letters
+		levelCounts[i] = int32(l.Count)
+	}
+
+	return []any{
+		m.ID,
+		m.OccurredAt,
+		m.CorrelationID,
+		m.CausationID,
+		tp.Source,
+		tp.VenueSymbol(),
+		string(tp.Instrument.Base),
+		string(tp.Instrument.Quote),
+		string(tp.Instrument.Contract),
+		uint32(tp.Timeframe),
+		tp.BucketSize,
+		uint32(tp.PeriodSeconds),
+		periodLetters,
+		periodHighs,
+		periodLows,
+		levelPrices,
+		levelLetters,
+		levelCounts,
+		tp.TradeCount,
+		tp.Overload.Label(),
+		tp.POCPrice,
+		tp.ValueAreaHigh,
+		tp.ValueAreaLow,
+		tp.InitialBalanceHigh,
+		tp.InitialBalanceLow,
+		tp.RangeHigh,
+		tp.RangeLow,
+		tp.OpenTime,
+		tp.CloseTime,
+		tp.Final,
 	}
 }
 

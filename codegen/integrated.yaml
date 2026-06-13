@@ -285,3 +285,21 @@ slices:
     marker: "codegen:begin pipeline_entry family=volume_profile"
     integrated_at: "2026-06-13"
     stage: H-8.a.1
+
+  - family: tpo
+    artifact: consumer_spec
+    spec: codegen/families/tpo.yaml
+    golden: codegen/golden-snapshots/tpo/consumer_spec.go.golden
+    target: internal/adapters/nats/natsinsights/registry.go
+    marker: "codegen:begin consumer_spec family=tpo"
+    integrated_at: "2026-06-13"
+    stage: H-8.b.1
+
+  - family: tpo
+    artifact: pipeline_entry
+    spec: codegen/families/tpo.yaml
+    golden: codegen/golden-snapshots/tpo/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=tpo"
+    integrated_at: "2026-06-13"
+    stage: H-8.b.1

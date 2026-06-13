@@ -113,6 +113,25 @@ func TestDerivedFields_Insights(t *testing.T) {
 	assertField(t, "RegistryField", d.RegistryField, "insights")
 }
 
+// TestDerivedFields_TPO locks the H-8.b.1 naming: a second insights
+// family, evidence-style + own config namespace, with the "tpo"→"TPO"
+// abbreviation applied.
+func TestDerivedFields_TPO(t *testing.T) {
+	spec := &FamilySpec{
+		Family: FamilyMeta{Name: "tpo", Layer: "insights", Tier: 1},
+		Writer: WriterSpec{Table: "insights_tpo"},
+	}
+	d := spec.Derived()
+
+	assertField(t, "ConsumerSpecFunc", d.ConsumerSpecFunc, "WriterTPOConsumer")
+	assertField(t, "ConsumerName", d.ConsumerName, "writer-tpo-consumer")
+	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsInsightsFamilyEnabled")
+	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewTPOConsumer")
+	assertField(t, "StarterFunc", d.StarterFunc, "NewTPOStarter")
+	assertField(t, "PackageAlias", d.PackageAlias, "natsinsights")
+	assertField(t, "RegistryField", d.RegistryField, "insights")
+}
+
 func TestDerivedFields_InsertSQLWithColumns(t *testing.T) {
 	spec := &FamilySpec{
 		Family: FamilyMeta{Name: "rsi", Layer: "signal", Tier: 1},

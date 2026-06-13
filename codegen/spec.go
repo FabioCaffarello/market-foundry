@@ -70,6 +70,7 @@ var knownAbbreviations = map[string]string{
 	"id":   "ID",
 	"url":  "URL",
 	"api":  "API",
+	"tpo":  "TPO",
 }
 
 // LoadAllSpecs reads all family specs from the given directory.

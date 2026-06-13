@@ -96,3 +96,23 @@ func WriterVolumeProfileConsumer() natskit.ConsumerSpec {
 }
 
 // codegen:end consumer_spec family=volume_profile
+
+// codegen:begin consumer_spec family=tpo source=codegen/families/tpo.yaml
+// WriterTPOConsumer defines the durable consumer spec for writer consuming
+// tpo insights events.
+func WriterTPOConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-tpo",
+		Event: natskit.EventSpec{
+			Subject: "insights.events.tpo.sampled.>",
+			Type:    "insights.events.v1.tpo_sampled",
+			Stream: natskit.StreamSpec{
+				Name: "INSIGHTS_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// codegen:end consumer_spec family=tpo

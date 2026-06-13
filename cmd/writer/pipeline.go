@@ -318,5 +318,19 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			startConsumer: writerpipeline.NewVolumeProfileStarter(reg.insights),
 		},
 		// codegen:end pipeline_entry family=volume_profile
+
+		// codegen:begin pipeline_entry family=tpo source=codegen/families/tpo.yaml
+		// ── Insights: tpo → insights_tpo ──
+		{
+			family:        "tpo",
+			consumerName:  "writer-tpo-consumer",
+			inserterName:  "writer-tpo-inserter",
+			table:         "insights_tpo",
+			insertSQL:     "INSERT INTO insights_tpo (event_id, occurred_at, correlation_id, causation_id, source, symbol, base, quote, contract, timeframe, bucket_size, period_seconds, period_letter, period_high, period_low, level_price, level_letters, level_count, trade_count, overload, poc_price, value_area_high, value_area_low, initial_balance_high, initial_balance_low, range_high, range_low, open_time, close_time, final)",
+			consumerSpec:  natsinsights.WriterTPOConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsInsightsFamilyEnabled("tpo") },
+			startConsumer: writerpipeline.NewTPOStarter(reg.insights),
+		},
+		// codegen:end pipeline_entry family=tpo
 	}
 }
