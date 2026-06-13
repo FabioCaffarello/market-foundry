@@ -49,7 +49,7 @@ ADR-0022.
 | Onda | Escopo resumido | Entregas principais |
 |------|------------------|---------------------|
 | **H-6** | Canonical instrument model + Binance refactor | Distribuído em **sub-ondas H-6.a–H-6.f** por questão de cascade (descoberto em pré-flight de H-6.a: 342 `.Symbol` references em 106 production files em 31 packages). Ver "Sub-ondas H-6" abaixo. |
-| **H-7** | Bybit adapter + multi-venue parity policy + expiry (G10) | Dividida em **sub-ondas H-7.a/b/c** na abertura (owner 2026-06-12, Decisão #1 (B) — mesmo rationale do split de H-6: escopo combinado produziria PR irrevisável). **H-7.a**: capabilities framework (ADR-0022 R1–R4 sem venue novo — tipo `Capabilities` + retrofit binances/binancef + gateway `/venues/capabilities` + counter + analyzer `check venue-parity`). **H-7.b**: adapter Bybit (spot + linear perpetual, plano de observação apenas — Decisão #2 (A)) + **promoção ADR-0022 → Accepted** (fecha os 6 critérios; atômica no commit final). **H-7.c**: modelagem do expiry (G10) — campo opcional + ativação do slot `[_expiry]` do token (Decisão #4 (A); coluna ClickHouse deferida até habilitar delivery futures no ingest). Ver "Sub-ondas H-7" abaixo. |
+| **H-7** ✅ fechada (2026-06-12) | Bybit adapter + multi-venue parity policy + expiry (G10) | Dividida em **sub-ondas H-7.a/b/c** na abertura (owner 2026-06-12, Decisão #1 (B) — mesmo rationale do split de H-6: escopo combinado produziria PR irrevisável). **H-7.a**: capabilities framework (ADR-0022 R1–R4 sem venue novo — tipo `Capabilities` + retrofit binances/binancef + gateway `/venues/capabilities` + counter + analyzer `check venue-parity`). **H-7.b**: adapter Bybit (spot + linear perpetual, plano de observação apenas — Decisão #2 (A)) + **promoção ADR-0022 → Accepted** (fecha os 6 critérios; atômica no commit final). **H-7.c**: modelagem do expiry (G10) — campo opcional + ativação do slot `[_expiry]` do token (Decisão #4 (A); coluna ClickHouse deferida até habilitar delivery futures no ingest). Ver "Sub-ondas H-7" abaixo. |
 
 H-6 e H-7 são **sequenciais e estritas** — H-7 só abre após
 **H-6.f.1 mergeada em main** (P9 + sub-onda sequencing policy
@@ -391,7 +391,12 @@ verdadeiros simultaneamente:
   declarações de capabilities introspectáveis, analyzer no gate,
   canário integration vs NATS vivo).
 - [ ] PROGRAM-0004 transita para `Closed` na entrega final de
-  H-7; entrada Changelog correspondente.
+  **H-6.f.2** (o último gate da Fase — promove ADR-0021 e satisfaz
+  o critério #1); entrada Changelog correspondente. *(Erratum
+  2026-06-12: este critério dizia "entrega final de H-7"; o
+  erratum de sequenciamento da H-6.f.1 deslocou o fechamento da
+  Fase para H-6.f.2, que corre no gate temporal ~2026-08-26 — H-7
+  fechou em 2026-06-12 mas a Fase aguarda f.2.)*
 
 ---
 
@@ -481,6 +486,25 @@ no foundry com tipos fortes per ADR-0021 spec.
 ---
 
 ## Changelog
+
+- **2026-06-12 (MARCO — Onda H-7 fechada)** — Com o merge da PR
+  #47 (H-7.c, `058b074`), a Onda **H-7 (Bybit adapter + multi-venue
+  parity policy + expiry) está completa** (a+b+c). Entregas
+  agregadas: capabilities framework ADR-0022 R1–R4 + `GET
+  /venues/capabilities` + `check venue-parity` (a); adapter Bybit
+  spot+linear perpetual em observação + **ADR-0022 → Accepted**
+  (b); modelagem do expiry fechando o G10 (c). Observação é
+  multi-venue (Binance + Bybit); execução segue Binance-only.
+  **A Fase Multi-venue NÃO fecha aqui** — resta o gate temporal
+  **H-6.f.2 (~2026-08-26)**: flip do WHERE ClickHouse, deleções de
+  helpers transitórios, verificação operacional, **promoção
+  ADR-0021 → Accepted** e transição do PROGRAM-0004 → `Closed`
+  (critério de aceite #1 + ADR-0021 ainda abertos; ver erratum no
+  último critério de aceite). CI da PR #47: G9 reincidiu
+  (`TestRealVenueActivation_FullLifecycle` FAIL → 8/8 PASS no
+  rerun, zero overlap com o diff) — terceira confirmação empírica
+  do flake, registrada no registry, disposição inalterada
+  (deferred à sub-wave de test-hardening).
 
 - **2026-06-12 (closure H-7.c)** — Modelagem do expiry entregue em
   5 commits; **G10 resolvido** (campo `Expiry` YYMMDD opcional,
