@@ -4,6 +4,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/domain/insights"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -22,6 +23,12 @@ type tradeBurstReceivedMessage struct {
 // volumeReceivedMessage is sent from the volume consumer actor to the projection actor.
 type volumeReceivedMessage struct {
 	Event evidence.VolumeSampledEvent
+}
+
+// volumeProfileReceivedMessage is sent from the insights volume
+// profile consumer actor to the projection actor (PROGRAM-0005 / H-8.a).
+type volumeProfileReceivedMessage struct {
+	Event insights.VolumeProfileSampledEvent
 }
 
 // signalReceivedMessage is sent from the signal consumer actor to the signal projection actor.
