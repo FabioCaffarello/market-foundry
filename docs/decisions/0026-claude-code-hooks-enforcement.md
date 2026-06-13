@@ -148,6 +148,16 @@ checks): (1) confirm the required checks pass, (2) **diff self-audit**
 `gh pr merge --squash`, (4) sync `main` + clean baseline, (5) open the
 next wave. See also CLAUDE.md → "Fase Harvest" P9 (note appended).
 
+### 2026-06-13 — Re-confirmation: delegation extended to PROGRAM-0006 (Delivery)
+
+PROGRAM-0005 (Insights) closed; the owner re-confirmed the **same
+autonomous self-merge loop** for the new Fase **PROGRAM-0006 (Delivery
+WS)**. Each scoped grant is per-Fase, not standing — this errata records
+the extension to the Delivery Fase. Same posture and discipline as the
+PROGRAM-0005 entry above (hook "ask"-on-merge unchanged; `git push
+origin main` + bypass remain denied; the five-step merge discipline
+applies). The next Fase after Delivery again requires re-confirmation.
+
 ## Changelog
 
 - 2026-06-09 — Created and Accepted (harness FASE 2 B2 PR, with
@@ -155,3 +165,5 @@ next wave. See also CLAUDE.md → "Fase Harvest" P9 (note appended).
 - 2026-06-13 — Errata: owner delegated self-merge to the agent for the
   PROGRAM-0005 autonomous loop (scoped P9 override; hook "ask"-on-merge
   posture unchanged). Recorded with the H-8.a.1 docs commit.
+- 2026-06-13 — Errata: delegation re-confirmed + extended to PROGRAM-0006
+  (Delivery WS) after PROGRAM-0005 closed. Per-Fase grant; not standing.

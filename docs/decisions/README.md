@@ -99,6 +99,7 @@ ondas; 0021–0023 remain `Proposed`.
 | [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Accepted (2026-06-12, H-7.b) | Onda H-7 |
 | [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
 | [0027](0027-insights-decision-support.md) | Insights são decision-support read-only | Accepted (2026-06-13, H-8.a) | Onda H-8.a (PROGRAM-0005) |
+| [0028](0028-delivery-websocket-protocol.md) | Delivery WebSocket protocol (read-only/loopback/bounded) | Accepted (2026-06-13, H-11.a) | Onda H-11.a (PROGRAM-0006) |
 
 ### Fase Harvest — Observability decisions (Onda H-5)
 

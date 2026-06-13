@@ -144,6 +144,7 @@ type Dependencies struct {
 	Triage                       TriageFamilyDeps   // S487
 	Venues                       VenuesFamilyDeps   // ADR-0022 R2 (H-7.a)
 	Insights                     InsightsFamilyDeps // ADR-0027 (H-8.a)
+	Delivery                     DeliveryFamilyDeps // ADR-0028 (H-11.a)
 	Logger                       *slog.Logger
 }
 
@@ -361,6 +362,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Insights.HasAny() {
 		routes = append(routes, Insights(deps.Insights)...)
+	}
+	if deps.Delivery.HasAny() {
+		routes = append(routes, Delivery(deps.Delivery, deps.Logger)...)
 	}
 	return routes
 }

@@ -522,6 +522,10 @@ const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
         "writer-cross-venue",
         "writer persists cross-venue snapshots from INSIGHTS_EVENTS into the insights_cross_venue ClickHouse table (codegen-governed, H-8.c.1)",
     ),
+    (
+        "deliver-insights",
+        "delivery (gateway) reads insights events from INSIGHTS_EVENTS and pushes them to subscribed WebSocket clients — read-only transport, ADR-0028/PROGRAM-0006 (H-11.a)",
+    ),
 ];
 
 /// Expected insights ClickHouse history tables that must appear in
