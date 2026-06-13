@@ -7,6 +7,7 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/application/ports"
 	deliverydomain "internal/domain/delivery"
+	"internal/shared/metrics"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -101,6 +102,7 @@ func (a *SessionActor) writeLoop() {
 			}
 			return
 		}
+		metrics.IncDeliveryFrame(metrics.DeliveryOutcomeDelivered)
 	}
 	_ = a.cfg.conn.Close()
 }
@@ -165,7 +167,9 @@ func (a *SessionActor) tryEnqueue(frame []byte) bool {
 	}
 }
 
-// recordDrop counts a shed frame. Called only on the actor goroutine.
+// recordDrop counts a shed frame (locally + in the Prometheus metric).
+// Called only on the actor goroutine.
 func (a *SessionActor) recordDrop() {
 	a.dropped++
+	metrics.IncDeliveryFrame(metrics.DeliveryOutcomeDropped)
 }
