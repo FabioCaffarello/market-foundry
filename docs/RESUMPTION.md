@@ -242,6 +242,32 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-8.c (loop autônomo — cross-venue trade fusion, compute→publish→KV→read):
+
+- **Commit 0**: docs-first (PRD C1–C5; H-8.b.1 Fechada). **Commit 1**:
+  domínio `cross_venue.go` (`CrossVenueSnapshot`, `VenueRow`;
+  `ConsolidatedSpread`/`DominantVenue` puros, big.Rat) + evento.
+  **Commit 2 (topologia nova)**: `CrossVenueFusion` (windowed, keyed por
+  canonical instrument, per-venue accum) + `CrossVenueFusionActor`
+  ÚNICO no nível do `DeriveSupervisor` (não per-source — cada
+  SourceScopeActor só vê seu source); supervisor faneia todo trade ao
+  fusion actor; publisher próprio. **Commit 3**: store-side
+  `store-cross-venue` + `cross_venue_kv_store` (`INSIGHTS_CROSS_VENUE_
+  LATEST`, key sem source) + `CrossVenueProjectionActor`. **Commit 4**:
+  read `GET /insights/cross-venue/latest` (sem source; gateway com 3 KV
+  stores; boot_test +1; HTTP-API grupo 14 → 3 rotas). **Commit 5**:
+  drift-detect `store-cross-venue` + canário integration
+  (publish→consume→KV→read vs NATS vivo) + este closure.
+- single-writer (ADR-0008): derive publica em `INSIGHTS_EVENTS`; store é
+  dono do bucket `INSIGHTS_CROSS_VENUE_LATEST`.
+
+**Próxima sub-onda destravada após merge**: **H-8.c.1** (cross-venue
+ClickHouse — espelha a/a.1, b/b.1; Array-columns das venue rows) — **a
+ÚLTIMA sub-onda; sua entrega transita PROGRAM-0005 → `Closed`**. Abre
+APENAS após merge da H-8.c.
+
+---
+
 Entregas H-8.b.1 (loop autônomo — persistência ClickHouse do TPO):
 
 - **Commit 0**: docs-first (PRD + RESUMPTION; H-8.b Fechada). **Commit

@@ -223,6 +223,18 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (closure H-8.c)** — Cross-venue trade fusion entregue (6
+  commits; escopo compute→publish→KV→read). Domínio `CrossVenueSnapshot`
+  (spread/mid/dominant puros) + **topologia nova C1**: `CrossVenueFusion`
+  windowed + `CrossVenueFusionActor` único no `DeriveSupervisor` (não
+  per-source), que faneia todo trade e funde por canonical instrument;
+  store-side `store-cross-venue` → `INSIGHTS_CROSS_VENUE_LATEST`; read
+  `GET /insights/cross-venue/latest` (sem source); drift-detect
+  `store-cross-venue`; canário integration PASS. Loop autônomo
+  (self-merge escopado — ADR-0026). **Próxima: H-8.c.1** (cross-venue
+  ClickHouse), a **última** sub-onda — sua entrega transita esta Fase a
+  `Closed`.
+
 - **2026-06-13 (abertura H-8.c)** — Cross-venue trade fusion aberta após
   H-8.b.1 fechar (PR #52). Pré-flight expôs a topologia: fusão é
   cross-source, logo NÃO cabe num FamilyProcessor per-source — vive como
