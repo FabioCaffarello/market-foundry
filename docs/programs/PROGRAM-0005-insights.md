@@ -51,7 +51,8 @@ abertura desta Fase.
 |----------|--------|---------------------|
 | **H-8.a** | Volume Profile (VPVR) + overload policy | Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload levels L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` (single-writer) + publisher; KV `INSIGHTS_VOLUME_PROFILE_LATEST`; read endpoint no gateway; analyzer `check insights` (P5); **promove ADR-0027 → Accepted**. (Persistência ClickHouse **deferida** — ver H-8.a.1 / G12.) |
 | **H-8.a.1** | Persistência ClickHouse do VolumeProfile (completa G12) | Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B) + colunas canônicas base/quote/contract; **extensão do codegen** p/ reconhecer o layer `insights` evidence-style (Decisão #7 Opção A); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect ciente da tabela/consumer. Resolve **G12**. |
-| **H-8.b** | TPO profile (Time-Price Opportunity) | Market profile / TPO por janela de sessão, trades-only. Reutiliza binning + stream + persistência da H-8.a. |
+| **H-8.b** | TPO profile (Time-Price Opportunity) — compute + KV + read | Market profile / TPO **timeframe-anchored** (Decisão T1 — não session-anchored; o foundry não tem conceito de sessão), trades-only (Decisão T2 — períodos derivados de trades, não candles). A janela de timeframe é subdividida em **períodos** (letras A–X, cap 24 — Decisão T3); cada trade marca seu nível de preço (reusa `BucketLevel`) com a letra do período. `TPOProfile{Periods[], Levels[]}` com `TPOLevel{PriceLevel, Letters, Count}`; POC/value-area/initial-balance/range no snapshot (Decisão T4). Sampler no derive + stream `INSIGHTS_EVENTS` + **KV-latest** `INSIGHTS_TPO_LATEST` + read `GET /insights/tpo/latest` + drift-detect ciente do durable `store-tpo`. (Escopo espelha a H-8.a; persistência ClickHouse **deferida** à H-8.b.1 — ver Decisão T5.) |
+| **H-8.b.1** | Persistência ClickHouse do TPO | Tabela `insights_tpo` com **Array-columns** (períodos + níveis paralelos — Decisão T5, padrão H-8.a.1); reusa o layer codegen `insights`; consumer writer-side `writer-tpo`; canário `requireclickhouse`. Espelha a H-8.a.1. |
 | **H-8.c** | Cross-venue trade fusion | Fusão de trades multi-venue (Binance + Bybit, pós-H-7) em snapshots cross-venue; encaixe direto na superfície multi-venue. |
 
 Capacidades fora desta Fase (registradas para Fases futuras):
@@ -112,6 +113,41 @@ family-como-discriminador (signal/decision/…) não encaixa em insights
 (event types distintos por family) — o layer `evidence` (family-specific)
 é o molde correto. Daí a Decisão #7.
 
+### Decisões de design da H-8.b (agente, pré-flight 2026-06-13)
+
+Planejadas pelo agente sob o mandato de autonomia do owner (loop
+PROGRAM-0005), fundamentadas no pré-flight (foundry insights + leitura
+read-only justificada P2 do TPO no market-raccoon; nada copiado, P1).
+Reversíveis no PR review.
+
+- **T1 — timeframe-anchored, não session-anchored.** O TPO do raccoon é
+  ancorado em sessão de exchange (CME_RTH etc.); o foundry **não tem
+  conceito de sessão** no domínio. A H-8.b usa a **janela de timeframe**
+  (mesma `WindowFor` do VolumeProfile) e subdivide em períodos. TPO
+  session-anchored fica para Fase futura (exige infra de sessão/config).
+- **T2 — trades-only (períodos derivados de trades).** O raccoon ingere
+  candles (high/low por período); o foundry é trades-only. Cada trade
+  marca seu nível de preço (`BucketLevel`) com a **letra** do seu
+  período. O high/low de cada período é derivado dos trades.
+- **T3 — períodos com cap 24 (A–X).** Período = `(ts - openTime) /
+  periodDuration`; letra = índice. `periodDuration` é config do sampler
+  (derive), validado p/ não exceder 24 períodos por janela. Overload
+  (`OverloadLevel`) keyed na contagem de **níveis** (não períodos, que
+  são bounded por construção).
+- **T4 — POC / VAH / VAL / IB / range no snapshot.** Funções puras sobre
+  Levels/Periods: POC = nível com mais letras; value area = ~70% da
+  contagem de letras ao redor do POC; initial balance = high/low dos 2
+  primeiros períodos; range = high/low globais.
+- **T5 — persistência Array-columns (padrão H-8.a.1), em sub-onda
+  própria.** Períodos e níveis em colunas `Array` paralelas
+  index-aligned na tabela `insights_tpo`; 1-evento→1-row preservado;
+  reusa o layer codegen `insights`. `level_letters` como `Array(String)`
+  (letras concatenadas por nível, ex. "ACF"). **Escopo: a H-8.b entrega
+  compute→publish→KV→read (espelhando a H-8.a); a persistência ClickHouse
+  fica na H-8.b.1 (espelhando a H-8.a.1).** Decisão de split tomada em
+  implementação p/ manter o PR revisável (P4; precedente H-8.a/a.1) —
+  mea culpa: o commit 0 da H-8.b foi otimista ao agrupar CH na mesma onda.
+
 ## Princípios aplicáveis (P1–P9)
 
 Ver [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest".
@@ -161,6 +197,29 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 | Overload scope creep para backpressure genérico de pipeline | Médio | Decisão #5: VPVR overload só (sujeito real); backpressure de pipeline fica para onda própria. |
 
 ## Changelog
+
+- **2026-06-13 (closure H-8.b)** — TPO profile entregue (escopo
+  compute→publish→KV→read; ClickHouse split p/ H-8.b.1). 6 commits:
+  domínio `tpo.go` (POC/value-area/IB/range puros) + sampler
+  timeframe-anchored trades-only (períodos A–X, níveis com set de
+  letras, overload por nível) + publish path; store-side
+  `store-tpo`→`INSIGHTS_TPO_LATEST`; read `GET /insights/tpo/latest`
+  (gateway KV-direct, ambos os KV stores); drift-detect `store-tpo`;
+  canário integration (publish→consume→KV→read vs NATS vivo) PASS.
+  Decisões T1–T5 (agente, pré-flight). Loop autônomo (self-merge
+  escopado — ADR-0026). Próxima: H-8.b.1 (TPO ClickHouse), depois
+  H-8.c (cross-venue).
+
+- **2026-06-13 (abertura H-8.b)** — TPO profile aberta após H-8.a.1
+  fechar (PR #50). Pré-flight (foundry insights reuse + leitura P2 do
+  TPO no raccoon) fundamentou as Decisões T1–T5 (timeframe-anchored,
+  trades-only, cap 24 períodos, POC/VA/IB, Array-columns). Reusa o
+  domínio insights, o layer codegen `insights`, o stream
+  `INSIGHTS_EVENTS` e o padrão da H-8.a. Entregue no loop autônomo
+  (self-merge escopado — ADR-0026). **Split em implementação**: a H-8.b
+  entrega compute→publish→KV→read; a persistência ClickHouse foi para a
+  **H-8.b.1** (mea culpa do commit 0; precedente H-8.a/a.1). Próxima
+  após merge: H-8.b.1 (TPO ClickHouse), depois H-8.c (cross-venue).
 
 - **2026-06-13 (closure H-8.a.1)** — Persistência ClickHouse do
   VolumeProfile entregue em 6 commits; **G12 resolvido** (write-path).

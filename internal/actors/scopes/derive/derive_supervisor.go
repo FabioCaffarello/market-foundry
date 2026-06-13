@@ -292,6 +292,18 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 				})
 			},
 		},
+		{
+			Family:      "tpo",
+			ActorPrefix: "tpo-sampler",
+			NewActor: func(source, symbol string, tf time.Duration, pub, _ *actor.PID) actor.Producer {
+				// PeriodSeconds 0 → sampler derives ~12 periods/window
+				// (capped to the A..X range). BucketSize "1" like VPVR.
+				return NewTPOSamplerActor(TPOSamplerConfig{
+					Source: source, Symbol: symbol, Timeframe: tf,
+					BucketSize: "1", PeriodSeconds: 0, MaxLevels: 0, PublisherPID: pub,
+				})
+			},
+		},
 	}
 
 	// Spawn the observation consumer — routes trades back to this supervisor.

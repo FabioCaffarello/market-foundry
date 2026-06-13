@@ -139,11 +139,23 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	// reply). The gateway is a free KV reader (ADR-0008). Degrades
 	// gracefully: a failed KV connect disables the insights endpoint.
 	insightsKV := natsinsights.NewVolumeProfileKVStore(config.NATS.URL)
-	if err := insightsKV.Start(); err != nil {
-		logger.Warn("insights KV reader unavailable", "error", err)
+	tpoKV := natsinsights.NewTPOKVStore(config.NATS.URL)
+	vpOK := insightsKV.Start()
+	if vpOK != nil {
+		logger.Warn("volume profile KV reader unavailable", "error", vpOK)
+		insightsKV = nil
 	} else {
-		conns.insights = natsinsights.NewGateway(insightsKV)
 		addCloser(insightsKV.Close)
+	}
+	tpoErr := tpoKV.Start()
+	if tpoErr != nil {
+		logger.Warn("tpo KV reader unavailable", "error", tpoErr)
+		tpoKV = nil
+	} else {
+		addCloser(tpoKV.Close)
+	}
+	if insightsKV != nil || tpoKV != nil {
+		conns.insights = natsinsights.NewGateway(insightsKV, tpoKV)
 	}
 
 	return conns, nil
@@ -462,6 +474,7 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 	if conns.insights != nil {
 		deps.Insights = routes.InsightsFamilyDeps{
 			GetLatestVolumeProfile: insightsclient.NewGetLatestVolumeProfileUseCase(conns.insights),
+			GetLatestTPOProfile:    insightsclient.NewGetLatestTPOProfileUseCase(conns.insights),
 		}
 	}
 

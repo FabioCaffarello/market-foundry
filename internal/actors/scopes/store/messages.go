@@ -31,6 +31,12 @@ type volumeProfileReceivedMessage struct {
 	Event insights.VolumeProfileSampledEvent
 }
 
+// tpoProfileReceivedMessage is sent from the insights TPO consumer
+// actor to the projection actor (PROGRAM-0005 / H-8.b).
+type tpoProfileReceivedMessage struct {
+	Event insights.TPOProfileSampledEvent
+}
+
 // signalReceivedMessage is sent from the signal consumer actor to the signal projection actor.
 type signalReceivedMessage struct {
 	Event signal.SignalGeneratedEvent

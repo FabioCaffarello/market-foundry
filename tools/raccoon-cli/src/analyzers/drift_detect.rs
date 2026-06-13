@@ -506,6 +506,10 @@ const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
         "store-volume-profile",
         "store projects volume profile events from INSIGHTS_EVENTS into the KV latest bucket",
     ),
+    (
+        "store-tpo",
+        "store projects TPO profile events from INSIGHTS_EVENTS into the KV latest bucket (H-8.b)",
+    ),
 ];
 
 /// Expected insights ClickHouse history tables that must appear in

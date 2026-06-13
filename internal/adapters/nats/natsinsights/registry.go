@@ -16,6 +16,8 @@ import (
 type Registry struct {
 	VolumeProfileSampled natskit.EventSpec
 	VolumeProfileLatest  natskit.ControlSpec
+	TPOProfileSampled    natskit.EventSpec
+	TPOProfileLatest     natskit.ControlSpec
 }
 
 // StoreVolumeProfileConsumer is the store binding that projects
@@ -25,6 +27,17 @@ func StoreVolumeProfileConsumer() natskit.ConsumerSpec {
 		"store-volume-profile",
 		"insights.events.volumeprofile.sampled.>",
 		"insights.events.v1.volume_profile_sampled",
+		"INSIGHTS_EVENTS",
+	)
+}
+
+// StoreTPOConsumer is the store binding that projects TPO profiles into
+// the KV latest bucket (PROGRAM-0005 / H-8.b).
+func StoreTPOConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec(
+		"store-tpo",
+		"insights.events.tpo.sampled.>",
+		"insights.events.v1.tpo_sampled",
 		"INSIGHTS_EVENTS",
 	)
 }
@@ -48,6 +61,17 @@ func DefaultRegistry() Registry {
 			Subject:     "insights.query.volumeprofile.latest",
 			RequestType: "insights.query.v1.volume_profile_latest_request",
 			ReplyType:   "insights.query.v1.volume_profile_latest_reply",
+			QueueGroup:  "insights.query",
+		},
+		TPOProfileSampled: natskit.EventSpec{
+			Subject: "insights.events.tpo.sampled",
+			Type:    "insights.events.v1.tpo_sampled",
+			Stream:  eventStream,
+		},
+		TPOProfileLatest: natskit.ControlSpec{
+			Subject:     "insights.query.tpo.latest",
+			RequestType: "insights.query.v1.tpo_latest_request",
+			ReplyType:   "insights.query.v1.tpo_latest_reply",
 			QueueGroup:  "insights.query",
 		},
 	}

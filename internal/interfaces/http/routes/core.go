@@ -151,6 +151,10 @@ type handlersGetLatestVolumeProfileUseCase interface {
 	Execute(context.Context, insightsclient.VolumeProfileLatestQuery) (insightsclient.VolumeProfileLatestReply, *problem.Problem)
 }
 
+type handlersGetLatestTPOProfileUseCase interface {
+	Execute(context.Context, insightsclient.TPOProfileLatestQuery) (insightsclient.TPOProfileLatestReply, *problem.Problem)
+}
+
 type handlersCreateDraftUseCase interface {
 	Execute(context.Context, configctlcontracts.CreateDraftCommand) (configctlcontracts.CreateDraftReply, *problem.Problem)
 }

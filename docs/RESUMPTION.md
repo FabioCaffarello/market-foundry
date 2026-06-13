@@ -7,11 +7,13 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-8.a fechada (PR #49, `2e3791d`,
-2026-06-13)** — Volume Profile (VPVR) + overload entregue na Fase
-Insights (PROGRAM-0005). Onda atual: **H-8.a.1** — persistência
-ClickHouse do VolumeProfile (Array-columns, completa G12), rodando
-no **loop autônomo** autorizado pelo owner (self-merge escopado, ver
+Last meaningful state change: **H-8.a.1 fechada (PR #50, `1dc4989`,
+2026-06-13)** — persistência ClickHouse do VolumeProfile (Array-columns)
+entregue, **G12 resolvido**. Onda atual: **H-8.b** — TPO profile
+(Time-Price Opportunity), **timeframe-anchored + trades-only**
+(Decisões T1–T5; reusa o domínio insights + layer codegen `insights`
++ persistência Array-columns da H-8.a.1). Rodando no **loop autônomo**
+autorizado pelo owner (self-merge escopado, ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) →
 "Errata"). Insights são trades-only, decision-support, nunca
 directives (ADR-0027). Em paralelo, no gate temporal próprio:
@@ -77,7 +79,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-7.b** | Fechada (PR #46 mergeada em `main` em `c561be2`, 2026-06-12) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
 | **H-7.c** | Fechada (PR #47 mergeada em `main` em `058b074`, 2026-06-12) — **fecha a Onda H-7** | Modelagem do expiry (G10, Decisão #4 (A) da abertura de H-7): campo opcional `Expiry string` (formato canônico **YYMMDD**, permitido apenas para contract classes com expiry — usdtfutures/coinfutures); zero impacto nos instruments sem expiry (lock-ins); `NewDelivery` constructor; `Symbol()`/`FromSymbol` estendidos; **ativação do slot dormente `[_expiry]`** do SubjectToken + `FromSubjectToken` aceita 4 componentes (revisita do pause trigger armado na f.1, no mesmo commit); errata ADR-0009 (slot ativado) + ADR-0021 (decisão futura tomada — campo entra no modelo); `binancef.parseFuturesSymbol` passa a POPULAR o expiry do sufixo `_YYMMDD` (delivery futures deixam de colapsar em identidade). **Coluna ClickHouse `expiry` DEFERIDA** até a onda que habilitar delivery no ingest — gap sucessor registrado no closure (G11). **ADR-0021 permanece `Proposed`** (promoção em H-6.f.2). |
 | **H-8.a** | Fechada (PR #49 mergeada em `main` em `2e3791d`, 2026-06-13) | Volume Profile (VPVR) + overload policy — primeira capacidade de **insights** (decision-support, nunca directives — ADR-0027). Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` single-writer; **KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`); read endpoint no gateway; analyzer `check insights` (P5 — fronteira read-only); **promove ADR-0027 → Accepted**. **Trades-only** (foundry não ingere depth); liquidity heatmap FORA (Decisão #3). Persistência ClickHouse **deferida** (gap G12 → H-8.a.1). Numeração H-8.a/b/c (não H-9/H-10 — reservadas a storage tier, ADR-0023). Decisões #1–#5 da abertura no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
-| **H-8.a.1** | **Atual** (esta entrega — branch `feat/h-8-a-1-clickhouse-vpvr`; loop autônomo, 2026-06-13) | Persistência ClickHouse do VolumeProfile — completa **G12** (deferido na H-8.a). Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B; preserva 1-evento→1-row) + colunas canônicas base/quote/contract; **extensão do codegen** p/ o layer `insights` evidence-style (Decisão #7 Opção A — mantém "writer→ClickHouse é codegen-governed"); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` (single-writer: writer dono da tabela CH, store dono do KV) + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect ciente da tabela/consumer. Read de history CH FORA (KV-latest segue o read corrente). Decisões #6/#7 + mea culpa no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
+| **H-8.a.1** | Fechada (PR #50 mergeada em `main` em `1dc4989`, 2026-06-13) | Persistência ClickHouse do VolumeProfile — resolve **G12** (deferido na H-8.a). Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B; preserva 1-evento→1-row) + colunas canônicas base/quote/contract; **extensão do codegen** p/ o layer `insights` evidence-style (Decisão #7 Opção A — mantém "writer→ClickHouse é codegen-governed"); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` (single-writer: writer dono da tabela CH, store dono do KV) + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect `insights-contracts-drift`. Read de history CH FORA (KV-latest segue o read corrente). Primeira onda do **loop autônomo** (self-merge escopado, ADR-0026 errata). Decisões #6/#7 + mea culpa no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
+| **H-8.b** | **Atual** (esta entrega — branch `feat/h-8-b-tpo`; loop autônomo, 2026-06-13) | TPO profile (Time-Price Opportunity) — segunda capacidade de insights, **escopo compute→publish→KV→read** (espelha a H-8.a). **Timeframe-anchored** (T1 — não session-anchored; foundry sem conceito de sessão) + **trades-only** (T2 — períodos derivados de trades, não candles). Janela de timeframe subdividida em períodos (letras A–X, cap 24 — T3); cada trade marca seu nível de preço (`BucketLevel`) com a letra do período. `TPOProfile{Periods[], Levels[]}`, `TPOLevel{PriceLevel, Letters, Count}`; POC/VAH/VAL/IB/range no snapshot (T4). Sampler no derive + stream `INSIGHTS_EVENTS` + KV-latest `INSIGHTS_TPO_LATEST` + read `GET /insights/tpo/latest`. Persistência **ClickHouse deferida à H-8.b.1** (T5, split em implementação — precedente H-8.a/a.1). Decisões T1–T5 (agente, pré-flight) no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -234,6 +237,33 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-8.b (loop autônomo — TPO profile, compute→publish→KV→read):
+
+- **Commit 0**: docs-first — PRD H-8.b (Decisões T1–T5) + RESUMPTION +
+  H-8.a.1 marcada Fechada. **Commit 1**: domínio
+  `internal/domain/insights/tpo.go` (`TPOProfile/TPOPeriod/TPOLevel`;
+  `PeriodLetter`, `PointOfControl`, `ValueArea` greedy ~70%,
+  `InitialBalance`, `PriceRange` — puros, big.Rat) + evento. **Commit
+  2**: `TPOSampler` no derive (períodos A–X + níveis; high/low exatos;
+  overload por nível) + actor + `publishTPOProfileMessage` + publisher
+  handler + `Publisher.PublishTPOProfile` + FamilyProcessor "tpo".
+  **Scope-split** (mea culpa do commit 0): ClickHouse → **H-8.b.1**
+  (precedente H-8.a/a.1). **Commit 3**: store-side — `StoreTPOConsumer`
+  + `tpo_consumer` + `tpo_kv_store` (`INSIGHTS_TPO_LATEST`) +
+  `TPOProjectionActor` + pipeline entry no store. **Commit 4**: read
+  `GET /insights/tpo/latest` (gateway KV-direct com ambos os KV stores;
+  `insightsclient` TPO use case; boot_test +1; HTTP-API grupo 14 → 2
+  rotas). **Commit 5**: drift-detect `store-tpo` durable + canário
+  integration (publish→consume→KV→read vs NATS vivo) + este closure.
+- single-writer (ADR-0008): derive publica em `INSIGHTS_EVENTS`; store
+  é dono do bucket `INSIGHTS_TPO_LATEST`.
+
+**Próxima sub-onda destravada após merge**: **H-8.b.1** (TPO ClickHouse
+— Array-columns períodos+níveis, espelha H-8.a.1), depois **H-8.c**
+(cross-venue fusion). Abre APENAS após merge da H-8.b.
 
 ---
 
