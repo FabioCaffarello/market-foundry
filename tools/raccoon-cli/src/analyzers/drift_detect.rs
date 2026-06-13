@@ -33,6 +33,7 @@ const CANONICAL_STREAMS: &[&str] = &[
     "EXECUTION_FILL_EVENTS",
     "EXECUTION_REJECTION_EVENTS",
     "SESSION_LIFECYCLE_EVENTS",
+    "INSIGHTS_EVENTS", // PROGRAM-0005 / H-8.a — insights decision-support stream
 ];
 
 /// Old service names that should no longer appear in active code.
@@ -3045,6 +3046,20 @@ mod tests {
             "EXECUTION_FILL_EVENTS".into(),
             vec!["execution.fill.>".into()],
         );
+        // Aligned with the full CANONICAL_STREAMS const. REJECTION +
+        // SESSION_LIFECYCLE were absent here (pre-existing fixture
+        // drift — cargo test for raccoon-cli is not in make verify
+        // nor CI, so it went unnoticed); INSIGHTS_EVENTS added in
+        // H-8.a.
+        streams.insert(
+            "EXECUTION_REJECTION_EVENTS".into(),
+            vec!["execution.rejection.>".into()],
+        );
+        streams.insert(
+            "SESSION_LIFECYCLE_EVENTS".into(),
+            vec!["execution.session.>".into()],
+        );
+        streams.insert("INSIGHTS_EVENTS".into(), vec!["insights.events.>".into()]);
 
         let mut durables = HashMap::new();
         durables.insert("derive-observation-v1".into(), "OBSERVATION_EVENTS".into());

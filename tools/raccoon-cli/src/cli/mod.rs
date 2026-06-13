@@ -430,6 +430,24 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-venue-parity"
     )]
     VenueParity,
+    /// Enforce ADR-0027 insights decision-support read-only invariant
+    #[command(
+        name = "insights",
+        visible_alias = "check-insights",
+        long_about = "Statically enforce ADR-0027 (insights são \
+            decision-support read-only, Onda H-8.a) invariant I2.\n\n\
+            Read-only domain: no production file under \
+            internal/domain/insights imports the directive chain \
+            (strategy/decision/risk/execution). Stream-bound \
+            publisher: the insights publisher references INSIGHTS_EVENTS \
+            and no directive-chain stream.\n\n\
+            Declarative algorithm: reads \
+            tools/raccoon-cli/policies/insights.toml.",
+        after_help = "Examples:\n  \
+            raccoon-cli check insights\n  \
+            raccoon-cli check-insights"
+    )]
+    Insights,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

@@ -98,6 +98,7 @@ ondas; 0021–0023 remain `Proposed`.
 | [0021](0021-canonical-instrument-and-venue-model.md) | Canonical instrument and venue model | Proposed | Onda H-6 (atômica em H-6.f) |
 | [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Accepted (2026-06-12, H-7.b) | Onda H-7 |
 | [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
+| [0027](0027-insights-decision-support.md) | Insights são decision-support read-only | Accepted (2026-06-13, H-8.a) | Onda H-8.a (PROGRAM-0005) |
 
 ### Fase Harvest — Observability decisions (Onda H-5)
 

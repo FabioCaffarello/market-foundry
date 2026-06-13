@@ -1,0 +1,24 @@
+# Insights policy — consumed by `raccoon-cli check insights`.
+#
+# Enforces ADR-0027 (insights são decision-support read-only, Onda
+# H-8.a). The analyzer is the static enforcement of invariant I2:
+# insights are read-only over the pipeline and never feed the
+# directive chain.
+#
+#   read-only domain: the internal/domain/insights package must NOT
+#     import the directive chain (strategy/decision/risk/execution) —
+#     insights describe, they never direct.
+#   stream-bound publisher: the insights publisher publishes only to
+#     INSIGHTS_EVENTS, never to a directive-chain stream.
+
+[insights]
+domain_root = "internal/domain/insights"
+forbidden_domain_imports = [
+    "internal/domain/strategy",
+    "internal/domain/decision",
+    "internal/domain/risk",
+    "internal/domain/execution",
+]
+publisher_file = "internal/adapters/nats/natsinsights/publisher.go"
+required_stream = "INSIGHTS_EVENTS"
+forbidden_streams = ["STRATEGY_EVENTS", "EXECUTION_EVENTS", "RISK_EVENTS", "DECISION_EVENTS"]

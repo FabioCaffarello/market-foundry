@@ -271,7 +271,14 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 12: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 12: check-insights (static — ADR-0027 I2 insights read-only, H-8.a)
+    if config.profile.includes_static() {
+        gate_step!("check-insights", || {
+            analyzers::check_insights::analyze(&config.project_root)
+        });
+    }
+
+    // Step 13: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)
@@ -784,7 +791,14 @@ mod tests {
         let report = run(&nonexistent_config(Profile::Fast)).unwrap();
         assert!(!report.passed);
         assert_eq!(report.profile, "fast");
-        assert_eq!(report.steps.len(), 7);
+        // 14 steps: doctor, topology-doctor, contract-audit,
+        // runtime-bindings, arch-guard, check-proto, check-determinism,
+        // check-metrics, check-instruments, check-subjects,
+        // check-venue-parity, check-insights, drift-detect,
+        // runtime-smoke. (Grew from 7 as analyzer steps were added
+        // across waves; these assertions had drifted because cargo
+        // test for raccoon-cli is not in make verify nor CI.)
+        assert_eq!(report.steps.len(), 14);
         assert_eq!(report.steps[0].name, "doctor");
         assert_eq!(report.steps[1].name, "topology-doctor");
         assert_eq!(report.steps[2].name, "contract-audit");
@@ -792,9 +806,16 @@ mod tests {
         assert_eq!(report.steps[4].name, "arch-guard");
         // arch-guard is now a real step that fails on missing internal/ dir
         assert_eq!(report.steps[4].status, StepStatus::Fail);
-        assert_eq!(report.steps[5].name, "drift-detect");
-        assert_eq!(report.steps[6].name, "runtime-smoke");
-        assert_eq!(report.steps[6].status, StepStatus::Skip);
+        assert_eq!(report.steps[5].name, "check-proto");
+        assert_eq!(report.steps[6].name, "check-determinism");
+        assert_eq!(report.steps[7].name, "check-metrics");
+        assert_eq!(report.steps[8].name, "check-instruments");
+        assert_eq!(report.steps[9].name, "check-subjects");
+        assert_eq!(report.steps[10].name, "check-venue-parity");
+        assert_eq!(report.steps[11].name, "check-insights");
+        assert_eq!(report.steps[12].name, "drift-detect");
+        assert_eq!(report.steps[13].name, "runtime-smoke");
+        assert_eq!(report.steps[13].status, StepStatus::Skip);
     }
 
     #[test]
@@ -802,9 +823,9 @@ mod tests {
         let report = run(&nonexistent_config(Profile::Deep)).unwrap();
         assert!(!report.passed);
         assert_eq!(report.profile, "deep");
-        assert_eq!(report.steps.len(), 7);
-        assert_eq!(report.steps[6].name, "runtime-smoke");
-        assert_ne!(report.steps[6].status, StepStatus::Skip);
+        assert_eq!(report.steps.len(), 14);
+        assert_eq!(report.steps[13].name, "runtime-smoke");
+        assert_ne!(report.steps[13].status, StepStatus::Skip);
     }
 
     #[test]
@@ -1769,9 +1790,9 @@ mod tests {
     }
 
     #[test]
-    fn gate_has_seven_steps() {
+    fn gate_has_fourteen_steps() {
         let report = run(&nonexistent_config(Profile::Fast)).unwrap();
-        assert_eq!(report.steps.len(), 7);
+        assert_eq!(report.steps.len(), 14);
     }
 
     #[test]

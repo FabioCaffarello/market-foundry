@@ -7,6 +7,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/domain/insights"
 	"internal/domain/observation"
 	"internal/domain/risk"
 	"internal/domain/signal"
@@ -31,6 +32,12 @@ type publishTradeBurstMessage struct {
 // publishVolumeMessage is sent from the volume sampler actor to the publisher actor.
 type publishVolumeMessage struct {
 	Event evidence.VolumeSampledEvent
+}
+
+// publishVolumeProfileMessage is sent from the volume profile sampler
+// actor to the insights publisher actor (PROGRAM-0005 / H-8.a).
+type publishVolumeProfileMessage struct {
+	Event insights.VolumeProfileSampledEvent
 }
 
 // activateSamplerMessage is sent from the binding watcher to the supervisor

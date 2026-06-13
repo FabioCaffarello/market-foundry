@@ -97,7 +97,7 @@ group's table below where they are non-obvious.
 
 ## Endpoint groups
 
-The 61 registered routes (per `cmd/gateway/boot_test.go`) fall into 13
+The 62 registered routes (per `cmd/gateway/boot_test.go`) fall into 14
 functional groups. Each group is documented below with its routes,
 path/query params, and a one-line purpose.
 
@@ -343,6 +343,17 @@ venues will produce the event types they subscribe to.
 Declarations change only on deploy (static per ADR-0022 R1), so the
 response is stable for the lifetime of the process.
 
+### 14. Insights (1 route)
+
+Decision-support analytics (ADR-0027) — read-only descriptive views
+of market structure. H-8.a ships volume profile (VPVR); TPO and
+cross-venue fusion follow in H-8.b/c. Read directly from the KV
+latest bucket (the gateway is a free KV reader).
+
+| Method | Path | Path params | Query params | Purpose |
+|---|---|---|---|---|
+| GET | `/insights/volume-profile/latest` | — | `source`, `base`, `quote`, `contract`, `timeframe` | Latest price-bucketed volume profile (buy/sell notional per level) for the partition |
+
 ---
 
 ## Conditional endpoints summary
@@ -368,6 +379,7 @@ check via `*FamilyDeps.HasAny()` in `internal/interfaces/http/routes/core.go`.
 | Monitoring | `deps.Monitoring.HasAny()` | `GetOperationalState` |
 | Triage | `deps.Triage.HasAny()` | `GetSessionTriage`, `GetDecisionTriage`, `GetRoundTripTriage`, `GetTriageOverview` |
 | Venues | `deps.Venues.HasAny()` | static `Capabilities` slice (always wired in production — ships with the binary) |
+| Insights | `deps.Insights.HasAny()` | `GetLatestVolumeProfile` (KV-direct; wired when the insights KV reader connects) |
 
 A minimally-wired gateway responds only on `/healthz`, `/readyz`,
 `/metrics`, and the configctl group (always available because
@@ -395,6 +407,7 @@ from route group to handler file(s):
 | 11. Sessions | `session.go` (single handler covers all 6 session routes) |
 | 12. Monitoring | `monitoring.go` |
 | 13. Venues | `venues.go` |
+| 14. Insights | `insights.go` |
 
 A shared helper `parseQueryKeyParams(r)` in `handlers/common.go`
 extracts `source` / `base`+`quote`+`contract` / `timeframe` for `*_LATEST` endpoints.
@@ -416,7 +429,7 @@ If you add a new route, you **must** also add it to the test's
 `routes` slice. Without that, a future conflict will only be
 discovered when the gateway actually boots.
 
-The test currently registers 61 routes — matching the production
+The test currently registers 62 routes — matching the production
 registration count.
 
 ---

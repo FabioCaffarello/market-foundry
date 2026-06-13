@@ -9,6 +9,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natskit "internal/adapters/nats/natskit"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
@@ -16,6 +17,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	domainexec "internal/domain/execution"
+	"internal/domain/insights"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -37,6 +39,7 @@ const (
 	DomainStrategy  PipelineDomain = "strategy"
 	DomainRisk      PipelineDomain = "risk"
 	DomainExecution PipelineDomain = "execution"
+	DomainInsights  PipelineDomain = "insights"
 )
 
 // Pipeline describes one projection pipeline in the store.
@@ -142,6 +145,11 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 		execution: natsexecution.DefaultRegistry(),
 	}
 
+	// Insights registry is local: insights are read from KV directly
+	// by the gateway (a free KV reader per ADR-0008), so the registry
+	// does not flow into the query responder (PROGRAM-0005 / H-8.a).
+	insReg := natsinsights.DefaultRegistry()
+
 	// startConsumer wires a ConsumerStartFn closure into NewGenericConsumerActor,
 	// eliminating the need for per-domain consumer actor types. The registry and
 	// message routing are captured via closure at declaration time.
@@ -219,6 +227,29 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 						tracker.RecordEvent()
 					}
 					actorCtx.Send(projPID, volumeReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
+		// --- Insights pipeline (PROGRAM-0005 / H-8.a; always on — read-only descriptive overlay) ---
+		{
+			Scope:          DomainInsights,
+			Family:         "volume_profile",
+			ProjectionName: "volume-profile-projection",
+			ConsumerName:   "volume-profile-consumer",
+			Buckets:        []string{natsinsights.VolumeProfileLatestBucket},
+			ConsumerSpec:   natsinsights.StoreVolumeProfileConsumer(),
+			IsEnabled:      func(settings.PipelineConfig) bool { return true },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewVolumeProfileProjectionActor(VolumeProfileProjectionConfig{NATSURL: natsURL, Tracker: tracker})
+			},
+			NewConsumer: startConsumer("volume_profile", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsinsights.NewVolumeProfileConsumer(url, spec, insReg, func(event insights.VolumeProfileSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, volumeProfileReceivedMessage{Event: event})
 				}, logger)
 				return c, c.Start()
 			}),

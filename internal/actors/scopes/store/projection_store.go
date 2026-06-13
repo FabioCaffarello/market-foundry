@@ -6,6 +6,7 @@ import (
 	"internal/adapters/nats/natskit"
 	"internal/domain/decision"
 	"internal/domain/evidence"
+	"internal/domain/insights"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -27,6 +28,12 @@ type tradeBurstProjectionStore interface {
 // volumeProjectionStore is the write interface used by VolumeProjectionActor.
 type volumeProjectionStore interface {
 	Put(ctx context.Context, vol evidence.EvidenceVolume) (natskit.PutResult, *problem.Problem)
+}
+
+// volumeProfileProjectionStore is the write interface used by
+// VolumeProfileProjectionActor (PROGRAM-0005 / H-8.a).
+type volumeProfileProjectionStore interface {
+	Put(ctx context.Context, vp insights.VolumeProfile) (natskit.PutResult, *problem.Problem)
 }
 
 // signalProjectionStore is the write interface used by SignalProjectionActor.
