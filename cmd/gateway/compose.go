@@ -12,6 +12,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natskit "internal/adapters/nats/natskit"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
@@ -21,6 +22,7 @@ import (
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
 	"internal/application/executionclient"
+	"internal/application/insightsclient"
 	"internal/application/monitoringclient"
 	"internal/application/ports"
 	"internal/application/riskclient"
@@ -45,7 +47,8 @@ type gatewayConns struct {
 	risk             ports.RiskGateway
 	execution        ports.ExecutionGateway
 	executionControl ports.ExecutionControlGateway
-	session          ports.SessionGateway // S460
+	session          ports.SessionGateway  // S460
+	insights         ports.InsightsGateway // H-8.a (KV-direct reader)
 	closers          []func() error
 }
 
@@ -131,6 +134,17 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 		return natsexecution.NewSessionGateway(rc, "gateway.http")
 	})
 	connectOptional("session", cl, p)
+
+	// H-8.a: insights read gateway — KV-direct reader (not request/
+	// reply). The gateway is a free KV reader (ADR-0008). Degrades
+	// gracefully: a failed KV connect disables the insights endpoint.
+	insightsKV := natsinsights.NewVolumeProfileKVStore(config.NATS.URL)
+	if err := insightsKV.Start(); err != nil {
+		logger.Warn("insights KV reader unavailable", "error", err)
+	} else {
+		conns.insights = natsinsights.NewGateway(insightsKV)
+		addCloser(insightsKV.Close)
+	}
 
 	return conns, nil
 }
@@ -442,6 +456,13 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 			bybits.Capabilities(),
 			bybitf.Capabilities(),
 		},
+	}
+
+	// Insights read surface (ADR-0027 / H-8.a) — KV-direct.
+	if conns.insights != nil {
+		deps.Insights = routes.InsightsFamilyDeps{
+			GetLatestVolumeProfile: insightsclient.NewGetLatestVolumeProfileUseCase(conns.insights),
+		}
 	}
 
 	deps.Logger = logger

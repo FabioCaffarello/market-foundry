@@ -9,6 +9,7 @@ import (
 	"internal/application/decisionclient"
 	"internal/application/evidenceclient"
 	"internal/application/executionclient"
+	"internal/application/insightsclient"
 	"internal/application/riskclient"
 	"internal/application/signalclient"
 	"internal/application/strategyclient"
@@ -140,9 +141,14 @@ type Dependencies struct {
 	Analytical                   AnalyticalFamilyDeps
 	Session                      SessionFamilyDeps
 	Monitoring                   MonitoringFamilyDeps
-	Triage                       TriageFamilyDeps // S487
-	Venues                       VenuesFamilyDeps // ADR-0022 R2 (H-7.a)
+	Triage                       TriageFamilyDeps   // S487
+	Venues                       VenuesFamilyDeps   // ADR-0022 R2 (H-7.a)
+	Insights                     InsightsFamilyDeps // ADR-0027 (H-8.a)
 	Logger                       *slog.Logger
+}
+
+type handlersGetLatestVolumeProfileUseCase interface {
+	Execute(context.Context, insightsclient.VolumeProfileLatestQuery) (insightsclient.VolumeProfileLatestReply, *problem.Problem)
 }
 
 type handlersCreateDraftUseCase interface {
@@ -344,6 +350,9 @@ func DefaultRoutes(deps Dependencies) []webserver.Route {
 	}
 	if deps.Venues.HasAny() {
 		routes = append(routes, Venues(deps.Venues)...)
+	}
+	if deps.Insights.HasAny() {
+		routes = append(routes, Insights(deps.Insights)...)
 	}
 	return routes
 }
