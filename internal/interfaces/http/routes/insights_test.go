@@ -34,6 +34,15 @@ func (s getLatestTPOProfileStub) Execute(_ context.Context, _ insightsclient.TPO
 	return s.reply, s.prob
 }
 
+type getLatestCrossVenueStub struct {
+	reply insightsclient.CrossVenueLatestReply
+	prob  *problem.Problem
+}
+
+func (s getLatestCrossVenueStub) Execute(_ context.Context, _ insightsclient.CrossVenueLatestQuery) (insightsclient.CrossVenueLatestReply, *problem.Problem) {
+	return s.reply, s.prob
+}
+
 func TestInsightsRoutesServeVolumeProfile(t *testing.T) {
 	t.Parallel()
 
@@ -55,9 +64,10 @@ func TestInsightsRoutesServeVolumeProfile(t *testing.T) {
 			},
 		},
 		GetLatestTPOProfile: getLatestTPOProfileStub{},
+		GetLatestCrossVenue: getLatestCrossVenueStub{},
 	})
-	if len(routes) != 2 {
-		t.Fatalf("expected 2 routes, got %d", len(routes))
+	if len(routes) != 3 {
+		t.Fatalf("expected 3 routes, got %d", len(routes))
 	}
 
 	router := httprouter.New()
@@ -133,6 +143,55 @@ func TestInsightsRoutesServeTPO(t *testing.T) {
 	}
 }
 
+func TestInsightsRoutesServeCrossVenue(t *testing.T) {
+	t.Parallel()
+
+	inst, _ := instrument.New("BTC", "USDT", instrument.ContractPerpetual)
+	routes := Insights(InsightsFamilyDeps{
+		GetLatestCrossVenue: getLatestCrossVenueStub{
+			reply: insightsclient.CrossVenueLatestReply{
+				CrossVenueSnapshot: &insights.CrossVenueSnapshot{
+					Instrument: inst,
+					Timeframe:  60,
+					Venues: []insights.VenueRow{
+						{Venue: "binancef", TradeCount: 1, Notional: "65000.00000000", LastPrice: "65000", HighPrice: "65000", LowPrice: "65000"},
+					},
+					SpreadAbs:     "0.00000000",
+					MidPrice:      "65000.00000000",
+					DominantVenue: "binancef",
+					OpenTime:      time.Now().UTC(),
+					CloseTime:     time.Now().UTC().Add(time.Minute),
+					Final:         true,
+				},
+			},
+		},
+	})
+
+	router := httprouter.New()
+	for _, route := range routes {
+		router.HandlerFunc(route.Method, route.Path, route.Handler)
+	}
+
+	// No source param — cross-venue spans sources.
+	req := httptest.NewRequest(http.MethodGet,
+		"/insights/cross-venue/latest?base=btc&quote=usdt&contract=perpetual&timeframe=60", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		CrossVenueSnapshot *insights.CrossVenueSnapshot `json:"cross_venue_snapshot"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if body.CrossVenueSnapshot == nil || body.CrossVenueSnapshot.DominantVenue != "binancef" {
+		t.Errorf("expected cross-venue snapshot with dominant binancef, got %+v", body.CrossVenueSnapshot)
+	}
+}
+
 func TestInsightsFamilyDeps_HasAny(t *testing.T) {
 	t.Parallel()
 	if (InsightsFamilyDeps{}).HasAny() {
@@ -143,5 +202,8 @@ func TestInsightsFamilyDeps_HasAny(t *testing.T) {
 	}
 	if !(InsightsFamilyDeps{GetLatestTPOProfile: getLatestTPOProfileStub{}}).HasAny() {
 		t.Error("TPO-wired deps must report HasAny=true")
+	}
+	if !(InsightsFamilyDeps{GetLatestCrossVenue: getLatestCrossVenueStub{}}).HasAny() {
+		t.Error("cross-venue-wired deps must report HasAny=true")
 	}
 }

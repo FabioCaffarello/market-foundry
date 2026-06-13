@@ -45,7 +45,7 @@ func TestTPOProfilePipeline_PublishConsumeKVRead(t *testing.T) {
 		t.Fatalf("kv start: %v", err)
 	}
 	defer func() { _ = kv.Close() }()
-	gw := natsinsights.NewGateway(nil, kv)
+	gw := natsinsights.NewGateway(nil, kv, nil)
 
 	consumer := natsinsights.NewTPOConsumer(url, natsinsights.StoreTPOConsumer(), registry,
 		func(ev insights.TPOProfileSampledEvent) {

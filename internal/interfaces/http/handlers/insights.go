@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"internal/application/insightsclient"
 	"internal/domain/insights"
@@ -20,17 +21,24 @@ type getLatestTPOProfileUseCase interface {
 	Execute(context.Context, insightsclient.TPOProfileLatestQuery) (insightsclient.TPOProfileLatestReply, *problem.Problem)
 }
 
+// getLatestCrossVenueUseCase is the handler's view of the cross-venue use case.
+type getLatestCrossVenueUseCase interface {
+	Execute(context.Context, insightsclient.CrossVenueLatestQuery) (insightsclient.CrossVenueLatestReply, *problem.Problem)
+}
+
 // InsightsWebHandler serves the insights read surface (ADR-0027:
 // decision-support, read-only).
 type InsightsWebHandler struct {
 	getLatestVolumeProfile getLatestVolumeProfileUseCase
 	getLatestTPOProfile    getLatestTPOProfileUseCase
+	getLatestCrossVenue    getLatestCrossVenueUseCase
 }
 
-func NewInsightsWebHandler(getLatestVolumeProfile getLatestVolumeProfileUseCase, getLatestTPOProfile getLatestTPOProfileUseCase) *InsightsWebHandler {
+func NewInsightsWebHandler(getLatestVolumeProfile getLatestVolumeProfileUseCase, getLatestTPOProfile getLatestTPOProfileUseCase, getLatestCrossVenue getLatestCrossVenueUseCase) *InsightsWebHandler {
 	return &InsightsWebHandler{
 		getLatestVolumeProfile: getLatestVolumeProfile,
 		getLatestTPOProfile:    getLatestTPOProfile,
+		getLatestCrossVenue:    getLatestCrossVenue,
 	}
 }
 
@@ -40,6 +48,10 @@ type latestVolumeProfileResponse struct {
 
 type latestTPOProfileResponse struct {
 	TPOProfile *insights.TPOProfile `json:"tpo_profile"`
+}
+
+type latestCrossVenueResponse struct {
+	CrossVenueSnapshot *insights.CrossVenueSnapshot `json:"cross_venue_snapshot"`
 }
 
 // GetLatestVolumeProfile handles
@@ -94,4 +106,42 @@ func (h *InsightsWebHandler) GetLatestTPOProfile(w http.ResponseWriter, r *http.
 	}
 
 	writeJSONResponse(w, http.StatusOK, latestTPOProfileResponse{TPOProfile: result.TPOProfile})
+}
+
+// GetLatestCrossVenue handles
+// GET /insights/cross-venue/latest?base=...&quote=...&contract=...&timeframe=...
+// No source param: cross-venue fusion spans sources (the canonical
+// instrument is the join key).
+func (h *InsightsWebHandler) GetLatestCrossVenue(w http.ResponseWriter, r *http.Request) {
+	if h == nil || h.getLatestCrossVenue == nil {
+		writeProblemResponse(w, problem.New(problem.Unavailable, "cross venue query is unavailable"))
+		return
+	}
+
+	inst, prob := parseRequiredInstrumentParams(r)
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+	timeframeStr := r.URL.Query().Get("timeframe")
+	if timeframeStr == "" {
+		writeProblemResponse(w, problem.New(problem.InvalidArgument, "timeframe query parameter is required"))
+		return
+	}
+	timeframe, err := strconv.Atoi(timeframeStr)
+	if err != nil {
+		writeProblemResponse(w, problem.New(problem.InvalidArgument, "timeframe must be a valid integer"))
+		return
+	}
+
+	result, prob := h.getLatestCrossVenue.Execute(r.Context(), insightsclient.CrossVenueLatestQuery{
+		Instrument: inst,
+		Timeframe:  timeframe,
+	})
+	if prob != nil {
+		writeProblemResponse(w, prob)
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, latestCrossVenueResponse{CrossVenueSnapshot: result.CrossVenueSnapshot})
 }
