@@ -16,6 +16,8 @@ import (
 type Registry struct {
 	VolumeProfileSampled natskit.EventSpec
 	VolumeProfileLatest  natskit.ControlSpec
+	TPOProfileSampled    natskit.EventSpec
+	TPOProfileLatest     natskit.ControlSpec
 }
 
 // StoreVolumeProfileConsumer is the store binding that projects
@@ -48,6 +50,17 @@ func DefaultRegistry() Registry {
 			Subject:     "insights.query.volumeprofile.latest",
 			RequestType: "insights.query.v1.volume_profile_latest_request",
 			ReplyType:   "insights.query.v1.volume_profile_latest_reply",
+			QueueGroup:  "insights.query",
+		},
+		TPOProfileSampled: natskit.EventSpec{
+			Subject: "insights.events.tpo.sampled",
+			Type:    "insights.events.v1.tpo_sampled",
+			Stream:  eventStream,
+		},
+		TPOProfileLatest: natskit.ControlSpec{
+			Subject:     "insights.query.tpo.latest",
+			RequestType: "insights.query.v1.tpo_latest_request",
+			ReplyType:   "insights.query.v1.tpo_latest_reply",
 			QueueGroup:  "insights.query",
 		},
 	}

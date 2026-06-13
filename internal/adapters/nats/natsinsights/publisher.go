@@ -84,6 +84,40 @@ func (p *Publisher) PublishVolumeProfile(ctx context.Context, event insights.Vol
 	return nil
 }
 
+// PublishTPOProfile publishes a TPOProfileSampledEvent. Same subject /
+// dedup scheme as PublishVolumeProfile: the {symbol} token is the
+// canonical SubjectToken() (ADR-0009); the dedup key keys on the window
+// open time so interim updates for a window coalesce.
+func (p *Publisher) PublishTPOProfile(ctx context.Context, event insights.TPOProfileSampledEvent) *problem.Problem {
+	if p == nil || p.js == nil {
+		return problem.New(problem.Unavailable, "insights publisher is unavailable")
+	}
+
+	tp := event.TPOProfile
+	spec := p.registry.TPOProfileSampled
+	subject := fmt.Sprintf("%s.%s.%s.%d",
+		spec.Subject,
+		tp.Source,
+		tp.Instrument.SubjectToken(),
+		tp.Timeframe,
+	)
+
+	data, prob := natskit.EncodeEvent(spec, p.source, event, event.Metadata.CorrelationID, event.Metadata.CausationID)
+	if prob != nil {
+		return prob
+	}
+
+	dedupKey := "tpoprofile:" + tp.Source + ":" +
+		tp.Instrument.SubjectToken() + ":" +
+		strconv.Itoa(tp.Timeframe) + ":" +
+		strconv.FormatInt(tp.OpenTime.Unix(), 10)
+
+	if _, err := p.js.Publish(ctx, subject, data, jetstream.WithMsgID(dedupKey)); err != nil {
+		return problem.Wrap(err, problem.Unavailable, "publish tpo profile")
+	}
+	return nil
+}
+
 func (p *Publisher) Close() error {
 	if p != nil && p.nc != nil {
 		p.nc.Close()

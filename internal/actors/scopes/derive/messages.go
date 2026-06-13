@@ -40,6 +40,12 @@ type publishVolumeProfileMessage struct {
 	Event insights.VolumeProfileSampledEvent
 }
 
+// publishTPOProfileMessage is sent from the TPO sampler actor to the
+// insights publisher actor (PROGRAM-0005 / H-8.b).
+type publishTPOProfileMessage struct {
+	Event insights.TPOProfileSampledEvent
+}
+
 // activateSamplerMessage is sent from the binding watcher to the supervisor
 // when a new ingestion binding becomes active (at startup or via runtime event).
 type activateSamplerMessage struct {

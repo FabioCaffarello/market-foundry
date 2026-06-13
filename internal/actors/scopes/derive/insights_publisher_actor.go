@@ -84,6 +84,28 @@ func (a *InsightsPublisherActor) Receive(c *actor.Context) {
 			a.cfg.Tracker.Counter("published:" + vp.VenueSymbol()).Add(1)
 		}
 
+	case publishTPOProfileMessage:
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		prob := a.publisher.PublishTPOProfile(ctx, msg.Event)
+		cancel()
+		tp := msg.Event.TPOProfile
+		if prob != nil {
+			if a.cfg.Tracker != nil {
+				a.cfg.Tracker.RecordError()
+			}
+			a.logger.Error("publish tpo profile failed",
+				"error", prob.Message,
+				"code", prob.Code,
+				"source", tp.Source,
+				"symbol", tp.VenueSymbol(),
+				"timeframe", tp.Timeframe,
+				"open_time", tp.OpenTime.Format(time.RFC3339),
+			)
+		} else if a.cfg.Tracker != nil {
+			a.cfg.Tracker.RecordEvent()
+			a.cfg.Tracker.Counter("published:tpo:" + tp.VenueSymbol()).Add(1)
+		}
+
 	default:
 		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {
 			return
