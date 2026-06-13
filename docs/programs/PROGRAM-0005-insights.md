@@ -118,7 +118,7 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 | ADR | Escopo | Status no início da Fase | Promovido por |
 |-----|--------|--------------------------|----------------|
-| 0027 | Insights são decision-support read-only | Proposed (este commit) | H-8.a |
+| 0027 | Insights são decision-support read-only | Proposed (abertura) → **Accepted (2026-06-13, H-8.a)** | H-8.a (commit do analyzer `check insights`) |
 
 ## Riscos
 

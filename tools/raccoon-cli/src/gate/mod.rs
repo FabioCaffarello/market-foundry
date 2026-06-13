@@ -271,7 +271,14 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
-    // Step 12: drift-detect (static — cross-layer declaration/config/source alignment)
+    // Step 12: check-insights (static — ADR-0027 I2 insights read-only, H-8.a)
+    if config.profile.includes_static() {
+        gate_step!("check-insights", || {
+            analyzers::check_insights::analyze(&config.project_root)
+        });
+    }
+
+    // Step 13: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {
             analyzers::drift_detect::analyze(&config.project_root)

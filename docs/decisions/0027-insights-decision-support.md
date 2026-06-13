@@ -2,12 +2,14 @@
 
 ## Status
 
-Proposed. Promovido a `Accepted` na **Onda H-8.a** (PROGRAM-0005),
-no commit que entrega o bounded context `internal/domain/insights/`
-**e** o analyzer `check insights` que enforça suas invariantes
-estaticamente. Não é ADR de fundação H-2; portanto permanece
-`Proposed` até o código existir (P7). Critérios de promoção em
-"Promoção para Accepted" abaixo.
+Accepted (2026-06-13, Onda H-8.a — os quatro critérios de
+"Promoção para Accepted" abaixo cumpridos literalmente neste PR):
+o bounded context `internal/domain/insights/` existe respeitando
+I1/I3/I4; `INSIGHTS_EVENTS` é single-writer (derive) e o package
+insights não importa a cadeia de directive; o analyzer
+`raccoon-cli check insights` ship e roda no gate (step 12),
+enforçando I2 estaticamente (domain-read-only + publisher
+stream-bound); `make verify` GREEN.
 
 ## Date
 
