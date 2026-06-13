@@ -2,14 +2,17 @@
 
 ## Status
 
-Proposed (abertura da Fase Delivery / PROGRAM-0006, 2026-06-13).
-
-**Promoção a `Accepted`** quando os critérios I1–I5 forem entregues e
-estaticamente cobertos — concretamente, quando a H-11.a entregar o
-servidor WS no gateway com o consumer durável `deliver-insights` e o
-`drift-detect` ciente desse durable (e/ou um analyzer `check delivery`
-da fronteira read-only). Mesma disciplina de ADR-0027 (promover no
-commit que entrega o último critério).
+Accepted (2026-06-13, H-11.a). Promovido de `Proposed` no commit de
+fechamento da H-11.a, que entregou os critérios de promoção: servidor WS
+no gateway (`GET /ws`), bounded context `internal/domain/delivery/`,
+consumer durável `deliver-insights` sobre `INSIGHTS_EVENTS`
+(`internal/adapters/nats/natsdelivery/`), fan-out por actors
+(`internal/actors/scopes/delivery/`) com backpressure DropNewest bounded
+(I4), e `drift-detect` ciente do durable `deliver-insights`
+(enforcement estático da invariante, P5). I1–I5 entregues; I3 ainda
+restrito a volume-profile (ampliação a todos os insights = H-11.b). Um
+analyzer `check delivery` dedicado da fronteira read-only permanece
+opcional (H-11.c).
 
 ## Context
 
@@ -128,3 +131,6 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
 - 2026-06-13 — Criado `Proposed` (abertura da Fase Delivery /
   PROGRAM-0006). Promoção a `Accepted` quando a H-11.a entregar o
   servidor WS + consumer `deliver-insights` + enforcement estático.
+- 2026-06-13 — Promovido a `Accepted` no fechamento da H-11.a (servidor
+  WS `GET /ws`, domain/delivery, natsdelivery `deliver-insights`, fan-out
+  por actors com DropNewest bounded, drift-detect ciente do durable).

@@ -44,8 +44,12 @@ func (r *RouterActor) Receive(c *actor.Context) {
 		delete(r.sessions, msg.ID)
 		r.logger.Info("session unregistered", "session", string(msg.ID), "total", len(r.sessions))
 	case eventReceivedMessage:
+		// eventReceivedMessage and deliverFrameMessage share a shape; the
+		// conversion keeps them as distinct mailbox types (router-inbound
+		// vs session-inbound) without a redundant field-by-field literal.
+		frame := deliverFrameMessage(msg)
 		for _, pid := range r.sessions {
-			c.Send(pid, deliverFrameMessage{Subject: msg.Subject, Payload: msg.Payload})
+			c.Send(pid, frame)
 		}
 	default:
 		if actorcommon.ShouldIgnoreLifecycleMessage(msg) {

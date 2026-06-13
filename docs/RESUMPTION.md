@@ -247,6 +247,39 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.a (loop autônomo — **abre a Fase Delivery / PROGRAM-0006**; servidor WebSocket de insights no gateway):
+
+- **Commit 0**: documento-primeiro — ADR-0028 (`Proposed`) +
+  PROGRAM-0006 PRD + erratas ADR-0026/CLAUDE.md (delegação re-confirmada,
+  por-Fase) + índices. **Commit 1**: `internal/domain/delivery/` — Session,
+  Subscription, `SubjectMatches` (matcher de subject NATS puro: `*`=1
+  token, `>`=tail), 100% testado. **Commit 2**: consumer durável
+  `deliver-insights` (`internal/adapters/nats/natsdelivery/`, decodifica
+  CBOR→JSON) + `RouterActor` (broadcast) + `SessionActor` (dono da
+  Session + buffer outbound bounded **DropNewest**, ADR-0028 I4) +
+  Hub/SessionHandle; unit tests (DropNewest determinístico + fan-out com
+  filtro de subscrição). **Commit 3**: port
+  `internal/application/ports/delivery.go` (DeliveryConn/Session/Hub —
+  **interfaces/ não importa actors/**, resolveu violação do arch-guard,
+  ADR-0005); handler `GET /ws` (gorilla upgrade + control frames JSON
+  subscribe/unsubscribe — único inbound, I1; loopback I2) + rota +
+  wiring no gateway (`run.go` `delivery.Start`) + boot_test + gorilla
+  v1.5.3 no módulo interfaces/http + HTTP-API.md (grupo 15). **Commit 4**:
+  canário integration (`-tags integration`, real NATS:
+  publish VP→subscribe→receive 1 frame, source único evita flood do
+  histórico) + drift-detect ciente do durable `deliver-insights` (P5) +
+  este closure. **ADR-0028 promovido → `Accepted`.**
+- **Validação**: `arch-guard` 11/11 PASS (após o refactor para port);
+  `check drift` 33/33 PASS (`deliver-insights` presente); canário GREEN
+  contra NATS local (dropped=0); boot_test PASS com `/ws`; cargo test
+  drift_detect 29/0.
+
+**Próxima**: **H-11.b** (subscription multi-evento + filtragem por
+subject + TPO/cross-venue) **abre APENAS após merge de H-11.a em `main`**
+(P4/P9). H-11.c: políticas de backpressure configuráveis + métricas.
+
+---
+
 Entregas H-8.c.1 (loop autônomo — persistência ClickHouse do cross-venue; **FECHA a Fase Insights**):
 
 - **Commit 0**: docs-first (PRD; H-8.c Fechada). **Commit 1**: migration

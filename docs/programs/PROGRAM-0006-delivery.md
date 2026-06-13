@@ -98,9 +98,9 @@ A Fase Delivery fecha quando **todos** abaixo forem verdadeiros:
 
 ## ADRs governantes
 
-| ADR | Escopo | Status no início da Fase | Promovido por |
-|-----|--------|--------------------------|----------------|
-| 0028 | Delivery WS protocol (read-only/loopback/bounded) | Proposed (abertura) | H-11.a (servidor WS + consumer `deliver-insights` + enforcement) |
+| ADR | Escopo | Status | Promovido por |
+|-----|--------|--------|----------------|
+| 0028 | Delivery WS protocol (read-only/loopback/bounded) | **Accepted** (2026-06-13, H-11.a) | H-11.a (servidor WS + consumer `deliver-insights` + enforcement) |
 
 ## Riscos
 
@@ -113,6 +113,18 @@ A Fase Delivery fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (H-11.a entregue)** — primeira sub-onda fechada: bounded
+  context `internal/domain/delivery/` (Session/Subscription + matcher de
+  subject NATS puro); consumer durável `deliver-insights`
+  (`internal/adapters/nats/natsdelivery/`); `RouterActor` + `SessionActor`
+  (`internal/actors/scopes/delivery/`) com backpressure DropNewest
+  bounded; port `internal/application/ports/delivery.go` (mantém
+  interfaces/ sem importar actors/ — ADR-0005); endpoint `GET /ws`
+  (gorilla) + wiring no gateway; canário integration
+  (publish→subscribe→receive 1 volume profile, real NATS); drift-detect
+  ciente do durable `deliver-insights` (P5). **ADR-0028 promovido →
+  Accepted.** Subscription multi-evento + filtragem → H-11.b; políticas
+  de backpressure + métricas → H-11.c.
 - **2026-06-13 (abertura)** — Fase Delivery aberta após PROGRAM-0005
   (Insights) fechar. Owner escolheu Delivery como próxima etapa +
   re-confirmou o loop autônomo (self-merge — ADR-0026 errata). Pré-flight
