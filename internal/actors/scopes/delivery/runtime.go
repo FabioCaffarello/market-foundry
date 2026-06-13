@@ -1,3 +1,11 @@
+// Package delivery is the actor scope for push delivery of insights
+// events to connected WebSocket clients. A RouterActor fans each event
+// out to per-connection SessionActors; each SessionActor owns its
+// client's subscriptions (domain delivery.Session) and a bounded
+// outbound buffer with DropNewest backpressure (ADR-0028 I4). The scope
+// holds no transport dependency — connections are reached through the
+// application port ports.DeliveryConn, adapted to gorilla by the
+// interfaces layer (layer sovereignty, ADR-0005).
 package delivery
 
 import (

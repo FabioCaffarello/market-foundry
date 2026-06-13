@@ -108,6 +108,8 @@ func TestGatewayRouteRegistrationDoesNotPanic(t *testing.T) {
 		{Method: http.MethodGet, Path: "/insights/volume-profile/latest", Handler: noop},
 		{Method: http.MethodGet, Path: "/insights/tpo/latest", Handler: noop},
 		{Method: http.MethodGet, Path: "/insights/cross-venue/latest", Handler: noop},
+
+		{Method: http.MethodGet, Path: "/ws", Handler: noop},
 	}
 
 	server.RegisterRoutes(routes)

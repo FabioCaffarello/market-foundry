@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	actorcommon "internal/actors/common"
+	"internal/application/ports"
 	deliverydomain "internal/domain/delivery"
 
 	"github.com/anthdm/hollywood/actor"
@@ -19,7 +20,7 @@ const DefaultOutboundQueue = 256
 
 type sessionConfig struct {
 	id       deliverydomain.SessionID
-	conn     WSConn
+	conn     ports.DeliveryConn
 	maxQueue int
 	logger   *slog.Logger
 }

@@ -5,9 +5,17 @@ import (
 	"log/slog"
 	"sync/atomic"
 
+	"internal/application/ports"
 	deliverydomain "internal/domain/delivery"
 
 	"github.com/anthdm/hollywood/actor"
+)
+
+// Compile-time guarantees that the actor types satisfy the application
+// ports the interfaces layer depends on (ADR-0005 / ADR-0028).
+var (
+	_ ports.DeliveryHub     = (*Hub)(nil)
+	_ ports.DeliverySession = (*SessionHandle)(nil)
 )
 
 // Hub is the delivery entry point the gateway HTTP layer holds. It
@@ -31,8 +39,8 @@ func NewHub(engine *actor.Engine, router *actor.PID, logger *slog.Logger) *Hub {
 
 // Admit spawns a session actor for a newly-connected client and
 // registers it with the router. The returned handle drives the session
-// for the connection's lifetime.
-func (h *Hub) Admit(conn WSConn) *SessionHandle {
+// for the connection's lifetime. Satisfies ports.DeliveryHub.
+func (h *Hub) Admit(conn ports.DeliveryConn) ports.DeliverySession {
 	id := deliverydomain.SessionID(fmt.Sprintf("delivery-session-%d", h.seq.Add(1)))
 	pid := h.engine.Spawn(
 		NewSessionActor(sessionConfig{id: id, conn: conn, logger: h.logger}),

@@ -357,6 +357,34 @@ reader).
 | GET | `/insights/tpo/latest` | — | `source`, `base`, `quote`, `contract`, `timeframe` | Latest TPO profile (time-at-price: which periods A–X traded at each price level; POC/value-area/initial-balance) for the partition |
 | GET | `/insights/cross-venue/latest` | — | `base`, `quote`, `contract`, `timeframe` (no `source`) | Latest cross-venue snapshot for one canonical instrument: per-venue trade-count/notional/last-price + consolidated spread/mid/dominant-venue across venues |
 
+### 15. Delivery (WebSocket, 1 route)
+
+Real-time **push** of insights events over WebSocket (ADR-0028 /
+PROGRAM-0006). Read-only transport: the only inbound frames are
+`subscribe`/`unsubscribe` control frames — no event or directive is
+ever accepted from the client (I1). Loopback-only, like every other
+route (I2 — no auth; network isolation is the access control). H-11.a
+delivers volume-profile events; H-11.b widens delivery to all insights
+events with richer subscription filtering.
+
+| Method | Path | Path params | Query params | Purpose |
+|---|---|---|---|---|
+| GET | `/ws` | — | — | Upgrade to a WebSocket; subscribe to insights subjects and receive matching events as JSON frames |
+
+**Wire protocol (JSON frames).** Client → server control frames:
+
+```json
+{"action": "subscribe",   "subject": "insights.events.volumeprofile.sampled.>"}
+{"action": "unsubscribe", "subject": "insights.events.volumeprofile.sampled.>"}
+```
+
+`subject` is a NATS subject **pattern** (`*` = one token, `>` = one or
+more trailing tokens). Server → client frames are the insights event
+serialized as JSON (the same payload shape as the matching `/insights`
+read endpoint). A slow client has its newest frames dropped once its
+outbound buffer fills (ADR-0028 I4, DropNewest) — it never blocks the
+fan-out to other clients.
+
 ---
 
 ## Conditional endpoints summary
@@ -383,6 +411,7 @@ check via `*FamilyDeps.HasAny()` in `internal/interfaces/http/routes/core.go`.
 | Triage | `deps.Triage.HasAny()` | `GetSessionTriage`, `GetDecisionTriage`, `GetRoundTripTriage`, `GetTriageOverview` |
 | Venues | `deps.Venues.HasAny()` | static `Capabilities` slice (always wired in production — ships with the binary) |
 | Insights | `deps.Insights.HasAny()` | `GetLatestVolumeProfile` + `GetLatestTPOProfile` + `GetLatestCrossVenue` (KV-direct; each wired when its insights KV reader connects) |
+| Delivery | `deps.Delivery.HasAny()` | `Hub` (wired when NATS is enabled and the delivery consumer starts) |
 
 A minimally-wired gateway responds only on `/healthz`, `/readyz`,
 `/metrics`, and the configctl group (always available because
@@ -411,6 +440,7 @@ from route group to handler file(s):
 | 12. Monitoring | `monitoring.go` |
 | 13. Venues | `venues.go` |
 | 14. Insights | `insights.go` |
+| 15. Delivery | `delivery.go` (WebSocket upgrade + control-frame loop) |
 
 A shared helper `parseQueryKeyParams(r)` in `handlers/common.go`
 extracts `source` / `base`+`quote`+`contract` / `timeframe` for `*_LATEST` endpoints.

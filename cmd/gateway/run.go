@@ -5,6 +5,7 @@ import (
 	"os"
 
 	actorcommon "internal/actors/common"
+	"internal/actors/scopes/delivery"
 	actorgateway "internal/actors/scopes/gateway"
 	"internal/interfaces/http/routes"
 	"internal/shared/bootstrap"
@@ -44,6 +45,19 @@ func Run(config settings.AppConfig) {
 
 	// Phase 2b: Wire use cases from connections → route dependencies.
 	deps, verifyUC, reportUC := buildRouteDependencies(config, conns, chClient, logger)
+
+	// Phase 2b': H-11.a — start the delivery subsystem (WebSocket push of
+	// insights events). Read-only transport over the same engine; degrades
+	// gracefully (no /ws route) if NATS is unavailable.
+	if config.NATS.Enabled {
+		deliveryRuntime, derr := delivery.Start(engine, config.NATS.URL, logger)
+		if derr != nil {
+			logger.Warn("delivery subsystem unavailable", "error", derr)
+		} else {
+			defer func() { _ = deliveryRuntime.Close() }()
+			deps.Delivery = routes.DeliveryFamilyDeps{Hub: deliveryRuntime.Hub}
+		}
+	}
 
 	// Phase 2c: S490 — Start event-driven verification trigger.
 	// S491: Trigger now also produces the unified report after verification.
