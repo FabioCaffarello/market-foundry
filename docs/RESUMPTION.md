@@ -240,6 +240,33 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-8.b (loop autônomo — TPO profile, compute→publish→KV→read):
+
+- **Commit 0**: docs-first — PRD H-8.b (Decisões T1–T5) + RESUMPTION +
+  H-8.a.1 marcada Fechada. **Commit 1**: domínio
+  `internal/domain/insights/tpo.go` (`TPOProfile/TPOPeriod/TPOLevel`;
+  `PeriodLetter`, `PointOfControl`, `ValueArea` greedy ~70%,
+  `InitialBalance`, `PriceRange` — puros, big.Rat) + evento. **Commit
+  2**: `TPOSampler` no derive (períodos A–X + níveis; high/low exatos;
+  overload por nível) + actor + `publishTPOProfileMessage` + publisher
+  handler + `Publisher.PublishTPOProfile` + FamilyProcessor "tpo".
+  **Scope-split** (mea culpa do commit 0): ClickHouse → **H-8.b.1**
+  (precedente H-8.a/a.1). **Commit 3**: store-side — `StoreTPOConsumer`
+  + `tpo_consumer` + `tpo_kv_store` (`INSIGHTS_TPO_LATEST`) +
+  `TPOProjectionActor` + pipeline entry no store. **Commit 4**: read
+  `GET /insights/tpo/latest` (gateway KV-direct com ambos os KV stores;
+  `insightsclient` TPO use case; boot_test +1; HTTP-API grupo 14 → 2
+  rotas). **Commit 5**: drift-detect `store-tpo` durable + canário
+  integration (publish→consume→KV→read vs NATS vivo) + este closure.
+- single-writer (ADR-0008): derive publica em `INSIGHTS_EVENTS`; store
+  é dono do bucket `INSIGHTS_TPO_LATEST`.
+
+**Próxima sub-onda destravada após merge**: **H-8.b.1** (TPO ClickHouse
+— Array-columns períodos+níveis, espelha H-8.a.1), depois **H-8.c**
+(cross-venue fusion). Abre APENAS após merge da H-8.b.
+
+---
+
 Entregas H-8.a.1 (loop autônomo — persistência ClickHouse do VPVR, resolve G12):
 
 - **Commit 0**: docs-first — PRD H-8.a.1 (Decisões #6 Array-columns /

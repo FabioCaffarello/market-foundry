@@ -198,6 +198,18 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (closure H-8.b)** — TPO profile entregue (escopo
+  compute→publish→KV→read; ClickHouse split p/ H-8.b.1). 6 commits:
+  domínio `tpo.go` (POC/value-area/IB/range puros) + sampler
+  timeframe-anchored trades-only (períodos A–X, níveis com set de
+  letras, overload por nível) + publish path; store-side
+  `store-tpo`→`INSIGHTS_TPO_LATEST`; read `GET /insights/tpo/latest`
+  (gateway KV-direct, ambos os KV stores); drift-detect `store-tpo`;
+  canário integration (publish→consume→KV→read vs NATS vivo) PASS.
+  Decisões T1–T5 (agente, pré-flight). Loop autônomo (self-merge
+  escopado — ADR-0026). Próxima: H-8.b.1 (TPO ClickHouse), depois
+  H-8.c (cross-venue).
+
 - **2026-06-13 (abertura H-8.b)** — TPO profile aberta após H-8.a.1
   fechar (PR #50). Pré-flight (foundry insights reuse + leitura P2 do
   TPO no raccoon) fundamentou as Decisões T1–T5 (timeframe-anchored,

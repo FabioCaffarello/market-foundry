@@ -198,7 +198,7 @@ func ValueArea(levels []TPOLevel, fraction float64) (high, low string) {
 	lo, hi := pocIdx, pocIdx
 	running := levels[pocIdx].Count
 	for running < target && (lo > 0 || hi < n-1) {
-		var below, above int = -1, -1
+		below, above := -1, -1
 		if lo > 0 {
 			below = levels[lo-1].Count
 		}
