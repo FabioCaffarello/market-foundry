@@ -22,11 +22,22 @@ import (
 )
 
 // Frame is a decoded insights event ready to forward to subscribed
-// delivery clients: the concrete NATS subject it was published on, plus
-// the event re-encoded as JSON for the WebSocket wire.
+// delivery clients: the concrete NATS subject it was published on (used
+// by the router/session for subscription matching) plus the client wire
+// bytes (a clientFrame JSON).
 type Frame struct {
 	Subject string
 	Payload []byte
+}
+
+// clientFrame is the server→client wire shape (ADR-0028): the NATS
+// subject the event was published on — so a client subscribed to more
+// than one family can demux — plus the event payload as JSON. Since
+// H-11.b the consumer reads all insights families, so the subject tag is
+// load-bearing for the client.
+type clientFrame struct {
+	Subject string          `json:"subject"`
+	Event   json.RawMessage `json:"event"`
 }
 
 // Handler receives each decoded delivery frame. It runs on the NATS
@@ -153,7 +164,17 @@ func (c *Consumer) onMessage(msg jetstream.Msg) {
 		return
 	}
 
-	c.handler(Frame{Subject: subject, Payload: payload})
+	// Wrap with the subject so a multi-family client can demux.
+	frame, err := json.Marshal(clientFrame{Subject: subject, Event: payload})
+	if err != nil {
+		c.logger.Error("marshal client frame", "error", err, "subject", subject)
+		if termErr := msg.Term(); termErr != nil { // un-encodable: do not redeliver
+			c.logger.Error("term delivery event", "error", termErr)
+		}
+		return
+	}
+
+	c.handler(Frame{Subject: subject, Payload: frame})
 
 	if err := msg.Ack(); err != nil {
 		c.logger.Error("ack delivery event", "error", err)

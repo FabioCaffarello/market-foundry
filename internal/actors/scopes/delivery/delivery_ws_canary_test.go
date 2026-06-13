@@ -144,27 +144,33 @@ func TestDeliveryWS_PublishSubscribeReceive(t *testing.T) {
 	}
 
 	var frame struct {
-		VolumeProfile struct {
-			Source    string    `json:"source"`
-			Timeframe int       `json:"timeframe"`
-			OpenTime  time.Time `json:"open_time"`
-			Buckets   []struct {
-				PriceLevel string `json:"price_level"`
-			} `json:"buckets"`
-		} `json:"volume_profile"`
+		Subject string `json:"subject"`
+		Event   struct {
+			VolumeProfile struct {
+				Source    string    `json:"source"`
+				Timeframe int       `json:"timeframe"`
+				OpenTime  time.Time `json:"open_time"`
+				Buckets   []struct {
+					PriceLevel string `json:"price_level"`
+				} `json:"buckets"`
+			} `json:"volume_profile"`
+		} `json:"event"`
 	}
 	if err := json.Unmarshal(raw, &frame); err != nil {
 		t.Fatalf("decode delivered frame: %v (raw=%s)", err, raw)
 	}
-	if frame.VolumeProfile.Source != source {
-		t.Errorf("delivered source = %q, want %q", frame.VolumeProfile.Source, source)
+	if !strings.HasPrefix(frame.Subject, "insights.events.volumeprofile.sampled."+source+".") {
+		t.Errorf("delivered subject = %q, want volumeprofile family for source %q", frame.Subject, source)
 	}
-	if !frame.VolumeProfile.OpenTime.Equal(openTime) {
-		t.Errorf("delivered open_time = %v, want %v", frame.VolumeProfile.OpenTime, openTime)
+	if frame.Event.VolumeProfile.Source != source {
+		t.Errorf("delivered source = %q, want %q", frame.Event.VolumeProfile.Source, source)
 	}
-	if len(frame.VolumeProfile.Buckets) != 2 ||
-		frame.VolumeProfile.Buckets[0].PriceLevel != "65000" ||
-		frame.VolumeProfile.Buckets[1].PriceLevel != "65010" {
-		t.Errorf("delivered buckets not preserved: %+v", frame.VolumeProfile.Buckets)
+	if !frame.Event.VolumeProfile.OpenTime.Equal(openTime) {
+		t.Errorf("delivered open_time = %v, want %v", frame.Event.VolumeProfile.OpenTime, openTime)
+	}
+	if len(frame.Event.VolumeProfile.Buckets) != 2 ||
+		frame.Event.VolumeProfile.Buckets[0].PriceLevel != "65000" ||
+		frame.Event.VolumeProfile.Buckets[1].PriceLevel != "65010" {
+		t.Errorf("delivered buckets not preserved: %+v", frame.Event.VolumeProfile.Buckets)
 	}
 }
