@@ -6,6 +6,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natskit "internal/adapters/nats/natskit"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
@@ -56,6 +57,7 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 		strategy  natsstrategy.Registry
 		risk      natsrisk.Registry
 		execution natsexecution.Registry
+		insights  natsinsights.Registry
 	}{
 		evidence:  natsevidence.DefaultRegistry(),
 		signal:    natssignal.DefaultRegistry(),
@@ -63,6 +65,7 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 		strategy:  natsstrategy.DefaultRegistry(),
 		risk:      natsrisk.DefaultRegistry(),
 		execution: natsexecution.DefaultRegistry(),
+		insights:  natsinsights.DefaultRegistry(),
 	}
 
 	return []writerPipeline{
@@ -301,5 +304,19 @@ func declareWriterPipelines(chClient *adapterch.Client) []writerPipeline {
 			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsExecutionFamilyEnabled("venue_market_order") },
 			startConsumer: writerpipeline.NewVenueRejectionStarter(reg.execution),
 		},
+
+		// codegen:begin pipeline_entry family=volume_profile source=codegen/families/volume_profile.yaml
+		// ── Insights: volume_profile → insights_volume_profile ──
+		{
+			family:        "volume_profile",
+			consumerName:  "writer-volume-profile-consumer",
+			inserterName:  "writer-volume-profile-inserter",
+			table:         "insights_volume_profile",
+			insertSQL:     "INSERT INTO insights_volume_profile (event_id, occurred_at, correlation_id, causation_id, source, symbol, base, quote, contract, timeframe, bucket_size, bucket_price_level, bucket_buy_volume, bucket_sell_volume, trade_count, overload, open_time, close_time, final)",
+			consumerSpec:  natsinsights.WriterVolumeProfileConsumer(),
+			isEnabled:     func(p settings.PipelineConfig) bool { return p.IsInsightsFamilyEnabled("volume_profile") },
+			startConsumer: writerpipeline.NewVolumeProfileStarter(reg.insights),
+		},
+		// codegen:end pipeline_entry family=volume_profile
 	}
 }

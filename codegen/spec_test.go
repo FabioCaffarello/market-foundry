@@ -92,6 +92,27 @@ func TestDerivedFields_Evidence(t *testing.T) {
 	assertField(t, "PackageAlias", d.PackageAlias, "natsevidence")
 }
 
+// TestDerivedFields_Insights locks in the H-8.a.1 decision: the insights
+// layer uses EVIDENCE-style family-specific naming (each insights family
+// is a distinct event type), but keeps its OWN config namespace
+// (IsInsightsFamilyEnabled, not the generic IsFamilyEnabled).
+func TestDerivedFields_Insights(t *testing.T) {
+	spec := &FamilySpec{
+		Family: FamilyMeta{Name: "volume_profile", Layer: "insights", Tier: 1},
+		Writer: WriterSpec{Table: "insights_volume_profile"},
+	}
+	d := spec.Derived()
+
+	assertField(t, "ConsumerSpecFunc", d.ConsumerSpecFunc, "WriterVolumeProfileConsumer")
+	assertField(t, "ConsumerName", d.ConsumerName, "writer-volume-profile-consumer")
+	assertField(t, "InserterName", d.InserterName, "writer-volume-profile-inserter")
+	assertField(t, "IsEnabledMethod", d.IsEnabledMethod, "IsInsightsFamilyEnabled")
+	assertField(t, "NewConsumerFunc", d.NewConsumerFunc, "NewVolumeProfileConsumer")
+	assertField(t, "StarterFunc", d.StarterFunc, "NewVolumeProfileStarter")
+	assertField(t, "PackageAlias", d.PackageAlias, "natsinsights")
+	assertField(t, "RegistryField", d.RegistryField, "insights")
+}
+
 func TestDerivedFields_InsertSQLWithColumns(t *testing.T) {
 	spec := &FamilySpec{
 		Family: FamilyMeta{Name: "rsi", Layer: "signal", Tier: 1},

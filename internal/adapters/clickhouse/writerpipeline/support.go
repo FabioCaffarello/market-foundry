@@ -10,6 +10,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natskit "internal/adapters/nats/natskit"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
@@ -17,6 +18,7 @@ import (
 	"internal/domain/decision"
 	"internal/domain/evidence"
 	"internal/domain/execution"
+	"internal/domain/insights"
 	"internal/domain/risk"
 	"internal/domain/signal"
 	"internal/domain/strategy"
@@ -186,6 +188,31 @@ func NewVenueRejectionStarter(reg natsexecution.Registry) ConsumerStarter {
 			func(event execution.VenueOrderRejectedEvent) {
 				recordEvent(tracker)
 				emitRow(mapVenueRejectionRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
+// NewVolumeProfileStarter creates a ConsumerStarter for insights volume
+// profile events (H-8.a.1). Insights is a family-specific codegen layer
+// (like evidence): the VolumeProfile is its own event type, so this
+// starter binds the natsinsights volume-profile consumer to the writer's
+// single-row emitter. Single-writer (ADR-0008): the writer owns the
+// insights_volume_profile table; the store side owns the KV-latest bucket.
+func NewVolumeProfileStarter(reg natsinsights.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsinsights.NewVolumeProfileConsumer(natsURL, spec, reg,
+			func(event insights.VolumeProfileSampledEvent) {
+				recordEvent(tracker)
+				emitRow(mapVolumeProfileRow(event))
 			},
 			logger,
 		)
@@ -478,6 +505,49 @@ func mapVenueRejectionRow(e execution.VenueOrderRejectedEvent) []any {
 		x.CausationID,
 		x.Final,
 		x.Timestamp,
+	}
+}
+
+// mapVolumeProfileRow maps an insights volume profile event to a single
+// ClickHouse row (H-8.a.1). The per-window price buckets are emitted as
+// three PARALLEL, index-aligned Array(String) slices
+// (bucket_price_level[i] ↔ bucket_buy_volume[i] ↔ bucket_sell_volume[i]),
+// preserving the codegen 1-event→1-row contract. Decimal values stay as
+// String to keep the big.Rat-deterministic binning exact. Column order
+// matches the insertSQL in cmd/writer/pipeline.go.
+func mapVolumeProfileRow(e insights.VolumeProfileSampledEvent) []any {
+	m := e.Metadata
+	vp := e.VolumeProfile
+
+	priceLevels := make([]string, len(vp.Buckets))
+	buyVolumes := make([]string, len(vp.Buckets))
+	sellVolumes := make([]string, len(vp.Buckets))
+	for i, b := range vp.Buckets {
+		priceLevels[i] = b.PriceLevel
+		buyVolumes[i] = b.BuyVolume
+		sellVolumes[i] = b.SellVolume
+	}
+
+	return []any{
+		m.ID,
+		m.OccurredAt,
+		m.CorrelationID,
+		m.CausationID,
+		vp.Source,
+		vp.VenueSymbol(),
+		string(vp.Instrument.Base),
+		string(vp.Instrument.Quote),
+		string(vp.Instrument.Contract),
+		uint32(vp.Timeframe),
+		vp.BucketSize,
+		priceLevels,
+		buyVolumes,
+		sellVolumes,
+		vp.TradeCount,
+		vp.Overload.Label(),
+		vp.OpenTime,
+		vp.CloseTime,
+		vp.Final,
 	}
 }
 

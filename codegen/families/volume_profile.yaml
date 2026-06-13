@@ -1,0 +1,21 @@
+family:
+  name: volume_profile
+  layer: insights
+  tier: 1
+
+nats:
+  subject: "insights.events.volumeprofile.sampled.>"
+  event_type: "insights.events.v1.volume_profile_sampled"
+  stream: INSIGHTS_EVENTS
+  durable: writer-volume-profile
+
+writer:
+  table: insights_volume_profile
+  columns: "event_id, occurred_at, correlation_id, causation_id, source, symbol, base, quote, contract, timeframe, bucket_size, bucket_price_level, bucket_buy_volume, bucket_sell_volume, trade_count, overload, open_time, close_time, final"
+  mapper: mapVolumeProfileRow
+  pipeline_family_key: volume_profile
+  config_array: insights_families
+
+domain:
+  event_package: insights
+  event_type: VolumeProfileSampledEvent

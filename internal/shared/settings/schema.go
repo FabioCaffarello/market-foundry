@@ -699,6 +699,7 @@ type PipelineConfig struct {
 	StrategyFamilies  []string `json:"strategy_families"`
 	RiskFamilies      []string `json:"risk_families"`
 	ExecutionFamilies []string `json:"execution_families"`
+	InsightsFamilies  []string `json:"insights_families"`
 }
 
 // TimeframeDurations returns the configured timeframes as durations.
@@ -837,6 +838,35 @@ func (p PipelineConfig) EnabledExecutionFamilies() []string {
 	}
 	result := make([]string, len(p.ExecutionFamilies))
 	copy(result, p.ExecutionFamilies)
+	return result
+}
+
+// IsInsightsFamilyEnabled returns true if the given insights family name is in
+// the configured insights_families list. Like evidence families (and unlike
+// the opt-in signal/decision/strategy/risk/execution chain), absent
+// insights_families means ALL insights families are enabled
+// (backward-compatible default): insights persistence is a passive sink that
+// mirrors the always-on store-side projection, not a deliberately-activated
+// pipeline stage. Added in H-8.a.1 (PROGRAM-0005).
+func (p PipelineConfig) IsInsightsFamilyEnabled(family string) bool {
+	if len(p.InsightsFamilies) == 0 {
+		return true
+	}
+	for _, f := range p.InsightsFamilies {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+// EnabledInsightsFamilies returns the configured insights families list.
+func (p PipelineConfig) EnabledInsightsFamilies() []string {
+	if len(p.InsightsFamilies) == 0 {
+		return nil
+	}
+	result := make([]string, len(p.InsightsFamilies))
+	copy(result, p.InsightsFamilies)
 	return result
 }
 
