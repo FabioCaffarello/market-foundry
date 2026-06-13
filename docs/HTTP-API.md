@@ -383,9 +383,13 @@ more trailing tokens). Server → client frames (since H-11.b) are
 `{"subject": "<nats-subject>", "event": <event-json>}` — the subject lets
 a client subscribed to more than one family demux; `event` is the
 insights payload (same shape as the matching `/insights` read endpoint).
-A slow client has its newest frames dropped once its outbound buffer
-fills (ADR-0028 I4, DropNewest) — it never blocks the fan-out to other
-clients.
+A slow client has frames dropped once its bounded outbound buffer fills
+(ADR-0028 I4) — it never blocks the fan-out to other clients. The
+backpressure policy (`drop_newest` default / `drop_oldest`) and queue
+size are configurable via `MARKETFOUNDRY_DELIVERY_BACKPRESSURE` /
+`MARKETFOUNDRY_DELIVERY_QUEUE_SIZE` (H-11.c). Delivery health is exported
+on `/metrics`: `marketfoundry_delivery_frames_total{outcome}` and
+`marketfoundry_delivery_sessions`.
 
 ---
 

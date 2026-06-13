@@ -13,8 +13,13 @@ consumer durável `deliver-insights` sobre `INSIGHTS_EVENTS`
 ampliou I3 a todas as famílias de insights** (volume_profile + TPO +
 cross-venue): o durable `deliver-insights` lê `insights.events.>` e
 decodifica por subject; o frame de fio passou a `{subject, event}` para
-o cliente demuxar. Um analyzer `check delivery` dedicado da fronteira
-read-only permanece opcional (H-11.c).
+o cliente demuxar. **H-11.c fechou a Fase**: política de backpressure
+configurável (DropNewest default + DropOldest; **PriorityDrop deferido** —
+insights são decision-support equi-advisory, sem ordem de prioridade
+natural, ADR-0027), tamanho de fila por config (`delivery.Config` via env
+no gateway), e métricas Prometheus (`…delivery_frames_total{outcome}` +
+`…delivery_sessions`). Um analyzer `check delivery` dedicado permanece
+opcional (o `drift-detect` do durable cobre a invariante).
 
 ## Context
 
@@ -141,3 +146,6 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
 - 2026-06-13 — H-11.b ampliou I3 a todas as famílias de insights (durable
   lê `insights.events.>`, decode dispatched por subject) e introduziu o
   frame de fio `{subject, event}` (cliente demuxa multi-família).
+- 2026-06-13 — H-11.c (fecha a Fase): backpressure configurável
+  (DropNewest/DropOldest; PriorityDrop deferido com justificativa) +
+  fila por config + métricas Prometheus de delivery. PROGRAM-0006 Closed.

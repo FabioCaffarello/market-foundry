@@ -1,6 +1,6 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Active
+**Status:** Closed (2026-06-13 — H-11.c entregue; Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -81,19 +81,20 @@ drift-detect do durable `deliver-insights`, e/ou `check delivery`);
 
 ## Critérios de aceite da Fase
 
-A Fase Delivery fecha quando **todos** abaixo forem verdadeiros:
+A Fase Delivery fecha quando **todos** abaixo forem verdadeiros — todos
+satisfeitos no fechamento de H-11.c:
 
-- [ ] Sub-ondas H-11.a, H-11.b, H-11.c fechadas (cada uma com
+- [x] Sub-ondas H-11.a, H-11.b, H-11.c fechadas (cada uma com
   `make verify` GREEN + RESUMPTION atualizado no commit de fechamento).
-- [ ] `internal/domain/delivery/` modela Session/Subscription;
+- [x] `internal/domain/delivery/` modela Session/Subscription;
   servidor WS no gateway faz bridge `INSIGHTS_EVENTS → clients` (read-
   only, loopback — ADR-0028 I1/I2).
-- [ ] Backpressure bounded por sessão (I4); consumidor lento não bloqueia
-  o fan-out; política configurável (H-11.c).
-- [ ] Enforcement estático da fronteira delivery (drift-detect do durable
-  `deliver-insights` e/ou `check delivery`) integrado em `make verify`.
-- [ ] ADR-0028 promovido a `Accepted` (na H-11.a).
-- [ ] PROGRAM-0006 transita para `Closed` na entrega final de H-11.c;
+- [x] Backpressure bounded por sessão (I4); consumidor lento não bloqueia
+  o fan-out; política configurável (H-11.c — DropNewest/DropOldest).
+- [x] Enforcement estático da fronteira delivery (drift-detect do durable
+  `deliver-insights`) integrado em `make verify`.
+- [x] ADR-0028 promovido a `Accepted` (na H-11.a).
+- [x] PROGRAM-0006 transita para `Closed` na entrega final de H-11.c;
   entrada Changelog correspondente.
 
 ## ADRs governantes
@@ -113,6 +114,16 @@ A Fase Delivery fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (H-11.c entregue — Fase FECHADA)** — última sub-onda:
+  política de backpressure **configurável** (`BackpressurePolicy`
+  DropNewest/DropOldest no domínio; SessionActor evicta o mais antigo no
+  DropOldest) + `delivery.Config{QueueSize,Policy}` via `ConfigFromEnv`
+  no gateway (sem tocar settings schema); métricas Prometheus
+  `marketfoundry_delivery_frames_total{outcome}` +
+  `marketfoundry_delivery_sessions`. **PriorityDrop deferido** com
+  justificativa (insights são decision-support equi-advisory, ADR-0027).
+  `check delivery` dedicado permanece opcional (drift-detect cobre o
+  durable). **PROGRAM-0006 → `Closed`** — todos os critérios satisfeitos.
 - **2026-06-13 (H-11.b entregue)** — delivery generalizada a **todas as
   famílias de insights**: durable `deliver-insights` lê
   `insights.events.>` com decode dispatched por subject (volume_profile /

@@ -249,6 +249,38 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.c (loop autônomo — backpressure configurável + métricas; **FECHA a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre a onda (flip H-11.b → Fechada PR #56; header). **Commit
+  1**: `domain.BackpressurePolicy` (DropNewest default + DropOldest;
+  Parse/String/Validate) — **PriorityDrop deferido** (insights são
+  decision-support equi-advisory, ADR-0027; sem ordem de prioridade
+  natural); `SessionActor.offer` policy-aware (DropOldest evicta o mais
+  antigo, bound sempre mantido); `delivery.Config{QueueSize,Policy}` +
+  `ConfigFromEnv` (`MARKETFOUNDRY_DELIVERY_QUEUE_SIZE`/`_BACKPRESSURE`,
+  sem tocar settings schema) plumb por Hub/Start ← gateway. **Commit 2**:
+  métricas Prometheus `marketfoundry_delivery_frames_total{outcome}`
+  (delivered/dropped) + `marketfoundry_delivery_sessions` (gauge);
+  writeLoop conta delivered, recordDrop conta dropped, router move o gauge.
+  **Commit 3**: este closure (PROGRAM-0006 → `Closed` + critérios [x];
+  ADR-0028 nota; TRUTH-MAP; HTTP-API métricas).
+- **Validação**: `make verify` EXIT=0 (check-metrics PASS, lint limpo);
+  testes determinísticos DropNewest + DropOldest; canários integration de
+  delivery seguem PASS vs NATS local.
+- **Fase Delivery (PROGRAM-0006) FECHADA**: 3 sub-ondas (H-11.a skeleton +
+  VP; H-11.b multi-família + frame `{subject,event}`; H-11.c backpressure
+  configurável + métricas). ADR-0028 `Accepted`; delivery é leitor
+  read-only de `INSIGHTS_EVENTS` (I1/I2/I4/I5).
+
+**Próxima**: nenhuma sub-onda de Delivery pendente. **A delegação de
+self-merge do loop autônomo era escopada ao PROGRAM-0006 — a próxima Fase
+exige re-confirmação explícita do owner** (P9 / ADR-0026 errata). Roadmap
+remanescente: storage tier (H-9/H-10, ADR-0023 — trigger-gated), Odin
+client (H-12+), e o gate temporal **H-6.f.2 (~2026-08-26)** que fecha
+PROGRAM-0004. Owner decide a próxima Fase.
+
+---
+
 Entregas H-11.b (loop autônomo — delivery generalizada a todas as famílias de insights):
 
 - **Commit 0**: abre a onda (flip H-11.a → Fechada PR #55; linha H-11.b;
