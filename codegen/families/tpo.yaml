@@ -1,0 +1,21 @@
+family:
+  name: tpo
+  layer: insights
+  tier: 1
+
+nats:
+  subject: "insights.events.tpo.sampled.>"
+  event_type: "insights.events.v1.tpo_sampled"
+  stream: INSIGHTS_EVENTS
+  durable: writer-tpo
+
+writer:
+  table: insights_tpo
+  columns: "event_id, occurred_at, correlation_id, causation_id, source, symbol, base, quote, contract, timeframe, bucket_size, period_seconds, period_letter, period_high, period_low, level_price, level_letters, level_count, trade_count, overload, poc_price, value_area_high, value_area_low, initial_balance_high, initial_balance_low, range_high, range_low, open_time, close_time, final"
+  mapper: mapTPOProfileRow
+  pipeline_family_key: tpo
+  config_array: insights_families
+
+domain:
+  event_package: insights
+  event_type: TPOProfileSampledEvent

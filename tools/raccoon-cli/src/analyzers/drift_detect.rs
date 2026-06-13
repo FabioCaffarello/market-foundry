@@ -510,14 +510,24 @@ const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
         "store-tpo",
         "store projects TPO profile events from INSIGHTS_EVENTS into the KV latest bucket (H-8.b)",
     ),
+    (
+        "writer-tpo",
+        "writer persists TPO profile events from INSIGHTS_EVENTS into the insights_tpo ClickHouse table (codegen-governed, H-8.b.1)",
+    ),
 ];
 
 /// Expected insights ClickHouse history tables that must appear in
-/// deploy/migrations (H-8.a.1).
-const INSIGHTS_EXPECTED_TABLES: &[(&str, &str)] = &[(
-    "insights_volume_profile",
-    "stores per-window volume profile (VPVR) history with parallel Array(String) bucket columns",
-)];
+/// deploy/migrations (H-8.a.1 volume profile, H-8.b.1 TPO).
+const INSIGHTS_EXPECTED_TABLES: &[(&str, &str)] = &[
+    (
+        "insights_volume_profile",
+        "stores per-window volume profile (VPVR) history with parallel Array(String) bucket columns",
+    ),
+    (
+        "insights_tpo",
+        "stores per-window TPO history with parallel Array columns for periods and price levels",
+    ),
+];
 
 // ── Public API ──────────────────────────────────────────────────────
 
