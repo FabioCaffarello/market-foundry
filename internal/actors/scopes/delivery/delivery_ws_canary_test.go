@@ -83,7 +83,7 @@ func TestDeliveryWS_PublishSubscribeReceive(t *testing.T) {
 		t.Fatalf("new engine: %v", err)
 	}
 
-	rt, err := delivery.Start(engine, url, slog.Default())
+	rt, err := delivery.Start(engine, url, delivery.DefaultConfig(), slog.Default())
 	if err != nil {
 		t.Fatalf("delivery start: %v", err)
 	}

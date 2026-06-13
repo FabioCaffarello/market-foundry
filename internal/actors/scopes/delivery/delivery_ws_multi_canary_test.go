@@ -37,7 +37,7 @@ func startDelivery(t *testing.T, url string) *delivery.Runtime {
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
 	}
-	rt, err := delivery.Start(engine, url, slog.Default())
+	rt, err := delivery.Start(engine, url, delivery.DefaultConfig(), slog.Default())
 	if err != nil {
 		t.Fatalf("delivery start: %v", err)
 	}

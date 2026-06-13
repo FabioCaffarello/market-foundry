@@ -22,6 +22,7 @@ type sessionConfig struct {
 	id       deliverydomain.SessionID
 	conn     ports.DeliveryConn
 	maxQueue int
+	policy   deliverydomain.BackpressurePolicy
 	logger   *slog.Logger
 }
 
@@ -128,13 +129,43 @@ func (a *SessionActor) onDeliver(msg deliverFrameMessage) {
 	a.offer(msg.Payload)
 }
 
-// offer enqueues a frame for the write loop, dropping the newest frame
-// if the bounded buffer is full (ADR-0028 I4). Called only on the actor
-// goroutine, so dropped needs no synchronization.
+// offer enqueues a frame for the write loop, shedding load per the
+// configured backpressure policy when the bounded buffer is full
+// (ADR-0028 I4). The bound always holds; only the victim differs.
+// Called only on the actor goroutine, so dropped needs no
+// synchronization.
 func (a *SessionActor) offer(frame []byte) {
+	if a.tryEnqueue(frame) {
+		return
+	}
+	if a.cfg.policy == deliverydomain.DropOldest {
+		// Evict the oldest queued frame to favor freshness, then enqueue
+		// the incoming one. (The write loop is the only other consumer;
+		// if it drained concurrently the buffer is no longer full and the
+		// evict is skipped.)
+		select {
+		case <-a.out:
+			a.recordDrop()
+		default:
+		}
+		if a.tryEnqueue(frame) {
+			return
+		}
+	}
+	// DropNewest, or DropOldest still couldn't enqueue: drop the incoming.
+	a.recordDrop()
+}
+
+func (a *SessionActor) tryEnqueue(frame []byte) bool {
 	select {
 	case a.out <- frame:
+		return true
 	default:
-		a.dropped++
+		return false
 	}
+}
+
+// recordDrop counts a shed frame. Called only on the actor goroutine.
+func (a *SessionActor) recordDrop() {
+	a.dropped++
 }

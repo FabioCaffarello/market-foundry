@@ -25,16 +25,18 @@ var (
 type Hub struct {
 	engine *actor.Engine
 	router *actor.PID
+	cfg    Config
 	logger *slog.Logger
 	seq    atomic.Uint64
 }
 
 // NewHub builds a Hub over an existing engine and a spawned router PID.
-func NewHub(engine *actor.Engine, router *actor.PID, logger *slog.Logger) *Hub {
+// cfg governs the per-session bounded buffer (size + backpressure policy).
+func NewHub(engine *actor.Engine, router *actor.PID, cfg Config, logger *slog.Logger) *Hub {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Hub{engine: engine, router: router, logger: logger}
+	return &Hub{engine: engine, router: router, cfg: cfg, logger: logger}
 }
 
 // Admit spawns a session actor for a newly-connected client and
@@ -43,7 +45,7 @@ func NewHub(engine *actor.Engine, router *actor.PID, logger *slog.Logger) *Hub {
 func (h *Hub) Admit(conn ports.DeliveryConn) ports.DeliverySession {
 	id := deliverydomain.SessionID(fmt.Sprintf("delivery-session-%d", h.seq.Add(1)))
 	pid := h.engine.Spawn(
-		NewSessionActor(sessionConfig{id: id, conn: conn, logger: h.logger}),
+		NewSessionActor(sessionConfig{id: id, conn: conn, maxQueue: h.cfg.QueueSize, policy: h.cfg.Policy, logger: h.logger}),
 		string(id),
 	)
 	h.engine.Send(h.router, registerSessionMessage{ID: id, PID: pid})

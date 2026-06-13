@@ -35,11 +35,12 @@ func (r *Runtime) Close() error {
 }
 
 // Start spawns the delivery router on the engine, starts the durable
-// insights consumer feeding it, and returns the wired Runtime. If the
+// insights consumer feeding it, and returns the wired Runtime. cfg tunes
+// the per-session bounded buffer (size + backpressure policy). If the
 // consumer fails to start (e.g. NATS unavailable) the router is poisoned
 // and the error is returned so the gateway can degrade gracefully
 // (no /ws endpoint) rather than fail to boot.
-func Start(engine *actor.Engine, natsURL string, logger *slog.Logger) (*Runtime, error) {
+func Start(engine *actor.Engine, natsURL string, cfg Config, logger *slog.Logger) (*Runtime, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -59,5 +60,5 @@ func Start(engine *actor.Engine, natsURL string, logger *slog.Logger) (*Runtime,
 		return nil, err
 	}
 
-	return &Runtime{Hub: NewHub(engine, router, logger), consumer: consumer}, nil
+	return &Runtime{Hub: NewHub(engine, router, cfg, logger), consumer: consumer}, nil
 }

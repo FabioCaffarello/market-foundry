@@ -50,7 +50,7 @@ func Run(config settings.AppConfig) {
 	// insights events). Read-only transport over the same engine; degrades
 	// gracefully (no /ws route) if NATS is unavailable.
 	if config.NATS.Enabled {
-		deliveryRuntime, derr := delivery.Start(engine, config.NATS.URL, logger)
+		deliveryRuntime, derr := delivery.Start(engine, config.NATS.URL, delivery.ConfigFromEnv(logger), logger)
 		if derr != nil {
 			logger.Warn("delivery subsystem unavailable", "error", derr)
 		} else {

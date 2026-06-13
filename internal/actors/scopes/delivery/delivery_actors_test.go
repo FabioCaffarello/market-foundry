@@ -57,7 +57,7 @@ func TestFanoutMatchesSubscriptionOnly(t *testing.T) {
 		t.Fatalf("new engine: %v", err)
 	}
 	router := engine.Spawn(NewRouterActor(), "delivery-router")
-	hub := NewHub(engine, router, slog.Default())
+	hub := NewHub(engine, router, DefaultConfig(), slog.Default())
 
 	conn := newRecordingConn()
 	h := hub.Admit(conn)
