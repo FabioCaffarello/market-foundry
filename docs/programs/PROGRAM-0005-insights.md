@@ -49,7 +49,8 @@ abertura desta Fase.
 
 | Sub-onda | Escopo | Entregas principais |
 |----------|--------|---------------------|
-| **H-8.a** | Volume Profile (VPVR) + overload policy | Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload levels L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` (single-writer) + publisher; tabela CH `insights_volume_profile` + KV `INSIGHTS_VOLUME_PROFILE_LATEST`; read endpoint no gateway; analyzer `check insights` (P5); **promove ADR-0027 → Accepted**. |
+| **H-8.a** | Volume Profile (VPVR) + overload policy | Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload levels L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` (single-writer) + publisher; KV `INSIGHTS_VOLUME_PROFILE_LATEST`; read endpoint no gateway; analyzer `check insights` (P5); **promove ADR-0027 → Accepted**. (Persistência ClickHouse **deferida** — ver H-8.a.1 / G12.) |
+| **H-8.a.1** | Persistência ClickHouse do VolumeProfile (completa G12) | Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B) + colunas canônicas base/quote/contract; **extensão do codegen** p/ reconhecer o layer `insights` evidence-style (Decisão #7 Opção A); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect ciente da tabela/consumer. Resolve **G12**. |
 | **H-8.b** | TPO profile (Time-Price Opportunity) | Market profile / TPO por janela de sessão, trades-only. Reutiliza binning + stream + persistência da H-8.a. |
 | **H-8.c** | Cross-venue trade fusion | Fusão de trades multi-venue (Binance + Bybit, pós-H-7) em snapshots cross-venue; encaixe direto na superfície multi-venue. |
 
@@ -80,6 +81,36 @@ pré-flight read-only (foundry Explore + raccoon P2 justificado) fundamentou:
   bounded buckets + degradação). Fecha parcialmente o gap de
   backpressure adiado, **sem** expandir para backpressure genérico
   de pipeline (isso fica para onda própria, pós delivery/insights).
+
+### Decisões da H-8.a.1 (owner, 2026-06-13)
+
+Pré-flight read-only do pipeline codegen→writer→ClickHouse fundamentou:
+
+- **Decisão #6 (Opção B)** — Schema **Array-columns, 1 linha/janela**:
+  `bucket_price_level/buy_volume/sell_volume Array(String)`. Preserva
+  o contrato **1-evento→1-row** do codegen (a linha tem células Array);
+  idiomático p/ analytics ClickHouse (arrayJoin/agregações). Rejeitadas:
+  JSON String (analytics por bucket exigiria JSONExtract) e multi-row
+  (quebraria o `RowEmitter`).
+- **Decisão #7 (Opção A)** — **Estender o codegen** p/ reconhecer o
+  layer `insights` no estilo **evidence** (naming family-specific:
+  `WriterVolumeProfileConsumer`/`NewVolumeProfileStarter`/
+  `NewVolumeProfileConsumer`), com namespace de config próprio
+  (`IsInsightsFamilyEnabled`). Mantém a invariante "writer→ClickHouse é
+  codegen-governed" (golden self-consistency cobre insights) e
+  TPO/cross-venue reusam. Rejeitado hand-write (criaria snowflake fora
+  do codegen-integrated).
+
+**Mea culpa (correção do framing H-8.a + do plano da H-8.a.1):** (1) o
+closure da H-8.a disse que `buckets[]` "não mapeiam o codegen
+1-evento→1-row" — isso vale **só** p/ multi-row; Array-columns mantêm
+1-row (Decisão #6). (2) O plano inicial da H-8.a.1 assumiu que o codegen
+aceitaria um `volume_profile.yaml` direto; o cross-check de
+`codegen/spec.go` revelou que `validLayers` é hardcoded aos 6 layers da
+cadeia evidence→execution (`insights` ausente) e que o modelo
+family-como-discriminador (signal/decision/…) não encaixa em insights
+(event types distintos por family) — o layer `evidence` (family-specific)
+é o molde correto. Daí a Decisão #7.
 
 ## Princípios aplicáveis (P1–P9)
 
@@ -130,6 +161,15 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 | Overload scope creep para backpressure genérico de pipeline | Médio | Decisão #5: VPVR overload só (sujeito real); backpressure de pipeline fica para onda própria. |
 
 ## Changelog
+
+- **2026-06-13 (abertura H-8.a.1)** — Persistência ClickHouse do
+  VolumeProfile aberta p/ completar G12 (deferido na H-8.a). Owner
+  escolheu Opção B (Array-columns, 1 linha/janela — Decisão #6) e
+  Opção A (estender o codegen p/ o layer `insights` evidence-style —
+  Decisão #7). Pré-flight do pipeline codegen→writer→ClickHouse
+  fundamentou; mea culpa do framing 1-row registrado. Esta sub-onda
+  roda no **loop autônomo** autorizado pelo owner (self-merge escopado
+  — ADR-0026 errata). Próxima após merge: H-8.b (TPO).
 
 - **2026-06-13 (closure H-8.a)** — Volume Profile (VPVR) + overload
   entregue em 7 commits; **ADR-0027 → Accepted**. Domínio
