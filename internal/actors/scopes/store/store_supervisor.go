@@ -278,6 +278,29 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			}),
 		},
 
+		// --- Insights cross-venue pipeline (PROGRAM-0005 / H-8.c; always on) ---
+		{
+			Scope:          DomainInsights,
+			Family:         "cross_venue",
+			ProjectionName: "cross-venue-projection",
+			ConsumerName:   "cross-venue-consumer",
+			Buckets:        []string{natsinsights.CrossVenueLatestBucket},
+			ConsumerSpec:   natsinsights.StoreCrossVenueConsumer(),
+			IsEnabled:      func(settings.PipelineConfig) bool { return true },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewCrossVenueProjectionActor(CrossVenueProjectionConfig{NATSURL: natsURL, Tracker: tracker})
+			},
+			NewConsumer: startConsumer("cross_venue", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsinsights.NewCrossVenueConsumer(url, spec, insReg, func(event insights.CrossVenueSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, crossVenueReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
 		// --- Signal pipelines (opt-in via pipeline.signal_families) ---
 		{
 			Scope:          DomainSignal,

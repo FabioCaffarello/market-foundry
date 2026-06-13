@@ -514,6 +514,10 @@ const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
         "writer-tpo",
         "writer persists TPO profile events from INSIGHTS_EVENTS into the insights_tpo ClickHouse table (codegen-governed, H-8.b.1)",
     ),
+    (
+        "store-cross-venue",
+        "store projects cross-venue snapshots from INSIGHTS_EVENTS into the KV latest bucket (H-8.c)",
+    ),
 ];
 
 /// Expected insights ClickHouse history tables that must appear in

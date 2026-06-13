@@ -140,6 +140,7 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	// gracefully: a failed KV connect disables the insights endpoint.
 	insightsKV := natsinsights.NewVolumeProfileKVStore(config.NATS.URL)
 	tpoKV := natsinsights.NewTPOKVStore(config.NATS.URL)
+	crossVenueKV := natsinsights.NewCrossVenueKVStore(config.NATS.URL)
 	vpOK := insightsKV.Start()
 	if vpOK != nil {
 		logger.Warn("volume profile KV reader unavailable", "error", vpOK)
@@ -154,8 +155,15 @@ func buildGatewayConns(config settings.AppConfig, logger *slog.Logger) (*gateway
 	} else {
 		addCloser(tpoKV.Close)
 	}
-	if insightsKV != nil || tpoKV != nil {
-		conns.insights = natsinsights.NewGateway(insightsKV, tpoKV)
+	cvErr := crossVenueKV.Start()
+	if cvErr != nil {
+		logger.Warn("cross venue KV reader unavailable", "error", cvErr)
+		crossVenueKV = nil
+	} else {
+		addCloser(crossVenueKV.Close)
+	}
+	if insightsKV != nil || tpoKV != nil || crossVenueKV != nil {
+		conns.insights = natsinsights.NewGateway(insightsKV, tpoKV, crossVenueKV)
 	}
 
 	return conns, nil
@@ -475,6 +483,7 @@ func buildRouteDependencies(config settings.AppConfig, conns *gatewayConns, chCl
 		deps.Insights = routes.InsightsFamilyDeps{
 			GetLatestVolumeProfile: insightsclient.NewGetLatestVolumeProfileUseCase(conns.insights),
 			GetLatestTPOProfile:    insightsclient.NewGetLatestTPOProfileUseCase(conns.insights),
+			GetLatestCrossVenue:    insightsclient.NewGetLatestCrossVenueUseCase(conns.insights),
 		}
 	}
 

@@ -155,6 +155,10 @@ type handlersGetLatestTPOProfileUseCase interface {
 	Execute(context.Context, insightsclient.TPOProfileLatestQuery) (insightsclient.TPOProfileLatestReply, *problem.Problem)
 }
 
+type handlersGetLatestCrossVenueUseCase interface {
+	Execute(context.Context, insightsclient.CrossVenueLatestQuery) (insightsclient.CrossVenueLatestReply, *problem.Problem)
+}
+
 type handlersCreateDraftUseCase interface {
 	Execute(context.Context, configctlcontracts.CreateDraftCommand) (configctlcontracts.CreateDraftReply, *problem.Problem)
 }

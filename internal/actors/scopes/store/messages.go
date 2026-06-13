@@ -37,6 +37,12 @@ type tpoProfileReceivedMessage struct {
 	Event insights.TPOProfileSampledEvent
 }
 
+// crossVenueReceivedMessage is sent from the insights cross-venue
+// consumer actor to the projection actor (PROGRAM-0005 / H-8.c).
+type crossVenueReceivedMessage struct {
+	Event insights.CrossVenueSampledEvent
+}
+
 // signalReceivedMessage is sent from the signal consumer actor to the signal projection actor.
 type signalReceivedMessage struct {
 	Event signal.SignalGeneratedEvent

@@ -18,6 +18,19 @@ type Registry struct {
 	VolumeProfileLatest  natskit.ControlSpec
 	TPOProfileSampled    natskit.EventSpec
 	TPOProfileLatest     natskit.ControlSpec
+	CrossVenueSampled    natskit.EventSpec
+	CrossVenueLatest     natskit.ControlSpec
+}
+
+// StoreCrossVenueConsumer is the store binding that projects cross-venue
+// snapshots into the KV latest bucket (PROGRAM-0005 / H-8.c).
+func StoreCrossVenueConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec(
+		"store-cross-venue",
+		"insights.events.crossvenue.sampled.>",
+		"insights.events.v1.cross_venue_sampled",
+		"INSIGHTS_EVENTS",
+	)
 }
 
 // StoreVolumeProfileConsumer is the store binding that projects
@@ -72,6 +85,17 @@ func DefaultRegistry() Registry {
 			Subject:     "insights.query.tpo.latest",
 			RequestType: "insights.query.v1.tpo_latest_request",
 			ReplyType:   "insights.query.v1.tpo_latest_reply",
+			QueueGroup:  "insights.query",
+		},
+		CrossVenueSampled: natskit.EventSpec{
+			Subject: "insights.events.crossvenue.sampled",
+			Type:    "insights.events.v1.cross_venue_sampled",
+			Stream:  eventStream,
+		},
+		CrossVenueLatest: natskit.ControlSpec{
+			Subject:     "insights.query.crossvenue.latest",
+			RequestType: "insights.query.v1.cross_venue_latest_request",
+			ReplyType:   "insights.query.v1.cross_venue_latest_reply",
 			QueueGroup:  "insights.query",
 		},
 	}

@@ -16,4 +16,5 @@ import (
 type InsightsGateway interface {
 	GetLatestVolumeProfile(context.Context, insightsclient.VolumeProfileLatestQuery) (insightsclient.VolumeProfileLatestReply, *problem.Problem)
 	GetLatestTPOProfile(context.Context, insightsclient.TPOProfileLatestQuery) (insightsclient.TPOProfileLatestReply, *problem.Problem)
+	GetLatestCrossVenue(context.Context, insightsclient.CrossVenueLatestQuery) (insightsclient.CrossVenueLatestReply, *problem.Problem)
 }

@@ -7,12 +7,13 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-8.b fechada (PR #51, `cd31cf1`,
-2026-06-13)** — TPO profile (compute→publish→KV→read) entregue. Onda
-atual: **H-8.b.1** — persistência ClickHouse do TPO (Array-columns
-períodos+níveis; espelha a H-8.a.1; reusa o layer codegen `insights`).
-Rodando no **loop autônomo** autorizado pelo owner (self-merge
-escopado, ver
+Last meaningful state change: **H-8.b.1 fechada (PR #52, `9d5b284`,
+2026-06-13)** — persistência ClickHouse do TPO entregue. Onda atual:
+**H-8.c** — cross-venue trade fusion (windowed snapshot por canonical
+instrument; **topologia nova** — fusion actor no nível do
+DeriveSupervisor, não per-source). Última capacidade da Fase Insights
+(fecha com H-8.c.1, a persistência ClickHouse). Rodando no **loop
+autônomo** autorizado pelo owner (self-merge escopado, ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) →
 "Errata"). Insights são trades-only, decision-support, nunca
 directives (ADR-0027). Em paralelo, no gate temporal próprio:
@@ -80,7 +81,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-8.a** | Fechada (PR #49 mergeada em `main` em `2e3791d`, 2026-06-13) | Volume Profile (VPVR) + overload policy — primeira capacidade de **insights** (decision-support, nunca directives — ADR-0027). Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` single-writer; **KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`); read endpoint no gateway; analyzer `check insights` (P5 — fronteira read-only); **promove ADR-0027 → Accepted**. **Trades-only** (foundry não ingere depth); liquidity heatmap FORA (Decisão #3). Persistência ClickHouse **deferida** (gap G12 → H-8.a.1). Numeração H-8.a/b/c (não H-9/H-10 — reservadas a storage tier, ADR-0023). Decisões #1–#5 da abertura no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 | **H-8.a.1** | Fechada (PR #50 mergeada em `main` em `1dc4989`, 2026-06-13) | Persistência ClickHouse do VolumeProfile — resolve **G12** (deferido na H-8.a). Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B; preserva 1-evento→1-row) + colunas canônicas base/quote/contract; **extensão do codegen** p/ o layer `insights` evidence-style (Decisão #7 Opção A — mantém "writer→ClickHouse é codegen-governed"); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` (single-writer: writer dono da tabela CH, store dono do KV) + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect `insights-contracts-drift`. Read de history CH FORA (KV-latest segue o read corrente). Primeira onda do **loop autônomo** (self-merge escopado, ADR-0026 errata). Decisões #6/#7 + mea culpa no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 | **H-8.b** | Fechada (PR #51 mergeada em `main` em `cd31cf1`, 2026-06-13) | TPO profile (Time-Price Opportunity) — segunda capacidade de insights, **escopo compute→publish→KV→read** (espelha a H-8.a). **Timeframe-anchored** (T1 — não session-anchored; foundry sem conceito de sessão) + **trades-only** (T2 — períodos derivados de trades, não candles). Janela de timeframe subdividida em períodos (letras A–X, cap 24 — T3); cada trade marca seu nível de preço (`BucketLevel`) com a letra do período. `TPOProfile{Periods[], Levels[]}`, `TPOLevel{PriceLevel, Letters, Count}`; POC/VAH/VAL/IB/range no snapshot (T4). Sampler no derive + stream `INSIGHTS_EVENTS` + KV-latest `INSIGHTS_TPO_LATEST` + read `GET /insights/tpo/latest`. Persistência **ClickHouse deferida à H-8.b.1** (T5, split em implementação — precedente H-8.a/a.1). Decisões T1–T5 (agente, pré-flight) no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
-| **H-8.b.1** | **Atual** (esta entrega — branch `feat/h-8-b-1-clickhouse-tpo`; loop autônomo, 2026-06-13) | Persistência ClickHouse do TPO (T5; espelha a H-8.a.1). Tabela `insights_tpo` com **Array-columns paralelas**: períodos (`period_letter/period_high/period_low Array(String)`) + níveis (`level_price/level_letters Array(String)`, `level_count Array(Int32)`) + scalars POC/VAH/VAL/IB/range + canônicas base/quote/contract; 1-evento→1-row preservado. Reusa o layer codegen `insights` (family `tpo`); consumer writer-side `writer-tpo`; mapper `mapTPOProfileRow`; canário `requireclickhouse`; drift-detect `writer-tpo` + tabela. |
+| **H-8.b.1** | Fechada (PR #52 mergeada em `main` em `9d5b284`, 2026-06-13) | Persistência ClickHouse do TPO (T5; espelha a H-8.a.1). Tabela `insights_tpo` com **Array-columns paralelas**: períodos (`period_letter/period_high/period_low Array(String)`) + níveis (`level_price/level_letters Array(String)`, `level_count Array(Int32)`) + scalars POC/VAH/VAL/IB/range + canônicas base/quote/contract; 1-evento→1-row preservado. Reusa o layer codegen `insights` (family `tpo`); consumer writer-side `writer-tpo`; mapper `mapTPOProfileRow`; canário `requireclickhouse`; drift-detect `writer-tpo` + tabela. |
+| **H-8.c** | **Atual** (esta entrega — branch `feat/h-8-c-cross-venue`; loop autônomo, 2026-06-13) | Cross-venue trade fusion — **última capacidade da Fase Insights** (escopo compute→publish→KV→read; ClickHouse → H-8.c.1). `CrossVenueSnapshot` por canonical instrument por janela de timeframe: linhas por-venue (trade_count, notional, last/high/low) + spread consolidado/mid/venue dominante. **Topologia nova (C1)**: fusion actor único no nível do `DeriveSupervisor` (não FamilyProcessor per-source — cada SourceScopeActor só vê seu source); funde por canonical instrument (venue = dimensão fundida; `CanonicalInstrument` exclui venue, ADR-0021). Windowed (C2, owner). Stream `INSIGHTS_EVENTS` + KV `INSIGHTS_CROSS_VENUE_LATEST` + read `GET /insights/cross-venue/latest` + drift-detect `store-cross-venue`. Decisões C1–C5 no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -237,6 +239,32 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-8.c (loop autônomo — cross-venue trade fusion, compute→publish→KV→read):
+
+- **Commit 0**: docs-first (PRD C1–C5; H-8.b.1 Fechada). **Commit 1**:
+  domínio `cross_venue.go` (`CrossVenueSnapshot`, `VenueRow`;
+  `ConsolidatedSpread`/`DominantVenue` puros, big.Rat) + evento.
+  **Commit 2 (topologia nova)**: `CrossVenueFusion` (windowed, keyed por
+  canonical instrument, per-venue accum) + `CrossVenueFusionActor`
+  ÚNICO no nível do `DeriveSupervisor` (não per-source — cada
+  SourceScopeActor só vê seu source); supervisor faneia todo trade ao
+  fusion actor; publisher próprio. **Commit 3**: store-side
+  `store-cross-venue` + `cross_venue_kv_store` (`INSIGHTS_CROSS_VENUE_
+  LATEST`, key sem source) + `CrossVenueProjectionActor`. **Commit 4**:
+  read `GET /insights/cross-venue/latest` (sem source; gateway com 3 KV
+  stores; boot_test +1; HTTP-API grupo 14 → 3 rotas). **Commit 5**:
+  drift-detect `store-cross-venue` + canário integration
+  (publish→consume→KV→read vs NATS vivo) + este closure.
+- single-writer (ADR-0008): derive publica em `INSIGHTS_EVENTS`; store é
+  dono do bucket `INSIGHTS_CROSS_VENUE_LATEST`.
+
+**Próxima sub-onda destravada após merge**: **H-8.c.1** (cross-venue
+ClickHouse — espelha a/a.1, b/b.1; Array-columns das venue rows) — **a
+ÚLTIMA sub-onda; sua entrega transita PROGRAM-0005 → `Closed`**. Abre
+APENAS após merge da H-8.c.
 
 ---
 

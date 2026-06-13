@@ -35,3 +35,17 @@ type TPOProfileLatestQuery struct {
 type TPOProfileLatestReply struct {
 	TPOProfile *insights.TPOProfile
 }
+
+// CrossVenueLatestQuery requests the latest cross-venue snapshot for a
+// partition (canonical instrument + timeframe). No source: cross-venue
+// fusion spans sources by design.
+type CrossVenueLatestQuery struct {
+	Instrument instrument.CanonicalInstrument
+	Timeframe  int
+}
+
+// CrossVenueLatestReply carries the latest cross-venue snapshot, or nil
+// when none has been materialized yet.
+type CrossVenueLatestReply struct {
+	CrossVenueSnapshot *insights.CrossVenueSnapshot
+}

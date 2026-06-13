@@ -42,6 +42,12 @@ type tpoProjectionStore interface {
 	Put(ctx context.Context, tp insights.TPOProfile) (natskit.PutResult, *problem.Problem)
 }
 
+// crossVenueProjectionStore is the write interface used by
+// CrossVenueProjectionActor (PROGRAM-0005 / H-8.c).
+type crossVenueProjectionStore interface {
+	Put(ctx context.Context, cv insights.CrossVenueSnapshot) (natskit.PutResult, *problem.Problem)
+}
+
 // signalProjectionStore is the write interface used by SignalProjectionActor.
 type signalProjectionStore interface {
 	Put(ctx context.Context, sig signal.Signal) (natskit.PutResult, *problem.Problem)

@@ -15,15 +15,16 @@ import (
 // H-8.b (TPO). A nil per-capability KV store degrades that capability
 // to Unavailable without affecting the others.
 type Gateway struct {
-	kv    *VolumeProfileKVStore
-	tpoKV *TPOKVStore
+	kv           *VolumeProfileKVStore
+	tpoKV        *TPOKVStore
+	crossVenueKV *CrossVenueKVStore
 }
 
 var _ ports.InsightsGateway = (*Gateway)(nil)
 
 // NewGateway builds the insights read gateway over started KV stores.
-func NewGateway(kv *VolumeProfileKVStore, tpoKV *TPOKVStore) *Gateway {
-	return &Gateway{kv: kv, tpoKV: tpoKV}
+func NewGateway(kv *VolumeProfileKVStore, tpoKV *TPOKVStore, crossVenueKV *CrossVenueKVStore) *Gateway {
+	return &Gateway{kv: kv, tpoKV: tpoKV, crossVenueKV: crossVenueKV}
 }
 
 func (g *Gateway) GetLatestVolumeProfile(ctx context.Context, query insightsclient.VolumeProfileLatestQuery) (insightsclient.VolumeProfileLatestReply, *problem.Problem) {
@@ -46,4 +47,15 @@ func (g *Gateway) GetLatestTPOProfile(ctx context.Context, query insightsclient.
 		return insightsclient.TPOProfileLatestReply{}, prob
 	}
 	return insightsclient.TPOProfileLatestReply{TPOProfile: tp}, nil
+}
+
+func (g *Gateway) GetLatestCrossVenue(ctx context.Context, query insightsclient.CrossVenueLatestQuery) (insightsclient.CrossVenueLatestReply, *problem.Problem) {
+	if g == nil || g.crossVenueKV == nil {
+		return insightsclient.CrossVenueLatestReply{}, problem.New(problem.Unavailable, "cross venue gateway is unavailable")
+	}
+	cv, prob := g.crossVenueKV.Get(ctx, query.Instrument, query.Timeframe)
+	if prob != nil {
+		return insightsclient.CrossVenueLatestReply{}, prob
+	}
+	return insightsclient.CrossVenueLatestReply{CrossVenueSnapshot: cv}, nil
 }
