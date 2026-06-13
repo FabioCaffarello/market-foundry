@@ -36,6 +36,12 @@ type volumeProfileProjectionStore interface {
 	Put(ctx context.Context, vp insights.VolumeProfile) (natskit.PutResult, *problem.Problem)
 }
 
+// tpoProjectionStore is the write interface used by
+// TPOProjectionActor (PROGRAM-0005 / H-8.b).
+type tpoProjectionStore interface {
+	Put(ctx context.Context, tp insights.TPOProfile) (natskit.PutResult, *problem.Problem)
+}
+
 // signalProjectionStore is the write interface used by SignalProjectionActor.
 type signalProjectionStore interface {
 	Put(ctx context.Context, sig signal.Signal) (natskit.PutResult, *problem.Problem)

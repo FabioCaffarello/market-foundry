@@ -31,6 +31,17 @@ func StoreVolumeProfileConsumer() natskit.ConsumerSpec {
 	)
 }
 
+// StoreTPOConsumer is the store binding that projects TPO profiles into
+// the KV latest bucket (PROGRAM-0005 / H-8.b).
+func StoreTPOConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec(
+		"store-tpo",
+		"insights.events.tpo.sampled.>",
+		"insights.events.v1.tpo_sampled",
+		"INSIGHTS_EVENTS",
+	)
+}
+
 func DefaultRegistry() Registry {
 	eventStream := natskit.StreamSpec{
 		Name:     "INSIGHTS_EVENTS",

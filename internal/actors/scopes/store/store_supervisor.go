@@ -255,6 +255,29 @@ func declarePipelines() ([]Pipeline, pipelineRegistries) {
 			}),
 		},
 
+		// --- Insights TPO pipeline (PROGRAM-0005 / H-8.b; always on) ---
+		{
+			Scope:          DomainInsights,
+			Family:         "tpo",
+			ProjectionName: "tpo-projection",
+			ConsumerName:   "tpo-consumer",
+			Buckets:        []string{natsinsights.TPOLatestBucket},
+			ConsumerSpec:   natsinsights.StoreTPOConsumer(),
+			IsEnabled:      func(settings.PipelineConfig) bool { return true },
+			NewProjection: func(natsURL string, tracker *healthz.Tracker) actor.Producer {
+				return NewTPOProjectionActor(TPOProjectionConfig{NATSURL: natsURL, Tracker: tracker})
+			},
+			NewConsumer: startConsumer("tpo", func(url string, spec natskit.ConsumerSpec, projPID *actor.PID, tracker *healthz.Tracker, actorCtx *actor.Context, logger *slog.Logger) (io.Closer, error) {
+				c := natsinsights.NewTPOConsumer(url, spec, insReg, func(event insights.TPOProfileSampledEvent) {
+					if tracker != nil {
+						tracker.RecordEvent()
+					}
+					actorCtx.Send(projPID, tpoProfileReceivedMessage{Event: event})
+				}, logger)
+				return c, c.Start()
+			}),
+		},
+
 		// --- Signal pipelines (opt-in via pipeline.signal_families) ---
 		{
 			Scope:          DomainSignal,
