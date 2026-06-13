@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"internal/adapters/nats/natsinsights"
 	"internal/adapters/nats/natskit"
@@ -34,12 +35,15 @@ type Frame struct {
 type Handler func(Frame)
 
 // DeliverInsightsConsumer is the durable consumer spec the gateway uses
-// to feed the delivery router. H-11.a scopes it to volume-profile
-// events; H-11.b widens the filter subject to all insights events.
+// to feed the delivery router. Since H-11.b it reads ALL insights
+// events (`insights.events.>`) and decodes each by subject family
+// (volume_profile / tpo / cross_venue). The spec's Type is a nominal
+// label (the first family); the wire type is dispatched per message in
+// onMessage, never read from this field.
 func DeliverInsightsConsumer() natskit.ConsumerSpec {
 	return natskit.NewConsumerSpec(
 		"deliver-insights",
-		"insights.events.volumeprofile.sampled.>",
+		"insights.events.>",
 		"insights.events.v1.volume_profile_sampled",
 		"INSIGHTS_EVENTS",
 	)
@@ -109,29 +113,65 @@ func (c *Consumer) Start() error {
 	return nil
 }
 
-func (c *Consumer) onMessage(msg jetstream.Msg) {
-	env, prob := natskit.DecodeEvent[insights.VolumeProfileSampledEvent](c.registry.VolumeProfileSampled, msg.Data())
-	if prob != nil {
-		c.logger.Error("decode delivery event", "error", prob.Message, "subject", msg.Subject())
-		c.terminateOrNak(msg, prob)
-		return
-	}
+// Subject prefixes for the insights families delivery forwards. The
+// per-instrument suffix follows (e.g. `…sampled.<source>.<token>.<tf>`).
+const (
+	subjVolumeProfile = "insights.events.volumeprofile.sampled."
+	subjTPO           = "insights.events.tpo.sampled."
+	subjCrossVenue    = "insights.events.crossvenue.sampled."
+)
 
-	// Re-encode to JSON for the client wire (the stream carries CBOR).
-	payload, err := json.Marshal(env.Payload)
-	if err != nil {
-		c.logger.Error("marshal delivery frame", "error", err, "subject", msg.Subject())
-		if termErr := msg.Term(); termErr != nil { // un-encodable: do not redeliver
-			c.logger.Error("term delivery event", "error", termErr)
+func (c *Consumer) onMessage(msg jetstream.Msg) {
+	subject := msg.Subject()
+
+	// Dispatch the typed decode by subject family. Decoding to the
+	// concrete event then re-marshalling to JSON keeps the wire frame's
+	// snake_case shape identical to the matching /insights read endpoint
+	// (the stream itself carries CBOR).
+	var payload []byte
+	var prob *problem.Problem
+	switch {
+	case strings.HasPrefix(subject, subjVolumeProfile):
+		payload, prob = decodeToJSON[insights.VolumeProfileSampledEvent](c.registry.VolumeProfileSampled, msg.Data())
+	case strings.HasPrefix(subject, subjTPO):
+		payload, prob = decodeToJSON[insights.TPOProfileSampledEvent](c.registry.TPOProfileSampled, msg.Data())
+	case strings.HasPrefix(subject, subjCrossVenue):
+		payload, prob = decodeToJSON[insights.CrossVenueSampledEvent](c.registry.CrossVenueSampled, msg.Data())
+	default:
+		// An insights subject we don't recognize: ack and skip (forward
+		// nothing) rather than nak-loop on an unmappable message.
+		c.logger.Warn("unrecognized insights subject; skipping", "subject", subject)
+		if err := msg.Ack(); err != nil {
+			c.logger.Error("ack delivery event", "error", err)
 		}
 		return
 	}
 
-	c.handler(Frame{Subject: msg.Subject(), Payload: payload})
+	if prob != nil {
+		c.logger.Error("decode delivery event", "error", prob.Message, "subject", subject)
+		c.terminateOrNak(msg, prob)
+		return
+	}
+
+	c.handler(Frame{Subject: subject, Payload: payload})
 
 	if err := msg.Ack(); err != nil {
 		c.logger.Error("ack delivery event", "error", err)
 	}
+}
+
+// decodeToJSON decodes a CBOR insights envelope of type T (validated
+// against spec) and re-encodes the payload as JSON for the client wire.
+func decodeToJSON[T any](spec natskit.EventSpec, data []byte) ([]byte, *problem.Problem) {
+	env, prob := natskit.DecodeEvent[T](spec, data)
+	if prob != nil {
+		return nil, prob
+	}
+	out, err := json.Marshal(env.Payload)
+	if err != nil {
+		return nil, problem.Wrap(err, problem.Internal, "marshal delivery frame")
+	}
+	return out, nil
 }
 
 func (c *Consumer) terminateOrNak(msg jetstream.Msg, prob *problem.Problem) {
