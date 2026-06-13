@@ -1,6 +1,6 @@
 # PROGRAM-0005 — Fase Insights
 
-**Status:** Active
+**Status:** Closed (2026-06-13 — H-8.c.1 entregue; ver Changelog)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -192,19 +192,20 @@ Particularmente:
 
 A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
-- [ ] Sub-ondas H-8.a, H-8.b, H-8.c fechadas (cada uma com
-  `make verify` GREEN + RESUMPTION atualizado no commit de
-  fechamento).
-- [ ] `internal/domain/insights/` modela VolumeProfile, TPO e
+- [x] Sub-ondas H-8.a, H-8.b, H-8.c fechadas (cada uma — e seus splits
+  ClickHouse H-8.a.1/b.1/c.1 — com `make verify` GREEN + RESUMPTION
+  atualizado no commit de fechamento). PRs #49–#53 + H-8.c.1.
+- [x] `internal/domain/insights/` modela VolumeProfile, TPO e
   cross-venue snapshot respeitando ADR-0027 (decision-support,
   trades-only).
-- [ ] `INSIGHTS_EVENTS` stream single-writer; insights publicados
-  e persistidos (CH + KV); read endpoints no gateway.
-- [ ] `raccoon-cli check insights` integrado em `make verify`,
-  enforçando a fronteira read-only.
-- [ ] ADR-0027 promovido a `Accepted` (na H-8.a).
-- [ ] PROGRAM-0005 transita para `Closed` na entrega final de
-  H-8.c; entrada Changelog correspondente.
+- [x] `INSIGHTS_EVENTS` stream single-writer; insights publicados
+  e persistidos (CH `insights_volume_profile`/`insights_tpo`/
+  `insights_cross_venue` + KV latest); read endpoints no gateway.
+- [x] `raccoon-cli check insights` integrado em `make verify`,
+  enforçando a fronteira read-only (+ `insights-contracts-drift`).
+- [x] ADR-0027 promovido a `Accepted` (na H-8.a).
+- [x] PROGRAM-0005 transita para `Closed` na entrega final de
+  H-8.c.1; entrada Changelog correspondente.
 
 ## ADRs governantes
 
@@ -222,6 +223,18 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 | Overload scope creep para backpressure genérico de pipeline | Médio | Decisão #5: VPVR overload só (sujeito real); backpressure de pipeline fica para onda própria. |
 
 ## Changelog
+
+- **2026-06-13 (closure H-8.c.1 — FECHA A FASE)** — Persistência
+  ClickHouse do cross-venue entregue (5 commits): migration 016
+  `insights_cross_venue` (Array-columns das venue rows), family codegen
+  `cross_venue`, consumer `writer-cross-venue`, `mapCrossVenueRow`,
+  canário `requireclickhouse` PASS, drift-detect `writer-cross-venue` +
+  `insights_cross_venue`. **PROGRAM-0005 → `Closed`.** A Fase Insights
+  entregou 3 capacidades (VPVR, TPO, cross-venue), cada uma
+  compute→KV→read + persistência ClickHouse Array-columns, em 6
+  sub-ondas (H-8.a/a.1/b/b.1/c/c.1) no loop autônomo; layer codegen
+  `insights`, analyzer `check insights` + `insights-contracts-drift`,
+  ADR-0027 `Accepted`. Critérios de aceite todos satisfeitos.
 
 - **2026-06-13 (abertura H-8.c.1)** — Persistência ClickHouse do
   cross-venue aberta após H-8.c fechar (PR #53). Espelha a/a.1, b/b.1:

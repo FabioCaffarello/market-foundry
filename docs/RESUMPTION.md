@@ -243,6 +243,31 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-8.c.1 (loop autônomo — persistência ClickHouse do cross-venue; **FECHA a Fase Insights**):
+
+- **Commit 0**: docs-first (PRD; H-8.c Fechada). **Commit 1**: migration
+  `016_create_insights_cross_venue.sql` — venue rows em Array-columns
+  paralelas (`venue_trade_count Int64`) + scalars + canônicas, sem
+  source. **Commit 2**: codegen `cross_venue` family + goldens +
+  integrated.yaml; `WriterCrossVenueConsumer` (codegen-marked);
+  `mapCrossVenueRow` + `NewCrossVenueStarter`; pipeline entry;
+  spec_test. **Commit 3**: mapper unit test + canário `requireclickhouse`
+  (venue rows round-trip vs CH vivo). **Commit 4**: drift-detect
+  `writer-cross-venue` + `insights_cross_venue` + este closure +
+  **PROGRAM-0005 → `Closed`**.
+- **Fase Insights (PROGRAM-0005) FECHADA**: 3 capacidades (VPVR, TPO,
+  cross-venue), cada uma compute→KV→read + persistência ClickHouse
+  Array-columns; layer codegen `insights`; analyzer `check insights` +
+  `insights-contracts-drift`; ADR-0027 `Accepted`. 6 sub-ondas
+  (H-8.a/a.1/b/b.1/c/c.1) entregues no loop autônomo.
+
+**Próxima**: nenhuma sub-onda de insights pendente. Roadmap pós-insights
+(ver header): backpressure genérico de pipeline (pós delivery/insights),
+storage tier (H-9/H-10), delivery WS (H-11), Odin (H-12+). Owner decide a
+próxima Fase.
+
+---
+
 Entregas H-8.c (loop autônomo — cross-venue trade fusion, compute→publish→KV→read):
 
 - **Commit 0**: docs-first (PRD C1–C5; H-8.b.1 Fechada). **Commit 1**:

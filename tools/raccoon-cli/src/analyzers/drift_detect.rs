@@ -518,10 +518,15 @@ const INSIGHTS_EXPECTED_DURABLES: &[(&str, &str)] = &[
         "store-cross-venue",
         "store projects cross-venue snapshots from INSIGHTS_EVENTS into the KV latest bucket (H-8.c)",
     ),
+    (
+        "writer-cross-venue",
+        "writer persists cross-venue snapshots from INSIGHTS_EVENTS into the insights_cross_venue ClickHouse table (codegen-governed, H-8.c.1)",
+    ),
 ];
 
 /// Expected insights ClickHouse history tables that must appear in
-/// deploy/migrations (H-8.a.1 volume profile, H-8.b.1 TPO).
+/// deploy/migrations (H-8.a.1 volume profile, H-8.b.1 TPO, H-8.c.1
+/// cross-venue).
 const INSIGHTS_EXPECTED_TABLES: &[(&str, &str)] = &[
     (
         "insights_volume_profile",
@@ -530,6 +535,10 @@ const INSIGHTS_EXPECTED_TABLES: &[(&str, &str)] = &[
     (
         "insights_tpo",
         "stores per-window TPO history with parallel Array columns for periods and price levels",
+    ),
+    (
+        "insights_cross_venue",
+        "stores per-window cross-venue snapshots with parallel Array columns for the per-venue rows",
     ),
 ];
 
