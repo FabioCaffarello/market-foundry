@@ -9,6 +9,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
 	natsstrategy "internal/adapters/nats/natsstrategy"
@@ -116,6 +117,7 @@ type SourceScopeConfig struct {
 	StrategyRegistry    natsstrategy.Registry
 	RiskRegistry        natsrisk.Registry
 	ExecutionRegistry   natsexecution.Registry
+	InsightsRegistry    natsinsights.Registry
 	Timeframes          []time.Duration
 	Processors          []FamilyProcessor
 	SignalProcessors    []SignalFamilyProcessor
@@ -123,7 +125,11 @@ type SourceScopeConfig struct {
 	StrategyProcessors  []StrategyFamilyProcessor
 	RiskProcessors      []RiskFamilyProcessor
 	ExecutionProcessors []ExecutionFamilyProcessor
-	PublisherTracker    *healthz.Tracker
+	// InsightsProcessors reuse the FamilyProcessor shape (consume
+	// trades, publish via the insights publisher PID); the closure
+	// captures bucket-size/cap config (PROGRAM-0005 / H-8.a).
+	InsightsProcessors []FamilyProcessor
+	PublisherTracker   *healthz.Tracker
 }
 
 // SourceScopeActor supervises all actors for a single source/exchange in derive.
@@ -147,6 +153,8 @@ type SourceScopeActor struct {
 	strategyResolvers     map[string][]*actor.PID // key: symbol → strategy resolver PIDs
 	riskEvaluators        map[string][]*actor.PID // key: symbol → risk evaluator PIDs
 	executionEvaluators   map[string][]*actor.PID // key: symbol → execution evaluator PIDs
+	insightsPublisherPID  *actor.PID
+	insightsSamplers      map[string][]*actor.PID // key: symbol → insights sampler PIDs
 }
 
 func NewSourceScopeActor(cfg SourceScopeConfig) actor.Producer {
@@ -160,6 +168,7 @@ func NewSourceScopeActor(cfg SourceScopeConfig) actor.Producer {
 			strategyResolvers:   make(map[string][]*actor.PID),
 			riskEvaluators:      make(map[string][]*actor.PID),
 			executionEvaluators: make(map[string][]*actor.PID),
+			insightsSamplers:    make(map[string][]*actor.PID),
 		}
 	}
 }
@@ -281,6 +290,16 @@ func (a *SourceScopeActor) start(c *actor.Context) {
 		}), "execution-publisher")
 	}
 
+	// Spawn insights publisher only if insights processors are configured.
+	if len(a.cfg.InsightsProcessors) > 0 {
+		a.insightsPublisherPID = c.SpawnChild(NewInsightsPublisherActor(InsightsPublisherConfig{
+			URL:      a.cfg.NATSURL,
+			Source:   "derive.insights-publisher." + a.cfg.Source,
+			Registry: a.cfg.InsightsRegistry,
+			Tracker:  a.cfg.PublisherTracker,
+		}), "insights-publisher")
+	}
+
 	tfSeconds := make([]int, len(a.cfg.Timeframes))
 	for i, tf := range a.cfg.Timeframes {
 		tfSeconds[i] = int(tf.Seconds())
@@ -344,6 +363,20 @@ func (a *SourceScopeActor) onActivateSampler(c *actor.Context, msg activateSampl
 		}
 	}
 	a.samplers[symbol] = pids
+
+	// Spawn insights samplers (consume trades like evidence; publish
+	// via the insights publisher — PROGRAM-0005 / H-8.a).
+	var insightsPids []*actor.PID
+	for _, proc := range a.cfg.InsightsProcessors {
+		for _, tf := range a.cfg.Timeframes {
+			name := fmt.Sprintf("%s-%s-%ds", proc.ActorPrefix, symbol, int(tf.Seconds()))
+			pid := c.SpawnChild(proc.NewActor(a.cfg.Source, symbol, tf, a.insightsPublisherPID, scopePID), name)
+			insightsPids = append(insightsPids, pid)
+		}
+	}
+	if len(insightsPids) > 0 {
+		a.insightsSamplers[symbol] = insightsPids
+	}
 
 	// Spawn signal samplers.
 	var signalPids []*actor.PID
@@ -450,6 +483,10 @@ func (a *SourceScopeActor) routeTrade(c *actor.Context, msg tradeReceivedMessage
 		return
 	}
 	for _, pid := range pids {
+		c.Send(pid, msg)
+	}
+	// Fan out to insights samplers for the same symbol.
+	for _, pid := range a.insightsSamplers[symbol] {
 		c.Send(pid, msg)
 	}
 }

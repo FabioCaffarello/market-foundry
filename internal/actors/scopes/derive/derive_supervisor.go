@@ -9,6 +9,7 @@ import (
 	natsdecision "internal/adapters/nats/natsdecision"
 	natsevidence "internal/adapters/nats/natsevidence"
 	natsexecution "internal/adapters/nats/natsexecution"
+	natsinsights "internal/adapters/nats/natsinsights"
 	natsobservation "internal/adapters/nats/natsobservation"
 	natsrisk "internal/adapters/nats/natsrisk"
 	natssignal "internal/adapters/nats/natssignal"
@@ -36,12 +37,14 @@ type DeriveSupervisor struct {
 	stratRegistry       natsstrategy.Registry
 	riskRegistry        natsrisk.Registry
 	execRegistry        natsexecution.Registry
+	insRegistry         natsinsights.Registry
 	processors          []FamilyProcessor
 	signalProcessors    []SignalFamilyProcessor
 	decisionProcessors  []DecisionFamilyProcessor
 	strategyProcessors  []StrategyFamilyProcessor
 	riskProcessors      []RiskFamilyProcessor
 	executionProcessors []ExecutionFamilyProcessor
+	insightsProcessors  []FamilyProcessor
 	sources             map[string]*actor.PID // key: source → SourceScopeActor PID
 	timeframes          []time.Duration
 	publisherTracker    *healthz.Tracker
@@ -99,6 +102,7 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	s.stratRegistry = natsstrategy.DefaultRegistry()
 	s.riskRegistry = natsrisk.DefaultRegistry()
 	s.execRegistry = natsexecution.DefaultRegistry()
+	s.insRegistry = natsinsights.DefaultRegistry()
 	consumerSpec := natsobservation.DeriveObservationConsumer()
 
 	// Evidence family processors — backward-compatible default: enabled when no families configured.
@@ -270,6 +274,26 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 	}, func(p ExecutionFamilyProcessor) string { return p.Family },
 		s.cfg.Pipeline.IsExecutionFamilyEnabled, s.logger, "execution")
 
+	// Insights family processors (PROGRAM-0005 / H-8.a). Consume
+	// trades like evidence; publish via the insights publisher.
+	// Decision-support only (ADR-0027). Always enabled — insights is
+	// a read-only descriptive overlay, not part of the directive
+	// pipeline that pipeline.*_families gates. BucketSize default "1"
+	// (price units of the quote asset); tunable per-config is a
+	// future refinement.
+	s.insightsProcessors = []FamilyProcessor{
+		{
+			Family:      "volume_profile",
+			ActorPrefix: "volume-profile-sampler",
+			NewActor: func(source, symbol string, tf time.Duration, pub, _ *actor.PID) actor.Producer {
+				return NewVolumeProfileSamplerActor(VolumeProfileSamplerConfig{
+					Source: source, Symbol: symbol, Timeframe: tf,
+					BucketSize: "1", MaxBuckets: 0, PublisherPID: pub,
+				})
+			},
+		},
+	}
+
 	// Spawn the observation consumer — routes trades back to this supervisor.
 	supervisorPID := ctx.PID()
 	ctx.SpawnChild(NewConsumerActor(ConsumerConfig{
@@ -329,6 +353,7 @@ func (s *DeriveSupervisor) ensureSourceScope(c *actor.Context, source string) *a
 		StrategyRegistry:    s.stratRegistry,
 		RiskRegistry:        s.riskRegistry,
 		ExecutionRegistry:   s.execRegistry,
+		InsightsRegistry:    s.insRegistry,
 		Timeframes:          s.timeframes,
 		Processors:          s.processors,
 		SignalProcessors:    s.signalProcessors,
@@ -336,6 +361,7 @@ func (s *DeriveSupervisor) ensureSourceScope(c *actor.Context, source string) *a
 		StrategyProcessors:  s.strategyProcessors,
 		RiskProcessors:      s.riskProcessors,
 		ExecutionProcessors: s.executionProcessors,
+		InsightsProcessors:  s.insightsProcessors,
 		PublisherTracker:    s.publisherTracker,
 	}), childName)
 

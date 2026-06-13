@@ -1,0 +1,54 @@
+package natsinsights
+
+import (
+	"time"
+
+	"internal/adapters/nats/natskit"
+
+	"github.com/nats-io/nats.go/jetstream"
+)
+
+// Registry declares the INSIGHTS_EVENTS subjects/streams. Insights
+// are decision-support (ADR-0027): the stream carries descriptive
+// analytics (volume profile, later TPO / cross-venue), never
+// directives. Single-writer per ADR-0008: derive is the only
+// publisher to INSIGHTS_EVENTS.
+type Registry struct {
+	VolumeProfileSampled natskit.EventSpec
+	VolumeProfileLatest  natskit.ControlSpec
+}
+
+// StoreVolumeProfileConsumer is the store binding that projects
+// volume profiles into the KV latest bucket.
+func StoreVolumeProfileConsumer() natskit.ConsumerSpec {
+	return natskit.NewConsumerSpec(
+		"store-volume-profile",
+		"insights.events.volumeprofile.sampled.>",
+		"insights.events.v1.volume_profile_sampled",
+		"INSIGHTS_EVENTS",
+	)
+}
+
+func DefaultRegistry() Registry {
+	eventStream := natskit.StreamSpec{
+		Name:     "INSIGHTS_EVENTS",
+		Subjects: []string{"insights.events.>"},
+		Storage:  jetstream.FileStorage,
+		MaxAge:   72 * time.Hour,
+		MaxBytes: 256 * 1024 * 1024, // 256 MB — sized for local/CI event retention
+	}
+
+	return Registry{
+		VolumeProfileSampled: natskit.EventSpec{
+			Subject: "insights.events.volumeprofile.sampled",
+			Type:    "insights.events.v1.volume_profile_sampled",
+			Stream:  eventStream,
+		},
+		VolumeProfileLatest: natskit.ControlSpec{
+			Subject:     "insights.query.volumeprofile.latest",
+			RequestType: "insights.query.v1.volume_profile_latest_request",
+			ReplyType:   "insights.query.v1.volume_profile_latest_reply",
+			QueueGroup:  "insights.query",
+		},
+	}
+}
