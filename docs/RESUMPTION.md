@@ -7,19 +7,17 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-7 fechada (2026-06-12)** —
-sub-onda final H-7.c mergeada (PR #47, `058b074`): modelagem do
-expiry (G10 resolvido — campo `Expiry` YYMMDD opcional, slot
-`[_expiry]` do token ativado, `binancef` preserva o sufixo
-delivery). Com a/b/c completas, a **Onda H-7 (Bybit adapter +
-multi-venue parity + expiry) está fechada**; ADR-0022 `Accepted`.
-**Nenhuma onda em voo.** O que resta na Fase Multi-venue é o gate
-temporal: **H-6.f.2 (~2026-08-26)** — flip do WHERE ClickHouse,
-deleções de helpers transitórios, verificação operacional,
-**promoção ADR-0021 → Accepted** e closure do PROGRAM-0004. Ondas
-H-8+ pertencem a programas futuros (ver
-[programs Index](programs/README.md)), abertas por decisão do
-owner. **26 ADRs total (0001–0026)**. Ver a wave table abaixo.
+Last meaningful state change: **Fase Insights aberta
+(PROGRAM-0005, 2026-06-13)** — após H-7 fechar (PR #47, `058b074`),
+o owner escolheu insights como próxima capacidade do harvest.
+Onda atual: **H-8.a** — Volume Profile (VPVR) + overload policy,
+trades-only (ADR-0027: insights são decision-support, nunca
+directives). Em paralelo, no gate temporal próprio:
+**H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
+ClickHouse, deleções de helpers, promoção ADR-0021 → Accepted).
+Roadmap pós-insights: storage tier (H-9/H-10, ADR-0023),
+delivery WS (H-11), Odin client (H-12+). **27 ADRs total
+(0001–0027)**. Ver a wave table abaixo.
 
 `make verify` GREEN locally; CI 7/7 GREEN at `main` HEAD, sustained
 since P4.1.1's SHA-pinning migration. Some intermediate Dependabot
@@ -76,6 +74,7 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-7.a** | Fechada (PR #45 mergeada em `main` em `8d5bedd`, 2026-06-12) | Capabilities framework (ADR-0022 R1–R4 **sem venue novo** — prova o contrato nos 2 venues existentes). Split H-7 a/b/c pela Decisão #1 (B) da abertura (owner, 2026-06-12; decisões #1–#5 registradas no [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-7"). Entrega: tipo `Capabilities` + retrofit `Capabilities()` em binances/binancef; counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}` + guard R3 no ingest (silently-reject + increment); gateway `GET /venues/capabilities` (+boot_test per protocolo #5 +HTTP-API.md); analyzer `check venue-parity` (P5) + policy. **ADR-0022 permanece `Proposed`** (critério 1 — adapter Bybit — pendente; promoção atômica em H-7.b). H-7.b (Bybit, observação apenas) e H-7.c (expiry/G10) abrem serialmente após merge. |
 | **H-7.b** | Fechada (PR #46 mergeada em `main` em `c561be2`, 2026-06-12) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
 | **H-7.c** | Fechada (PR #47 mergeada em `main` em `058b074`, 2026-06-12) — **fecha a Onda H-7** | Modelagem do expiry (G10, Decisão #4 (A) da abertura de H-7): campo opcional `Expiry string` (formato canônico **YYMMDD**, permitido apenas para contract classes com expiry — usdtfutures/coinfutures); zero impacto nos instruments sem expiry (lock-ins); `NewDelivery` constructor; `Symbol()`/`FromSymbol` estendidos; **ativação do slot dormente `[_expiry]`** do SubjectToken + `FromSubjectToken` aceita 4 componentes (revisita do pause trigger armado na f.1, no mesmo commit); errata ADR-0009 (slot ativado) + ADR-0021 (decisão futura tomada — campo entra no modelo); `binancef.parseFuturesSymbol` passa a POPULAR o expiry do sufixo `_YYMMDD` (delivery futures deixam de colapsar em identidade). **Coluna ClickHouse `expiry` DEFERIDA** até a onda que habilitar delivery no ingest — gap sucessor registrado no closure (G11). **ADR-0021 permanece `Proposed`** (promoção em H-6.f.2). |
+| **H-8.a** | **Atual** (esta entrega — branch `feat/h-8a-volume-profile`; abertura do PROGRAM-0005 / Fase Insights, 2026-06-13) | Volume Profile (VPVR) + overload policy — primeira capacidade de **insights** (decision-support, nunca directives — ADR-0027). Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` single-writer; tabela CH `insights_volume_profile` + KV latest; read endpoint no gateway; analyzer `check insights` (P5 — fronteira read-only); **promove ADR-0027 → Accepted**. **Trades-only** (foundry não ingere depth); liquidity heatmap FORA (Decisão #3). Numeração H-8.a/b/c (não H-9/H-10 — reservadas a storage tier, ADR-0023). Decisões #1–#5 da abertura no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +

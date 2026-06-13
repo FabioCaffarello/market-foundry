@@ -113,4 +113,5 @@ place.
 | [0001](PROGRAM-0001-foundation.md) | Harvest Foundation | Active | H-0, H-1, H-2 |
 | [0002](PROGRAM-0002-wire.md) | Fase Wire — proto + replay + sequencer | Closed | H-3.a, H-3.b, H-4 |
 | [0003](PROGRAM-0003-observability.md) | Fase Observability | Active | H-5 |
-| [0004](PROGRAM-0004-multi-venue.md) | Fase Multi-venue | Active | H-6.a–H-6.f |
+| [0004](PROGRAM-0004-multi-venue.md) | Fase Multi-venue | Active | H-6.a–H-6.f, H-7 |
+| [0005](PROGRAM-0005-insights.md) | Fase Insights | Active | H-8.a–H-8.c |
