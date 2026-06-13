@@ -242,6 +242,28 @@ func NewTPOStarter(reg natsinsights.Registry) ConsumerStarter {
 	}
 }
 
+// NewCrossVenueStarter creates a ConsumerStarter for insights cross-venue
+// snapshots (H-8.c.1). Family-specific insights layer; reuses the
+// natsinsights cross-venue consumer with the writer-cross-venue spec.
+func NewCrossVenueStarter(reg natsinsights.Registry) ConsumerStarter {
+	return func(
+		natsURL string,
+		spec natskit.ConsumerSpec,
+		emitRow RowEmitter,
+		tracker *healthz.Tracker,
+		logger *slog.Logger,
+	) (io.Closer, error) {
+		consumer := natsinsights.NewCrossVenueConsumer(natsURL, spec, reg,
+			func(event insights.CrossVenueSampledEvent) {
+				recordEvent(tracker)
+				emitRow(mapCrossVenueRow(event))
+			},
+			logger,
+		)
+		return consumer, consumer.Start()
+	}
+}
+
 func recordEvent(tracker *healthz.Tracker) {
 	if tracker == nil {
 		return
@@ -632,6 +654,58 @@ func mapTPOProfileRow(e insights.TPOProfileSampledEvent) []any {
 		tp.OpenTime,
 		tp.CloseTime,
 		tp.Final,
+	}
+}
+
+// mapCrossVenueRow maps an insights cross-venue snapshot to a single
+// ClickHouse row (H-8.c.1). The per-venue rows become six PARALLEL,
+// index-aligned arrays (venue_name/trade_count/notional/last/high/low),
+// preserving the codegen 1-event→1-row contract. No source column —
+// cross-venue spans sources (the canonical instrument is the join key).
+// Column order matches the insertSQL in cmd/writer/pipeline.go.
+func mapCrossVenueRow(e insights.CrossVenueSampledEvent) []any {
+	m := e.Metadata
+	cv := e.CrossVenueSnapshot
+
+	names := make([]string, len(cv.Venues))
+	counts := make([]int64, len(cv.Venues))
+	notionals := make([]string, len(cv.Venues))
+	lasts := make([]string, len(cv.Venues))
+	highs := make([]string, len(cv.Venues))
+	lows := make([]string, len(cv.Venues))
+	for i, v := range cv.Venues {
+		names[i] = v.Venue
+		counts[i] = v.TradeCount
+		notionals[i] = v.Notional
+		lasts[i] = v.LastPrice
+		highs[i] = v.HighPrice
+		lows[i] = v.LowPrice
+	}
+
+	return []any{
+		m.ID,
+		m.OccurredAt,
+		m.CorrelationID,
+		m.CausationID,
+		cv.VenueSymbol(),
+		string(cv.Instrument.Base),
+		string(cv.Instrument.Quote),
+		string(cv.Instrument.Contract),
+		uint32(cv.Timeframe),
+		names,
+		counts,
+		notionals,
+		lasts,
+		highs,
+		lows,
+		cv.SpreadAbs,
+		cv.SpreadBps,
+		cv.MidPrice,
+		cv.DominantVenue,
+		cv.TradeCount,
+		cv.OpenTime,
+		cv.CloseTime,
+		cv.Final,
 	}
 }
 

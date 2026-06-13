@@ -1,0 +1,21 @@
+family:
+  name: cross_venue
+  layer: insights
+  tier: 1
+
+nats:
+  subject: "insights.events.crossvenue.sampled.>"
+  event_type: "insights.events.v1.cross_venue_sampled"
+  stream: INSIGHTS_EVENTS
+  durable: writer-cross-venue
+
+writer:
+  table: insights_cross_venue
+  columns: "event_id, occurred_at, correlation_id, causation_id, symbol, base, quote, contract, timeframe, venue_name, venue_trade_count, venue_notional, venue_last_price, venue_high_price, venue_low_price, spread_abs, spread_bps, mid_price, dominant_venue, trade_count, open_time, close_time, final"
+  mapper: mapCrossVenueRow
+  pipeline_family_key: cross_venue
+  config_array: insights_families
+
+domain:
+  event_package: insights
+  event_type: CrossVenueSampledEvent
