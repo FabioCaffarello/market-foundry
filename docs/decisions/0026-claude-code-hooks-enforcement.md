@@ -120,7 +120,38 @@ drift check shipped warn-only before any hardening was considered):
   the same PR, absorbing the P5.8 minimal posture).
 - Harness audit FASE 1 (2026-06-09) — findings P0-1, P0-2, P0-4.
 
+## Errata
+
+### 2026-06-13 — Owner delegation of self-merge for the PROGRAM-0005 loop
+
+The owner (Fabio Caffarello) explicitly authorized the agent to run an
+**autonomous wave loop** for PROGRAM-0005 (Fase Insights): implement →
+open PR → monitor the required checks → **squash-merge** → open the
+next wave (H-8.a.1 → H-8.b → onward). This is a **scoped, explicit
+override of P9's "no agent self-merge"** for this loop's PRs — *not* a
+blanket rescission of P9.
+
+Crucially, **the hook posture does not change**: `p9-branch-guard.sh`
+already **asks** (not denies) on `gh pr merge` — the very "misto"
+decision recorded above (2026-06-09) that "preserves the owner's
+in-the-moment agency". The delegation simply means the agent *attempts*
+the squash-merge and the owner *answers that ask with allow* for this
+loop's PRs. `git push origin main` and `--no-verify`/`LEFTHOOK=0`
+bypass remain **denied** — the agent pushes only feature branches and
+merges via `gh pr merge --squash` (linear history is required on
+`main`). Branch protection still gates the merge on the three required
+checks (Unit Tests, Repository Consistency & Quality Gate, Go Lint).
+
+Agent merge discipline for the loop (self-imposed, beyond green
+checks): (1) confirm the required checks pass, (2) **diff self-audit**
+— read the diff, verify scope and no out-of-scope files, (3)
+`gh pr merge --squash`, (4) sync `main` + clean baseline, (5) open the
+next wave. See also CLAUDE.md → "Fase Harvest" P9 (note appended).
+
 ## Changelog
 
 - 2026-06-09 — Created and Accepted (harness FASE 2 B2 PR, with
   implementation).
+- 2026-06-13 — Errata: owner delegated self-merge to the agent for the
+  PROGRAM-0005 autonomous loop (scoped P9 override; hook "ask"-on-merge
+  posture unchanged). Recorded with the H-8.a.1 docs commit.

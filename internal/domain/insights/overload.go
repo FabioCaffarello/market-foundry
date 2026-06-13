@@ -66,3 +66,24 @@ func (l OverloadLevel) Validate() *problem.Problem {
 func (l OverloadLevel) AdmitsNewLevel() bool {
 	return l < OverloadL3
 }
+
+// Label returns the canonical "L0".."L3" string for the level, used as
+// the stored value in the analytical overload column (a readable
+// LowCardinality(String)). Unknown values fall back to "L?" rather than
+// fabricating a level. This is deliberately NOT a Stringer: fmt/log
+// output of OverloadLevel stays numeric to avoid disturbing existing
+// formatting expectations.
+func (l OverloadLevel) Label() string {
+	switch l {
+	case OverloadL0:
+		return "L0"
+	case OverloadL1:
+		return "L1"
+	case OverloadL2:
+		return "L2"
+	case OverloadL3:
+		return "L3"
+	default:
+		return "L?"
+	}
+}

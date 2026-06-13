@@ -7,12 +7,14 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **Fase Insights aberta
-(PROGRAM-0005, 2026-06-13)** — após H-7 fechar (PR #47, `058b074`),
-o owner escolheu insights como próxima capacidade do harvest.
-Onda atual: **H-8.a** — Volume Profile (VPVR) + overload policy,
-trades-only (ADR-0027: insights são decision-support, nunca
-directives). Em paralelo, no gate temporal próprio:
+Last meaningful state change: **H-8.a fechada (PR #49, `2e3791d`,
+2026-06-13)** — Volume Profile (VPVR) + overload entregue na Fase
+Insights (PROGRAM-0005). Onda atual: **H-8.a.1** — persistência
+ClickHouse do VolumeProfile (Array-columns, completa G12), rodando
+no **loop autônomo** autorizado pelo owner (self-merge escopado, ver
+[ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) →
+"Errata"). Insights são trades-only, decision-support, nunca
+directives (ADR-0027). Em paralelo, no gate temporal próprio:
 **H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
 ClickHouse, deleções de helpers, promoção ADR-0021 → Accepted).
 Roadmap pós-insights: storage tier (H-9/H-10, ADR-0023),
@@ -74,7 +76,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-7.a** | Fechada (PR #45 mergeada em `main` em `8d5bedd`, 2026-06-12) | Capabilities framework (ADR-0022 R1–R4 **sem venue novo** — prova o contrato nos 2 venues existentes). Split H-7 a/b/c pela Decisão #1 (B) da abertura (owner, 2026-06-12; decisões #1–#5 registradas no [PROGRAM-0004](programs/PROGRAM-0004-multi-venue.md) → "Sub-ondas H-7"). Entrega: tipo `Capabilities` + retrofit `Capabilities()` em binances/binancef; counter `marketfoundry_adapter_undeclared_event_total{venue,event_type,contract}` + guard R3 no ingest (silently-reject + increment); gateway `GET /venues/capabilities` (+boot_test per protocolo #5 +HTTP-API.md); analyzer `check venue-parity` (P5) + policy. **ADR-0022 permanece `Proposed`** (critério 1 — adapter Bybit — pendente; promoção atômica em H-7.b). H-7.b (Bybit, observação apenas) e H-7.c (expiry/G10) abrem serialmente após merge. |
 | **H-7.b** | Fechada (PR #46 mergeada em `main` em `c561be2`, 2026-06-12) | Adapter Bybit — 3º venue, **plano de observação apenas** (Decisão #2 (A)): packages `bybits` (spot) e `bybitf` (linear perpetual) espelhando a família Binance; sources `bybits`/`bybitf` (Decisão #3 (A) — preserva a bijeção do `venueSourceContract`); house pattern `parseBybit*Symbol` + `Normalize` (Decisão #5 (A)). Bybit v5: subscribe-frames + `publicTrade.{SYMBOL}` com `data[]` array (N trades/frame) + taker side `S` (BuyerMaker = S=="Sell"). Wiring: Venue enum, websocket_actor switch, binding registry, adapters.toml, união do gateway. Canário integration vs NATS vivo. RUNTIME.md + CLAUDE.md ("No multi-exchange surface" sai da lista de non-features). **Promove ADR-0022 → `Accepted`** no commit final se os 6 critérios literais fecham. Delivery/inverse FORA (G10 gate até H-7.c); execução Bybit FORA (segment model intacto). |
 | **H-7.c** | Fechada (PR #47 mergeada em `main` em `058b074`, 2026-06-12) — **fecha a Onda H-7** | Modelagem do expiry (G10, Decisão #4 (A) da abertura de H-7): campo opcional `Expiry string` (formato canônico **YYMMDD**, permitido apenas para contract classes com expiry — usdtfutures/coinfutures); zero impacto nos instruments sem expiry (lock-ins); `NewDelivery` constructor; `Symbol()`/`FromSymbol` estendidos; **ativação do slot dormente `[_expiry]`** do SubjectToken + `FromSubjectToken` aceita 4 componentes (revisita do pause trigger armado na f.1, no mesmo commit); errata ADR-0009 (slot ativado) + ADR-0021 (decisão futura tomada — campo entra no modelo); `binancef.parseFuturesSymbol` passa a POPULAR o expiry do sufixo `_YYMMDD` (delivery futures deixam de colapsar em identidade). **Coluna ClickHouse `expiry` DEFERIDA** até a onda que habilitar delivery no ingest — gap sucessor registrado no closure (G11). **ADR-0021 permanece `Proposed`** (promoção em H-6.f.2). |
-| **H-8.a** | **Atual** (esta entrega — branch `feat/h-8a-volume-profile`; abertura do PROGRAM-0005 / Fase Insights, 2026-06-13) | Volume Profile (VPVR) + overload policy — primeira capacidade de **insights** (decision-support, nunca directives — ADR-0027). Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` single-writer; tabela CH `insights_volume_profile` + KV latest; read endpoint no gateway; analyzer `check insights` (P5 — fronteira read-only); **promove ADR-0027 → Accepted**. **Trades-only** (foundry não ingere depth); liquidity heatmap FORA (Decisão #3). Numeração H-8.a/b/c (não H-9/H-10 — reservadas a storage tier, ADR-0023). Decisões #1–#5 da abertura no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
+| **H-8.a** | Fechada (PR #49 mergeada em `main` em `2e3791d`, 2026-06-13) | Volume Profile (VPVR) + overload policy — primeira capacidade de **insights** (decision-support, nunca directives — ADR-0027). Bounded context `internal/domain/insights/` (VolumeProfile price-bucketed buy/sell notional por janela, binning canônico, overload L0–L3 com bounded buckets); sampler no derive scope consumindo `ObservationTrade`; stream `INSIGHTS_EVENTS` single-writer; **KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`); read endpoint no gateway; analyzer `check insights` (P5 — fronteira read-only); **promove ADR-0027 → Accepted**. **Trades-only** (foundry não ingere depth); liquidity heatmap FORA (Decisão #3). Persistência ClickHouse **deferida** (gap G12 → H-8.a.1). Numeração H-8.a/b/c (não H-9/H-10 — reservadas a storage tier, ADR-0023). Decisões #1–#5 da abertura no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
+| **H-8.a.1** | **Atual** (esta entrega — branch `feat/h-8-a-1-clickhouse-vpvr`; loop autônomo, 2026-06-13) | Persistência ClickHouse do VolumeProfile — completa **G12** (deferido na H-8.a). Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B; preserva 1-evento→1-row) + colunas canônicas base/quote/contract; **extensão do codegen** p/ o layer `insights` evidence-style (Decisão #7 Opção A — mantém "writer→ClickHouse é codegen-governed"); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` (single-writer: writer dono da tabela CH, store dono do KV) + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect ciente da tabela/consumer. Read de history CH FORA (KV-latest segue o read corrente). Decisões #6/#7 + mea culpa no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -231,6 +234,38 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-8.a.1 (loop autônomo — persistência ClickHouse do VPVR, resolve G12):
+
+- **Commit 0**: docs-first — PRD H-8.a.1 (Decisões #6 Array-columns /
+  #7 codegen-extend evidence-style + mea culpa) + RESUMPTION +
+  TRUTH-MAP + **errata P9** (delegação de self-merge ao agente no loop,
+  ADR-0026 + CLAUDE.md). **Commit 1**: migration `014_create_insights_
+  volume_profile.sql` — 3 colunas `Array(String)` paralelas + canônicas.
+  **Commit 2** (bundle atômico): codegen `validLayers += insights` +
+  helper `usesFamilySpecificNaming` (evidence-style p/ insights, mas
+  `IsInsightsFamilyEnabled` próprio); family `volume_profile.yaml` +
+  goldens + integrated.yaml; `WriterVolumeProfileConsumer`; settings
+  `InsightsFamilies`/`IsInsightsFamilyEnabled` (backward-compat);
+  `reg.insights` + pipeline entry; `NewVolumeProfileStarter` +
+  `mapVolumeProfileRow` (buckets→3 arrays paralelos, 1-evento→1-row);
+  `OverloadLevel.Label()`. **Commit 3**: canário `requireclickhouse`
+  (Array round-trip vs ClickHouse vivo) PASS. **Commit 4**: drift-detect
+  `insights-contracts-drift` (P5: durables writer/store + tabela em
+  migrations; novo `scan_sql_dir_for_string`) + fix de ordering do bloco
+  codegen no registry.go (event-stream-coverage no profile ci).
+  **Commit 5**: este closure.
+- **Gotcha registrado**: o bloco codegen `consumer_spec` (StreamSpec
+  inline sem Subjects) deve vir **depois** do `DefaultRegistry` (que
+  declara o stream com Subjects), senão o parser do contract-audit
+  (event-stream-coverage) vê a definição vazia primeiro — só pega no
+  `--profile ci`. Espelhar `natsevidence`.
+
+**Próxima sub-onda destravada após merge**: **H-8.b** (TPO profile) —
+reusa binning + stream `INSIGHTS_EVENTS` + a persistência CH (mesma
+família codegen evidence-style). Abre APENAS após merge da H-8.a.1.
 
 ---
 
@@ -2217,21 +2252,23 @@ futures no ingest segue gated pelos três gaps remanescentes:
    (`BTCUSDT-29MAR24`); o mapeamento `-29MAR24` → YYMMDD entra
    com o enablement.
 
-### G12 — Persistência ClickHouse do volume profile (deferida da H-8.a)
+### G12 — Persistência ClickHouse do volume profile (RESOLVIDO — H-8.a.1)
 
-A H-8.a entrega o volume profile (VPVR) via **KV-latest**
-(`INSIGHTS_VOLUME_PROFILE_LATEST`) — read-path operacional, prova o
-pipeline end-to-end. A persistência **ClickHouse** (history/
-analytics) foi deferida: o `VolumeProfile` tem `buckets[]` aninhados
-(N price levels por janela), e o codegen atual assume 1-evento→1-row
-plana (candle/signal). Persistir exige schema com array-columns ou
-multi-row + extensão do codegen, com o risco de golden
-self-consistency que a H-6.d enfrentou. Mea culpa: o commit 0 da
-H-8.a declarou a tabela na própria onda; o pré-flight do codegen
-revelou o descasamento e moveu para sub-onda própria. Sem efeito
-operacional hoje (KV-latest atende o read; nenhum consumidor de
-history de profile existe). Abordar quando insights precisar de
-history/analytics — com o cuidado de codegen que a H-6.d.1 exigiu.
+**Status: write-path RESOLVIDO na onda H-8.a.1.** A H-8.a entregou o
+VPVR via **KV-latest** (`INSIGHTS_VOLUME_PROFILE_LATEST`) e deferiu a
+persistência ClickHouse porque o `VolumeProfile` tem `buckets[]`
+aninhados. **Correção do framing (mea culpa):** o "não mapeia
+1-evento→1-row" vale só p/ multi-row — **Array-columns** mantêm 1-row.
+A H-8.a.1 resolveu via Opção B (Array-columns, Decisão #6) + extensão
+do codegen p/ o layer `insights` evidence-style (Opção A, Decisão #7):
+migration 014 `insights_volume_profile` (3 colunas `Array(String)`
+paralelas), family codegen `volume_profile`, consumer writer-side
+`writer-volume-profile`, mapper `mapVolumeProfileRow`, canário
+`requireclickhouse` (Array round-trip) PASS, e check `insights-contracts
+-drift`. Single-writer (ADR-0008): writer dono da tabela, store dono do
+KV. **Escopo residual (não-gap):** o **read** de history CH fica fora
+até existir um consumidor de history (KV-latest segue atendendo o read
+corrente); não há backfill retroativo dos profiles já em KV.
 
 Configurar um symbol de delivery num binding ANTES de fechar (1) e
 (2) produziria persistência parcial — não fazer. A onda de

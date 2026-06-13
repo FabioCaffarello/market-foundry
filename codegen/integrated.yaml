@@ -266,3 +266,22 @@ slices:
     marker: "codegen:begin pipeline_entry family=paper_order"
     integrated_at: "2026-03-21"
     stage: S260
+
+  # ── Insights ────────────────────────────────────────────────────
+  - family: volume_profile
+    artifact: consumer_spec
+    spec: codegen/families/volume_profile.yaml
+    golden: codegen/golden-snapshots/volume_profile/consumer_spec.go.golden
+    target: internal/adapters/nats/natsinsights/registry.go
+    marker: "codegen:begin consumer_spec family=volume_profile"
+    integrated_at: "2026-06-13"
+    stage: H-8.a.1
+
+  - family: volume_profile
+    artifact: pipeline_entry
+    spec: codegen/families/volume_profile.yaml
+    golden: codegen/golden-snapshots/volume_profile/pipeline_entry.go.golden
+    target: cmd/writer/pipeline.go
+    marker: "codegen:begin pipeline_entry family=volume_profile"
+    integrated_at: "2026-06-13"
+    stage: H-8.a.1

@@ -267,6 +267,19 @@ Travas operacionais que sustentam P9:
    reporta ao maintainer antes de fazer algo controverso, em vez
    de descobrir no PR review.
 
+> **Errata 2026-06-13 (delegação escopada):** o owner autorizou
+> explicitamente o agente a fazer **self-merge** dos PRs do **loop
+> autônomo da PROGRAM-0005** (Fase Insights: H-8.a.1 → H-8.b →
+> diante). É um override **escopado** de P9 para esse loop, não uma
+> revogação. O hook `p9-branch-guard.sh` **continua pedindo** (ask,
+> não deny) em `gh pr merge` — o agente *tenta* o squash-merge e o
+> owner *aprova o ask*; `git push origin main` e bypass
+> (`--no-verify`/`LEFTHOOK=0`) seguem **negados**. Disciplina de merge
+> do agente: checks verdes → **diff self-audit** → `gh pr merge
+> --squash` → sync main → próxima onda. Registro completo em
+> [ADR-0026](docs/decisions/0026-claude-code-hooks-enforcement.md) →
+> "Errata".
+
 ---
 
 ## Essential commands

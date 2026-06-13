@@ -52,3 +52,23 @@ func DefaultRegistry() Registry {
 		},
 	}
 }
+
+// codegen:begin consumer_spec family=volume_profile source=codegen/families/volume_profile.yaml
+// WriterVolumeProfileConsumer defines the durable consumer spec for writer consuming
+// volume_profile insights events.
+func WriterVolumeProfileConsumer() natskit.ConsumerSpec {
+	return natskit.ConsumerSpec{
+		Durable: "writer-volume-profile",
+		Event: natskit.EventSpec{
+			Subject: "insights.events.volumeprofile.sampled.>",
+			Type:    "insights.events.v1.volume_profile_sampled",
+			Stream: natskit.StreamSpec{
+				Name: "INSIGHTS_EVENTS",
+			},
+		},
+		AckWait:    30 * time.Second,
+		MaxDeliver: 5,
+	}
+}
+
+// codegen:end consumer_spec family=volume_profile

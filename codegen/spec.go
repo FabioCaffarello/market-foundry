@@ -96,9 +96,9 @@ func LoadAllSpecs(familiesDir string) ([]*FamilySpec, error) {
 // No two specs may share the same durable consumer name, the same
 // NATS subject, or the same (family.name).
 func ValidateCrossSpec(specs []*FamilySpec) error {
-	durables := make(map[string]string)  // durable → family
-	subjects := make(map[string]string)  // subject → family
-	names := make(map[string]string)     // family.name → spec file
+	durables := make(map[string]string) // durable → family
+	subjects := make(map[string]string) // subject → family
+	names := make(map[string]string)    // family.name → spec file
 	var errs []string
 
 	for _, spec := range specs {
@@ -154,6 +154,12 @@ func (s *FamilySpec) Validate() error {
 	validLayers := map[string]bool{
 		"evidence": true, "signal": true, "decision": true,
 		"strategy": true, "risk": true, "execution": true,
+		// insights (H-8.a.1) — decision-support read-only outputs
+		// (ADR-0027). Unlike the evidence→execution chain layers, each
+		// insights family is a DISTINCT event type, so it follows the
+		// evidence layer's family-specific naming (see
+		// usesFamilySpecificNaming) with its own config namespace.
+		"insights": true,
 	}
 	if !validLayers[s.Family.Layer] {
 		errs = append(errs, fmt.Sprintf("family.layer %q is not a valid layer", s.Family.Layer))
@@ -203,10 +209,15 @@ func (s *FamilySpec) Derived() DerivedFields {
 	pascalLayer := toPascalCase(s.Family.Layer)
 	hyphenFamily := strings.ReplaceAll(s.Family.Name, "_", "-")
 
+	// Family-specific layers (evidence, insights) name each writer
+	// artifact per-family because each family is a distinct event type;
+	// the evidence→execution chain layers share one event type per layer.
+	familySpecific := usesFamilySpecificNaming(s.Family.Layer)
+
 	// Consumer/inserter names: writer-{layer}-{family-hyphenated}-{role}
-	// Exception: evidence layer omits layer prefix.
+	// Exception: family-specific layers omit the layer prefix.
 	var consumerName, inserterName string
-	if s.Family.Layer == "evidence" {
+	if familySpecific {
 		consumerName = "writer-" + hyphenFamily + "-consumer"
 		inserterName = "writer-" + hyphenFamily + "-inserter"
 	} else {
@@ -215,16 +226,17 @@ func (s *FamilySpec) Derived() DerivedFields {
 	}
 
 	// Consumer spec function: Writer{PascalFamily}{PascalLayer}Consumer
-	// Exception: evidence layer omits layer from function name.
+	// Exception: family-specific layers omit the layer from the name.
 	var consumerSpecFunc string
-	if s.Family.Layer == "evidence" {
+	if familySpecific {
 		consumerSpecFunc = "Writer" + pascalFamily + "Consumer"
 	} else {
 		consumerSpecFunc = "Writer" + pascalFamily + pascalLayer + "Consumer"
 	}
 
 	// IsEnabled method: Is{PascalLayer}FamilyEnabled
-	// Exception: evidence layer uses IsFamilyEnabled.
+	// Exception: evidence layer uses the generic IsFamilyEnabled. insights
+	// keeps its own namespace (IsInsightsFamilyEnabled) via the else branch.
 	var isEnabledMethod string
 	if s.Family.Layer == "evidence" {
 		isEnabledMethod = "IsFamilyEnabled"
@@ -232,19 +244,21 @@ func (s *FamilySpec) Derived() DerivedFields {
 		isEnabledMethod = "Is" + pascalLayer + "FamilyEnabled"
 	}
 
-	// NewConsumerFunc: evidence layer uses New{PascalFamily}Consumer (e.g. NewCandleConsumer),
-	// all other layers use NewConsumer (since the package already encodes the layer).
+	// NewConsumerFunc: family-specific layers use New{PascalFamily}Consumer
+	// (e.g. NewCandleConsumer, NewVolumeProfileConsumer); the chain layers
+	// use NewConsumer (the package already encodes the layer).
 	var newConsumerFunc string
-	if s.Family.Layer == "evidence" {
+	if familySpecific {
 		newConsumerFunc = "New" + pascalFamily + "Consumer"
 	} else {
 		newConsumerFunc = "NewConsumer"
 	}
 
-	// StarterFunc: evidence layer uses New{PascalFamily}Starter (e.g. NewCandleStarter),
-	// all other layers use New{PascalLayer}Starter (e.g. NewSignalStarter).
+	// StarterFunc: family-specific layers use New{PascalFamily}Starter
+	// (e.g. NewCandleStarter, NewVolumeProfileStarter); the chain layers
+	// use New{PascalLayer}Starter (e.g. NewSignalStarter).
 	var starterFunc string
-	if s.Family.Layer == "evidence" {
+	if familySpecific {
 		starterFunc = "New" + pascalFamily + "Starter"
 	} else {
 		starterFunc = "New" + pascalLayer + "Starter"
@@ -270,6 +284,18 @@ func (s *FamilySpec) Derived() DerivedFields {
 		HyphenFamily:     hyphenFamily,
 		PackageAlias:     "nats" + s.Family.Layer,
 	}
+}
+
+// usesFamilySpecificNaming reports whether a layer names its writer
+// artifacts per-family (consumer/starter/consumer-spec carry the family
+// name) rather than per-layer. Evidence and insights both model each
+// family as a DISTINCT event type, so each family needs its own consumer
+// and starter; the evidence→execution chain layers (signal/decision/…)
+// share one event type per layer, with the family acting only as a
+// discriminator. insights (H-8.a.1) joins evidence here, but keeps its
+// own IsEnabled config namespace (IsInsightsFamilyEnabled).
+func usesFamilySpecificNaming(layer string) bool {
+	return layer == "evidence" || layer == "insights"
 }
 
 // toPascalCase converts a snake_case string to PascalCase,
