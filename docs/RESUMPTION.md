@@ -248,6 +248,32 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.b (loop autônomo — delivery generalizada a todas as famílias de insights):
+
+- **Commit 0**: abre a onda (flip H-11.a → Fechada PR #55; linha H-11.b;
+  header). **Commit 1**: durable `deliver-insights` widened p/
+  `insights.events.>`; `onMessage` decode dispatched por prefixo de
+  subject (volumeprofile/tpo/crossvenue) → JSON tipado (snake_case
+  preservado); helper `decodeToJSON[T]`; unit test round-trip CBOR→JSON
+  por família. **Commit 2**: frame de fio `{subject, event}` (cliente
+  demuxa multi-família; construído no consumer, actors seguem opacos +
+  casam pelo Subject); canários integration TPO + cross-venue (base
+  sintético único, sem slot de source) + multi-família/1-sessão (2
+  subscrições → 2 famílias); atualiza o canário H-11.a p/ o wrapper.
+  **Commit 3**: este closure (ADR-0028 nota I3 ampliado + wire frame;
+  HTTP-API; PROGRAM-0006; TRUTH-MAP).
+- **Validação**: 4 canários de delivery PASS vs NATS local; `make verify`
+  EXIT=0 (contract-audit PASS com `insights.events.>`); ADR-0028 segue
+  `Accepted` (sem novo critério — I3 já cobria insights).
+
+**Próxima**: **H-11.c** (políticas de backpressure configuráveis —
+DropOldest/PriorityDrop + tamanho de fila por config + métricas
+Prometheus de sessão; opcional analyzer `check delivery`) **abre APENAS
+após merge de H-11.b em `main`** (P4/P9). Seu merge **fecha a Fase
+Delivery / PROGRAM-0006**.
+
+---
+
 Entregas H-11.a (loop autônomo — **abre a Fase Delivery / PROGRAM-0006**; servidor WebSocket de insights no gateway):
 
 - **Commit 0**: documento-primeiro — ADR-0028 (`Proposed`) +

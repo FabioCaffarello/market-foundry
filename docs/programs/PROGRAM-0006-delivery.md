@@ -113,6 +113,15 @@ A Fase Delivery fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (H-11.b entregue)** — delivery generalizada a **todas as
+  famílias de insights**: durable `deliver-insights` lê
+  `insights.events.>` com decode dispatched por subject (volume_profile /
+  tpo / cross-venue → JSON tipado); frame de fio `{subject, event}` para
+  o cliente demuxar multi-família; filtragem por subject (o matcher do
+  domínio já suporta wildcards). Canários integration TPO + cross-venue +
+  multi-família/1-sessão. Sem novo ADR (ADR-0028 I3 já cobria insights;
+  nota de ampliação + wire frame registrada no ADR). Backpressure
+  configurável + métricas → H-11.c (fecha a Fase).
 - **2026-06-13 (H-11.a entregue)** — primeira sub-onda fechada: bounded
   context `internal/domain/delivery/` (Session/Subscription + matcher de
   subject NATS puro); consumer durável `deliver-insights`
