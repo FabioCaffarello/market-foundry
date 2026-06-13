@@ -9,10 +9,12 @@ consumer durável `deliver-insights` sobre `INSIGHTS_EVENTS`
 (`internal/adapters/nats/natsdelivery/`), fan-out por actors
 (`internal/actors/scopes/delivery/`) com backpressure DropNewest bounded
 (I4), e `drift-detect` ciente do durable `deliver-insights`
-(enforcement estático da invariante, P5). I1–I5 entregues; I3 ainda
-restrito a volume-profile (ampliação a todos os insights = H-11.b). Um
-analyzer `check delivery` dedicado da fronteira read-only permanece
-opcional (H-11.c).
+(enforcement estático da invariante, P5). I1–I5 entregues. **H-11.b
+ampliou I3 a todas as famílias de insights** (volume_profile + TPO +
+cross-venue): o durable `deliver-insights` lê `insights.events.>` e
+decodifica por subject; o frame de fio passou a `{subject, event}` para
+o cliente demuxar. Um analyzer `check delivery` dedicado da fronteira
+read-only permanece opcional (H-11.c).
 
 ## Context
 
@@ -70,10 +72,12 @@ faz bridge `INSIGHTS_EVENTS → WS clients`, governada pelas invariantes:
 
 **Protocolo de fio:** frames JSON. Cliente→servidor:
 `{"action":"subscribe"|"unsubscribe","subject":"<nats-subject-pattern>"}`
-(ex.: `insights.events.volumeprofile.sampled.>`). Servidor→cliente: o
-envelope do evento serializado em JSON. Subscription é por **padrão de
-subject NATS** (nativo do foundry; sem traduzir para um Subject struct
-separado).
+(ex.: `insights.events.volumeprofile.sampled.>`). Servidor→cliente (desde
+H-11.b): `{"subject": "<nats-subject>", "event": <payload-json>}` — o
+subject permite ao cliente demuxar quando assina mais de uma família; o
+payload é o evento de insights em JSON (mesma forma do read endpoint
+`/insights` correspondente). Subscription é por **padrão de subject
+NATS** (nativo do foundry; sem traduzir para um Subject struct separado).
 
 **Placement (layer sovereignty):** `domain/delivery` (Session,
 Subscription — puros) → `application/delivery` (orquestração/portas) →
@@ -134,3 +138,6 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
 - 2026-06-13 — Promovido a `Accepted` no fechamento da H-11.a (servidor
   WS `GET /ws`, domain/delivery, natsdelivery `deliver-insights`, fan-out
   por actors com DropNewest bounded, drift-detect ciente do durable).
+- 2026-06-13 — H-11.b ampliou I3 a todas as famílias de insights (durable
+  lê `insights.events.>`, decode dispatched por subject) e introduziu o
+  frame de fio `{subject, event}` (cliente demuxa multi-família).

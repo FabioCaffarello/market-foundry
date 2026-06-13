@@ -363,9 +363,9 @@ Real-time **push** of insights events over WebSocket (ADR-0028 /
 PROGRAM-0006). Read-only transport: the only inbound frames are
 `subscribe`/`unsubscribe` control frames — no event or directive is
 ever accepted from the client (I1). Loopback-only, like every other
-route (I2 — no auth; network isolation is the access control). H-11.a
-delivers volume-profile events; H-11.b widens delivery to all insights
-events with richer subscription filtering.
+route (I2 — no auth; network isolation is the access control). Since
+H-11.b the durable reads **all insights families** (volume profile, TPO,
+cross-venue), demuxed by subject.
 
 | Method | Path | Path params | Query params | Purpose |
 |---|---|---|---|---|
@@ -379,11 +379,13 @@ events with richer subscription filtering.
 ```
 
 `subject` is a NATS subject **pattern** (`*` = one token, `>` = one or
-more trailing tokens). Server → client frames are the insights event
-serialized as JSON (the same payload shape as the matching `/insights`
-read endpoint). A slow client has its newest frames dropped once its
-outbound buffer fills (ADR-0028 I4, DropNewest) — it never blocks the
-fan-out to other clients.
+more trailing tokens). Server → client frames (since H-11.b) are
+`{"subject": "<nats-subject>", "event": <event-json>}` — the subject lets
+a client subscribed to more than one family demux; `event` is the
+insights payload (same shape as the matching `/insights` read endpoint).
+A slow client has its newest frames dropped once its outbound buffer
+fills (ADR-0028 I4, DropNewest) — it never blocks the fan-out to other
+clients.
 
 ---
 
