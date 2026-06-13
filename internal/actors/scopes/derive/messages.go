@@ -46,6 +46,12 @@ type publishTPOProfileMessage struct {
 	Event insights.TPOProfileSampledEvent
 }
 
+// publishCrossVenueMessage is sent from the cross-venue fusion actor to
+// the insights publisher actor (PROGRAM-0005 / H-8.c).
+type publishCrossVenueMessage struct {
+	Event insights.CrossVenueSampledEvent
+}
+
 // activateSamplerMessage is sent from the binding watcher to the supervisor
 // when a new ingestion binding becomes active (at startup or via runtime event).
 type activateSamplerMessage struct {

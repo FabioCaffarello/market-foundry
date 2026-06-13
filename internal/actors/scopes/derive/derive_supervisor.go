@@ -46,6 +46,7 @@ type DeriveSupervisor struct {
 	executionProcessors []ExecutionFamilyProcessor
 	insightsProcessors  []FamilyProcessor
 	sources             map[string]*actor.PID // key: source → SourceScopeActor PID
+	crossVenuePID       *actor.PID            // single cross-venue fusion actor (H-8.c)
 	timeframes          []time.Duration
 	publisherTracker    *healthz.Tracker
 }
@@ -315,6 +316,17 @@ func (s *DeriveSupervisor) start(ctx *actor.Context) error {
 		SamplerPID:   supervisorPID, // trades come back here for routing
 	}), "observation-consumer")
 
+	// Spawn the SINGLE cross-venue fusion actor (H-8.c, Decisão C1). It
+	// lives at the supervisor level — not per-source — because fusion is
+	// cross-source by definition. The supervisor fans every trade to it
+	// (routeTrade). Always-on, like the per-source insights samplers.
+	s.crossVenuePID = ctx.SpawnChild(NewCrossVenueFusionActor(CrossVenueFusionConfig{
+		NATSURL:    s.cfg.NATS.URL,
+		Registry:   s.insRegistry,
+		Timeframes: s.timeframes,
+		Tracker:    s.publisherTracker,
+	}), "cross-venue-fusion")
+
 	// Spawn the binding watcher — queries configctl on startup and subscribes
 	// to IngestionRuntimeChangedEvent for dynamic activation without restart.
 	ctx.SpawnChild(NewBindingWatcherActor(BindingWatcherConfig{
@@ -391,6 +403,12 @@ func (s *DeriveSupervisor) onActivateSampler(c *actor.Context, msg activateSampl
 }
 
 func (s *DeriveSupervisor) routeTrade(c *actor.Context, msg tradeReceivedMessage) {
+	// Cross-venue fusion sees EVERY trade across all sources (H-8.c),
+	// independent of per-source scope routing.
+	if s.crossVenuePID != nil {
+		c.Send(s.crossVenuePID, msg)
+	}
+
 	source := msg.Event.Trade.Source
 	pid, exists := s.sources[source]
 	if !exists {
