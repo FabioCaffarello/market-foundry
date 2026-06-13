@@ -131,6 +131,20 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (closure H-8.a)** — Volume Profile (VPVR) + overload
+  entregue em 7 commits; **ADR-0027 → Accepted**. Domínio
+  `insights` (VolumeProfile/binning/overload) + sampler no derive +
+  família `INSIGHTS_EVENTS` + KV-latest + read endpoint + analyzer
+  `check insights` (gate step 12). Canário integration
+  publish→consume→KV→read vs NATS vivo PASS. **Escopo ajustado
+  (mea culpa)**: o commit 0 declarou tabela ClickHouse na H-8.a; o
+  pré-flight do codegen revelou que os `buckets[]` aninhados não
+  mapeiam o codegen 1-evento→1-row — persistência ClickHouse movida
+  para sub-onda própria (gap G12 no RESUMPTION); a H-8.a entrega via
+  KV-latest, que prova o pipeline end-to-end. Read-path KV-direct
+  no gateway (reader livre, ADR-0008). Próxima: H-8.b (TPO) ou a
+  persistência ClickHouse — sequenciamento na abertura.
+
 - **2026-06-13 (abertura)** — Fase Insights aberta após H-7 fechar
   (PROGRAM-0004 segue Active aguardando H-6.f.2 no gate temporal).
   Capacidade escolhida pelo owner após reconsiderar backpressure

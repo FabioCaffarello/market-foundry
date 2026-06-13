@@ -906,7 +906,7 @@ fn all_commands_accept_nonexistent_root_without_crash() {
 // ══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn quality_gate_fast_has_seven_steps() {
+fn quality_gate_fast_has_fourteen_steps() {
     let output = raccoon()
         .args([
             "--json",
@@ -921,8 +921,11 @@ fn quality_gate_fast_has_seven_steps() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
 
+    // 14 steps after analyzer steps accreted across waves (check-proto
+    // .. check-insights). This count drifted from 7 because cargo test
+    // for raccoon-cli is not wired into make verify nor CI.
     let steps = parsed["steps"].as_array().unwrap();
-    assert_eq!(steps.len(), 7);
+    assert_eq!(steps.len(), 14);
 }
 
 #[test]
@@ -1085,6 +1088,13 @@ fn quality_gate_step_order_is_deterministic() {
             "contract-audit",
             "runtime-bindings",
             "arch-guard",
+            "check-proto",
+            "check-determinism",
+            "check-metrics",
+            "check-instruments",
+            "check-subjects",
+            "check-venue-parity",
+            "check-insights",
             "drift-detect",
             "runtime-smoke"
         ]

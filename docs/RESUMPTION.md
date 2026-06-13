@@ -234,7 +234,41 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
-Entregas H-7.c (esta sessão):
+Entregas H-8.a (esta sessão — abertura do PROGRAM-0005 / Fase Insights):
+
+- **Commit 0**: PROGRAM-0005 + ADR-0027 (insights decision-support
+  read-only) + índices. **Commit 1**: domínio
+  `internal/domain/insights/` (VolumeProfile price-bucketed, binning
+  big.Rat determinístico, overload L0–L3). **Commit 2**: sampler
+  `VolumeProfileSampler` + família NATS `natsinsights`
+  (`INSIGHTS_EVENTS` single-writer, publisher) + wiring no derive
+  (scope paralelo). **Commit 3**: persistência **KV-latest**
+  (`INSIGHTS_VOLUME_PROFILE_LATEST`; store projection). **Commit 4**:
+  read endpoint `GET /insights/volume-profile/latest` (KV-direct
+  gateway — reader livre, ADR-0008). **Commit 5**: analyzer
+  `check insights` (P5, gate step 12) + **ADR-0027 → Accepted**.
+  **Commit 6**: canário integration (publish→consume→KV→read vs
+  NATS vivo) + realinhamento de 5 testes Rust stale do raccoon-cli
+  (débito pré-existente exposto ao editar os analyzers — ver **D5**)
+  + este closure.
+- **MEA CULPA de escopo**: o commit 0 declarou tabela ClickHouse
+  `insights_volume_profile` na H-8.a. O pré-flight do codegen
+  (commit 3) revelou que os `buckets[]` aninhados do VolumeProfile
+  NÃO mapeiam o codegen 1-evento→1-row (candle/signal); persistência
+  ClickHouse exige schema array ou multi-row + extensão do codegen,
+  com o risco de golden self-consistency da H-6.d. Movido para
+  sub-onda própria — ver **G12**. A H-8.a entrega via KV-latest, que
+  prova o pipeline end-to-end sem tocar o codegen.
+
+**Próxima sub-onda destravada após merge**: **H-8.b** (TPO profile)
+ou a persistência ClickHouse do volume profile — sequenciamento na
+abertura da próxima sub-onda. Read-path da H-8.a é KV-latest; gate
+13 analyzers (check insights é o 13º; gate step 12). **ADR-0027 `Accepted`;
+ADR-0021 permanece `Proposed`** (H-6.f.2 pós-TTL).
+
+---
+
+Entregas H-7.c (sessão anterior):
 
 - **Commit 0 (documento primeiro)**: errata ADR-0021 (a "explicit
   future decision" do campo Expiry foi tomada — formato canônico
@@ -1956,7 +1990,7 @@ What was verified concretely during Phase 0 closure (May 2026):
 | Verification | Status |
 |---|---|
 | `make bootstrap` | PASS |
-| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 12 active quality-gate analyzers green; 118 checks, 0 errors (count atualizado em H-7.a com a entrada do `check-venue-parity`; antes 11/112 em H-6.f.1). |
+| `make verify` | PASS (since P1D.4 — G6 resolved, see "Recently resolved"). All 13 active quality-gate analyzers green; 122 checks, 0 errors (count atualizado em H-8.a com a entrada do `check-insights`; antes 12/118 em H-7.a). |
 | `make build` | PASS for all services |
 | `make up` → 9 services healthy | PASS |
 | `make smoke` | PASS |
@@ -2183,6 +2217,22 @@ futures no ingest segue gated pelos três gaps remanescentes:
    (`BTCUSDT-29MAR24`); o mapeamento `-29MAR24` → YYMMDD entra
    com o enablement.
 
+### G12 — Persistência ClickHouse do volume profile (deferida da H-8.a)
+
+A H-8.a entrega o volume profile (VPVR) via **KV-latest**
+(`INSIGHTS_VOLUME_PROFILE_LATEST`) — read-path operacional, prova o
+pipeline end-to-end. A persistência **ClickHouse** (history/
+analytics) foi deferida: o `VolumeProfile` tem `buckets[]` aninhados
+(N price levels por janela), e o codegen atual assume 1-evento→1-row
+plana (candle/signal). Persistir exige schema com array-columns ou
+multi-row + extensão do codegen, com o risco de golden
+self-consistency que a H-6.d enfrentou. Mea culpa: o commit 0 da
+H-8.a declarou a tabela na própria onda; o pré-flight do codegen
+revelou o descasamento e moveu para sub-onda própria. Sem efeito
+operacional hoje (KV-latest atende o read; nenhum consumidor de
+history de profile existe). Abordar quando insights precisar de
+history/analytics — com o cuidado de codegen que a H-6.d.1 exigiu.
+
 Configurar um symbol de delivery num binding ANTES de fechar (1) e
 (2) produziria persistência parcial — não fazer. A onda de
 enablement fecha os três juntos.
@@ -2257,6 +2307,35 @@ smoke-round-trip, smoke-composed, smoke-live-stack, smoke-operational,
 smoke-restart-recovery, smoke-help) and move the stage-tagged ones
 out — either delete, or relocate to `scripts/historical/` for
 archaeology.
+
+### D5 — raccoon-cli `cargo test` is not in `make verify` nor CI
+
+`make verify` runs the analyzers (`raccoon-cli quality-gate`), and
+CI runs the same — but **neither runs the analyzers' own Rust unit/
+integration tests** (`cargo test` / `make raccoon-test`). The Rust
+test suite therefore drifts silently: as gate steps and canonical
+constants accreted across waves, in-suite fixtures and step-count
+assertions were never updated, because nothing red-flagged them.
+
+Discovered in H-8.a (2026-06-13) while editing the analyzers
+(`check insights` step + `INSIGHTS_EVENTS` in `CANONICAL_STREAMS`):
+`make raccoon-test` surfaced **5 stale tests** that predated the
+wave — `drift_detect` fixtures missing `EXECUTION_REJECTION_EVENTS`/
+`SESSION_LIFECYCLE_EVENTS` (added pre-H-8.a, never reflected), and
+gate step-count/order assertions (`gate/mod.rs` +
+`tests/validation_matrix.rs`) frozen at the original **7-step** gate
+while the real gate had grown to **14** (check-proto .. check-insights
++ drift-detect + runtime-smoke). All 5 were realigned in H-8.a as
+hygiene for the analyzer files the wave touched; the live gate
+(`make verify`, `quality-gate --profile ci`) was GREEN throughout —
+this debt never affected enforcement, only test coverage of the
+enforcer.
+
+**Resolution path:** add `make raccoon-test` to the CI matrix (and
+optionally to `make verify`) so analyzer-test drift is caught at the
+PR, not rediscovered by the next agent that edits an analyzer. Owner
+decision — the trade-off is CI wall-clock (~11s for the unit suite)
+vs. coverage of the enforcer itself.
 
 ---
 
