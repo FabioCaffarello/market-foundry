@@ -198,6 +198,15 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 
 ## Changelog
 
+- **2026-06-13 (closure H-8.b.1)** — Persistência ClickHouse do TPO
+  entregue (5 commits), espelhando a H-8.a.1. Migration 015
+  `insights_tpo` (Array-columns paralelas períodos+níveis, `level_count
+  Int32`); family codegen `tpo` (knownAbbreviations `tpo→TPO`);
+  consumer `writer-tpo`; `mapTPOProfileRow` + `NewTPOStarter`; canário
+  `requireclickhouse` (Array round-trip vs CH vivo) PASS; drift-detect
+  `writer-tpo` + `insights_tpo`. Loop autônomo (self-merge escopado —
+  ADR-0026). Próxima: H-8.c (cross-venue fusion).
+
 - **2026-06-13 (abertura H-8.b.1)** — Persistência ClickHouse do TPO
   aberta após H-8.b fechar (PR #51). Espelha a H-8.a.1: tabela
   `insights_tpo` com Array-columns paralelas (períodos + níveis), family

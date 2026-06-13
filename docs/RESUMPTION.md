@@ -240,6 +240,28 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-8.b.1 (loop autônomo — persistência ClickHouse do TPO):
+
+- **Commit 0**: docs-first (PRD + RESUMPTION; H-8.b Fechada). **Commit
+  1**: migration `015_create_insights_tpo.sql` — Array-columns paralelas
+  (3 períodos + 3 níveis, `level_count Int32`) + canônicas + métricas
+  escalares. **Commit 2**: codegen `tpo` family (`spec.go`
+  knownAbbreviations `tpo→TPO`; goldens; integrated.yaml);
+  `WriterTPOConsumer` (codegen-marked, após DefaultRegistry — gotcha
+  H-8.a.1); `mapTPOProfileRow` + `NewTPOStarter`; pipeline entry.
+  **Commit 3**: mapper unit test (6 arrays paralelos) + canário
+  `requireclickhouse` (períodos+níveis round-trip vs CH vivo). **Commit
+  4**: drift-detect `writer-tpo` durable + `insights_tpo` tabela + este
+  closure.
+- single-writer (ADR-0008): writer dono da tabela `insights_tpo`; store
+  dono do bucket KV (H-8.b). Read de history CH deferido (sem consumidor;
+  KV-latest atende).
+
+**Próxima sub-onda destravada após merge**: **H-8.c** (cross-venue trade
+fusion). Abre APENAS após merge da H-8.b.1.
+
+---
+
 Entregas H-8.b (loop autônomo — TPO profile, compute→publish→KV→read):
 
 - **Commit 0**: docs-first — PRD H-8.b (Decisões T1–T5) + RESUMPTION +
