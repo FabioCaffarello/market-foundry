@@ -68,7 +68,7 @@ func TestVolumeProfilePipeline_PublishConsumeKVRead(t *testing.T) {
 		t.Fatalf("kv start: %v", err)
 	}
 	defer func() { _ = kv.Close() }()
-	gw := natsinsights.NewGateway(kv)
+	gw := natsinsights.NewGateway(kv, nil)
 
 	// Consumer materializes published profiles into the KV bucket
 	// (the store projection's behavior, inline here).

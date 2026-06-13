@@ -15,4 +15,5 @@ import (
 // unrestricted per ADR-0008). Read-only: no directives.
 type InsightsGateway interface {
 	GetLatestVolumeProfile(context.Context, insightsclient.VolumeProfileLatestQuery) (insightsclient.VolumeProfileLatestReply, *problem.Problem)
+	GetLatestTPOProfile(context.Context, insightsclient.TPOProfileLatestQuery) (insightsclient.TPOProfileLatestReply, *problem.Problem)
 }

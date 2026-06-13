@@ -21,3 +21,17 @@ type VolumeProfileLatestQuery struct {
 type VolumeProfileLatestReply struct {
 	VolumeProfile *insights.VolumeProfile
 }
+
+// TPOProfileLatestQuery requests the latest TPO profile for a partition
+// (source + canonical instrument + timeframe).
+type TPOProfileLatestQuery struct {
+	Source     string
+	Instrument instrument.CanonicalInstrument
+	Timeframe  int
+}
+
+// TPOProfileLatestReply carries the latest TPO profile, or nil when
+// none has been materialized yet.
+type TPOProfileLatestReply struct {
+	TPOProfile *insights.TPOProfile
+}
