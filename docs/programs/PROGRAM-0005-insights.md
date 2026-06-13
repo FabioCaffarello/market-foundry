@@ -53,7 +53,7 @@ abertura desta Fase.
 | **H-8.a.1** | Persistência ClickHouse do VolumeProfile (completa G12) | Tabela `insights_volume_profile` com **Array-columns** (`bucket_price_level/buy_volume/sell_volume Array(String)`, 1 linha/janela — Decisão #6 Opção B) + colunas canônicas base/quote/contract; **extensão do codegen** p/ reconhecer o layer `insights` evidence-style (Decisão #7 Opção A); consumer writer-side `writer-volume-profile` no `INSIGHTS_EVENTS` + mapper `mapVolumeProfileRow`; canário `requireclickhouse`; drift-detect ciente da tabela/consumer. Resolve **G12**. |
 | **H-8.b** | TPO profile (Time-Price Opportunity) — compute + KV + read | Market profile / TPO **timeframe-anchored** (Decisão T1 — não session-anchored; o foundry não tem conceito de sessão), trades-only (Decisão T2 — períodos derivados de trades, não candles). A janela de timeframe é subdividida em **períodos** (letras A–X, cap 24 — Decisão T3); cada trade marca seu nível de preço (reusa `BucketLevel`) com a letra do período. `TPOProfile{Periods[], Levels[]}` com `TPOLevel{PriceLevel, Letters, Count}`; POC/value-area/initial-balance/range no snapshot (Decisão T4). Sampler no derive + stream `INSIGHTS_EVENTS` + **KV-latest** `INSIGHTS_TPO_LATEST` + read `GET /insights/tpo/latest` + drift-detect ciente do durable `store-tpo`. (Escopo espelha a H-8.a; persistência ClickHouse **deferida** à H-8.b.1 — ver Decisão T5.) |
 | **H-8.b.1** | Persistência ClickHouse do TPO | Tabela `insights_tpo` com **Array-columns** (períodos + níveis paralelos — Decisão T5, padrão H-8.a.1); reusa o layer codegen `insights`; consumer writer-side `writer-tpo`; canário `requireclickhouse`. Espelha a H-8.a.1. |
-| **H-8.c** | Cross-venue trade fusion | Fusão de trades multi-venue (Binance + Bybit, pós-H-7) em snapshots cross-venue; encaixe direto na superfície multi-venue. |
+| **H-8.c** | Cross-venue trade fusion (compute + KV + read) | Fusão de trades multi-venue (Binance + Bybit, pós-H-7) por **janela de timeframe** num `CrossVenueSnapshot` por canonical instrument: linhas por-venue (trade_count, notional, last/high/low) + spread consolidado (max−min dos last prices), mid, venue dominante por notional. **Topologia nova** (C1): a fusão NÃO é um FamilyProcessor per-source (cada SourceScopeActor só vê seu source) — é um **actor único no nível do DeriveSupervisor**, que recebe todo trade e funde por canonical instrument (venue = dimensão fundida; `CanonicalInstrument` exclui venue, ADR-0021). Sampler windowed (C2), key = canonical instrument (C3). Stream `INSIGHTS_EVENTS` + KV `INSIGHTS_CROSS_VENUE_LATEST` + read `GET /insights/cross-venue/latest`. Persistência ClickHouse → **H-8.c.1** (C5; espelha a/a.1, b/b.1). **Fecha a Fase** (com H-8.c.1). |
 
 Capacidades fora desta Fase (registradas para Fases futuras):
 **liquidity heatmap** (exige ingestão de depth/`bookdelta` — Fase
@@ -148,6 +148,31 @@ Reversíveis no PR review.
   implementação p/ manter o PR revisável (P4; precedente H-8.a/a.1) —
   mea culpa: o commit 0 da H-8.b foi otimista ao agrupar CH na mesma onda.
 
+### Decisões de design da H-8.c (agente + owner, pré-flight 2026-06-13)
+
+Pré-flight (foundry multi-venue + leitura read-only justificada P2 do
+cross-venue join no raccoon; nada copiado, P1):
+
+- **C1 — fusion actor no nível do DeriveSupervisor, não FamilyProcessor
+  per-source.** Cada `SourceScopeActor` só vê seu próprio source; a fusão
+  precisa do MESMO canonical instrument através de sources distintos. O
+  supervisor já recebe todo trade (antes de rotear per-source) — faneia
+  cada trade a um **único** `CrossVenueFusionActor`. (Risco load-bearing
+  do pré-flight: tentar como FamilyProcessor per-source falharia em
+  silêncio.)
+- **C2 — windowed snapshot (owner, escolhido).** Por janela de timeframe
+  (mesmo `WindowFor`): acumula por-venue {trade_count, notional,
+  last/high/low}; no fechamento emite `CrossVenueSnapshot` com spread
+  consolidado/mid/venue dominante. Consistente com VPVR/TPO (vs. o
+  per-trade spread monitor do raccoon — rejeitado por volume + divergência
+  de windowing).
+- **C3 — key = canonical instrument; venues = sources.** `binancef`+`bybitf`
+  (perpetual) ou `binances`+`bybits` (spot). Venue é a dimensão fundida;
+  `CanonicalInstrument` exclui venue (ADR-0021).
+- **C5 — escopo compute→publish→KV→read; ClickHouse → H-8.c.1** (precedente
+  a/a.1, b/b.1; mantém o PR focado na topologia nova). A Fase fecha com
+  H-8.c.1.
+
 ## Princípios aplicáveis (P1–P9)
 
 Ver [`../../CLAUDE.md`](../../CLAUDE.md) → "Fase Harvest".
@@ -197,6 +222,14 @@ A Fase Insights fecha quando **todos** abaixo forem verdadeiros:
 | Overload scope creep para backpressure genérico de pipeline | Médio | Decisão #5: VPVR overload só (sujeito real); backpressure de pipeline fica para onda própria. |
 
 ## Changelog
+
+- **2026-06-13 (abertura H-8.c)** — Cross-venue trade fusion aberta após
+  H-8.b.1 fechar (PR #52). Pré-flight expôs a topologia: fusão é
+  cross-source, logo NÃO cabe num FamilyProcessor per-source — vive como
+  actor único no DeriveSupervisor (C1). Owner escolheu o modelo
+  **windowed snapshot** (C2, consistente com VPVR/TPO). Escopo
+  compute→publish→KV→read; ClickHouse → H-8.c.1 (C5). Última capacidade da
+  Fase Insights. Loop autônomo (self-merge escopado — ADR-0026).
 
 - **2026-06-13 (closure H-8.b.1)** — Persistência ClickHouse do TPO
   entregue (5 commits), espelhando a H-8.a.1. Migration 015
