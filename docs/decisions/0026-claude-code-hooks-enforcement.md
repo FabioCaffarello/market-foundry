@@ -166,6 +166,14 @@ applies). The next Fase after Delivery again requires re-confirmation.
 > H-11.d under the (reopened) PROGRAM-0006; a genuinely new Fase still
 > requires fresh re-confirmation.
 
+### 2026-06-15 — Re-confirmation: H-11.e (Delivery hardening, reopens PROGRAM-0006)
+
+After PROGRAM-0007 H-9 closed, the owner chose another Delivery hardening
+increment **H-11.e (max-sessions cap)**, which **reopens PROGRAM-0006**,
+and re-confirmed the same autonomous self-merge loop. Per-Fase grant;
+snapshot-then-delta is deferred to H-11.f. Same posture/discipline as
+prior entries; the next genuinely new Fase requires fresh re-confirmation.
+
 ### 2026-06-14 — Re-confirmation: delegation extended to PROGRAM-0007 (Storage Tier)
 
 PROGRAM-0006 (Delivery) closed (H-11.a–d). The owner chose the next Fase
@@ -191,3 +199,5 @@ discipline). The next Fase again requires re-confirmation.
   re-confirmed.
 - 2026-06-14 — Errata: delegation re-confirmed + extended to PROGRAM-0007
   (Storage Tier, Stage-1 closure + trigger instrumentation). Per-Fase.
+- 2026-06-15 — Errata: H-11.e (Delivery hardening, max-sessions cap)
+  reopens PROGRAM-0006; same delegation re-confirmed. Per-Fase.
