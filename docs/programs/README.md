@@ -115,5 +115,5 @@ place.
 | [0003](PROGRAM-0003-observability.md) | Fase Observability | Active | H-5 |
 | [0004](PROGRAM-0004-multi-venue.md) | Fase Multi-venue | Active | H-6.a–H-6.f, H-7 |
 | [0005](PROGRAM-0005-insights.md) | Fase Insights | Closed | H-8.a–H-8.c |
-| [0006](PROGRAM-0006-delivery.md) | Fase Delivery (WebSocket) | Closed | H-11.a–H-11.e |
+| [0006](PROGRAM-0006-delivery.md) | Fase Delivery (WebSocket) | Active | H-11.a–H-11.f |
 | [0007](PROGRAM-0007-storage-tier.md) | Fase Storage Tier | Deferred | H-9 (Stage 1, done); H-10 (Stage 2, trigger-gated) |
