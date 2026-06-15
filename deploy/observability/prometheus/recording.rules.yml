@@ -358,3 +358,29 @@ groups:
       - record: runtime:gate_read_failure_rate_5m
         expr: |
           sum by (reason) (rate(marketfoundry_execution_gate_read_failures_total[5m]))
+
+  # ── Storage triggers (ADR-0023 Stage 2 promotion signals, H-9) ───
+  # Make the ADR-0023 T1/T2 triggers OBSERVABLE — the ADR notes
+  # "triggers cannot fire if instrumentation is absent". These rules
+  # do NOT adopt TimescaleDB: Stage 2 (Onda H-10) opens only when a
+  # trigger fires and is confirmed non-transient by the maintainer.
+  - name: storage-triggers
+    interval: 30s
+    rules:
+      # T1 — gateway operational-query p99 latency (ADR-0023 threshold
+      # > 50ms sustained 7d). Operational reads = GET routes minus the
+      # health/metrics probes.
+      - record: storage:gateway_op_query_p99_5m
+        expr: |
+          histogram_quantile(0.99, sum by (le) (rate(
+            marketfoundry_http_request_duration_seconds_bucket{binary="gateway", method="GET", path!~"/healthz|/readyz|/metrics"}[5m])))
+        labels:
+          trigger: T1
+      # T2 — store RSS (proxy for KV-projection memory; ADR-0023
+      # threshold > 4GB). process_resident_memory_bytes is total
+      # process RSS; KV projections are the store's dominant consumer.
+      - record: storage:store_rss_bytes
+        expr: |
+          max(process_resident_memory_bytes{binary="store"})
+        labels:
+          trigger: T2

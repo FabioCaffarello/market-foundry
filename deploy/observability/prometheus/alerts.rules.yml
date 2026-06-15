@@ -202,3 +202,37 @@ groups:
           summary: "Heap allocation high (>500 MB)"
           description: "go_memstats_heap_alloc_bytes exceeds 500 MB for 5+ minutes on at least one binary. Possible memory leak or unbounded cache growth. Correlate against pprof heap profile."
           runbook_url: "docs/operations/runbooks/heap-alloc.md"
+
+  # ── Storage-tier triggers (ADR-0023 → Onda H-10 / Stage 2) ────────
+  # Warning-severity EARLY signals. The ADR thresholds require the
+  # maintainer to confirm a SUSTAINED breach (e.g. T1: 7 days,
+  # non-transient) before Onda H-10 (TimescaleDB) opens. These alerts
+  # fire on a shorter (1h) window as an early signal and do NOT
+  # auto-open H-10 — opening Stage 2 is the maintainer's decision.
+  - name: storage-triggers
+    interval: 30s
+    rules:
+      - alert: StorageTriggerT1GatewayLatency
+        expr: storage:gateway_op_query_p99_5m > 0.05
+        for: 1h
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: storage-trigger
+          trigger: T1
+        annotations:
+          summary: "ADR-0023 T1 signal: gateway op-query p99 > 50ms"
+          description: "Gateway operational-query p99 latency exceeds the ADR-0023 T1 threshold (50ms) for 1h+. T1 requires a SUSTAINED breach over 7 days, confirmed non-transient by the maintainer, before Onda H-10 (TimescaleDB) opens. Early signal, not an auto-trigger."
+          runbook_url: "docs/operations/runbooks/storage-triggers.md"
+      - alert: StorageTriggerT2StoreMemory
+        expr: storage:store_rss_bytes > 4294967296
+        for: 1h
+        labels:
+          severity: ticket
+          service: market-foundry
+          category: storage-trigger
+          trigger: T2
+        annotations:
+          summary: "ADR-0023 T2 signal: store RSS > 4GB"
+          description: "The store binary resident memory (proxy for KV-projection memory) exceeds the ADR-0023 T2 threshold (4GB) for 1h+. Confirm non-transient before considering Onda H-10. process_resident_memory_bytes is total process RSS; KV projections are the store's dominant memory consumer."
+          runbook_url: "docs/operations/runbooks/storage-triggers.md"
