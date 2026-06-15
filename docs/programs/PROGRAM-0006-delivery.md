@@ -1,7 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Active (reaberta 2026-06-15 para H-11.f — snapshot-then-delta;
-re-fecha ao merge. Prévio: Closed em H-11.e)
+**Status:** Closed (2026-06-15 — H-11.a–c + endurecimento H-11.d/e +
+snapshot-then-delta H-11.f; Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -118,6 +118,15 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-15 (H-11.f entregue — Fase RE-FECHADA)** — snapshot-then-delta
+  entregue: ao subscrever um subject de insights totalmente especificado,
+  a sessão recebe o snapshot KV-latest antes dos deltas. `SnapshotProvider`
+  port + `natsdelivery.KVSnapshotProvider` (parser subject→KV-key + dispatch
+  p/ `natsinsights.Gateway` + frame `{subject,event}`) + snapshot-on-subscribe
+  no `SessionActor` (provider em `Config`, nil=off) + wiring no gateway via
+  `conns.insights`. Canário integration (snapshot KV → delta ao vivo).
+  PROGRAM-0006 re-fechado. **Fora**: snapshot p/ wildcards, backfill
+  histórico (futuro, se houver demanda).
 - **2026-06-15 (H-11.f aberta — reabertura)** — após o fechamento de
   H-11.e, o owner pediu snapshot-then-delta (após sanear a CI — fix G9).
   A Fase reabre (Active) para entregar: ao subscrever um subject de

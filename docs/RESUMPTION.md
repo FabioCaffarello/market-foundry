@@ -255,6 +255,32 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.f (loop autônomo — snapshot-then-delta; **re-fecha a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre o incremento (flip H-11.e → Fechada PR #60 + linha
+  G9-fix PR #61; reabre PROGRAM-0006; ADR-0026 errata). **Commit 1**:
+  `application/ports.SnapshotProvider` + `natsdelivery.KVSnapshotProvider`
+  (parser `parseInsightsSubject` subject→{family,source,token,tf} +
+  dispatch p/ `natsinsights.Gateway` + frame `{subject,event}` com o
+  `…SampledEvent`); testes do parser + provider. **Commit 2**:
+  `delivery.Config.SnapshotProvider` (nil=off); `SessionActor.onSubscribe`
+  envia o snapshot numa subscrição nova (antes dos deltas); Hub + gateway
+  (`conns.insights`) wiring; testes de actor. **Commit 3**: canário
+  integration (seed KV → subscribe → snapshot frame → publish → delta
+  frame; distinguidos por `open_time`) + este closure.
+- **Validação**: `make verify` EXIT=0 (arch-guard 11/11, check-delivery
+  PASS — natsdelivery segue reader-only); canários de delivery GREEN vs
+  NATS local (incl. snapshot-then-delta).
+- Snapshot só p/ subjects **totalmente especificados**; wildcards recebem
+  só deltas (derivar chaves KV de um padrão é ambíguo — documentado).
+
+**Próxima**: Fase Delivery completa (H-11.a–f). **Sem onda de Delivery
+pendente.** A delegação era escopada à H-11.f — **a próxima Fase exige
+re-confirmação do owner**. Roadmap: Odin (H-12+), H-10 (se um gatilho de
+storage disparar), gate temporal H-6.f.2 (~2026-08-26, fecha PROGRAM-0004).
+
+---
+
 Entregas H-11.e (loop autônomo — endurecimento; max-sessions cap; **re-fecha a Fase Delivery / PROGRAM-0006**):
 
 - **Commit 0**: abre o incremento (flip H-9 → Fechada PR #59; reabre
