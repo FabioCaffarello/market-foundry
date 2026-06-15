@@ -1,6 +1,7 @@
 # PROGRAM-0007 — Fase Storage Tier
 
-**Status:** Active
+**Status:** Deferred (2026-06-14 — Stage 1 entregue em H-9; Stage 2 / H-10
+deferido pending triggers T1/T2/T3, ADR-0023; resumível quando disparar)
 **Date:** 2026-06-14
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -75,13 +76,15 @@ a Fase Storage — ADR-0026 errata 2026-06-14). O ADR-0023 segue
 
 ## Critérios de aceite da Fase
 
-**Stage 1 (fecha em H-9):**
+**Stage 1 (fechado em H-9):**
 
-- [ ] ADR-0023 promovido a **Stage 1: Accepted** (Stage 2: Proposed
+- [x] ADR-0023 promovido a **Stage 1: Accepted** (Stage 2: Proposed
   pending triggers).
-- [ ] Gatilhos T1 e T2 **observáveis**: recording rules + alertas em
-  `deploy/observability/prometheus/`; SLIs documentados em `slo.md`.
-- [ ] `make verify` GREEN; RESUMPTION atualizado no commit de fechamento.
+- [x] Gatilhos T1 e T2 **observáveis**: recording rules + alertas em
+  `deploy/observability/prometheus/` (grupo `storage-triggers`,
+  validado por `promtool`); SLIs documentados em `slo.md` +
+  `runbooks/storage-triggers.md`.
+- [x] `make verify` GREEN; RESUMPTION atualizado no commit de fechamento.
 
 **Stage 2 (H-10 — trigger-gated, fora do controle da Fase abrir):**
 
@@ -106,6 +109,12 @@ a Fase Storage — ADR-0026 errata 2026-06-14). O ADR-0023 segue
 
 ## Changelog
 
+- **2026-06-14 (H-9 entregue — Stage 1 fechado; Fase Deferred)** — Stage 1
+  do ADR-0023 confirmado e promovido (Stage 1 Accepted); gatilhos T1/T2
+  instrumentados (recording + alert rules `storage-triggers`, runbook,
+  SLIs no `slo.md`) — observáveis sem TimescaleDB. **Stage 2 (H-10)
+  deferido pending triggers**: nenhum disparou; a Fase fica `Deferred`,
+  resumível quando T1/T2/T3 disparar e for confirmado pelo maintainer.
 - **2026-06-14 (abertura)** — Fase Storage Tier aberta após PROGRAM-0006
   (Delivery) fechar. Owner escolheu o storage tier + re-confirmou o loop
   autônomo. Pause-and-report (P6) resolveu o conflito com o trigger-gate

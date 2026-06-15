@@ -252,6 +252,36 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-9 (loop autônomo — **abre a Fase Storage Tier / PROGRAM-0007**; fecha o Stage 1 do ADR-0023 + instrumenta gatilhos):
+
+- **Pause-and-report (P6)**: o owner escolheu "storage tier"; o ADR-0023
+  proíbe construir o Stage 2 (TimescaleDB/H-10) antes de um gatilho
+  disparar (nenhum disparou). Reportado → owner escolheu o caminho
+  ADR-compliant: **fechar Stage 1 + instrumentar gatilhos, sem
+  TimescaleDB**.
+- **Commit 0**: documento-primeiro — PROGRAM-0007 PRD; ADR-0023 promoção
+  parcial (**Stage 1 → Accepted**; Stage 2 → Proposed pending triggers);
+  ADR-0026 errata (delegação re-confirmada); RESUMPTION + índices.
+  **Commit 1**: instrumentação — recording+alert rules `storage-triggers`
+  (T1: p99 de query operacional do gateway > 50 ms; T2: RSS do `store` >
+  4 GiB) em `deploy/observability/prometheus/`; `runbooks/storage-triggers.md`
+  + seção em `slo.md`; `promtool check rules` OK. **Commit 2**: este
+  closure (PROGRAM-0007 → `Deferred`; TRUTH-MAP).
+- **Validação**: `make verify` EXIT=0; `promtool check rules` OK (46
+  recording + 15 alert). T1/T2 já mensuráveis (InstrumentHTTPHandler +
+  process collector no store).
+- **Stage 2 (H-10 / TimescaleDB) NÃO aberto** — trigger-gated; a Fase fica
+  `Deferred`, resumível quando T1/T2/T3 disparar (steady state legítimo do
+  ADR-0023).
+
+**Próxima**: nenhuma onda de storage pendente (Stage 2 dorme pending
+triggers). **A delegação de self-merge era escopada ao PROGRAM-0007 — a
+próxima Fase exige re-confirmação do owner.** Roadmap: Odin (H-12+),
+H-11.e (delivery hardening), H-10 (se um gatilho disparar), gate temporal
+H-6.f.2 (~2026-08-26, fecha PROGRAM-0004).
+
+---
+
 Entregas H-11.d (loop autônomo — endurecimento; analyzer `check delivery`; **re-fecha a Fase Delivery / PROGRAM-0006**):
 
 - **Commit 0**: abre o incremento (flip H-11.c → Fechada PR #57; reabre
