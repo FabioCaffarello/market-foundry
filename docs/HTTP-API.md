@@ -383,6 +383,10 @@ more trailing tokens). Server → client frames (since H-11.b) are
 `{"subject": "<nats-subject>", "event": <event-json>}` — the subject lets
 a client subscribed to more than one family demux; `event` is the
 insights payload (same shape as the matching `/insights` read endpoint).
+**Snapshot-then-delta (H-11.f):** subscribing to a **fully-specified**
+subject (no wildcards) first delivers the current KV-latest as a snapshot
+frame (same `{subject,event}` shape), then live deltas; wildcard
+subscriptions receive deltas only.
 A slow client has frames dropped once its bounded outbound buffer fills
 (ADR-0028 I4) — it never blocks the fan-out to other clients. The
 backpressure policy (`drop_newest` default / `drop_oldest`) and queue

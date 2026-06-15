@@ -1,7 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Closed (2026-06-15 — H-11.a–c + endurecimento H-11.d
-(`check delivery`) + H-11.e (max-sessions cap); Fase Delivery completa)
+**Status:** Closed (2026-06-15 — H-11.a–c + endurecimento H-11.d/e +
+snapshot-then-delta H-11.f; Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -41,6 +41,7 @@ destrava ambos e é o caminho canônico ao Odin (P8).
 | **H-11.c** | Políticas de backpressure + métricas de sessão | Backpressure configurável (DropNewest/DropOldest; PriorityDrop deferido — ADR-0027); tamanho de fila outbound por config; métricas (frames delivered/dropped, client count) em Prometheus. |
 | **H-11.d** | Endurecimento — analyzer `check delivery` (P5) | Incremento pós-fechamento (reabre/re-fecha a Fase). Analyzer estático `check delivery` da fronteira read-only/reader-only (ADR-0028 I1/I5): `natsdelivery` nunca `Publish`; durable `deliver-insights` lê `INSIGHTS_EVENTS`. Mirror de `check_insights` (policy + 4 sites de registro + gate step). **Fora**: auth (contradiz loopback non-feature), PriorityDrop (deferido), snapshot-then-delta + max-sessions (→ H-11.e). |
 | **H-11.e** | Endurecimento — max-sessions cap | Incremento pós-fechamento (reabre/re-fecha a Fase). Bound configurável do total de sessões WS concorrentes (`delivery.Config.MaxSessions`, default 1024, env `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado); `Hub.Admit` rejeita acima do cap; métrica `…delivery_sessions_rejected_total`. Completa o "bounded" do ADR-0028 I4 no nível do subsistema. **Fora / → H-11.f**: snapshot-then-delta (port `SnapshotProvider` + subject→KV-key); auth e PriorityDrop seguem fora. |
+| **H-11.f** | snapshot-then-delta na subscrição | Incremento pós-fechamento (reabre/re-fecha a Fase). Ao subscrever um subject de insights **totalmente especificado**, a sessão recebe o **snapshot atual** (KV-latest) antes dos deltas. `application/ports.SnapshotProvider` (port) + adapter KV-backed (`natsdelivery`) sobre `natsinsights.Gateway`; parser subject→`{family,source,token,tf}`; `SessionActor.onSubscribe` emite o frame `{subject,event}`. Todas as 3 famílias. **Fora**: snapshot p/ wildcards (ill-defined; documentado), backfill histórico, auth, PriorityDrop. |
 
 Capacidades fora desta Fase (registradas): delivery de streams
 observacionais (observation/evidence) — sub-onda futura; delivery da
@@ -117,6 +118,22 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-15 (H-11.f entregue — Fase RE-FECHADA)** — snapshot-then-delta
+  entregue: ao subscrever um subject de insights totalmente especificado,
+  a sessão recebe o snapshot KV-latest antes dos deltas. `SnapshotProvider`
+  port + `natsdelivery.KVSnapshotProvider` (parser subject→KV-key + dispatch
+  p/ `natsinsights.Gateway` + frame `{subject,event}`) + snapshot-on-subscribe
+  no `SessionActor` (provider em `Config`, nil=off) + wiring no gateway via
+  `conns.insights`. Canário integration (snapshot KV → delta ao vivo).
+  PROGRAM-0006 re-fechado. **Fora**: snapshot p/ wildcards, backfill
+  histórico (futuro, se houver demanda).
+- **2026-06-15 (H-11.f aberta — reabertura)** — após o fechamento de
+  H-11.e, o owner pediu snapshot-then-delta (após sanear a CI — fix G9).
+  A Fase reabre (Active) para entregar: ao subscrever um subject de
+  insights totalmente especificado, a sessão recebe o snapshot KV-latest
+  antes dos deltas. Port `SnapshotProvider` + adapter KV-backed + parser
+  subject→KV-key + snapshot-on-subscribe no `SessionActor`. Re-fecha ao
+  merge.
 - **2026-06-15 (H-11.e entregue — Fase RE-FECHADA)** — max-sessions cap
   entregue: bound configurável do total de sessões WS no hub
   (`delivery.Config.MaxSessions`, default 1024, env, 0=ilimitado);

@@ -59,7 +59,7 @@ func (h *Hub) Admit(conn ports.DeliveryConn) ports.DeliverySession {
 
 	id := deliverydomain.SessionID(fmt.Sprintf("delivery-session-%d", h.seq.Add(1)))
 	pid := h.engine.Spawn(
-		NewSessionActor(sessionConfig{id: id, conn: conn, maxQueue: h.cfg.QueueSize, policy: h.cfg.Policy, logger: h.logger}),
+		NewSessionActor(sessionConfig{id: id, conn: conn, maxQueue: h.cfg.QueueSize, policy: h.cfg.Policy, snapshots: h.cfg.SnapshotProvider, logger: h.logger}),
 		string(id),
 	)
 	h.engine.Send(h.router, registerSessionMessage{ID: id, PID: pid})

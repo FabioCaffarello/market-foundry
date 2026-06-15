@@ -166,6 +166,15 @@ applies). The next Fase after Delivery again requires re-confirmation.
 > H-11.d under the (reopened) PROGRAM-0006; a genuinely new Fase still
 > requires fresh re-confirmation.
 
+### 2026-06-15 — Re-confirmation: H-11.f (snapshot-then-delta, reopens PROGRAM-0006)
+
+After H-11.e and the G9 CI fix, the owner asked to "sanear CI/testnet e
+depois siga com H-11.f" and (on "segue") to proceed under the **same
+autonomous self-merge loop**. H-11.f (snapshot-then-delta on subscribe)
+**reopens PROGRAM-0006**. Per-Fase grant; same posture/discipline. The
+intervening G9 fix (PR #61) was a test-only bug-fix (no Fase), self-merged
+under the same standing direction.
+
 ### 2026-06-15 — Re-confirmation: H-11.e (Delivery hardening, reopens PROGRAM-0006)
 
 After PROGRAM-0007 H-9 closed, the owner chose another Delivery hardening
@@ -201,3 +210,5 @@ discipline). The next Fase again requires re-confirmation.
   (Storage Tier, Stage-1 closure + trigger instrumentation). Per-Fase.
 - 2026-06-15 — Errata: H-11.e (Delivery hardening, max-sessions cap)
   reopens PROGRAM-0006; same delegation re-confirmed. Per-Fase.
+- 2026-06-15 — Errata: H-11.f (snapshot-then-delta) reopens PROGRAM-0006;
+  same delegation re-confirmed (after the G9 test-only CI fix). Per-Fase.

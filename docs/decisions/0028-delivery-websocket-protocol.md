@@ -88,6 +88,12 @@ subject permite ao cliente demuxar quando assina mais de uma família; o
 payload é o evento de insights em JSON (mesma forma do read endpoint
 `/insights` correspondente). Subscription é por **padrão de subject
 NATS** (nativo do foundry; sem traduzir para um Subject struct separado).
+**Snapshot-then-delta (desde H-11.f):** ao subscrever um subject
+**totalmente especificado** (sem wildcards), o servidor envia primeiro o
+**snapshot atual** (KV-latest) como um frame `{subject,event}` idêntico em
+forma a um delta, e depois os deltas ao vivo. Subscrições com wildcard
+recebem apenas deltas (sem snapshot — derivar as chaves KV de um padrão é
+ambíguo).
 
 **Placement (layer sovereignty):** `domain/delivery` (Session,
 Subscription — puros) → `application/delivery` (orquestração/portas) →
@@ -161,3 +167,7 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
   cap no hub (`delivery.Config.MaxSessions`, env, default 1024) —
   completa o I4 "bounded" no nível do subsistema (além do per-session
   DropNewest/DropOldest). snapshot-then-delta deferido a H-11.f.
+- 2026-06-15 — H-11.f (reabre/re-fecha a Fase): snapshot-then-delta — ao
+  subscrever um subject totalmente especificado, o cliente recebe o
+  snapshot KV-latest antes dos deltas (port `SnapshotProvider` +
+  `natsdelivery.KVSnapshotProvider` + snapshot-on-subscribe no SessionActor).

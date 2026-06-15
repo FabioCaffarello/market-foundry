@@ -7,20 +7,20 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-9 fechada (PR #59, `c3db297`,
-2026-06-15)** — Storage Stage 1 fechado (ADR-0023 Stage 1 Accepted) +
-gatilhos T1/T2 instrumentados; **PROGRAM-0007 `Deferred`** (Stage 2 dorme
-pending triggers; sem TimescaleDB). Onda atual: **H-11.e** —
-**endurecimento da delivery** (incremento pós-fechamento; reabre o
-PROGRAM-0006): **max-sessions cap** — bound configurável do total de
-sessões WS concorrentes (completa a história "bounded" do ADR-0028 I4 no
-nível do subsistema; o per-session já era bounded). **snapshot-then-delta
-fica para H-11.f** (maior valor cliente, mas precisa de port
-`SnapshotProvider` + derivação subject→KV-key — onda própria). Rodando no
-**loop autônomo** — self-merge escopado **re-confirmado pelo owner para
-H-11.e** (ver
+Last meaningful state change: **H-11.e (PR #60, `7028fe4`) + fix G9
+(PR #61, `428d7bb`), 2026-06-15** — max-sessions cap entregue; **G9
+RESOLVIDO** (counter-lag nos integration tests do execute; test-only) →
+**todos os 8 checks de CI verdes**. Onda atual: **H-11.f** —
+**snapshot-then-delta** (reabre o PROGRAM-0006): ao subscrever um subject
+de insights **totalmente especificado**, o cliente recebe o **snapshot
+atual** (KV-latest) antes dos deltas ao vivo. Port `SnapshotProvider`
+(application/ports) implementado por adapter KV-backed sobre
+`conns.insights` no gateway; parser subject→KV-key; `SessionActor` envia
+o snapshot no subscribe (mesma forma de fio `{subject,event}`). Wildcards
+não recebem snapshot (documentado). Rodando no **loop autônomo** —
+self-merge escopado **re-confirmado pelo owner para H-11.f** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
-entrada 2026-06-15 H-11.e). Em paralelo, no gate temporal próprio:
+entrada 2026-06-15 H-11.f). Em paralelo, no gate temporal próprio:
 **H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
 ClickHouse, deleções de helpers, promoção ADR-0021 → Accepted).
 Roadmap: delivery WS (**H-11, em voo**), storage tier (H-9/H-10,
@@ -93,7 +93,9 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-11.c** | Fechada (PR #57 mergeada em `main` em `7f996d6`, 2026-06-13) — **fechou a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway. Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions`. **PriorityDrop deferido** (insights equi-advisory, ADR-0027). |
 | **H-11.d** | Fechada (PR #58 mergeada em `main` em `a74f3b2`, 2026-06-13) — **re-fechou o PROGRAM-0006 (Fase Delivery completa)** | Analyzer `check delivery` (P5) — enforcement estático da fronteira read-only/reader-only da delivery (ADR-0028 I1/I5): `natsdelivery` é **reader-only** (nenhum `.Publish(`); `consumer.go` referencia o durable `deliver-insights` + `INSIGHTS_EVENTS`. Mirror de `check_insights` (`policies/delivery.toml`; registro em mod/cli/gate Step 12b/application); 6 testes Rust. |
 | **H-9** | Fechada (PR #59 mergeada em `main` em `c3db297`, 2026-06-15) — **abriu/fechou Stage 1 da Fase Storage Tier / PROGRAM-0007 (`Deferred`)** | Fecha o **Stage 1** do ADR-0023 (ClickHouse cold + NATS KV hot, já validado por H-8/H-9) e **instrumenta os gatilhos** do Stage 2: promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed pending triggers); recording+alert rules para **T1** (p99 de query operacional do gateway via `marketfoundry_http_request_duration_seconds` > 50 ms) e **T2** (RSS do `store` via `process_resident_memory_bytes` > 4 GB) em `deploy/observability/prometheus/`; SLIs em `slo.md`. **Sem TimescaleDB** (H-10/Stage 2 é trigger-gated — gatilho primeiro, onda depois; nenhum disparou). Conflito owner-vs-ADR resolvido por pause-and-report (P6). **H-10 NÃO aberta.** |
-| **H-11.e** | **Atual** (esta entrega — branch `feat/h-11-e-max-sessions`; loop autônomo, 2026-06-15) — endurecimento; **reabre/re-fecha o PROGRAM-0006** | **Max-sessions cap**: bound configurável do total de sessões WS concorrentes no delivery hub (`delivery.Config.MaxSessions`, default 1024, env `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado). `Hub.Admit` rejeita acima do cap (contador atômico; conexão fechada com mensagem de capacidade); métrica `marketfoundry_delivery_sessions_rejected_total`. Completa a história "bounded" do ADR-0028 I4 no nível do subsistema (o per-session já era bounded por DropNewest/DropOldest). **snapshot-then-delta → H-11.f** (precisa port `SnapshotProvider` + subject→KV-key; maior valor cliente). |
+| **H-11.e** | Fechada (PR #60 mergeada em `main` em `7028fe4`, 2026-06-15) — **re-fechou o PROGRAM-0006** | **Max-sessions cap**: bound configurável do total de sessões WS concorrentes no delivery hub (`delivery.Config.MaxSessions`, default 1024, env `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado). `Hub.Admit` rejeita acima do cap (contador atômico; conexão fechada com `CloseTryAgainLater`); métrica `marketfoundry_delivery_sessions_rejected_total`. Completa o "bounded" do ADR-0028 I4 no nível do subsistema. |
+| **G9-fix** | Fechada (PR #61 mergeada em `main` em `428d7bb`, 2026-06-15) — **sanear CI** | Resolve o flake G9 (counter-lag: testes liam `Counter("filled")` antes do incremento pós-`PublishFill`). Test-only: `s341WaitCounter` antes do snapshot + `waitGateObserved`/Put confirmado nos 4 testes da família. Todos os 8 checks de CI verdes. Ver "Known gaps" → G9 (RESOLVIDO). |
+| **H-11.f** | **Atual** (esta entrega — branch `feat/h-11-f-snapshot-then-delta`; loop autônomo, 2026-06-15) — **reabre/re-fecha o PROGRAM-0006** | **snapshot-then-delta**: ao subscrever um subject de insights **totalmente especificado** (sem wildcards), a sessão recebe o **snapshot atual** (KV-latest) antes dos deltas ao vivo. `application/ports.SnapshotProvider` (port) + adapter KV-backed `natsdelivery` sobre `natsinsights.Gateway` (parser subject→`{family,source,token,tf}` → KV `Get` → frame `{subject,event}` com o `…SampledEvent` correspondente). `SessionActor.onSubscribe` envia o snapshot (provider em `delivery.Config`, nil=off); gateway liga via `conns.insights`. Todas as 3 famílias (VP/TPO/cross-venue). Wildcards não recebem snapshot. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -250,6 +252,32 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-11.f (loop autônomo — snapshot-then-delta; **re-fecha a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre o incremento (flip H-11.e → Fechada PR #60 + linha
+  G9-fix PR #61; reabre PROGRAM-0006; ADR-0026 errata). **Commit 1**:
+  `application/ports.SnapshotProvider` + `natsdelivery.KVSnapshotProvider`
+  (parser `parseInsightsSubject` subject→{family,source,token,tf} +
+  dispatch p/ `natsinsights.Gateway` + frame `{subject,event}` com o
+  `…SampledEvent`); testes do parser + provider. **Commit 2**:
+  `delivery.Config.SnapshotProvider` (nil=off); `SessionActor.onSubscribe`
+  envia o snapshot numa subscrição nova (antes dos deltas); Hub + gateway
+  (`conns.insights`) wiring; testes de actor. **Commit 3**: canário
+  integration (seed KV → subscribe → snapshot frame → publish → delta
+  frame; distinguidos por `open_time`) + este closure.
+- **Validação**: `make verify` EXIT=0 (arch-guard 11/11, check-delivery
+  PASS — natsdelivery segue reader-only); canários de delivery GREEN vs
+  NATS local (incl. snapshot-then-delta).
+- Snapshot só p/ subjects **totalmente especificados**; wildcards recebem
+  só deltas (derivar chaves KV de um padrão é ambíguo — documentado).
+
+**Próxima**: Fase Delivery completa (H-11.a–f). **Sem onda de Delivery
+pendente.** A delegação era escopada à H-11.f — **a próxima Fase exige
+re-confirmação do owner**. Roadmap: Odin (H-12+), H-10 (se um gatilho de
+storage disparar), gate temporal H-6.f.2 (~2026-08-26, fecha PROGRAM-0004).
 
 ---
 

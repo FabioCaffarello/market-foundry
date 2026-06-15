@@ -7,6 +7,7 @@ import (
 	actorcommon "internal/actors/common"
 	"internal/actors/scopes/delivery"
 	actorgateway "internal/actors/scopes/gateway"
+	natsdelivery "internal/adapters/nats/natsdelivery"
 	"internal/interfaces/http/routes"
 	"internal/shared/bootstrap"
 	"internal/shared/settings"
@@ -50,7 +51,13 @@ func Run(config settings.AppConfig) {
 	// insights events). Read-only transport over the same engine; degrades
 	// gracefully (no /ws route) if NATS is unavailable.
 	if config.NATS.Enabled {
-		deliveryRuntime, derr := delivery.Start(engine, config.NATS.URL, delivery.ConfigFromEnv(logger), logger)
+		deliveryCfg := delivery.ConfigFromEnv(logger)
+		// H-11.f: snapshot-then-delta — when the insights KV reader is up,
+		// a newly-subscribed client gets the current KV-latest before deltas.
+		if conns.insights != nil {
+			deliveryCfg.SnapshotProvider = natsdelivery.NewKVSnapshotProvider(conns.insights)
+		}
+		deliveryRuntime, derr := delivery.Start(engine, config.NATS.URL, deliveryCfg, logger)
 		if derr != nil {
 			logger.Warn("delivery subsystem unavailable", "error", derr)
 		} else {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"internal/application/ports"
 	deliverydomain "internal/domain/delivery"
 )
 
@@ -20,6 +21,9 @@ type Config struct {
 	QueueSize   int
 	Policy      deliverydomain.BackpressurePolicy
 	MaxSessions int // 0 = unlimited
+	// SnapshotProvider, when non-nil, supplies a KV-latest snapshot sent
+	// to a client on subscribe (before live deltas, H-11.f). nil = off.
+	SnapshotProvider ports.SnapshotProvider
 }
 
 // DefaultConfig is the bounded, DropNewest baseline.
