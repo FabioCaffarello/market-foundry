@@ -70,9 +70,12 @@ faz bridge `INSIGHTS_EVENTS → WS clients`, governada pelas invariantes:
   sem decisão explícita futura — preserva a fronteira do ADR-0027/0011.
 - **I4 — Backpressure bounded.** Consumidor lento não bloqueia o fan-out
   nem outros clientes: fila outbound por-sessão **bounded** com política
-  de descarte (default **DropNewest**; DropOldest/PriorityDrop como
-  opções de config em sub-onda futura). Backpressure sustentado fecha a
-  conexão. Sem buffering ilimitado.
+  de descarte configurável (default **DropNewest**; **DropOldest**
+  entregue em H-11.c; PriorityDrop deferido — insights equi-advisory,
+  ADR-0027). Backpressure sustentado fecha a conexão. Sem buffering
+  ilimitado. **Bound de subsistema (H-11.e):** o hub limita o total de
+  sessões concorrentes (`MaxSessions`, configurável) — recusa e fecha
+  além do cap, bounding a memória agregada além do per-session.
 - **I5 — Single-writer respeitado (ADR-0008).** Delivery é **leitor** de
   `INSIGHTS_EVENTS` (consumer durável `deliver-insights`); não escreve em
   stream nenhum. Sem binário novo (P8) — vive no gateway.
@@ -154,3 +157,7 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
 - 2026-06-13 — H-11.d (endurecimento, reabre/re-fecha a Fase): analyzer
   `check delivery` (P5) — enforcement estático de I1/I5 (reader-only +
   stream-bound). PROGRAM-0006 re-fechado.
+- 2026-06-15 — H-11.e (endurecimento, reabre/re-fecha a Fase): max-sessions
+  cap no hub (`delivery.Config.MaxSessions`, env, default 1024) —
+  completa o I4 "bounded" no nível do subsistema (além do per-session
+  DropNewest/DropOldest). snapshot-then-delta deferido a H-11.f.

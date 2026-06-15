@@ -253,6 +253,32 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.e (loop autônomo — endurecimento; max-sessions cap; **re-fecha a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre o incremento (flip H-9 → Fechada PR #59; reabre
+  PROGRAM-0006; ADR-0026 errata). **Commit 1**: max-sessions cap —
+  `delivery.Config.MaxSessions` (default 1024, env
+  `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado); `Hub.Admit` com
+  contador atômico rejeita acima do cap (retorna nil; rollback) e conta
+  `marketfoundry_delivery_sessions_rejected_total`; `SessionHandle.Close`
+  idempotente (sync.Once) libera o slot; handler `/ws` fecha com
+  `CloseTryAgainLater` quando no cap. Testes (cap + double-Close +
+  ilimitado). **Commit 2**: este closure (PROGRAM-0006 → `Closed`;
+  ADR-0028 nota I4 subsistema; TRUTH-MAP; HTTP-API).
+- **Validação**: `make verify` EXIT=0 (check-delivery PASS — natsdelivery
+  segue reader-only); canários integration GREEN.
+- Completa o "bounded" do ADR-0028 I4 no nível do subsistema (o
+  per-session já era bounded por DropNewest/DropOldest).
+
+**Próxima**: **H-11.f** (snapshot-then-delta na subscrição — cliente
+recebe o KV-latest atual e depois deltas; precisa de port
+`SnapshotProvider` + derivação subject→KV-key) **abre APENAS após merge**
+(P4/P9) **e exige re-confirmação da delegação** (PROGRAM-0006 re-fechado).
+Roadmap: Odin (H-12+), H-10 (se um gatilho de storage disparar), gate
+temporal H-6.f.2 (~2026-08-26).
+
+---
+
 Entregas H-9 (loop autônomo — **abre a Fase Storage Tier / PROGRAM-0007**; fecha o Stage 1 do ADR-0023 + instrumenta gatilhos):
 
 - **Pause-and-report (P6)**: o owner escolheu "storage tier"; o ADR-0023

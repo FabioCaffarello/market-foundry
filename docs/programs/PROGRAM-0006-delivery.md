@@ -1,7 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Active (reaberta 2026-06-15 para o endurecimento H-11.e —
-max-sessions cap; re-fecha ao merge. Prévio: Closed em H-11.d)
+**Status:** Closed (2026-06-15 — H-11.a–c + endurecimento H-11.d
+(`check delivery`) + H-11.e (max-sessions cap); Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -117,6 +117,13 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-15 (H-11.e entregue — Fase RE-FECHADA)** — max-sessions cap
+  entregue: bound configurável do total de sessões WS no hub
+  (`delivery.Config.MaxSessions`, default 1024, env, 0=ilimitado);
+  `Hub.Admit` rejeita acima do cap (contador atômico; conexão fechada
+  com `CloseTryAgainLater`); métrica `…delivery_sessions_rejected_total`.
+  Completa o "bounded" do ADR-0028 I4 no nível do subsistema. PROGRAM-0006
+  re-fechado. **snapshot-then-delta → H-11.f** (não aberta).
 - **2026-06-15 (H-11.e aberta — reabertura)** — após o fechamento de
   H-11.d, o owner escolheu mais endurecimento (H-11.e) e re-confirmou o
   loop. A Fase reabre (Active) para o **max-sessions cap** (bound do total
