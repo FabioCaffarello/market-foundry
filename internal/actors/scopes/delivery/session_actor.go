@@ -20,11 +20,12 @@ import (
 const DefaultOutboundQueue = 256
 
 type sessionConfig struct {
-	id       deliverydomain.SessionID
-	conn     ports.DeliveryConn
-	maxQueue int
-	policy   deliverydomain.BackpressurePolicy
-	logger   *slog.Logger
+	id        deliverydomain.SessionID
+	conn      ports.DeliveryConn
+	maxQueue  int
+	policy    deliverydomain.BackpressurePolicy
+	snapshots ports.SnapshotProvider // nil = no snapshot-on-subscribe
+	logger    *slog.Logger
 }
 
 // SessionActor owns one client's delivery state: its subscriptions
@@ -113,8 +114,20 @@ func (a *SessionActor) onSubscribe(msg subscribeMessage) {
 		a.logger.Warn("rejected subscription", "pattern", msg.Pattern, "error", prob.Message)
 		return
 	}
-	if a.session.Subscribe(sub) {
-		a.logger.Info("subscribed", "pattern", msg.Pattern)
+	if !a.session.Subscribe(sub) {
+		return // already subscribed; no duplicate snapshot
+	}
+	a.logger.Info("subscribed", "pattern", msg.Pattern)
+
+	// snapshot-then-delta (H-11.f): for a fully-specified subject, send the
+	// current KV-latest snapshot before any live delta. Offered on the actor
+	// goroutine, so it is enqueued ahead of subsequent matching deltas. The
+	// provider's KV read is bounded by its own timeout. Wildcard/no-data
+	// subscriptions get no snapshot.
+	if a.cfg.snapshots != nil {
+		if frame, ok := a.cfg.snapshots.Snapshot(msg.Pattern); ok {
+			a.offer(frame)
+		}
 	}
 }
 
