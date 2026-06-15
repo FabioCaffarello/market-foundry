@@ -278,6 +278,13 @@ pub fn run(config: &GateConfig) -> Result<GateReport> {
         });
     }
 
+    // Step 12b: check-delivery (static — ADR-0028 I1/I5 delivery reader-only, H-11.d)
+    if config.profile.includes_static() {
+        gate_step!("check-delivery", || {
+            analyzers::check_delivery::analyze(&config.project_root)
+        });
+    }
+
     // Step 13: drift-detect (static — cross-layer declaration/config/source alignment)
     if config.profile.includes_static() {
         gate_step!("drift-detect", || {

@@ -1,0 +1,27 @@
+# Delivery boundary policy — consumed by the raccoon-cli
+# `check delivery` analyzer (ADR-0028 / PROGRAM-0006, Onda H-11.d).
+#
+# Enforces the delivery invariants statically (P5 — an invariant without
+# enforcement is only an intention, ADR-0004):
+#
+#   I5 reader-only: the delivery NATS adapter consumes INSIGHTS_EVENTS
+#       and NEVER publishes to a stream (single-writer, ADR-0008 — derive
+#       remains the only publisher).
+#   I1 stream-bound: the delivery consumer binds the deliver-insights
+#       durable on INSIGHTS_EVENTS.
+#
+# Adding/removing a token here is a reviewer-audited policy change.
+
+[delivery]
+# The delivery NATS adapter package — must be reader-only.
+adapter_dir = "internal/adapters/nats/natsdelivery"
+
+# The durable consumer file + the durable name and stream it must read.
+consumer_file = "internal/adapters/nats/natsdelivery/consumer.go"
+required_durable = "deliver-insights"
+required_stream = "INSIGHTS_EVENTS"
+
+# Reader-only: no production file under adapter_dir may publish events.
+# (Stream/consumer management — CreateOrUpdateStream/Consumer — is
+# idempotent setup done by readers too, so it is NOT forbidden here.)
+forbidden_publish_tokens = [".Publish(", ".PublishMsg(", ".PublishAsync("]
