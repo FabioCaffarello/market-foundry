@@ -158,6 +158,14 @@ PROGRAM-0005 entry above (hook "ask"-on-merge unchanged; `git push
 origin main` + bypass remain denied; the five-step merge discipline
 applies). The next Fase after Delivery again requires re-confirmation.
 
+> **Note (2026-06-13 — H-11.c merged by owner; H-11.d re-confirmed):**
+> the owner merged PR #57 (H-11.c) themselves, which closed PROGRAM-0006.
+> They then chose a **hardening increment H-11.d** (the `check delivery`
+> analyzer) which **reopens PROGRAM-0006**, and re-confirmed the same
+> autonomous self-merge loop for it. The per-Fase grant therefore covers
+> H-11.d under the (reopened) PROGRAM-0006; a genuinely new Fase still
+> requires fresh re-confirmation.
+
 ## Changelog
 
 - 2026-06-09 — Created and Accepted (harness FASE 2 B2 PR, with
@@ -167,3 +175,6 @@ applies). The next Fase after Delivery again requires re-confirmation.
   posture unchanged). Recorded with the H-8.a.1 docs commit.
 - 2026-06-13 — Errata: delegation re-confirmed + extended to PROGRAM-0006
   (Delivery WS) after PROGRAM-0005 closed. Per-Fase grant; not standing.
+- 2026-06-13 — Note: owner merged H-11.c (PR #57, closed PROGRAM-0006);
+  H-11.d hardening increment reopens PROGRAM-0006 with the same delegation
+  re-confirmed.

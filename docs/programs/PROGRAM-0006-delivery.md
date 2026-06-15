@@ -1,6 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Closed (2026-06-13 — H-11.c entregue; Fase Delivery completa)
+**Status:** Active (reaberta 2026-06-13 para o incremento de endurecimento
+H-11.d, pós-fechamento de H-11.a–c; re-fecha ao merge de H-11.d)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -37,7 +38,8 @@ destrava ambos e é o caminho canônico ao Odin (P8).
 |----------|--------|---------------------|
 | **H-11.a** | WS server skeleton + delivery de volume profile | Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`) sobre `INSIGHTS_EVENTS`; `RouterActor` (fan-out sessions↔subjects) + `SessionActor` (1 por conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; endpoint `GET /ws` (`interfaces/http`, upgrade gorilla); canário integration (connect→subscribe→receber 1 volume profile); drift-detect ciente do durable. **Promove ADR-0028 → Accepted.** |
 | **H-11.b** | Modelo de subscription multi-evento + todos os insights | Generaliza subscription a wildcards de subject (`insights.events.>`, por instrument/venue); adiciona TPO + cross-venue; filtragem por subject. |
-| **H-11.c** | Políticas de backpressure + métricas de sessão | Backpressure configurável (DropNewest/DropOldest/PriorityDrop); tamanho de fila outbound por config; métricas (drops, queue depth, client count) em Prometheus. Fecha o gap de backpressure de pipeline (no recorte de delivery). |
+| **H-11.c** | Políticas de backpressure + métricas de sessão | Backpressure configurável (DropNewest/DropOldest; PriorityDrop deferido — ADR-0027); tamanho de fila outbound por config; métricas (frames delivered/dropped, client count) em Prometheus. |
+| **H-11.d** | Endurecimento — analyzer `check delivery` (P5) | Incremento pós-fechamento (reabre/re-fecha a Fase). Analyzer estático `check delivery` da fronteira read-only/reader-only (ADR-0028 I1/I5): `natsdelivery` nunca `Publish`; durable `deliver-insights` lê `INSIGHTS_EVENTS`. Mirror de `check_insights` (policy + 4 sites de registro + gate step). **Fora**: auth (contradiz loopback non-feature), PriorityDrop (deferido), snapshot-then-delta + max-sessions (→ H-11.e). |
 
 Capacidades fora desta Fase (registradas): delivery de streams
 observacionais (observation/evidence) — sub-onda futura; delivery da
@@ -114,6 +116,15 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-13 (H-11.d aberta — reabertura)** — após o fechamento de
+  H-11.c, o owner escolheu um incremento de **endurecimento** (H-11.d) e
+  re-confirmou o loop autônomo. A Fase reabre (Active) para entregar o
+  analyzer `check delivery` (P5 — enforcement estático da fronteira
+  read-only/reader-only, ADR-0028 I1/I5), preenchendo a lacuna P5 que
+  H-11.a–c deixaram (a invariante existia sem analyzer dedicado;
+  drift-detect cobria só o durable). Exclusões registradas: auth de rede
+  (contradiz o não-feature loopback), PriorityDrop (deferido por design),
+  snapshot-then-delta + max-sessions (→ H-11.e). Re-fecha ao merge.
 - **2026-06-13 (H-11.c entregue — Fase FECHADA)** — última sub-onda:
   política de backpressure **configurável** (`BackpressurePolicy`
   DropNewest/DropOldest no domínio; SessionActor evicta o mais antigo no

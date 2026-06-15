@@ -7,17 +7,19 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-11.b fechada (PR #56, `86a46b6`,
-2026-06-13)** — delivery generalizada a **todas as famílias de insights**
-(durable `deliver-insights` lê `insights.events.>`, decode por subject;
-frame de fio `{subject, event}`). Onda atual: **H-11.c** — **última
-sub-onda da Fase Delivery**: políticas de backpressure configuráveis
-(DropNewest default + DropOldest; PriorityDrop deferido com justificativa)
-+ tamanho de fila por config + métricas Prometheus de sessão (frames
-delivered/dropped, sessions). **Seu merge fecha o PROGRAM-0006.** Delivery
-é **read-only transport, loopback-only, backpressure bounded** (ADR-0028
-I1–I5). Rodando no **loop autônomo** — self-merge escopado **re-confirmado
-pelo owner para PROGRAM-0006** (ver
+Last meaningful state change: **H-11.c fechada (PR #57, `7f996d6`,
+2026-06-13)** — backpressure configurável (DropNewest/DropOldest) +
+métricas Prometheus de delivery; **fechou o PROGRAM-0006** (Fase Delivery:
+H-11.a→b→c). Onda atual: **H-11.d** — **endurecimento da delivery**
+(incremento pós-fechamento; reabre o PROGRAM-0006): analyzer `check
+delivery` (P5) — enforcement estático da fronteira read-only/reader-only
+(ADR-0028 I1/I5: `natsdelivery` nunca `Publish`; durable `deliver-insights`
+lê `INSIGHTS_EVENTS`). **Fora do escopo desta onda** (decisão registrada):
+auth de rede (contradiz o não-feature loopback), PriorityDrop (deferido
+por design, ADR-0027), snapshot-then-delta + max-sessions (futura H-11.e).
+Delivery é **read-only transport, loopback-only, backpressure bounded**
+(ADR-0028 I1–I5). Rodando no **loop autônomo** — self-merge escopado
+**re-confirmado pelo owner para PROGRAM-0006 (incl. H-11.d)** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
 entrada 2026-06-13 PROGRAM-0006). Em paralelo, no gate temporal próprio:
 **H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
@@ -89,7 +91,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-8.c.1** | Fechada (PR #54 mergeada em `main` em `9be97a7`, 2026-06-13) — **fechou a Fase Insights / PROGRAM-0005** | Persistência ClickHouse do cross-venue — última sub-onda. Tabela `insights_cross_venue` com **Array-columns paralelas das venue rows** (`venue_name/trade_count/notional/last/high/low`) + scalars spread/mid/dominant + canônicas base/quote/contract (**sem source** — cross-venue cruza sources) + timeframe. Reusa o layer codegen `insights` (family `cross_venue`); consumer writer-side `writer-cross-venue`; mapper `mapCrossVenueRow`; canário `requireclickhouse`; drift-detect `writer-cross-venue` + tabela. Seu merge transitou PROGRAM-0005 → `Closed`. |
 | **H-11.a** | Fechada (PR #55 mergeada em `main` em `aafb0bb`, 2026-06-13) — **abriu a Fase Delivery / PROGRAM-0006** | Servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → WS clients` (skeleton + delivery de volume profile end-to-end). Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`); `RouterActor` (fan-out) + `SessionActor` (1/conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; port `internal/application/ports/delivery.go` (interfaces/ sem importar actors/, ADR-0005); endpoint `GET /ws` (gorilla upgrade); canário integration; drift-detect ciente do durable `deliver-insights`. Documento-primeiro: [ADR-0028](decisions/0028-delivery-websocket-protocol.md) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). **ADR-0028 → `Accepted`.** |
 | **H-11.b** | Fechada (PR #56 mergeada em `main` em `86a46b6`, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON tipado); frame de fio `{subject, event}` (cliente demuxa multi-família). Canários integration TPO + cross-venue + multi-família/1-sessão. Sem novo ADR (ADR-0028 I3 já cobre todos os insights). |
-| **H-11.c** | **Atual** (esta entrega — branch `feat/h-11-c-delivery-backpressure-metrics`; loop autônomo, 2026-06-13) — **fecha a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway (sem tocar settings schema). Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions` (gauge). **PriorityDrop deferido** (justificativa: insights são decision-support equi-advisory, ADR-0027 — sem ordem de prioridade natural entre famílias; revisitar se delivery carregar streams de prioridade heterogênea). `check delivery` dedicado permanece opcional (drift-detect já cobre o durable). **Seu merge transita PROGRAM-0006 → `Closed`.** |
+| **H-11.c** | Fechada (PR #57 mergeada em `main` em `7f996d6`, 2026-06-13) — **fechou a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway. Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions`. **PriorityDrop deferido** (insights equi-advisory, ADR-0027). |
+| **H-11.d** | **Atual** (esta entrega — branch `feat/h-11-d-check-delivery-analyzer`; loop autônomo, 2026-06-13) — endurecimento pós-fechamento; **reabre/re-fecha o PROGRAM-0006** | Analyzer `check delivery` (P5) — enforcement estático da fronteira read-only/reader-only da delivery (ADR-0028 I1/I5): `internal/adapters/nats/natsdelivery/` é **reader-only** (nenhum `.Publish(`); `consumer.go` referencia o durable `deliver-insights` + `INSIGHTS_EVENTS`. Mirror de `check_insights` (policy TOML `delivery.toml`; registro em `mod.rs`/`cli`/`gate` step/`application`); testes Rust. **Fora**: auth (contradiz loopback non-feature), PriorityDrop (deferido), snapshot-then-delta + max-sessions (→ H-11.e). Seu merge re-fecha o PROGRAM-0006. |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
