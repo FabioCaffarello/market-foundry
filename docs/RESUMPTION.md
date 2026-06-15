@@ -252,6 +252,30 @@ analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 
 ---
 
+Entregas H-11.d (loop autônomo — endurecimento; analyzer `check delivery`; **re-fecha a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre o incremento (flip H-11.c → Fechada PR #57; reabre
+  PROGRAM-0006; ADR-0026 errata — H-11.c mergeada pelo owner, H-11.d
+  re-confirmada). **Commit 1**: analyzer `raccoon-cli check delivery`
+  (ADR-0028 I1/I5) — reader-only (`natsdelivery` sem `.Publish(`) +
+  stream-bound (durable `deliver-insights` + `INSIGHTS_EVENTS`); mirror
+  de `check_insights`; `policies/delivery.toml`; registro em
+  mod/cli/application/gate (Step 12b, static); 6 testes Rust. **Commit 2**:
+  este closure (PROGRAM-0006 re-Closed; ADR-0028 nota; TRUTH-MAP).
+- **Validação**: `make verify` EXIT=0 (gate 14 steps; check-delivery PASS
+  4/4); `check delivery` PASS no repo real; 6 testes Rust GREEN.
+- **Lacuna P5 preenchida**: a fronteira read-only da delivery (H-11.a–c)
+  agora tem analyzer dedicado (antes só o `drift-detect` do durable).
+
+**Próxima**: Fase Delivery completa (H-11.a–d). **Sem onda de Delivery
+pendente.** Candidato futuro **H-11.e** (snapshot-then-delta + backfill;
+max-sessions cap) — não aberto. A delegação de self-merge era escopada ao
+PROGRAM-0006 (incl. H-11.d) — **a próxima Fase exige re-confirmação do
+owner**. Roadmap: storage tier (H-9/H-10, trigger-gated), Odin (H-12+),
+gate temporal H-6.f.2 (~2026-08-26, fecha PROGRAM-0004).
+
+---
+
 Entregas H-11.c (loop autônomo — backpressure configurável + métricas; **FECHA a Fase Delivery / PROGRAM-0006**):
 
 - **Commit 0**: abre a onda (flip H-11.b → Fechada PR #56; header). **Commit

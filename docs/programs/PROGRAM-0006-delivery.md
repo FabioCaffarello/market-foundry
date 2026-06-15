@@ -1,7 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Active (reaberta 2026-06-13 para o incremento de endurecimento
-H-11.d, pós-fechamento de H-11.a–c; re-fecha ao merge de H-11.d)
+**Status:** Closed (2026-06-13 — H-11.a–c + endurecimento H-11.d;
+analyzer `check delivery` entregue, Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -116,6 +116,13 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-13 (H-11.d entregue — Fase RE-FECHADA)** — analyzer
+  `check delivery` entregue: enforcement estático da fronteira
+  read-only/reader-only (ADR-0028 I1/I5 — `natsdelivery` nunca `Publish`;
+  durable `deliver-insights` lê `INSIGHTS_EVENTS`); `policies/delivery.toml`
+  + 6 testes Rust + gate Step 12b. Preenche a lacuna P5. PROGRAM-0006
+  re-fechado (Closed). H-11.e (snapshot-then-delta + max-sessions) fica
+  como candidato futuro, não aberto.
 - **2026-06-13 (H-11.d aberta — reabertura)** — após o fechamento de
   H-11.c, o owner escolheu um incremento de **endurecimento** (H-11.d) e
   re-confirmou o loop autônomo. A Fase reabre (Active) para entregar o
