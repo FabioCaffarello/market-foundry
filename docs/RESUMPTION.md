@@ -2481,43 +2481,40 @@ compose-execute) or trust CI to confirm green.
 
 **First observed:** H-6.d.1 pre-push validation (2026-05-27).
 
-### G9 — família ControlledActivation/RealVenue Integration-Tests timing flakes
+### G9 — família ControlledActivation/RealVenue Integration flakes — **RESOLVIDO (2026-06-15, sanear-CI)**
 
-Família registrada como **uma** entrada por ser um único fenômeno
-(timing sob carga de Integration Tests em
-`internal/actors/scopes/execute`); três testes exibem a shape:
+Família em `internal/actors/scopes/execute` (4 testes):
+`TestControlledActivation_FullLifecycle`,
+`TestControlledActivation_GateHaltBlocksAfterEnable`,
+`TestRealVenueActivation_FullLifecycle`,
+`TestRealVenueActivation_RuntimeHaltBlocksAfterEnable` (+ shape similar em
+`TestLiveConsumerFlow_KillSwitchBlocksRealActorPath`).
 
-- `TestControlledActivation_FullLifecycle`
-- `TestRealVenueActivation_FullLifecycle`
-- `TestControlledActivation_GateHaltBlocksAfterEnable`
+**Root cause (finalmente mecânico, não "ambiental"):** os testes liam
+`adapterTracker.Counter("filled").Load()` **imediatamente após**
+`fillSub.waitForFill(...)` para tirar um snapshot e comparar depois. Mas o
+`VenueAdapterActor` incrementa `Counter("filled")` **DEPOIS** de
+`PublishFill` (decisão deliberada P4.1.8.c — Option C, com nota explícita
+em `venue_adapter_actor.go`), criando uma janela em que o sinal do fill
+(stream) precede o incremento do contador. Sob carga de CI a janela abria
+e o snapshot lia o valor pré-incremento → comparação falhava. (O log
+`"Margin is insufficient" HTTP 400 -2019` que aparecia junto era um **red
+herring**: vem do `s342RejectionServer`, um `httptest.Server` local que
+simula rejeição de venue — NÃO é o testnet real.)
 
-Os dois primeiros estão documentados desde a Phase 4.5 como
-non-required e non-blocking per branch protection (ver header
-deste documento e "Phase 4 outlook") — mas até esta entrada
-viviam apenas em prosa, sem registro no registry (achado P1-6
-da auditoria FASE 3). O terceiro foi observado no CI do PR #38
-(2026-06-10): FAIL na run, PASS no rerun do job, com **zero**
-arquivos `.go` no diff (PR docs/harness-only) — flake confirmado
-empiricamente.
+**Fix (test-only, conforme a própria nota do actor "tests synchronize via
+the eventuallyAtLeast helper"):** antes de snapshotar `filled`, esperar o
+contador refletir o fill (`s341WaitCounter(t, tracker, "filled", N, …)`).
+Adicionalmente: `Put` do gate agora confirmado (`prob == nil`) e
+`waitGateObserved` (poll de `IsHalted` pelo mesmo caminho que o actor lê)
+substituiu os `time.Sleep(200ms)` de propagação — defesa em profundidade.
+Helpers `s341SetGate`/`s333SetGate` endurecidos. Validado: suite execute
+completa **3×** + os 4 testes **5×** PASS local determinístico.
 
-**Workaround:** rerun do job falho (`gh run rerun <id> --failed`);
-localmente, rerun isolado do teste. **Deferred to:** investigado
-em H-6.f.1 (Decisão #6) e **NÃO absorvido** — flake ambiental sob
-carga paralela de CI (FAIL→PASS em rerun, zero `.go` no diff do
-PR #38); sem reprodução determinística local, qualquer ajuste de
-timeout seria especulativo, não mecânico. Re-deferred para
-sub-wave dedicada de test-hardening, junto com G7.
-
-**Re-observação empírica (PR #47, H-7.c, 2026-06-12):**
-`TestRealVenueActivation_FullLifecycle` FAIL na primeira run,
-**8/8 jobs PASS no rerun** sem mudança de código — diff da H-7.c
-toca apenas o domain do instrument, o parser do `binancef` e docs
-(zero overlap com o caminho de activation). Terceira confirmação
-do mesmo fenômeno (PR #38 → PR #47); reforça o caso da sub-wave de
-test-hardening, sem alterar a disposição (deferred).
-
-Registrada na FASE 3.2 (2026-06-10), junto com a renomeação
-G6→G8 (G8 resolvido em H-6.f.1 — ver "Recently resolved").
+Histórico: documentado desde Phase 4.5 (non-required/non-blocking),
+registrado na FASE 3.2 (achado P1-6), re-deferido em H-6.f.1 (Decisão #6)
+e H-7.c por falta de reprodução local — resolvido aqui com reprodução
+determinística + fix mecânico.
 
 ### G11 — Delivery futures: gaps de enablement no ingest (sucessor do G10)
 

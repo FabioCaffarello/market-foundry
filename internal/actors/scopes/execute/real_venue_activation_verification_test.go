@@ -364,18 +364,24 @@ func TestRealVenueActivation_RuntimeHaltBlocksAfterEnable(t *testing.T) {
 	}
 	t.Logf("[RVA-3/phase-1] fill received: venue_order_id=%s", fill1.VenueOrderID)
 
+	// The fill-stream signal can lead the adapter's "filled" counter; wait
+	// for the counter to reflect phase-1's fill before snapshotting it, so
+	// the phase-3 "filled unchanged" comparison is deterministic.
+	s341WaitCounter(t, adapterTracker, "filled", 1, 5*time.Second)
 	filledBeforeHalt := adapterTracker.Counter("filled").Load()
 	venueReqsBefore := venueRequests.Load()
 
 	// Phase 2: Halt the gate (runtime transition).
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateHalted,
 		Reason:    "s342-rva3-halt",
 		UpdatedBy: "s342-test",
 		UpdatedAt: time.Now().UTC(),
-	})
+	}); prob != nil {
+		t.Fatalf("[RVA-3/phase-2] halt gate: %s", prob.Message)
+	}
 	t.Log("[RVA-3/phase-2] gate halted at runtime")
-	time.Sleep(200 * time.Millisecond)
+	waitGateObserved(t, controlStore, true, 5*time.Second)
 
 	// Phase 3: Publish another event — should be blocked, NO venue HTTP request.
 	corrID2 := fmt.Sprintf("s342-rva3-halted-%d", time.Now().UnixNano())
@@ -480,13 +486,15 @@ func TestRealVenueActivation_FullLifecycle(t *testing.T) {
 
 	// ── Phase 2: Enable — operator opens gate, real venue fill ──
 
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateActive,
 		Reason:    "s342-rva4-smoke-passed",
 		UpdatedBy: "s342-operator",
 		UpdatedAt: time.Now().UTC(),
-	})
-	time.Sleep(200 * time.Millisecond)
+	}); prob != nil {
+		t.Fatalf("[RVA-4/phase-2] enable gate: %s", prob.Message)
+	}
+	waitGateObserved(t, controlStore, false, 5*time.Second)
 
 	corrID2 := fmt.Sprintf("s342-rva4-live-%d", time.Now().UnixNano())
 	event2 := s333BuildEvent(t, time.Now().UTC().Add(-10*time.Second), corrID2)
@@ -513,18 +521,23 @@ func TestRealVenueActivation_FullLifecycle(t *testing.T) {
 	t.Logf("[RVA-4/phase-2] ENABLED — real venue fill: venue_order_id=%s price=%s",
 		fill2.VenueOrderID, fill2.ExecutionIntent.Fills[0].Price)
 
+	// The fill-stream signal can lead the adapter's "filled" counter; wait
+	// for the counter to reflect phase-2's fill before snapshotting it.
+	s341WaitCounter(t, adapterTracker, "filled", 1, 5*time.Second)
 	filledAfterEnable := adapterTracker.Counter("filled").Load()
 	venueReqsAfterEnable := venueRequests.Load()
 
 	// ── Phase 3: Halt — operator halts gate, venue untouched ──
 
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateHalted,
 		Reason:    "s342-rva4-emergency-halt",
 		UpdatedBy: "s342-operator",
 		UpdatedAt: time.Now().UTC(),
-	})
-	time.Sleep(200 * time.Millisecond)
+	}); prob != nil {
+		t.Fatalf("[RVA-4/phase-3] halt gate: %s", prob.Message)
+	}
+	waitGateObserved(t, controlStore, true, 5*time.Second)
 
 	corrID3 := fmt.Sprintf("s342-rva4-rehalted-%d", time.Now().UnixNano())
 	event3 := s333BuildEvent(t, time.Now().UTC().Add(-10*time.Second), corrID3)
