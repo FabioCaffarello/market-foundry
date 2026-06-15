@@ -68,12 +68,17 @@ func s341SetGate(t *testing.T, url string, status domainexec.GateStatus, reason,
 	if err := store.Start(); err != nil {
 		t.Fatalf("control store: %v", err)
 	}
-	store.Put(context.Background(), domainexec.ControlGate{
+	if prob := store.Put(context.Background(), domainexec.ControlGate{
 		Status:    status,
 		Reason:    reason,
 		UpdatedBy: updatedBy,
 		UpdatedAt: time.Now().UTC(),
-	})
+	}); prob != nil {
+		t.Fatalf("[s341] set gate %s: %s", status, prob.Message)
+	}
+	// Confirm the write is server-visible through the actor's read path
+	// before any event is published (G9 hardening).
+	waitGateObserved(t, store, status == domainexec.GateHalted, 5*time.Second)
 	return store
 }
 
@@ -252,19 +257,22 @@ func TestControlledActivation_GateHaltBlocksAfterEnable(t *testing.T) {
 	}
 	t.Logf("[CAV-3/phase-1] fill received while active: %s", fill1.VenueOrderID)
 
+	// The fill-stream signal can lead the adapter's "filled" counter; wait
+	// for the counter to reflect phase-1's fill before snapshotting it.
+	s341WaitCounter(t, adapterTracker, "filled", 1, 5*time.Second)
 	filledBeforeHalt := adapterTracker.Counter("filled").Load()
 
 	// Phase 2: Halt the gate (runtime transition).
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateHalted,
 		Reason:    "s341-cav3-halt",
 		UpdatedBy: "s341-test",
 		UpdatedAt: time.Now().UTC(),
-	})
+	}); prob != nil {
+		t.Fatalf("[CAV-3/phase-2] halt gate: %s", prob.Message)
+	}
 	t.Log("[CAV-3/phase-2] gate halted at runtime")
-
-	// Small delay to allow KV propagation.
-	time.Sleep(200 * time.Millisecond)
+	waitGateObserved(t, controlStore, true, 5*time.Second)
 
 	// Phase 3: Publish another event — should be blocked.
 	corrID2 := fmt.Sprintf("s341-cav3-halted-%d", time.Now().UnixNano())
@@ -352,13 +360,15 @@ func TestControlledActivation_FullLifecycle(t *testing.T) {
 
 	// ── Phase 2: Enable — operator opens gate ──
 
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateActive,
 		Reason:    "s341-cav4-smoke-passed",
 		UpdatedBy: "s341-operator",
 		UpdatedAt: time.Now().UTC(),
-	})
-	time.Sleep(200 * time.Millisecond)
+	}); prob != nil {
+		t.Fatalf("[CAV-4/phase-2] enable gate: %s", prob.Message)
+	}
+	waitGateObserved(t, controlStore, false, 5*time.Second)
 
 	corrID2 := fmt.Sprintf("s341-cav4-live-%d", time.Now().UnixNano())
 	event2 := s333BuildEvent(t, time.Now().UTC().Add(-10*time.Second), corrID2)
@@ -378,17 +388,23 @@ func TestControlledActivation_FullLifecycle(t *testing.T) {
 	}
 	t.Logf("[CAV-4/phase-2] ENABLED — fill received: %s", fill2.VenueOrderID)
 
+	// The fill-stream signal (waitForFill) can lead the adapter's "filled"
+	// counter increment; wait for the counter to reflect phase-2's fill
+	// before snapshotting it, so the phase-3 comparison is deterministic.
+	s341WaitCounter(t, adapterTracker, "filled", 1, 5*time.Second)
 	filledAfterEnable := adapterTracker.Counter("filled").Load()
 
 	// ── Phase 3: Halt — operator halts gate ──
 
-	controlStore.Put(context.Background(), domainexec.ControlGate{
+	if prob := controlStore.Put(context.Background(), domainexec.ControlGate{
 		Status:    domainexec.GateHalted,
 		Reason:    "s341-cav4-emergency-halt",
 		UpdatedBy: "s341-operator",
 		UpdatedAt: time.Now().UTC(),
-	})
-	time.Sleep(200 * time.Millisecond)
+	}); prob != nil {
+		t.Fatalf("[CAV-4/phase-3] halt gate: %s", prob.Message)
+	}
+	waitGateObserved(t, controlStore, true, 5*time.Second)
 
 	corrID3 := fmt.Sprintf("s341-cav4-rehalted-%d", time.Now().UnixNano())
 	event3 := s333BuildEvent(t, time.Now().UTC().Add(-10*time.Second), corrID3)

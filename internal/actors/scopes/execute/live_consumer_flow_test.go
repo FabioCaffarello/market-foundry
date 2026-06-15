@@ -188,12 +188,17 @@ func s333SetGate(t *testing.T, url string, status domainexec.GateStatus, reason 
 	if err := store.Start(); err != nil {
 		t.Fatalf("control store: %v", err)
 	}
-	store.Put(context.Background(), domainexec.ControlGate{
+	if prob := store.Put(context.Background(), domainexec.ControlGate{
 		Status:    status,
 		Reason:    reason,
 		UpdatedAt: time.Now().UTC(),
 		UpdatedBy: "s333-test",
-	})
+	}); prob != nil {
+		t.Fatalf("[s333] set gate %s: %s", status, prob.Message)
+	}
+	// Confirm the write is server-visible through the actor's read path
+	// before the supervisor spawns / events publish (G9 hardening).
+	waitGateObserved(t, store, status == domainexec.GateHalted, 5*time.Second)
 	return store
 }
 
