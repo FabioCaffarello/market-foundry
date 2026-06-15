@@ -245,6 +245,28 @@ from H-5 onwards.
 
 ---
 
+## Storage-tier triggers (ADR-0023)
+
+Distinct from the F1–F4 SLOs, the storage tier carries **promotion
+triggers** (not SLOs): empirical signals that decide whether Stage 2
+(TimescaleDB, Onda H-10) opens. They were instrumented in **H-9** so they
+are observable — ADR-0023 notes "triggers cannot fire if instrumentation
+is absent" — but they have no error budgets or burn-rate alerts, and they
+do **not** auto-open Stage 2.
+
+| Trigger | SLI (recording rule) | Threshold | Alert |
+|---|---|---|---|
+| T1 latency | `storage:gateway_op_query_p99_5m` (gateway op-query p99) | > 50 ms sustained 7d | `StorageTriggerT1GatewayLatency` (ticket) |
+| T2 memory | `storage:store_rss_bytes` (store RSS, KV-projection proxy) | > 4 GB | `StorageTriggerT2StoreMemory` (ticket) |
+| T3 client | — (Cliente Odin H-12+ SLO miss) | client SLO miss | none yet (Odin absent) |
+
+Opening Stage 2 is the maintainer's decision after confirming a sustained,
+non-transient breach. See
+[`runbooks/storage-triggers.md`](runbooks/storage-triggers.md) and
+[ADR-0023](../decisions/0023-storage-tier-roadmap.md).
+
+---
+
 ## Changelog
 
 - **2026-05-24** — Initial version, shipped as H-1 deliverable.
