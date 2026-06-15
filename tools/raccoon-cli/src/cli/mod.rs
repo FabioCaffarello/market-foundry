@@ -448,6 +448,25 @@ pub(crate) enum CheckCommands {
             raccoon-cli check-insights"
     )]
     Insights,
+    /// Enforce ADR-0028 delivery read-only / reader-only invariant
+    #[command(
+        name = "delivery",
+        visible_alias = "check-delivery",
+        long_about = "Statically enforce ADR-0028 (delivery is read-only \
+            transport, Onda H-11.d) invariants I1/I5.\n\n\
+            Reader-only adapter: no production file under \
+            internal/adapters/nats/natsdelivery publishes to a stream \
+            (delivery consumes INSIGHTS_EVENTS and never writes back — \
+            single-writer, ADR-0008). Stream-bound consumer: the delivery \
+            consumer declares the deliver-insights durable on \
+            INSIGHTS_EVENTS.\n\n\
+            Declarative algorithm: reads \
+            tools/raccoon-cli/policies/delivery.toml.",
+        after_help = "Examples:\n  \
+            raccoon-cli check delivery\n  \
+            raccoon-cli check-delivery"
+    )]
+    Delivery,
     /// Run the consolidated repository guard-rail profile
     #[command(
         name = "gate",

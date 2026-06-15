@@ -18,8 +18,10 @@ configurável (DropNewest default + DropOldest; **PriorityDrop deferido** —
 insights são decision-support equi-advisory, sem ordem de prioridade
 natural, ADR-0027), tamanho de fila por config (`delivery.Config` via env
 no gateway), e métricas Prometheus (`…delivery_frames_total{outcome}` +
-`…delivery_sessions`). Um analyzer `check delivery` dedicado permanece
-opcional (o `drift-detect` do durable cobre a invariante).
+`…delivery_sessions`). **H-11.d** entregou o analyzer dedicado
+`check delivery` (P5): enforcement estático da fronteira read-only/
+reader-only (`natsdelivery` nunca `Publish`; durable `deliver-insights`
+lê `INSIGHTS_EVENTS`) — gate Step 12b, `policies/delivery.toml`.
 
 ## Context
 
@@ -149,3 +151,6 @@ scopes/delivery` (RouterActor de fan-out + SessionActor por conexão) →
 - 2026-06-13 — H-11.c (fecha a Fase): backpressure configurável
   (DropNewest/DropOldest; PriorityDrop deferido com justificativa) +
   fila por config + métricas Prometheus de delivery. PROGRAM-0006 Closed.
+- 2026-06-13 — H-11.d (endurecimento, reabre/re-fecha a Fase): analyzer
+  `check delivery` (P5) — enforcement estático de I1/I5 (reader-only +
+  stream-bound). PROGRAM-0006 re-fechado.

@@ -7,6 +7,7 @@ pub mod check_metrics;
 pub mod check_proto;
 pub mod check_subjects;
 pub mod check_insights;
+pub mod check_delivery;
 pub mod check_venue_parity;
 pub mod contract_usage_map;
 pub mod contracts;
