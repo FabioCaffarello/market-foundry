@@ -6,6 +6,7 @@ import (
 
 	actorcommon "internal/actors/common"
 	deliverydomain "internal/domain/delivery"
+	"internal/shared/metrics"
 
 	"github.com/anthdm/hollywood/actor"
 )
@@ -38,10 +39,16 @@ func (r *RouterActor) Receive(c *actor.Context) {
 	case actor.Stopped:
 		r.logger.Info("delivery router stopped", "sessions", len(r.sessions))
 	case registerSessionMessage:
+		if _, dup := r.sessions[msg.ID]; !dup {
+			metrics.IncDeliverySessions()
+		}
 		r.sessions[msg.ID] = msg.PID
 		r.logger.Info("session registered", "session", string(msg.ID), "total", len(r.sessions))
 	case unregisterSessionMessage:
-		delete(r.sessions, msg.ID)
+		if _, ok := r.sessions[msg.ID]; ok {
+			delete(r.sessions, msg.ID)
+			metrics.DecDeliverySessions()
+		}
 		r.logger.Info("session unregistered", "session", string(msg.ID), "total", len(r.sessions))
 	case eventReceivedMessage:
 		// eventReceivedMessage and deliverFrameMessage share a shape; the

@@ -148,6 +148,33 @@ var (
 	)
 )
 
+// ── Delivery metrics (ADR-0028 I4, H-11.c) ────────────────────────
+
+var (
+	deliveryFramesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "delivery",
+			Name:      "frames_total",
+			Help: "Insights frames handled by the WebSocket delivery fan-out, " +
+				"by outcome: 'delivered' (written to a client) or 'dropped' " +
+				"(shed by a session's bounded buffer per its backpressure " +
+				"policy — ADR-0028 I4). A non-trivial dropped rate means clients " +
+				"are slower than the event stream.",
+		},
+		[]string{"outcome"},
+	)
+
+	deliverySessions = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "delivery",
+			Name:      "sessions",
+			Help:      "Currently connected WebSocket delivery sessions (clients).",
+		},
+	)
+)
+
 func init() {
 	prometheus.MustRegister(
 		httpRequestDuration,
@@ -161,8 +188,28 @@ func init() {
 		executionGateStatus,
 		executionGateReadFailuresTotal,
 		adapterUndeclaredEventTotal,
+		deliveryFramesTotal,
+		deliverySessions,
 	)
 }
+
+// ── Delivery helpers (ADR-0028 I4) ──────────────────────────────────
+
+// Canonical delivery frame outcomes.
+const (
+	DeliveryOutcomeDelivered = "delivered"
+	DeliveryOutcomeDropped   = "dropped"
+)
+
+// IncDeliveryFrame counts a delivery frame by outcome
+// (DeliveryOutcomeDelivered / DeliveryOutcomeDropped).
+func IncDeliveryFrame(outcome string) {
+	deliveryFramesTotal.WithLabelValues(outcome).Inc()
+}
+
+// IncDeliverySessions / DecDeliverySessions track the connected-client gauge.
+func IncDeliverySessions() { deliverySessions.Inc() }
+func DecDeliverySessions() { deliverySessions.Dec() }
 
 // Handler returns the Prometheus metrics HTTP handler.
 func Handler() http.Handler {

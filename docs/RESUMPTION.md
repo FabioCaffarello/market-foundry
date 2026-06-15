@@ -7,15 +7,15 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-11.a fechada (PR #55, `aafb0bb`,
-2026-06-13)** — abriu a **Fase Delivery (PROGRAM-0006)**: servidor
-WebSocket no gateway (`GET /ws`) fazendo bridge `INSIGHTS_EVENTS →
-clients`, skeleton + delivery de volume profile end-to-end; ADR-0028
-`Accepted`. Onda atual: **H-11.b** — generaliza a delivery a **todas as
-famílias de insights** (widen do durable `deliver-insights` para
-`insights.events.>`, decode dispatched por subject: VP + TPO +
-cross-venue) + filtragem de subscrição por subject. Delivery é
-**read-only transport, loopback-only, backpressure bounded** (ADR-0028
+Last meaningful state change: **H-11.b fechada (PR #56, `86a46b6`,
+2026-06-13)** — delivery generalizada a **todas as famílias de insights**
+(durable `deliver-insights` lê `insights.events.>`, decode por subject;
+frame de fio `{subject, event}`). Onda atual: **H-11.c** — **última
+sub-onda da Fase Delivery**: políticas de backpressure configuráveis
+(DropNewest default + DropOldest; PriorityDrop deferido com justificativa)
++ tamanho de fila por config + métricas Prometheus de sessão (frames
+delivered/dropped, sessions). **Seu merge fecha o PROGRAM-0006.** Delivery
+é **read-only transport, loopback-only, backpressure bounded** (ADR-0028
 I1–I5). Rodando no **loop autônomo** — self-merge escopado **re-confirmado
 pelo owner para PROGRAM-0006** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
@@ -88,7 +88,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-8.c** | Fechada (PR #53 mergeada em `main` em `4381047`, 2026-06-13) | Cross-venue trade fusion — última capacidade da Fase Insights (escopo compute→publish→KV→read; ClickHouse → H-8.c.1). `CrossVenueSnapshot` por canonical instrument por janela de timeframe: linhas por-venue (trade_count, notional, last/high/low) + spread consolidado/mid/venue dominante. **Topologia nova (C1)**: fusion actor único no nível do `DeriveSupervisor` (não FamilyProcessor per-source — cada SourceScopeActor só vê seu source); funde por canonical instrument (venue = dimensão fundida; `CanonicalInstrument` exclui venue, ADR-0021). Windowed (C2, owner). Stream `INSIGHTS_EVENTS` + KV `INSIGHTS_CROSS_VENUE_LATEST` + read `GET /insights/cross-venue/latest` + drift-detect `store-cross-venue`. Decisões C1–C5 no [PROGRAM-0005](programs/PROGRAM-0005-insights.md). |
 | **H-8.c.1** | Fechada (PR #54 mergeada em `main` em `9be97a7`, 2026-06-13) — **fechou a Fase Insights / PROGRAM-0005** | Persistência ClickHouse do cross-venue — última sub-onda. Tabela `insights_cross_venue` com **Array-columns paralelas das venue rows** (`venue_name/trade_count/notional/last/high/low`) + scalars spread/mid/dominant + canônicas base/quote/contract (**sem source** — cross-venue cruza sources) + timeframe. Reusa o layer codegen `insights` (family `cross_venue`); consumer writer-side `writer-cross-venue`; mapper `mapCrossVenueRow`; canário `requireclickhouse`; drift-detect `writer-cross-venue` + tabela. Seu merge transitou PROGRAM-0005 → `Closed`. |
 | **H-11.a** | Fechada (PR #55 mergeada em `main` em `aafb0bb`, 2026-06-13) — **abriu a Fase Delivery / PROGRAM-0006** | Servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → WS clients` (skeleton + delivery de volume profile end-to-end). Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`); `RouterActor` (fan-out) + `SessionActor` (1/conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; port `internal/application/ports/delivery.go` (interfaces/ sem importar actors/, ADR-0005); endpoint `GET /ws` (gorilla upgrade); canário integration; drift-detect ciente do durable `deliver-insights`. Documento-primeiro: [ADR-0028](decisions/0028-delivery-websocket-protocol.md) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). **ADR-0028 → `Accepted`.** |
-| **H-11.b** | **Atual** (esta entrega — branch `feat/h-11-b-delivery-multi-event`; loop autônomo, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON, mantendo snake_case via marshal tipado); filtragem de subscrição por subject (o matcher do domínio já suporta wildcards). Canários integration p/ TPO + cross-venue + subscrição wildcard `insights.events.>` recebendo múltiplas famílias. Sem novo ADR (ADR-0028 I3 já cobre todos os insights; H-11.a restringiu a VP por implementação). Políticas de backpressure configuráveis + métricas → H-11.c. |
+| **H-11.b** | Fechada (PR #56 mergeada em `main` em `86a46b6`, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON tipado); frame de fio `{subject, event}` (cliente demuxa multi-família). Canários integration TPO + cross-venue + multi-família/1-sessão. Sem novo ADR (ADR-0028 I3 já cobre todos os insights). |
+| **H-11.c** | **Atual** (esta entrega — branch `feat/h-11-c-delivery-backpressure-metrics`; loop autônomo, 2026-06-13) — **fecha a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway (sem tocar settings schema). Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions` (gauge). **PriorityDrop deferido** (justificativa: insights são decision-support equi-advisory, ADR-0027 — sem ordem de prioridade natural entre famílias; revisitar se delivery carregar streams de prioridade heterogênea). `check delivery` dedicado permanece opcional (drift-detect já cobre o durable). **Seu merge transita PROGRAM-0006 → `Closed`.** |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -245,6 +246,38 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-11.c (loop autônomo — backpressure configurável + métricas; **FECHA a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre a onda (flip H-11.b → Fechada PR #56; header). **Commit
+  1**: `domain.BackpressurePolicy` (DropNewest default + DropOldest;
+  Parse/String/Validate) — **PriorityDrop deferido** (insights são
+  decision-support equi-advisory, ADR-0027; sem ordem de prioridade
+  natural); `SessionActor.offer` policy-aware (DropOldest evicta o mais
+  antigo, bound sempre mantido); `delivery.Config{QueueSize,Policy}` +
+  `ConfigFromEnv` (`MARKETFOUNDRY_DELIVERY_QUEUE_SIZE`/`_BACKPRESSURE`,
+  sem tocar settings schema) plumb por Hub/Start ← gateway. **Commit 2**:
+  métricas Prometheus `marketfoundry_delivery_frames_total{outcome}`
+  (delivered/dropped) + `marketfoundry_delivery_sessions` (gauge);
+  writeLoop conta delivered, recordDrop conta dropped, router move o gauge.
+  **Commit 3**: este closure (PROGRAM-0006 → `Closed` + critérios [x];
+  ADR-0028 nota; TRUTH-MAP; HTTP-API métricas).
+- **Validação**: `make verify` EXIT=0 (check-metrics PASS, lint limpo);
+  testes determinísticos DropNewest + DropOldest; canários integration de
+  delivery seguem PASS vs NATS local.
+- **Fase Delivery (PROGRAM-0006) FECHADA**: 3 sub-ondas (H-11.a skeleton +
+  VP; H-11.b multi-família + frame `{subject,event}`; H-11.c backpressure
+  configurável + métricas). ADR-0028 `Accepted`; delivery é leitor
+  read-only de `INSIGHTS_EVENTS` (I1/I2/I4/I5).
+
+**Próxima**: nenhuma sub-onda de Delivery pendente. **A delegação de
+self-merge do loop autônomo era escopada ao PROGRAM-0006 — a próxima Fase
+exige re-confirmação explícita do owner** (P9 / ADR-0026 errata). Roadmap
+remanescente: storage tier (H-9/H-10, ADR-0023 — trigger-gated), Odin
+client (H-12+), e o gate temporal **H-6.f.2 (~2026-08-26)** que fecha
+PROGRAM-0004. Owner decide a próxima Fase.
 
 ---
 
