@@ -2,11 +2,14 @@
 
 ## Status
 
-Proposed. Foundation ADR delivered in Onda H-2 of the Fase Harvest;
-promoted to `Accepted` in stages — partially by Ondas H-8/H-9
-(insights persistence in the current tier), fully by Onda H-10
-(TimescaleDB adoption if and when triggers fire). See "Promoção
-para Accepted" below.
+**Stage 1: Accepted (2026-06-14, Onda H-9). Stage 2: Proposed pending
+triggers (T1/T2/T3).** Foundation ADR delivered in Onda H-2 of the Fase
+Harvest. Stage 1 (ClickHouse cold + NATS KV hot) was empirically
+validated by Ondas H-8 (insights persistence) and H-9 (which also makes
+the Stage-2 triggers observable — see "Partial promotion"). Stage 2
+(TimescaleDB) stays `Proposed` and **trigger-gated**: it promotes to
+`Accepted` only when Onda H-10 ships, which opens only when a trigger
+fires (and may legitimately never open). See "Promoção para Accepted".
 
 ## Date
 
@@ -224,13 +227,23 @@ project, not implicit in the ADR.
 
 This ADR is promoted in two stages:
 
-### Partial promotion (Stage 1 confirmed)
+### Partial promotion (Stage 1 confirmed) — DONE (2026-06-14, H-9)
 
 After **Ondas H-8 and H-9** ship insights and cross-venue
 snapshots on the existing ClickHouse + KV topology, this ADR's
 Stage 1 description is empirically validated. The maintainer may
 flip a sub-status (e.g., "Stage 1: Accepted, Stage 2: Proposed
 pending triggers") in the same commit that closes H-9.
+
+**Done in Onda H-9 (PROGRAM-0007):** Stage 1 is confirmed and the
+sub-status is flipped (see Status above). H-9 additionally closed the
+ADR's own noted gap — *"triggers cannot fire if instrumentation is
+absent"* — by making T1 and T2 **observable** without adopting
+TimescaleDB: T1 via a recording rule on the gateway operational-query
+p99 (`marketfoundry_http_request_duration_seconds`) plus a >50 ms alert;
+T2 via the `store` binary RSS (`process_resident_memory_bytes`, a proxy
+for KV-projection memory) plus a >4 GB alert. No trigger is declared
+fired; H-10 remains gated.
 
 ### Full promotion (Stage 2 triggered and shipped)
 

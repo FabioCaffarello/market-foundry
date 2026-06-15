@@ -7,21 +7,20 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-11.c fechada (PR #57, `7f996d6`,
-2026-06-13)** — backpressure configurável (DropNewest/DropOldest) +
-métricas Prometheus de delivery; **fechou o PROGRAM-0006** (Fase Delivery:
-H-11.a→b→c). Onda atual: **H-11.d** — **endurecimento da delivery**
-(incremento pós-fechamento; reabre o PROGRAM-0006): analyzer `check
-delivery` (P5) — enforcement estático da fronteira read-only/reader-only
-(ADR-0028 I1/I5: `natsdelivery` nunca `Publish`; durable `deliver-insights`
-lê `INSIGHTS_EVENTS`). **Fora do escopo desta onda** (decisão registrada):
-auth de rede (contradiz o não-feature loopback), PriorityDrop (deferido
-por design, ADR-0027), snapshot-then-delta + max-sessions (futura H-11.e).
-Delivery é **read-only transport, loopback-only, backpressure bounded**
-(ADR-0028 I1–I5). Rodando no **loop autônomo** — self-merge escopado
-**re-confirmado pelo owner para PROGRAM-0006 (incl. H-11.d)** (ver
+Last meaningful state change: **H-11.d fechada (PR #58, `a74f3b2`,
+2026-06-13)** — analyzer `check delivery` (P5); **fechou (de novo) o
+PROGRAM-0006** (Fase Delivery completa: H-11.a–d). Onda atual: **H-9** —
+**abre a Fase Storage Tier (PROGRAM-0007)**: fechar o Stage 1 do ADR-0023
+(ClickHouse cold + NATS KV hot — topologia atual, já validada por
+H-8/H-9) e **instrumentar os gatilhos** T1/T2 que decidem o Stage 2.
+Promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed
+pending triggers). **Sem TimescaleDB** — o ADR-0023 proíbe construir o
+Stage 2 (H-10) antes de um gatilho disparar (gatilho primeiro, onda
+depois); nenhum disparou. Pause-and-report (P6) ao owner resolveu o
+conflito → escopo ADR-compliant escolhido. Rodando no **loop autônomo** —
+self-merge escopado **re-confirmado pelo owner para PROGRAM-0007** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
-entrada 2026-06-13 PROGRAM-0006). Em paralelo, no gate temporal próprio:
+entrada 2026-06-14 PROGRAM-0007). Em paralelo, no gate temporal próprio:
 **H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
 ClickHouse, deleções de helpers, promoção ADR-0021 → Accepted).
 Roadmap: delivery WS (**H-11, em voo**), storage tier (H-9/H-10,
@@ -92,7 +91,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-11.a** | Fechada (PR #55 mergeada em `main` em `aafb0bb`, 2026-06-13) — **abriu a Fase Delivery / PROGRAM-0006** | Servidor WebSocket no gateway fazendo bridge `INSIGHTS_EVENTS → WS clients` (skeleton + delivery de volume profile end-to-end). Bounded context `internal/domain/delivery/` (Session, Subscription por padrão de subject NATS); consumer durável `deliver-insights` (`internal/adapters/nats/natsdelivery/`); `RouterActor` (fan-out) + `SessionActor` (1/conexão; backpressure DropNewest bounded) em `internal/actors/scopes/delivery/`; port `internal/application/ports/delivery.go` (interfaces/ sem importar actors/, ADR-0005); endpoint `GET /ws` (gorilla upgrade); canário integration; drift-detect ciente do durable `deliver-insights`. Documento-primeiro: [ADR-0028](decisions/0028-delivery-websocket-protocol.md) + [PROGRAM-0006](programs/PROGRAM-0006-delivery.md). **ADR-0028 → `Accepted`.** |
 | **H-11.b** | Fechada (PR #56 mergeada em `main` em `86a46b6`, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON tipado); frame de fio `{subject, event}` (cliente demuxa multi-família). Canários integration TPO + cross-venue + multi-família/1-sessão. Sem novo ADR (ADR-0028 I3 já cobre todos os insights). |
 | **H-11.c** | Fechada (PR #57 mergeada em `main` em `7f996d6`, 2026-06-13) — **fechou a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway. Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions`. **PriorityDrop deferido** (insights equi-advisory, ADR-0027). |
-| **H-11.d** | **Atual** (esta entrega — branch `feat/h-11-d-check-delivery-analyzer`; loop autônomo, 2026-06-13) — endurecimento pós-fechamento; **reabre/re-fecha o PROGRAM-0006** | Analyzer `check delivery` (P5) — enforcement estático da fronteira read-only/reader-only da delivery (ADR-0028 I1/I5): `internal/adapters/nats/natsdelivery/` é **reader-only** (nenhum `.Publish(`); `consumer.go` referencia o durable `deliver-insights` + `INSIGHTS_EVENTS`. Mirror de `check_insights` (policy TOML `delivery.toml`; registro em `mod.rs`/`cli`/`gate` step/`application`); testes Rust. **Fora**: auth (contradiz loopback non-feature), PriorityDrop (deferido), snapshot-then-delta + max-sessions (→ H-11.e). Seu merge re-fecha o PROGRAM-0006. |
+| **H-11.d** | Fechada (PR #58 mergeada em `main` em `a74f3b2`, 2026-06-13) — **re-fechou o PROGRAM-0006 (Fase Delivery completa)** | Analyzer `check delivery` (P5) — enforcement estático da fronteira read-only/reader-only da delivery (ADR-0028 I1/I5): `natsdelivery` é **reader-only** (nenhum `.Publish(`); `consumer.go` referencia o durable `deliver-insights` + `INSIGHTS_EVENTS`. Mirror de `check_insights` (`policies/delivery.toml`; registro em mod/cli/gate Step 12b/application); 6 testes Rust. |
+| **H-9** | **Atual** (esta entrega — branch `feat/h-9-storage-stage1-triggers`; loop autônomo, 2026-06-14) — **abre a Fase Storage Tier / PROGRAM-0007** | Fecha o **Stage 1** do ADR-0023 (ClickHouse cold + NATS KV hot, já validado por H-8/H-9) e **instrumenta os gatilhos** do Stage 2: promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed pending triggers); recording+alert rules para **T1** (p99 de query operacional do gateway via `marketfoundry_http_request_duration_seconds` > 50 ms) e **T2** (RSS do `store` via `process_resident_memory_bytes` > 4 GB) em `deploy/observability/prometheus/`; SLIs em `slo.md`. **Sem TimescaleDB** (H-10/Stage 2 é trigger-gated — gatilho primeiro, onda depois; nenhum disparou). Conflito owner-vs-ADR resolvido por pause-and-report (P6). **H-10 NÃO aberta.** |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +

@@ -166,6 +166,17 @@ applies). The next Fase after Delivery again requires re-confirmation.
 > H-11.d under the (reopened) PROGRAM-0006; a genuinely new Fase still
 > requires fresh re-confirmation.
 
+### 2026-06-14 — Re-confirmation: delegation extended to PROGRAM-0007 (Storage Tier)
+
+PROGRAM-0006 (Delivery) closed (H-11.a–d). The owner chose the next Fase
+**PROGRAM-0007 (Storage Tier)** and re-confirmed the **same autonomous
+self-merge loop**. Scope is the ADR-0023-compliant **Stage 1 closure +
+trigger instrumentation** (no TimescaleDB — the agent paused-and-reported
+the trigger-gate conflict per P6 and the owner chose this path). Same
+posture and discipline as the prior entries (hook "ask"-on-merge
+unchanged; `git push origin main` + bypass remain denied; five-step merge
+discipline). The next Fase again requires re-confirmation.
+
 ## Changelog
 
 - 2026-06-09 — Created and Accepted (harness FASE 2 B2 PR, with
@@ -178,3 +189,5 @@ applies). The next Fase after Delivery again requires re-confirmation.
 - 2026-06-13 — Note: owner merged H-11.c (PR #57, closed PROGRAM-0006);
   H-11.d hardening increment reopens PROGRAM-0006 with the same delegation
   re-confirmed.
+- 2026-06-14 — Errata: delegation re-confirmed + extended to PROGRAM-0007
+  (Storage Tier, Stage-1 closure + trigger instrumentation). Per-Fase.

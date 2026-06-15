@@ -86,8 +86,10 @@ onda that ships the supporting code and flips the status. While
 promotion. The hybrid status — design recorded now, code-grounded
 acceptance later — is the P7 mechanism for "no aspirational claims"
 (I9 in [`../operations/runtime-invariants.md`](../operations/runtime-invariants.md)).
-Four of the seven have since been promoted by their implementing
-ondas; 0021–0023 remain `Proposed`.
+Most have since been promoted by their implementing ondas. As of
+2026-06-14: 0017–0020 and 0022 are `Accepted`; 0021 remains `Proposed`
+(promotes atomically in H-6.f.2); 0023 is **Stage 1 Accepted (H-9)** with
+Stage 2 `Proposed` pending triggers.
 
 | # | Title | Status | Promoted by |
 |---|---|---|---|
@@ -97,7 +99,7 @@ ondas; 0021–0023 remain `Proposed`.
 | [0020](0020-sequencing-and-time-normalization.md) | Sequencing and time normalization | Accepted | Onda H-4 (2026-05-25) |
 | [0021](0021-canonical-instrument-and-venue-model.md) | Canonical instrument and venue model | Proposed | Onda H-6 (atômica em H-6.f) |
 | [0022](0022-multi-venue-normalization-policy.md) | Multi-venue normalization policy | Accepted (2026-06-12, H-7.b) | Onda H-7 |
-| [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Proposed | Partial: H-9; full: H-10 |
+| [0023](0023-storage-tier-roadmap.md) | Storage tier roadmap | Stage 1 Accepted (H-9); Stage 2 pending triggers | Partial: H-9 (done); full: H-10 (trigger-gated) |
 | [0027](0027-insights-decision-support.md) | Insights são decision-support read-only | Accepted (2026-06-13, H-8.a) | Onda H-8.a (PROGRAM-0005) |
 | [0028](0028-delivery-websocket-protocol.md) | Delivery WebSocket protocol (read-only/loopback/bounded) | Accepted (2026-06-13, H-11.a) | Onda H-11.a (PROGRAM-0006) |
 
