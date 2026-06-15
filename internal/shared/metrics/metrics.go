@@ -173,6 +173,17 @@ var (
 			Help:      "Currently connected WebSocket delivery sessions (clients).",
 		},
 	)
+
+	deliverySessionsRejectedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "delivery",
+			Name:      "sessions_rejected_total",
+			Help: "WebSocket delivery sessions rejected because the hub was " +
+				"at its configured max-sessions cap (ADR-0028 I4 — subsystem-" +
+				"level bound complementing the per-session bounded buffer).",
+		},
+	)
 )
 
 func init() {
@@ -190,6 +201,7 @@ func init() {
 		adapterUndeclaredEventTotal,
 		deliveryFramesTotal,
 		deliverySessions,
+		deliverySessionsRejectedTotal,
 	)
 }
 
@@ -210,6 +222,9 @@ func IncDeliveryFrame(outcome string) {
 // IncDeliverySessions / DecDeliverySessions track the connected-client gauge.
 func IncDeliverySessions() { deliverySessions.Inc() }
 func DecDeliverySessions() { deliverySessions.Dec() }
+
+// IncDeliverySessionRejected counts a session refused at the max-sessions cap.
+func IncDeliverySessionRejected() { deliverySessionsRejectedTotal.Inc() }
 
 // Handler returns the Prometheus metrics HTTP handler.
 func Handler() http.Handler {

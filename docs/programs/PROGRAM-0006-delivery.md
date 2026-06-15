@@ -1,7 +1,7 @@
 # PROGRAM-0006 — Fase Delivery (WebSocket)
 
-**Status:** Closed (2026-06-13 — H-11.a–c + endurecimento H-11.d;
-analyzer `check delivery` entregue, Fase Delivery completa)
+**Status:** Closed (2026-06-15 — H-11.a–c + endurecimento H-11.d
+(`check delivery`) + H-11.e (max-sessions cap); Fase Delivery completa)
 **Date:** 2026-06-13
 **Owner:** Repository maintainer (Fabio Caffarello)
 **Relates to:**
@@ -40,6 +40,7 @@ destrava ambos e é o caminho canônico ao Odin (P8).
 | **H-11.b** | Modelo de subscription multi-evento + todos os insights | Generaliza subscription a wildcards de subject (`insights.events.>`, por instrument/venue); adiciona TPO + cross-venue; filtragem por subject. |
 | **H-11.c** | Políticas de backpressure + métricas de sessão | Backpressure configurável (DropNewest/DropOldest; PriorityDrop deferido — ADR-0027); tamanho de fila outbound por config; métricas (frames delivered/dropped, client count) em Prometheus. |
 | **H-11.d** | Endurecimento — analyzer `check delivery` (P5) | Incremento pós-fechamento (reabre/re-fecha a Fase). Analyzer estático `check delivery` da fronteira read-only/reader-only (ADR-0028 I1/I5): `natsdelivery` nunca `Publish`; durable `deliver-insights` lê `INSIGHTS_EVENTS`. Mirror de `check_insights` (policy + 4 sites de registro + gate step). **Fora**: auth (contradiz loopback non-feature), PriorityDrop (deferido), snapshot-then-delta + max-sessions (→ H-11.e). |
+| **H-11.e** | Endurecimento — max-sessions cap | Incremento pós-fechamento (reabre/re-fecha a Fase). Bound configurável do total de sessões WS concorrentes (`delivery.Config.MaxSessions`, default 1024, env `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado); `Hub.Admit` rejeita acima do cap; métrica `…delivery_sessions_rejected_total`. Completa o "bounded" do ADR-0028 I4 no nível do subsistema. **Fora / → H-11.f**: snapshot-then-delta (port `SnapshotProvider` + subject→KV-key); auth e PriorityDrop seguem fora. |
 
 Capacidades fora desta Fase (registradas): delivery de streams
 observacionais (observation/evidence) — sub-onda futura; delivery da
@@ -116,6 +117,20 @@ satisfeitos no fechamento de H-11.c:
 
 ## Changelog
 
+- **2026-06-15 (H-11.e entregue — Fase RE-FECHADA)** — max-sessions cap
+  entregue: bound configurável do total de sessões WS no hub
+  (`delivery.Config.MaxSessions`, default 1024, env, 0=ilimitado);
+  `Hub.Admit` rejeita acima do cap (contador atômico; conexão fechada
+  com `CloseTryAgainLater`); métrica `…delivery_sessions_rejected_total`.
+  Completa o "bounded" do ADR-0028 I4 no nível do subsistema. PROGRAM-0006
+  re-fechado. **snapshot-then-delta → H-11.f** (não aberta).
+- **2026-06-15 (H-11.e aberta — reabertura)** — após o fechamento de
+  H-11.d, o owner escolheu mais endurecimento (H-11.e) e re-confirmou o
+  loop. A Fase reabre (Active) para o **max-sessions cap** (bound do total
+  de sessões WS, completando o "bounded" do ADR-0028 I4 no nível do
+  subsistema). **snapshot-then-delta** fica para H-11.f (maior valor
+  cliente; precisa de port `SnapshotProvider` + subject→KV-key). Re-fecha
+  ao merge.
 - **2026-06-13 (H-11.d entregue — Fase RE-FECHADA)** — analyzer
   `check delivery` entregue: enforcement estático da fronteira
   read-only/reader-only (ADR-0028 I1/I5 — `natsdelivery` nunca `Publish`;

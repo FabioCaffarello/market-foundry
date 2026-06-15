@@ -7,20 +7,20 @@
 > It is **honest, not aspirational.** If a capability is missing or
 > partial, it says so. If a feature is broken, it says where.
 
-Last meaningful state change: **H-11.d fechada (PR #58, `a74f3b2`,
-2026-06-13)** — analyzer `check delivery` (P5); **fechou (de novo) o
-PROGRAM-0006** (Fase Delivery completa: H-11.a–d). Onda atual: **H-9** —
-**abre a Fase Storage Tier (PROGRAM-0007)**: fechar o Stage 1 do ADR-0023
-(ClickHouse cold + NATS KV hot — topologia atual, já validada por
-H-8/H-9) e **instrumentar os gatilhos** T1/T2 que decidem o Stage 2.
-Promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed
-pending triggers). **Sem TimescaleDB** — o ADR-0023 proíbe construir o
-Stage 2 (H-10) antes de um gatilho disparar (gatilho primeiro, onda
-depois); nenhum disparou. Pause-and-report (P6) ao owner resolveu o
-conflito → escopo ADR-compliant escolhido. Rodando no **loop autônomo** —
-self-merge escopado **re-confirmado pelo owner para PROGRAM-0007** (ver
+Last meaningful state change: **H-9 fechada (PR #59, `c3db297`,
+2026-06-15)** — Storage Stage 1 fechado (ADR-0023 Stage 1 Accepted) +
+gatilhos T1/T2 instrumentados; **PROGRAM-0007 `Deferred`** (Stage 2 dorme
+pending triggers; sem TimescaleDB). Onda atual: **H-11.e** —
+**endurecimento da delivery** (incremento pós-fechamento; reabre o
+PROGRAM-0006): **max-sessions cap** — bound configurável do total de
+sessões WS concorrentes (completa a história "bounded" do ADR-0028 I4 no
+nível do subsistema; o per-session já era bounded). **snapshot-then-delta
+fica para H-11.f** (maior valor cliente, mas precisa de port
+`SnapshotProvider` + derivação subject→KV-key — onda própria). Rodando no
+**loop autônomo** — self-merge escopado **re-confirmado pelo owner para
+H-11.e** (ver
 [ADR-0026](decisions/0026-claude-code-hooks-enforcement.md) → "Errata",
-entrada 2026-06-14 PROGRAM-0007). Em paralelo, no gate temporal próprio:
+entrada 2026-06-15 H-11.e). Em paralelo, no gate temporal próprio:
 **H-6.f.2 (~2026-08-26)** fecha PROGRAM-0004 (flip do WHERE
 ClickHouse, deleções de helpers, promoção ADR-0021 → Accepted).
 Roadmap: delivery WS (**H-11, em voo**), storage tier (H-9/H-10,
@@ -92,7 +92,8 @@ Wave protocol — uma onda por vez (P4); próxima onda abre após
 | **H-11.b** | Fechada (PR #56 mergeada em `main` em `86a46b6`, 2026-06-13) | Generaliza a delivery a **todas as famílias de insights**: widen do durable `deliver-insights` (`FilterSubject` → `insights.events.>`); decode dispatched por subject (volume_profile / tpo / cross_venue → JSON tipado); frame de fio `{subject, event}` (cliente demuxa multi-família). Canários integration TPO + cross-venue + multi-família/1-sessão. Sem novo ADR (ADR-0028 I3 já cobre todos os insights). |
 | **H-11.c** | Fechada (PR #57 mergeada em `main` em `7f996d6`, 2026-06-13) — **fechou a Fase Delivery / PROGRAM-0006** | Políticas de backpressure **configuráveis** + métricas de sessão. `BackpressurePolicy` (domain) DropNewest (default) + DropOldest; `SessionActor` evicta o mais antigo no DropOldest; `delivery.Config{QueueSize,Policy}` plumb via `delivery.Start` ← env no gateway. Métricas Prometheus `marketfoundry_delivery_frames_total{outcome}` + `marketfoundry_delivery_sessions`. **PriorityDrop deferido** (insights equi-advisory, ADR-0027). |
 | **H-11.d** | Fechada (PR #58 mergeada em `main` em `a74f3b2`, 2026-06-13) — **re-fechou o PROGRAM-0006 (Fase Delivery completa)** | Analyzer `check delivery` (P5) — enforcement estático da fronteira read-only/reader-only da delivery (ADR-0028 I1/I5): `natsdelivery` é **reader-only** (nenhum `.Publish(`); `consumer.go` referencia o durable `deliver-insights` + `INSIGHTS_EVENTS`. Mirror de `check_insights` (`policies/delivery.toml`; registro em mod/cli/gate Step 12b/application); 6 testes Rust. |
-| **H-9** | **Atual** (esta entrega — branch `feat/h-9-storage-stage1-triggers`; loop autônomo, 2026-06-14) — **abre a Fase Storage Tier / PROGRAM-0007** | Fecha o **Stage 1** do ADR-0023 (ClickHouse cold + NATS KV hot, já validado por H-8/H-9) e **instrumenta os gatilhos** do Stage 2: promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed pending triggers); recording+alert rules para **T1** (p99 de query operacional do gateway via `marketfoundry_http_request_duration_seconds` > 50 ms) e **T2** (RSS do `store` via `process_resident_memory_bytes` > 4 GB) em `deploy/observability/prometheus/`; SLIs em `slo.md`. **Sem TimescaleDB** (H-10/Stage 2 é trigger-gated — gatilho primeiro, onda depois; nenhum disparou). Conflito owner-vs-ADR resolvido por pause-and-report (P6). **H-10 NÃO aberta.** |
+| **H-9** | Fechada (PR #59 mergeada em `main` em `c3db297`, 2026-06-15) — **abriu/fechou Stage 1 da Fase Storage Tier / PROGRAM-0007 (`Deferred`)** | Fecha o **Stage 1** do ADR-0023 (ClickHouse cold + NATS KV hot, já validado por H-8/H-9) e **instrumenta os gatilhos** do Stage 2: promoção parcial do ADR-0023 (**Stage 1 → Accepted**; Stage 2 → Proposed pending triggers); recording+alert rules para **T1** (p99 de query operacional do gateway via `marketfoundry_http_request_duration_seconds` > 50 ms) e **T2** (RSS do `store` via `process_resident_memory_bytes` > 4 GB) em `deploy/observability/prometheus/`; SLIs em `slo.md`. **Sem TimescaleDB** (H-10/Stage 2 é trigger-gated — gatilho primeiro, onda depois; nenhum disparou). Conflito owner-vs-ADR resolvido por pause-and-report (P6). **H-10 NÃO aberta.** |
+| **H-11.e** | **Atual** (esta entrega — branch `feat/h-11-e-max-sessions`; loop autônomo, 2026-06-15) — endurecimento; **reabre/re-fecha o PROGRAM-0006** | **Max-sessions cap**: bound configurável do total de sessões WS concorrentes no delivery hub (`delivery.Config.MaxSessions`, default 1024, env `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado). `Hub.Admit` rejeita acima do cap (contador atômico; conexão fechada com mensagem de capacidade); métrica `marketfoundry_delivery_sessions_rejected_total`. Completa a história "bounded" do ADR-0028 I4 no nível do subsistema (o per-session já era bounded por DropNewest/DropOldest). **snapshot-then-delta → H-11.f** (precisa port `SnapshotProvider` + subject→KV-key; maior valor cliente). |
 
 **Nota sobre divisão H-3**: H-3 foi dividida em sub-ondas
 **H-3.a** (proto skeleton + tooling) e **H-3.b** (code generation +
@@ -249,6 +250,32 @@ analyzer integrado no gate. Próxima fase: PROGRAM-0003
 Option (C) — migração de production code + test-file exemption no
 analyzer. Sem erratum a ADR-0019; critério 2 cumprido literalmente
 ("existing direct time.Now call sites in `internal/domain/` migrated").
+
+---
+
+Entregas H-11.e (loop autônomo — endurecimento; max-sessions cap; **re-fecha a Fase Delivery / PROGRAM-0006**):
+
+- **Commit 0**: abre o incremento (flip H-9 → Fechada PR #59; reabre
+  PROGRAM-0006; ADR-0026 errata). **Commit 1**: max-sessions cap —
+  `delivery.Config.MaxSessions` (default 1024, env
+  `MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`, 0=ilimitado); `Hub.Admit` com
+  contador atômico rejeita acima do cap (retorna nil; rollback) e conta
+  `marketfoundry_delivery_sessions_rejected_total`; `SessionHandle.Close`
+  idempotente (sync.Once) libera o slot; handler `/ws` fecha com
+  `CloseTryAgainLater` quando no cap. Testes (cap + double-Close +
+  ilimitado). **Commit 2**: este closure (PROGRAM-0006 → `Closed`;
+  ADR-0028 nota I4 subsistema; TRUTH-MAP; HTTP-API).
+- **Validação**: `make verify` EXIT=0 (check-delivery PASS — natsdelivery
+  segue reader-only); canários integration GREEN.
+- Completa o "bounded" do ADR-0028 I4 no nível do subsistema (o
+  per-session já era bounded por DropNewest/DropOldest).
+
+**Próxima**: **H-11.f** (snapshot-then-delta na subscrição — cliente
+recebe o KV-latest atual e depois deltas; precisa de port
+`SnapshotProvider` + derivação subject→KV-key) **abre APENAS após merge**
+(P4/P9) **e exige re-confirmação da delegação** (PROGRAM-0006 re-fechado).
+Roadmap: Odin (H-12+), H-10 (se um gatilho de storage disparar), gate
+temporal H-6.f.2 (~2026-08-26).
 
 ---
 

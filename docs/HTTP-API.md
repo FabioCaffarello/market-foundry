@@ -387,9 +387,14 @@ A slow client has frames dropped once its bounded outbound buffer fills
 (ADR-0028 I4) — it never blocks the fan-out to other clients. The
 backpressure policy (`drop_newest` default / `drop_oldest`) and queue
 size are configurable via `MARKETFOUNDRY_DELIVERY_BACKPRESSURE` /
-`MARKETFOUNDRY_DELIVERY_QUEUE_SIZE` (H-11.c). Delivery health is exported
-on `/metrics`: `marketfoundry_delivery_frames_total{outcome}` and
-`marketfoundry_delivery_sessions`.
+`MARKETFOUNDRY_DELIVERY_QUEUE_SIZE` (H-11.c). The hub also bounds the
+**total** concurrent sessions (`MARKETFOUNDRY_DELIVERY_MAX_SESSIONS`,
+default 1024, `0` = unlimited, H-11.e); a connection arriving at the cap
+is closed immediately with WebSocket close code `1013` (Try Again Later).
+Delivery health is exported on `/metrics`:
+`marketfoundry_delivery_frames_total{outcome}`,
+`marketfoundry_delivery_sessions`, and
+`marketfoundry_delivery_sessions_rejected_total`.
 
 ---
 

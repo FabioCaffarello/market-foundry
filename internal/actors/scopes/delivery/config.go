@@ -8,16 +8,23 @@ import (
 	deliverydomain "internal/domain/delivery"
 )
 
+// DefaultMaxSessions bounds the total number of concurrent WebSocket
+// delivery sessions the hub admits (ADR-0028 I4 — a subsystem-level
+// bound complementing the per-session bounded buffer). A generous
+// default that loopback usage never reaches in practice; 0 = unlimited.
+const DefaultMaxSessions = 1024
+
 // Config tunes the delivery subsystem (ADR-0028 I4). Use DefaultConfig
 // and override; a non-positive QueueSize falls back to the default.
 type Config struct {
-	QueueSize int
-	Policy    deliverydomain.BackpressurePolicy
+	QueueSize   int
+	Policy      deliverydomain.BackpressurePolicy
+	MaxSessions int // 0 = unlimited
 }
 
 // DefaultConfig is the bounded, DropNewest baseline.
 func DefaultConfig() Config {
-	return Config{QueueSize: DefaultOutboundQueue, Policy: deliverydomain.DropNewest}
+	return Config{QueueSize: DefaultOutboundQueue, Policy: deliverydomain.DropNewest, MaxSessions: DefaultMaxSessions}
 }
 
 // ConfigFromEnv builds a delivery Config from the baseline plus optional
@@ -42,6 +49,13 @@ func ConfigFromEnv(logger *slog.Logger) Config {
 			cfg.Policy = p
 		} else if logger != nil {
 			logger.Warn("invalid MARKETFOUNDRY_DELIVERY_BACKPRESSURE; using default", "value", v)
+		}
+	}
+	if v := os.Getenv("MARKETFOUNDRY_DELIVERY_MAX_SESSIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 { // 0 = unlimited
+			cfg.MaxSessions = n
+		} else if logger != nil {
+			logger.Warn("invalid MARKETFOUNDRY_DELIVERY_MAX_SESSIONS; using default", "value", v)
 		}
 	}
 	return cfg

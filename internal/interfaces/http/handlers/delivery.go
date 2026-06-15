@@ -3,6 +3,7 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"internal/application/ports"
 	"internal/shared/problem"
@@ -69,6 +70,17 @@ func (h *DeliveryWebHandler) Connect(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(deliveryReadLimitBytes)
 
 	handle := h.hub.Admit(newGorillaConn(conn))
+	if handle == nil {
+		// Hub is at its max-sessions cap (ADR-0028 I4): tell the client to
+		// retry later and close. No session was spawned.
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "delivery at capacity"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
+		return
+	}
 	defer handle.Close()
 
 	for {
