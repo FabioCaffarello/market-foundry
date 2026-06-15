@@ -33,3 +33,14 @@ type DeliverySession interface {
 type DeliveryHub interface {
 	Admit(conn DeliveryConn) DeliverySession
 }
+
+// SnapshotProvider supplies the current latest state for a delivery
+// subscription so a newly-subscribed client receives a snapshot before
+// live deltas (H-11.f, snapshot-then-delta). Snapshot returns the client
+// wire frame ({subject,event} JSON — the same shape as a live frame) for
+// a FULLY-SPECIFIED subject that has current data, or (nil, false) when
+// the subject is a wildcard, an unknown family, or has no stored data.
+// Implemented by a KV-backed adapter; consumed by the delivery session.
+type SnapshotProvider interface {
+	Snapshot(subject string) ([]byte, bool)
+}
